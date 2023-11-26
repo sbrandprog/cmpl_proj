@@ -1,0 +1,18 @@
+#include "pch.h"
+#include "pla_ast.h"
+#include "pla_dclr.h"
+
+void pla_ast_init(pla_ast_t * ast, u_hst_t * hst) {
+	*ast = (pla_ast_t){ .hst = hst };
+
+	for (pla_pds_t pds = 0; pds < PlaPds_Count; ++pds) {
+		const u_ros_t * pds_str = &pla_pds_strs[pds];
+
+		ast->pds[pds] = u_hst_hashadd(ast->hst, pds_str->size, pds_str->str);
+	}
+}
+void pla_ast_cleanup(pla_ast_t * ast) {
+	pla_dclr_destroy(ast->root);
+
+	memset(ast, 0, sizeof(*ast));
+}
