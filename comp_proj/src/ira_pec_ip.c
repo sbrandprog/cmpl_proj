@@ -96,6 +96,16 @@ typedef struct ira_pec_ip_ctx {
 	size_t stack_size;
 } ctx_t;
 
+static const asm_reg_t int_type_to_ax[IraInt_Count] = {
+	AsmRegAl, AsmRegAx, AsmRegEax, AsmRegRax, AsmRegAl, AsmRegAx, AsmRegEax, AsmRegRax
+};
+static const asm_reg_t int_type_to_cx[IraInt_Count] = {
+	AsmRegCl, AsmRegCx, AsmRegEcx, AsmRegRcx, AsmRegCl, AsmRegCx, AsmRegEcx, AsmRegRcx
+};
+static const asm_inst_imm_type_t int_type_to_imm_type[IraInt_Count] = {
+	AsmInstImm8, AsmInstImm16, AsmInstImm32, AsmInstImm64, AsmInstImm8, AsmInstImm16, AsmInstImm32, AsmInstImm64
+};
+
 static const asm_reg_t w64_int_arg_to_reg[4][IraInt_Count] = {
 	[0] = { AsmRegCl, AsmRegCx, AsmRegEcx, AsmRegRcx, AsmRegCl, AsmRegCx, AsmRegEcx, AsmRegRcx },
 	[1] = { AsmRegDl, AsmRegDx, AsmRegEdx, AsmRegRdx, AsmRegDl, AsmRegDx, AsmRegEdx, AsmRegRdx },
@@ -531,24 +541,6 @@ static bool prepare_insts(ctx_t * ctx) {
 }
 
 
-static asm_reg_t get_ax_reg_sized(ira_int_type_t int_type) {
-	switch (int_type) {
-		case IraIntS8:
-		case IraIntU8:
-			return AsmRegAl;
-		case IraIntS16:
-		case IraIntU16:
-			return AsmRegAx;
-		case IraIntS32:
-		case IraIntU32:
-			return AsmRegEax;
-		case IraIntS64:
-		case IraIntU64:
-			return AsmRegRax;
-		default:
-			u_assert_switch(int_type);
-	}
-}
 static void push_label(ctx_t * ctx, u_hs_t * name) {
 	asm_inst_t label = { .type = AsmInstLabel, .opds = AsmInstLabel, .label = name };
 
@@ -626,6 +618,11 @@ static void load_label_off(ctx_t * ctx, asm_reg_t reg, u_hs_t * label) {
 	asm_inst_t lea = { .type = AsmInstLea, .opds = AsmInstOpds_Reg_Mem, .reg0 = reg, .mem_base = AsmRegRip, .mem_disp_type = AsmInstDispLabelRel32, .mem_disp_label = label };
 
 	asm_frag_push_inst(ctx->frag, &lea);
+}
+static void load_label_val(ctx_t * ctx, asm_reg_t reg, u_hs_t * label) {
+	asm_inst_t mov = { .type = AsmInstMov, .opds = AsmInstOpds_Reg_Mem, .reg0 = AsmRegRax, .mem_size = asm_reg_get_size(reg), .mem_base = AsmRegRip, .mem_disp_type = AsmInstDispLabelRel32, .mem_disp_label = label };
+
+	asm_frag_push_inst(ctx->frag, &mov);
 }
 static void load_stack_gpr(ctx_t * ctx, asm_reg_t reg, int32_t offset) {
 	asm_inst_t load = { .type = AsmInstMov, .opds = AsmInstOpds_Reg_Mem, .reg0 = reg, .mem_size = asm_reg_get_size(reg), .mem_base = AsmRegRsp, .mem_disp_type = AsmInstDispAuto, .mem_disp = offset };
@@ -738,7 +735,7 @@ static void w64_save_callee_arg(ctx_t * ctx, ira_dt_n_t * arg_dt_n, size_t arg) 
 					break;
 				default:
 				{
-					asm_reg_t reg = get_ax_reg_sized(arg_dt->int_type);
+					asm_reg_t reg = int_type_to_ax[arg_dt->int_type];
 
 					load_stack_gpr(ctx, reg, w64_get_stack_arg_offset(ctx, arg));
 					save_stack_var(ctx, var, reg);
@@ -765,11 +762,7 @@ static void w64_save_callee_arg(ctx_t * ctx, ira_dt_n_t * arg_dt_n, size_t arg) 
 	}
 }
 
-static void emit_prologue(ctx_t * ctx) {
-	asm_inst_t stack_res = { .type = AsmInstSub, .opds = AsmInstOpds_Reg_Imm, .reg0 = AsmRegRsp, .imm0_type = AsmInstImm32, .imm0 = (int32_t)ctx->stack_size };
-
-	asm_frag_push_inst(ctx->frag, &stack_res);
-
+static void emit_prologue_save_args(ctx_t * ctx) {
 	size_t arg = 0;
 
 	if (w64_save_callee_ret(ctx)) {
@@ -782,6 +775,13 @@ static void emit_prologue(ctx_t * ctx) {
 		w64_save_callee_arg(ctx, arg_dt_n, arg);
 	}
 }
+static void emit_prologue(ctx_t * ctx) {
+	asm_inst_t stack_res = { .type = AsmInstSub, .opds = AsmInstOpds_Reg_Imm, .reg0 = AsmRegRsp, .imm0_type = AsmInstImm32, .imm0 = (int32_t)ctx->stack_size };
+
+	asm_frag_push_inst(ctx->frag, &stack_res);
+
+	emit_prologue_save_args(ctx);
+}
 static void emit_epilogue(ctx_t * ctx) {
 	asm_inst_t stack_free = { .type = AsmInstAdd, .opds = AsmInstOpds_Reg_Imm, .reg0 = AsmRegRsp, .imm0_type = AsmInstImm32, .imm0 = (int32_t)ctx->stack_size };
 
@@ -789,36 +789,30 @@ static void emit_epilogue(ctx_t * ctx) {
 }
 
 static void div_int(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_out, var_t * mod_out) {
+	ira_int_type_t int_type = opd0->dt->int_type;
+	
 	asm_inst_type_t dx_inst_type = AsmInstXor;
-	asm_reg_t reg0, reg1, reg2;
+	asm_reg_t reg0 = int_type_to_ax[int_type], reg1 = int_type_to_cx[int_type], reg2;
 
 	switch (opd0->dt->int_type) {
 		case IraIntS8:
 			dx_inst_type = AsmInstCbw;
 		case IraIntU8:
-			reg0 = AsmRegAl;
-			reg1 = AsmRegCl;
 			reg2 = AsmRegAh;
 			break;
 		case IraIntS16:
 			dx_inst_type = AsmInstCwd;
 		case IraIntU16:
-			reg0 = AsmRegAx;
-			reg1 = AsmRegCx;
 			reg2 = AsmRegDx;
 			break;
 		case IraIntS32:
 			dx_inst_type = AsmInstCdq;
 		case IraIntU32:
-			reg0 = AsmRegEax;
-			reg1 = AsmRegEcx;
 			reg2 = AsmRegEdx;
 			break;
 		case IraIntS64:
 			dx_inst_type = AsmInstCqo;
 		case IraIntU64:
-			reg0 = AsmRegRax;
-			reg1 = AsmRegRcx;
 			reg2 = AsmRegRdx;
 			break;
 		default:
@@ -856,33 +850,8 @@ static void div_int(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_out, va
 static void compile_load_val_int(ctx_t * ctx, inst_t * inst) {
 	ira_val_t * val = inst->opd1.val;
 
-	asm_reg_t reg;
-	asm_inst_imm_type_t imm_type;
-
-	switch (val->dt->int_type) {
-		case IraIntS8:
-		case IraIntU8:
-			reg = AsmRegAl;
-			imm_type = AsmInstImm8;
-			break;
-		case IraIntS16:
-		case IraIntU16:
-			reg = AsmRegAx;
-			imm_type = AsmInstImm16;
-			break;
-		case IraIntS32:
-		case IraIntU32:
-			reg = AsmRegEax;
-			imm_type = AsmInstImm32;
-			break;
-		case IraIntS64:
-		case IraIntU64:
-			reg = AsmRegRax;
-			imm_type = AsmInstImm64;
-			break;
-		default:
-			u_assert_switch(var->dt->int_type);
-	}
+	asm_reg_t reg = int_type_to_ax[val->dt->int_type];
+	asm_inst_imm_type_t imm_type = int_type_to_imm_type[val->dt->int_type];
 
 	load_int(ctx, reg, imm_type, val->int_val.si64);
 
@@ -914,23 +883,6 @@ static void compile_load_val_arr(ctx_t * ctx, inst_t * inst) {
 			u_assert_switch(elem_dt->type);
 	}
 }
-static void compile_load_val_lo_off_ptr(ctx_t * ctx, inst_t * inst, ira_lo_t * lo) {
-	load_label_off(ctx, AsmRegRax, lo->full_name);
-
-	save_stack_var(ctx, inst->opd0.var, AsmRegRax);
-}
-static void compile_load_val_lo_val_ptr(ctx_t * ctx, inst_t * inst, ira_lo_t * lo) {
-	asm_inst_t mov = { .type = AsmInstMov, .opds = AsmInstOpds_Reg_Mem, .reg0 = AsmRegRax, .mem_size = AsmSize64, .mem_base = AsmRegRip, .mem_disp_type = AsmInstDispLabelRel32, .mem_disp_label = lo->full_name };
-
-	asm_frag_push_inst(ctx->frag, &mov);
-
-	save_stack_var(ctx, inst->opd0.var, AsmRegRax);
-}
-static void compile_load_val_null_ptr(ctx_t * ctx, inst_t * inst) {
-	load_int(ctx, AsmRegRax, AsmInstImm64, 0);
-
-	save_stack_var(ctx, inst->opd0.var, AsmRegRax);
-}
 static void compile_load_val(ctx_t * ctx, inst_t * inst) {
 	ira_val_t * val = inst->opd1.val;
 
@@ -944,17 +896,20 @@ static void compile_load_val(ctx_t * ctx, inst_t * inst) {
 		case IraValLoPtr:
 			switch (val->lo_val->type) {
 				case IraLoFunc:
-					compile_load_val_lo_off_ptr(ctx, inst, val->lo_val);
+					load_label_off(ctx, AsmRegRax, val->lo_val->full_name);
+					save_stack_var(ctx, inst->opd0.var, AsmRegRax);
 					break;
 				case IraLoImpt:
-					compile_load_val_lo_val_ptr(ctx, inst, val->lo_val);
+					load_label_val(ctx, AsmRegRax, val->lo_val->full_name);
+					save_stack_var(ctx, inst->opd0.var, AsmRegRax);
 					break;
 				default:
 					u_assert_switch(val->lo_val->type);
 			}
 			break;
 		case IraValNullPtr:
-			compile_load_val_null_ptr(ctx, inst);
+			load_int(ctx, AsmRegRax, AsmInstImm64, 0);
+			save_stack_var(ctx, inst->opd0.var, AsmRegRax);
 			break;
 		default:
 			u_assert_switch(var->dt->type);
@@ -968,7 +923,7 @@ static void compile_copy(ctx_t * ctx, inst_t * inst) {
 			break;
 		case IraDtInt:
 		{
-			asm_reg_t reg = get_ax_reg_sized(dt->int_type);
+			asm_reg_t reg = int_type_to_ax[dt->int_type];
 
 			load_stack_var(ctx, reg, inst->opd1.var);
 			save_stack_var(ctx, inst->opd0.var, reg);
@@ -990,32 +945,9 @@ static void compile_copy(ctx_t * ctx, inst_t * inst) {
 	}
 }
 static void compile_bopr_int(ctx_t * ctx, inst_t * inst, asm_inst_type_t bopr_type) {
-	asm_reg_t reg0, reg1;
-
-	switch (inst->opd0.var->dt->int_type) {
-		case IraIntS8:
-		case IraIntU8:
-			reg0 = AsmRegAl;
-			reg1 = AsmRegCl;
-			break;
-		case IraIntS16:
-		case IraIntU16:
-			reg0 = AsmRegAx;
-			reg1 = AsmRegCx;
-			break;
-		case IraIntS32:
-		case IraIntU32:
-			reg0 = AsmRegEax;
-			reg1 = AsmRegEcx;
-			break;
-		case IraIntS64:
-		case IraIntU64:
-			reg0 = AsmRegRax;
-			reg1 = AsmRegRcx;
-			break;
-		default:
-			u_assert_switch(inst->opd0.var->dt->int_type);
-	}
+	ira_int_type_t int_type = inst->opd0.var->dt->int_type;
+	
+	asm_reg_t reg0 = int_type_to_ax[int_type], reg1 = int_type_to_cx[int_type];
 
 	load_stack_var(ctx, reg0, inst->opd1.var);
 	load_stack_var(ctx, reg1, inst->opd2.var);
@@ -1060,30 +992,7 @@ static void compile_cast_int(ctx_t * ctx, inst_t * inst) {
 
 	u_assert(from->type == IraDtInt && to->type == IraDtInt);
 
-	asm_reg_t load_reg;
-
-	switch (from->int_type) {
-		case IraIntS8:
-		case IraIntU8:
-			load_reg = AsmRegCl;
-			break;
-		case IraIntS16:
-		case IraIntU16:
-			load_reg = AsmRegCx;
-			break;
-		case IraIntS32:
-		case IraIntU32:
-			load_reg = AsmRegEcx;
-			break;
-		case IraIntS64:
-		case IraIntU64:
-			load_reg = AsmRegRcx;
-			break;
-		default:
-			u_assert_switch(var->dt->int_type);
-	}
-
-	load_stack_var(ctx, load_reg, inst->opd1.var);
+	load_stack_var(ctx, int_type_to_cx[from->int_type], inst->opd1.var);
 
 	const int_cast_info_t * info = &int_cast_from_to[from->int_type][to->int_type];
 
@@ -1152,7 +1061,7 @@ static void compile_call_func_ptr(ctx_t * ctx, inst_t * inst) {
 			break;
 		case IraDtInt:
 		{
-			asm_reg_t reg = get_ax_reg_sized(ret_dt->int_type);
+			asm_reg_t reg = int_type_to_ax[ret_dt->int_type];
 			save_stack_var(ctx, inst->opd0.var, reg);
 			break;
 		}
