@@ -15,7 +15,8 @@ pla_keyw_t pla_keyw_fetch_exact(size_t str_size, wchar_t * str) {
 }
 
 const u_ros_t pla_keyw_strs[PlaKeyw_Count] = {
-#define PLA_KEYW(name, str_) [PlaKeyw##name] = { .size = _countof(str_) - 1, .str = str_ },
+	[PlaKeywNone] = { .size = 0, .str = NULL },
+#define PLA_KEYW(name, str_) [PlaKeyw##name] = U_MAKE_ROS(str_),
 #include "pla_keyw.def"
 #undef PLA_PUNC
 };

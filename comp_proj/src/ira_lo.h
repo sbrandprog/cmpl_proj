@@ -13,12 +13,14 @@ struct ira_lo {
 	ira_lo_type_t type;
 
 	ira_lo_t * next;
-	ira_lo_t * body;
 
 	u_hs_t * name;
 	u_hs_t * full_name;
 
 	union {
+		struct {
+			ira_lo_t * body;
+		} nspc;
 		ira_func_t * func;
 		struct {
 			ira_dt_t * dt;

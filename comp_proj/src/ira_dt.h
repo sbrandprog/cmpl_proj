@@ -1,5 +1,6 @@
 #pragma once
 #include "ira_int.h"
+#include "u_ros.h"
 #include "u_hs.h"
 
 #define IRA_DT_ARR_SIZE_OFF 0
@@ -39,13 +40,19 @@ struct ira_dt {
 	};
 };
 
+struct ira_dt_info {
+	u_ros_t type_str;
+};
+
 bool ira_dt_is_ptr_dt_comp(ira_dt_t * dt);
 bool ira_dt_is_arr_dt_comp(ira_dt_t * dt);
 bool ira_dt_is_func_dt_comp(ira_dt_t * dt);
-bool ira_dt_is_var_dt_comp(ira_dt_t * dt);
-bool ira_dt_is_impt_dt_comp(ira_dt_t * dt);
+bool ira_dt_is_var_comp(ira_dt_t * dt);
+bool ira_dt_is_impt_comp(ira_dt_t * dt);
 
 bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second);
 
 size_t ira_dt_get_size(ira_dt_t * dt);
 size_t ira_dt_get_align(ira_dt_t * dt);
+
+const ira_dt_info_t ira_dt_infos[IraDt_Count];

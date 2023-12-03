@@ -44,3 +44,11 @@ void pla_stmt_destroy(pla_stmt_t * stmt) {
 
 	free(stmt);
 }
+
+const pla_stmt_info_t pla_stmt_infos[PlaStmt_Count] = {
+	[PlaStmtNone] = { .type_str = U_MAKE_ROS(L"StmtNone") },
+	[PlaStmtBlk] = { .type_str = U_MAKE_ROS(L"StmtBlk") },
+	[PlaStmtExpr] = { .type_str = U_MAKE_ROS(L"StmtExpr") },
+	[PlaStmtVar] = { .type_str = U_MAKE_ROS(L"StmtVar") },
+	[PlaStmtRet] = { .type_str = U_MAKE_ROS(L"StmtRet") },
+};

@@ -1,5 +1,6 @@
 #pragma once
 #include "pla.h"
+#include "u_ros.h"
 #include "u_hs.h"
 
 enum pla_stmt_type {
@@ -30,5 +31,11 @@ struct pla_stmt {
 	};
 };
 
+struct pla_stmt_info {
+	u_ros_t type_str;
+};
+
 pla_stmt_t * pla_stmt_create(pla_stmt_type_t type);
 void pla_stmt_destroy(pla_stmt_t * stmt);
+
+const pla_stmt_info_t pla_stmt_infos[PlaStmt_Count];

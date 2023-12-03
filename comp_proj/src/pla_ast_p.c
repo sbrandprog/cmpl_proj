@@ -167,17 +167,7 @@ static bool is_num_str_tag_intro_ch(wchar_t ch) {
 
 
 static void report(ctx_t * ctx, const wchar_t * format, ...) {
-	{
-		va_list args;
-
-		va_start(args, format);
-
-		vfwprintf(stderr, format, args);
-
-		va_end(args);
-	}
-
-	fwprintf(stderr, L"\n@%4zi:%4zi\n", ctx->tok_start.line_num, ctx->tok_start.line_ch);
+	fwprintf(stderr, L"@%4zi:%4zi\n", ctx->tok_start.line_num, ctx->tok_start.line_ch);
 
 	long long backup_cur = _ftelli64(ctx->file);
 	u_assert(backup_cur != -1L);
@@ -218,6 +208,18 @@ static void report(ctx_t * ctx, const wchar_t * format, ...) {
 		fputwc(L'^', stderr);
 	}
 	fputwc(L'\n', stderr);
+
+	{
+		va_list args;
+
+		va_start(args, format);
+
+		vfwprintf(stderr, format, args);
+
+		va_end(args);
+
+		fputwc(L'\n', stderr);
+	}
 }
 
 

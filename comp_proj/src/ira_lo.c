@@ -19,17 +19,17 @@ void ira_lo_destroy(ira_lo_t * lo) {
 		return;
 	}
 
-	for (ira_lo_t * it = lo->body; it != NULL; ) {
-		ira_lo_t * next = it->next;
-
-		ira_lo_destroy(it);
-
-		it = next;
-	}
-
 	switch (lo->type) {
 		case IraLoNone:
+			break;
 		case IraLoNspc:
+			for (ira_lo_t * it = lo->nspc.body; it != NULL; ) {
+				ira_lo_t * next = it->next;
+
+				ira_lo_destroy(it);
+
+				it = next;
+			}
 			break;
 		case IraLoFunc:
 			ira_func_destroy(lo->func);

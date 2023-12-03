@@ -107,7 +107,13 @@ asm_pea_t * ira_pec_c_get_pea(ira_pec_c_ctx_t * ctx) {
 static bool compile_lo(ctx_t * ctx, ira_lo_t * lo) {
 	switch (lo->type) {
 		case IraLoNone:
+			break;
 		case IraLoNspc:
+			for (ira_lo_t * it = lo->nspc.body; it != NULL; it = it->next) {
+				if (!compile_lo(ctx, it)) {
+					return false;
+				}
+			}
 			break;
 		case IraLoFunc:
 			if (!ira_pec_ip_compile(ctx, lo)) {
@@ -119,12 +125,6 @@ static bool compile_lo(ctx_t * ctx, ira_lo_t * lo) {
 			break;
 		default:
 			u_assert_switch(lo->type);
-	}
-
-	for (ira_lo_t * it = lo->body; it != NULL; it = it->next) {
-		if (!compile_lo(ctx, it)) {
-			return false;
-		}
 	}
 
 	return true;

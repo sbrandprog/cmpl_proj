@@ -65,7 +65,7 @@ bool ira_dt_is_func_dt_comp(ira_dt_t * dt) {
 			u_assert_switch(dt->type);
 	}
 }
-bool ira_dt_is_var_dt_comp(ira_dt_t * dt) {
+bool ira_dt_is_var_comp(ira_dt_t * dt) {
 	if (dt == NULL) {
 		return false;
 	}
@@ -85,7 +85,7 @@ bool ira_dt_is_var_dt_comp(ira_dt_t * dt) {
 			u_assert_switch(dt->type);
 	}
 }
-bool ira_dt_is_impt_dt_comp(ira_dt_t * dt) {
+bool ira_dt_is_impt_comp(ira_dt_t * dt) {
 	if (dt == NULL) {
 		return false;
 	}
@@ -196,3 +196,13 @@ size_t ira_dt_get_align(ira_dt_t * dt) {
 			u_assert_switch(dt->type);
 	}
 }
+
+const ira_dt_info_t ira_dt_infos[IraDt_Count] = {
+	[IraDtNone] = { .type_str = U_MAKE_ROS(L"DtNone") },
+	[IraDtVoid] = { .type_str = U_MAKE_ROS(L"DtVoid") },
+	[IraDtDt] = { .type_str = U_MAKE_ROS(L"DtDt") },
+	[IraDtInt] = { .type_str = U_MAKE_ROS(L"DtInt") },
+	[IraDtPtr] = { .type_str = U_MAKE_ROS(L"DtPtr") },
+	[IraDtArr] = { .type_str = U_MAKE_ROS(L"DtArr") },
+	[IraDtFunc] = { .type_str = U_MAKE_ROS(L"DtFunc") }
+};

@@ -1,5 +1,6 @@
 #pragma once
 #include "pla.h"
+#include "u_ros.h"
 #include "u_hs.h"
 
 enum pla_dclr_type {
@@ -29,5 +30,11 @@ struct pla_dclr {
 	};
 };
 
+struct pla_dclr_info {
+	u_ros_t type_str;
+};
+
 pla_dclr_t * pla_dclr_create(pla_dclr_type_t type);
 void pla_dclr_destroy(pla_dclr_t * dclr);
+
+const pla_dclr_info_t pla_dclr_infos[PlaDclr_Count];

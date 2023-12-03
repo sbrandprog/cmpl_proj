@@ -44,3 +44,9 @@ void pla_dclr_destroy(pla_dclr_t * dclr) {
 	free(dclr);
 }
 
+const pla_dclr_info_t pla_dclr_infos[PlaDclr_Count] = {
+	[PlaDclrNone] = { .type_str = U_MAKE_ROS(L"DclrNone") },
+	[PlaDclrNspc] = { .type_str = U_MAKE_ROS(L"DclrNspc") },
+	[PlaDclrFunc] = { .type_str = U_MAKE_ROS(L"DclrFunc") },
+	[PlaDclrImpt] = { .type_str = U_MAKE_ROS(L"DclrImpt") }
+};

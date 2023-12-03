@@ -175,7 +175,7 @@ static void ctx_cleanup(ctx_t * ctx) {
 }
 
 static bool define_var(ctx_t * ctx, ira_dt_t * dt, u_hs_t * name) {
-	if (!ira_dt_is_var_dt_comp(dt)) {
+	if (!ira_dt_is_var_comp(dt)) {
 		return false;
 	}
 

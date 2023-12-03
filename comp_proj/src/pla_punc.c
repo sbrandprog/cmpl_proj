@@ -21,7 +21,8 @@ pla_punc_t pla_punc_fetch_best(size_t str_size, wchar_t * str, size_t * punc_len
 }
 
 const u_ros_t pla_punc_strs[PlaPunc_Count] = {
-#define PLA_PUNC(name, str_) [PlaPunc##name] = { .size = _countof(str_) - 1, .str = str_ },
+	[PlaPuncNone] = { .size = 0, .str = NULL },
+#define PLA_PUNC(name, str_) [PlaPunc##name] = U_MAKE_ROS(str_),
 #include "pla_punc.def"
 #undef PLA_PUNC
 };
