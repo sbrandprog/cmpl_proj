@@ -1,5 +1,6 @@
 #pragma once
 #include "ira.h"
+#include "u_ros.h"
 #include "u_hs.h"
 
 #define IRA_INST_OPDS_SIZE 5
@@ -46,6 +47,7 @@ struct ira_inst {
 };
 
 struct ira_inst_info {
+	u_ros_t type_str;
 	bool rt_comp, ct_comp;
 	union {
 		ira_inst_opd_type_t opds[IRA_INST_OPDS_SIZE];

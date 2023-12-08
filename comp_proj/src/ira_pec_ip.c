@@ -17,10 +17,11 @@
 #define STACK_ALIGN 16
 #define STACK_UNIT 8
 
-typedef enum ira_pec_ip_trg {
-	IraPecIpCompl,
-	IraPecIpIntrp
-} ira_pec_ip_trg_t;
+typedef enum trg {
+	TrgCompl,
+	TrgIntrp,
+	Trg_Count
+} trg_t;
 
 typedef struct var var_t;
 struct var {
@@ -69,7 +70,7 @@ typedef struct int_cast_info {
 } int_cast_info_t;
 
 typedef struct ira_pec_ip_ctx {
-	ira_pec_ip_trg_t trg;
+	trg_t trg;
 
 	ira_pec_c_ctx_t * c_ctx;
 	ira_lo_t * c_lo;
@@ -95,6 +96,11 @@ typedef struct ira_pec_ip_ctx {
 
 	size_t stack_size;
 } ctx_t;
+
+static const wchar_t * trg_to_str[Trg_Count] = {
+	[TrgCompl] = L"compiler",
+	[TrgIntrp] = L"interpreter",
+};
 
 static const asm_reg_t int_type_to_ax[IraInt_Count] = {
 	AsmRegAl, AsmRegAx, AsmRegEax, AsmRegRax, AsmRegAl, AsmRegAx, AsmRegEax, AsmRegRax
@@ -130,6 +136,41 @@ static const int_cast_info_t int_cast_from_to[IraInt_Count][IraInt_Count] = {
 	{ { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMovsxd, AsmRegRax, AsmRegEcx } },
 	{ { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMov, AsmRegRax, AsmRegRcx }, { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMov, AsmRegRax, AsmRegRcx } },
 };
+
+static void report(ctx_t * ctx, const wchar_t * format, ...) {
+	u_assert(ctx->trg <= Trg_Count);
+
+	fwprintf(stderr, L"reporting error in instruction processor [%s]\n", trg_to_str[ctx->trg]);
+
+	if (ctx->c_lo != NULL) {
+		fwprintf(stderr, L"processing [%s] function language object\n", ctx->c_lo->full_name->str);
+	}
+	else {
+		fwprintf(stderr, L"processing anonymouse function\n");
+	}
+
+	{
+		va_list args;
+
+		va_start(args, format);
+
+		vfwprintf(stderr, format, args);
+
+		va_end(args);
+
+		fputwc(L'\n', stderr);
+	}
+}
+static void report_opds_not_equ(ctx_t * ctx, inst_t * inst, size_t first, size_t second) {
+	const ira_inst_info_t * info = &ira_inst_infos[inst->base->type];
+
+	report(ctx, L"[%s] requires opd[%zi] and opd[%zi] to have an equivalent data type", info->type_str.str, first, second);
+}
+static void report_opd_not_equ_dt(ctx_t * ctx, inst_t * inst, size_t first) {
+	const ira_inst_info_t * info = &ira_inst_infos[inst->base->type];
+
+	report(ctx, L"[%s] requires opd[%zi] to have an equivalent data type", info->type_str.str, first);
+}
 
 static void ctx_cleanup(ctx_t * ctx) {
 	for (inst_t * inst = ctx->insts, *inst_end = inst + ctx->insts_size; inst != inst_end; ++inst) {
@@ -176,6 +217,7 @@ static void ctx_cleanup(ctx_t * ctx) {
 
 static bool define_var(ctx_t * ctx, ira_dt_t * dt, u_hs_t * name) {
 	if (!ira_dt_is_var_comp(dt)) {
+		report(ctx, L"can not define a variable with [%s] data type", ira_dt_infos[dt->type].type_str.str);
 		return false;
 	}
 
@@ -185,6 +227,7 @@ static bool define_var(ctx_t * ctx, ira_dt_t * dt, u_hs_t * name) {
 		var_t * var = *ins;
 
 		if (var->name == name) {
+			report(ctx, L"variable [%s] already exists", name->str);
 			return false;
 		}
 
@@ -239,6 +282,7 @@ static bool prepare_insts_opds_vars(ctx_t * ctx, inst_t * inst, size_t opd_size,
 		*var = find_var(ctx, *var_name);
 
 		if (*var == NULL) {
+			report(ctx, L"can not find a variable [%s] for [%zi] operand for [%s] instruction", (*var_name)->str, opd, ira_inst_infos[base->type].type_str.str);
 			return false;
 		}
 	}
@@ -254,6 +298,7 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
 				inst->opds[opd].dt = ira_inst->opds[opd].dt;
 
 				if (inst->opds[opd].dt == NULL) {
+					report(ctx, L"value for [%zi] operand for [%s] instruction is NULL", opd, ira_inst_infos[ira_inst->type].type_str.str);
 					return false;
 				}
 				break;
@@ -261,6 +306,7 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
 				inst->opds[opd].val = ira_inst->opds[opd].val;
 
 				if (inst->opds[opd].val == NULL) {
+					report(ctx, L"value for [%zi] operand for [%s] instruction is NULL", opd, ira_inst_infos[ira_inst->type].type_str.str);
 					return false;
 				}
 				break;
@@ -268,13 +314,15 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
 				inst->opds[opd].hs = ira_inst->opds[opd].hs;
 
 				if (inst->opds[opd].hs == NULL) {
+					report(ctx, L"value for [%zi] operand for [%s] instruction is NULL", opd, ira_inst_infos[ira_inst->type].type_str.str);
 					return false;
 				}
 				break;
 			case IraInstOpdVar:
-				inst->opds[opd].var = find_var(ctx, inst->base->opds[opd].hs);
+				inst->opds[opd].var = find_var(ctx, ira_inst->opds[opd].hs);
 
 				if (inst->opds[opd].var == NULL) {
+					report(ctx, L"can not find a variable [%s] for [%zi] operand for [%s] instruction", ira_inst->opds[opd].hs->str, opd, ira_inst_infos[ira_inst->type].type_str.str);
 					return false;
 				}
 				break;
@@ -282,6 +330,7 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
 				inst->opds[opd].hs = inst->base->opds[opd].hs;
 
 				if (inst->opds[opd].hs == NULL) {
+					report(ctx, L"value for [%zi] operand for [%s] instruction is NULL", opd, ira_inst_infos[ira_inst->type].type_str.str);
 					return false;
 				}
 				break;
@@ -323,6 +372,7 @@ static bool prepare_insts(ctx_t * ctx) {
 	inst_t * inst = ctx->insts;
 	for (ira_inst_t * ira_inst = func->insts, *ira_inst_end = ira_inst + func->insts_size; ira_inst != ira_inst_end; ++ira_inst, ++inst) {
 		if (ira_inst->type >= IraInst_Count) {
+			report(ctx, L"unknown instruction type [%i]", ira_inst->type);
 			return false;
 		}
 
@@ -331,13 +381,15 @@ static bool prepare_insts(ctx_t * ctx) {
 		const ira_inst_info_t * info = &ira_inst_infos[ira_inst->type];
 
 		switch (ctx->trg) {
-			case IraPecIpCompl:
+			case TrgCompl:
 				if (!info->rt_comp) {
+					report(ctx, L"detected an illegal instruction [%s] in %s mode", info->type_str.str, trg_to_str[ctx->trg]);
 					return false;
 				}
 				break;
-			case IraPecIpIntrp:
+			case TrgIntrp:
 				if (!info->ct_comp) {
+					report(ctx, L"detected an illegal instruction [%s] in %s mode", info->type_str.str, trg_to_str[ctx->trg]);
 					return false;
 				}
 				break;
@@ -359,44 +411,53 @@ static bool prepare_insts(ctx_t * ctx) {
 				break;
 			case IraInstLoadVal:
 				if (!ira_dt_is_equivalent(inst->opd1.val->dt, inst->opd0.var->dt)) {
+					report_opds_not_equ(ctx, inst, 1, 0);
 					return false;
 				}
 				break;
 			case IraInstCopy:
 				if (!ira_dt_is_equivalent(inst->opd1.var->dt, inst->opd0.var->dt)) {
+					report_opds_not_equ(ctx, inst, 1, 0);
 					return false;
 				}
 				break;
 			case IraInstMakeDtPtr:
 				if (inst->opd1.var->dt != dt_dt) {
+					report_opd_not_equ_dt(ctx, inst, 1);
 					return false;
 				}
 
 				if (inst->opd0.var->dt != dt_dt) {
+					report_opd_not_equ_dt(ctx, inst, 0);
 					return false;
 				}
 				break;
 			case IraInstMakeDtArr:
 				if (inst->opd1.var->dt != dt_dt) {
+					report_opd_not_equ_dt(ctx, inst, 1);
 					return false;
 				}
 
 				if (inst->opd0.var->dt != dt_dt) {
+					report_opd_not_equ_dt(ctx, inst, 0);
 					return false;
 				}
 				break;
 			case IraInstMakeDtFunc:
 				for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var) {
-					if (dt_dt != (*var)->dt) {
+					if ((*var)->dt != dt_dt) {
+						report(ctx, L"[%s] requires arguments in opd[3] to have an equivalent data type", info->type_str.str);
 						return false;
 					}
 				}
 
 				if (inst->opd1.var->dt != dt_dt) {
+					report_opd_not_equ_dt(ctx, inst, 1);
 					return false;
 				}
 
 				if (inst->opd0.var->dt != dt_dt) {
+					report_opd_not_equ_dt(ctx, inst, 0);
 					return false;
 				}
 
@@ -410,14 +471,17 @@ static bool prepare_insts(ctx_t * ctx) {
 				ira_dt_t * dt = inst->opd1.var->dt;
 
 				if (dt->type != IraDtInt) {
+					report(ctx, L"[%s] requires opd[1] to have an integer data type", info->type_str.str);
 					return false;
 				}
 
-				if (dt != inst->opd2.var->dt) {
+				if (inst->opd2.var->dt != dt) {
+					report_opd_not_equ_dt(ctx, inst, 1);
 					return false;
 				}
 
-				if (dt != inst->opd0.var->dt) {
+				if (inst->opd0.var->dt != dt) {
+					report_opd_not_equ_dt(ctx, inst, 1);
 					return false;
 				}
 
@@ -427,31 +491,36 @@ static bool prepare_insts(ctx_t * ctx) {
 			{
 				u_hs_t * mmbr = inst->opd2.hs;
 				ira_dt_t * opd_dt = inst->opd1.var->dt;
+				ira_dt_t * res_dt = NULL;
 
 				switch (opd_dt->type) {
 					case IraDtVoid:
 					case IraDtInt:
 					case IraDtPtr:
+					case IraDtFunc:
+						report(ctx, L"[%s]: data type [%s] of opd[1] does not support member access:", info->type_str.str, ira_dt_infos->type_str.str);
 						return false;
 					case IraDtArr:
 						if (mmbr == ctx->pec->pds[IraPdsSizeMmbr]) {
-							if (!ira_dt_is_equivalent(inst->opd0.var->dt, ctx->pec->dt_spcl.arr_size)) {
-								return false;
-							}
+							res_dt = res_dt = ctx->pec->dt_spcl.arr_size;
 						}
 						else if (mmbr == ctx->pec->pds[IraPdsDataMmbr]) {
-							if (!ira_dt_is_equivalent(inst->opd0.var->dt, ira_pec_get_dt_ptr(ctx->pec, opd_dt->arr.body))) {
-								return false;
-							}
-						}
-						else {
-							return false;
+							res_dt = ira_pec_get_dt_ptr(ctx->pec, opd_dt->arr.body);
 						}
 						break;
-					case IraDtFunc:
-						return false;
 					default:
 						u_assert_switch(opd_dt->type);
+				}
+
+				if (res_dt != NULL) {
+					if (!ira_dt_is_equivalent(inst->opd0.var->dt, res_dt)) {
+						report_opd_not_equ_dt(ctx, inst, 0);
+						return false;
+					}
+				}
+				else {
+					report(ctx, L"[%s]: data type [%s] of opd[1] does not support [%s] member:", info->type_str.str, ira_dt_infos->type_str.str, mmbr->str);
+					return false;
 				}
 
 				break;
@@ -486,39 +555,45 @@ static bool prepare_insts(ctx_t * ctx) {
 			}
 			case IraInstAddrOf:
 			{
-				if (inst->opd0.var->dt->type != IraDtPtr) {
+				ira_dt_t * ptr_dt = inst->opd0.var->dt;
+
+				if (ptr_dt->type != IraDtPtr) {
+					report(ctx, L"[%s] requires opd[0] to have an pointer data type", info->type_str.str);
 					return false;
 				}
 
-				if (!ira_dt_is_equivalent(inst->opd0.var->dt->ptr.body, inst->opd1.var->dt)) {
+				if (!ira_dt_is_equivalent(inst->opd1.var->dt, ptr_dt->ptr.body)) {
+					report_opd_not_equ_dt(ctx, inst, 1);
 					return false;
 				}
 				break;
 			}
 			case IraInstCallFuncPtr:
 			{
-				if (inst->opd1.var->dt->type != IraDtPtr) {
+				ira_dt_t * ptr_func_dt = inst->opd1.var->dt;
+
+				if (ptr_func_dt->type != IraDtPtr || ptr_func_dt->ptr.body->type != IraDtFunc) {
+					report(ctx, L"[%s] requires opd[0] to have an pointer to function data type", info->type_str.str);
 					return false;
 				}
 
-				ira_dt_t * func_dt = inst->opd1.var->dt->ptr.body;
-
-				if (func_dt->type != IraDtFunc) {
-					return false;
-				}
+				ira_dt_t * func_dt = ptr_func_dt->ptr.body;
 
 				if (func_dt->func.args_size != inst->opd2.size) {
+					report(ctx, L"[%s] requires opd[2] to match function data type arguments size", info->type_str.str);
 					return false;
 				}
 
 				ira_dt_n_t * arg_dt = func_dt->func.args;
 				for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var, ++arg_dt) {
 					if (!ira_dt_is_equivalent(arg_dt->dt, (*var)->dt)) {
+						report(ctx, L"[%s] requires argument in opd[3] to match function argument data type", info->type_str.str);
 						return false;
 					}
 				}
 
-				if (!ira_dt_is_equivalent(func_dt->func.ret, inst->opd0.var->dt)) {
+				if (!ira_dt_is_equivalent(inst->opd0.var->dt, func_dt->func.ret)) {
+					report_opd_not_equ_dt(ctx, inst, 0);
 					return false;
 				}
 
@@ -529,6 +604,7 @@ static bool prepare_insts(ctx_t * ctx) {
 			}
 			case IraInstRet:
 				if (!ira_dt_is_equivalent(ctx->func->dt->func.ret, inst->opd0.var->dt)) {
+					report_opd_not_equ_dt(ctx, inst, 0);
 					return false;
 				}
 				break;
@@ -1172,7 +1248,7 @@ static bool compile_core(ctx_t * ctx) {
 	return true;
 }
 bool ira_pec_ip_compile(ira_pec_c_ctx_t * c_ctx, ira_lo_t * lo) {
-	ctx_t ctx = { .trg = IraPecIpCompl, .c_ctx = c_ctx, .c_lo = lo };
+	ctx_t ctx = { .trg = TrgCompl, .c_ctx = c_ctx, .c_lo = lo };
 
 	bool result = compile_core(&ctx);
 
@@ -1288,7 +1364,7 @@ static bool interpret_core(ctx_t * ctx) {
 	return true;
 }
 bool ira_pec_ip_interpret(ira_pec_t * pec, ira_func_t * func, ira_val_t ** out) {
-	ctx_t ctx = { .trg = IraPecIpIntrp, .pec = pec, .func = func, .i_out = out };
+	ctx_t ctx = { .trg = TrgIntrp, .pec = pec, .func = func, .i_out = out };
 
 	bool result = interpret_core(&ctx);
 
