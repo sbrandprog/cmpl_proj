@@ -12,7 +12,7 @@ enum pla_expr_opd_type {
 	PlaExprOpdIntType,
 	PlaExprOpdHs,
 	PlaExprOpdExpr,
-	PlaExprOpdExprList2,
+	PlaExprOpdExprList1,
 	PlaExprOpdExprListLink,
 	PlaExprOpd_Count
 };

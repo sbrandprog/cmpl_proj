@@ -30,7 +30,7 @@ void pla_expr_destroy(pla_expr_t * expr) {
 			case PlaExprOpdExpr:
 				pla_expr_destroy(expr->opds[opd].expr);
 				break;
-			case PlaExprOpdExprList2:
+			case PlaExprOpdExprList1:
 				for (pla_expr_t * it = expr->opds[opd].expr; it != NULL;) {
 					pla_expr_t * next = it->opd1.expr;
 
