@@ -12,9 +12,7 @@ bool ira_dt_is_ptr_dt_comp(ira_dt_t * dt) {
 		case IraDtNone:
 			return false;
 		case IraDtVoid:
-			return true;
 		case IraDtDt:
-			return false;
 		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
@@ -68,6 +66,7 @@ bool ira_dt_is_func_dt_comp(ira_dt_t * dt) {
 			u_assert_switch(dt->type);
 	}
 }
+
 bool ira_dt_is_var_comp(ira_dt_t * dt) {
 	if (dt == NULL) {
 		return false;
@@ -107,6 +106,49 @@ bool ira_dt_is_impt_comp(ira_dt_t * dt) {
 			return true;
 		case IraDtArr:
 			return false;
+		case IraDtFunc:
+			return true;
+		default:
+			u_assert_switch(dt->type);
+	}
+}
+
+bool ira_dt_is_compl_val_comp(ira_dt_t * dt) {
+	if (dt == NULL) {
+		return false;
+	}
+
+	switch (dt->type) {
+		case IraDtNone:
+			return false;
+		case IraDtVoid:
+			return true;
+		case IraDtDt:
+			return false;
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+		case IraDtArr:
+		case IraDtFunc:
+			return true;
+		default:
+			u_assert_switch(dt->type);
+	}
+}
+bool ira_dt_is_intrp_val_comp(ira_dt_t * dt) {
+	if (dt == NULL) {
+		return false;
+	}
+
+	switch (dt->type) {
+		case IraDtNone:
+			return false;
+		case IraDtVoid:
+		case IraDtDt:
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+		case IraDtArr:
 		case IraDtFunc:
 			return true;
 		default:

@@ -33,8 +33,8 @@ void ira_inst_cleanup(ira_inst_t * inst) {
 }
 
 const ira_inst_info_t ira_inst_infos[IraInst_Count] = {
-	[IraInstNone] = { .type_str = U_MAKE_ROS(L"InstNone"), .rt_comp = true, .ct_comp = true, .opds = { IraInstOpdNone, IraInstOpdNone, IraInstOpdNone, IraInstOpdNone, IraInstOpdNone } },
-#define IRA_INST(name, rt, ct, opd0, opd1, opd2, opd3, opd4) [IraInst##name] = { .type_str = U_MAKE_ROS(L"Inst" L ## #name), .rt_comp = rt, .ct_comp = ct, .opds = { IraInstOpd##opd0, IraInstOpd##opd1, IraInstOpd##opd2, IraInstOpd##opd3, IraInstOpd##opd4 } },
+	[IraInstNone] = { .type_str = U_MAKE_ROS(L"InstNone"), .intrp_comp = true, .compl_comp = true, .opds = { IraInstOpdNone, IraInstOpdNone, IraInstOpdNone, IraInstOpdNone, IraInstOpdNone } },
+#define IRA_INST(name, compl_, intrp_, opd0, opd1, opd2, opd3, opd4) [IraInst##name] = { .type_str = U_MAKE_ROS(L"Inst" L ## #name), .intrp_comp = intrp_, .compl_comp = compl_, .opds = { IraInstOpd##opd0, IraInstOpd##opd1, IraInstOpd##opd2, IraInstOpd##opd3, IraInstOpd##opd4 } },
 #include "ira_inst.def"
 #undef IRA_INST
 };

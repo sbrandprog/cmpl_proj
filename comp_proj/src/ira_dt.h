@@ -48,8 +48,12 @@ struct ira_dt_info {
 bool ira_dt_is_ptr_dt_comp(ira_dt_t * dt);
 bool ira_dt_is_arr_dt_comp(ira_dt_t * dt);
 bool ira_dt_is_func_dt_comp(ira_dt_t * dt);
+
 bool ira_dt_is_var_comp(ira_dt_t * dt);
 bool ira_dt_is_impt_comp(ira_dt_t * dt);
+
+bool ira_dt_is_compl_val_comp(ira_dt_t * dt);
+bool ira_dt_is_intrp_val_comp(ira_dt_t * dt);
 
 bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second);
 

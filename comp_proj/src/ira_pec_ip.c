@@ -382,13 +382,13 @@ static bool prepare_insts(ctx_t * ctx) {
 
 		switch (ctx->trg) {
 			case TrgCompl:
-				if (!info->rt_comp) {
+				if (!info->compl_comp) {
 					report(ctx, L"detected an illegal instruction [%s] in %s mode", info->type_str.str, trg_to_str[ctx->trg]);
 					return false;
 				}
 				break;
 			case TrgIntrp:
-				if (!info->ct_comp) {
+				if (!info->intrp_comp) {
 					report(ctx, L"detected an illegal instruction [%s] in %s mode", info->type_str.str, trg_to_str[ctx->trg]);
 					return false;
 				}
@@ -410,6 +410,23 @@ static bool prepare_insts(ctx_t * ctx) {
 				}
 				break;
 			case IraInstLoadVal:
+				switch (ctx->trg) {
+					case TrgCompl:
+						if (!ira_dt_is_compl_val_comp(inst->opd1.val->dt)) {
+							report(ctx, L"[%s]: value of illegal data type [%s] in %s mode", info->type_str.str, ira_dt_infos[inst->opd1.val->dt->type].type_str.str, trg_to_str[ctx->trg]);
+							return false;
+						}
+						break;
+					case TrgIntrp:
+						if (!ira_dt_is_intrp_val_comp(inst->opd1.val->dt)) {
+							report(ctx, L"[%s]: value of illegal data type [%s] in %s mode", info->type_str.str, ira_dt_infos[inst->opd1.val->dt->type].type_str.str, trg_to_str[ctx->trg]);
+							return false;
+						}
+						break;
+					default:
+						u_assert_switch(ctx->trg);
+				}
+
 				if (!ira_dt_is_equivalent(inst->opd1.val->dt, inst->opd0.var->dt)) {
 					report_opds_not_equ(ctx, inst, 1, 0);
 					return false;

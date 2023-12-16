@@ -48,7 +48,7 @@ struct ira_inst {
 
 struct ira_inst_info {
 	u_ros_t type_str;
-	bool rt_comp, ct_comp;
+	bool intrp_comp, compl_comp;
 	union {
 		ira_inst_opd_type_t opds[IRA_INST_OPDS_SIZE];
 		struct {
