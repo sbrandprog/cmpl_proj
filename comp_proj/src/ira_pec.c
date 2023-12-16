@@ -57,6 +57,8 @@ void ira_pec_init(ira_pec_t * pec, u_hst_t * hst) {
 
 		pec->dt_dt.type = IraDtDt;
 
+		pec->dt_bool.type = IraDtBool;
+
 		for (ira_int_type_t itype = IraInt_First; itype < IraInt_Count; ++itype) {
 			ira_dt_t * dt_int = &pec->dt_ints[itype];
 
@@ -216,6 +218,13 @@ ira_val_t * ira_pec_make_val_imm_dt(ira_pec_t * pec, ira_dt_t * dt) {
 	ira_val_t * val = ira_val_create(IraValImmDt, &pec->dt_dt);
 
 	val->dt_val = dt;
+
+	return val;
+}
+ira_val_t * ira_pec_make_val_imm_bool(ira_pec_t * pec, bool bool_val) {
+	ira_val_t * val = ira_val_create(IraValImmBool, &pec->dt_bool);
+
+	val->bool_val = bool_val;
 
 	return val;
 }

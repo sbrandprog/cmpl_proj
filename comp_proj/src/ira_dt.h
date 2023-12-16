@@ -15,6 +15,7 @@ enum ira_dt_type {
 	IraDtNone,
 	IraDtVoid,
 	IraDtDt,
+	IraDtBool,
 	IraDtInt,
 	IraDtPtr,
 	IraDtArr,

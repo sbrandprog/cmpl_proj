@@ -14,5 +14,9 @@ fnct main : $() -> s32 {
 
 	sleep(1000'u32);
 
+	false;
+	true;
+	vrbl a : *bool;
+
 	return 0's32;
 }

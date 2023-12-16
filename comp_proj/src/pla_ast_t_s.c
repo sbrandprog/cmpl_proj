@@ -432,6 +432,11 @@ static bool get_dt_void_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** ou
 
 	return true;
 }
+static bool get_dt_bool_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) {
+	*out = ira_pec_make_val_imm_dt(ctx->pec, &ctx->pec->dt_bool);
+
+	return true;
+}
 static bool get_dt_int_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) {
 	ira_int_type_t int_type = expr->opd0.int_type;
 
@@ -441,6 +446,11 @@ static bool get_dt_int_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out
 	}
 
 	*out = ira_pec_make_val_imm_dt(ctx->pec, &ctx->pec->dt_ints[expr->opd0.int_type]);
+
+	return true;
+}
+static bool get_bool_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) {
+	*out = ira_pec_make_val_imm_bool(ctx->pec, expr->opd0.val_bool);
 
 	return true;
 }
@@ -777,7 +787,11 @@ static bool translate_expr0_tse(ctx_t * ctx, pla_expr_t * base, expr_t ** out) {
 				return false;
 			}
 			break;
-			//case PlaExprDtBool:
+		case PlaExprDtBool:
+			if (!translate_expr0_load_val(ctx, expr, get_dt_bool_val_proc)) {
+				return false;
+			}
+			break;
 		case PlaExprDtInt:
 			if (!translate_expr0_load_val(ctx, expr, get_dt_int_val_proc)) {
 				return false;
@@ -807,7 +821,11 @@ static bool translate_expr0_tse(ctx_t * ctx, pla_expr_t * base, expr_t ** out) {
 		case PlaExprDtFuncArg:
 			break;
 			//case PlaExprValVoid:
-			//case PlaExprValBool:
+		case PlaExprValBool:
+			if (!translate_expr0_load_val(ctx, expr, get_bool_val_proc)) {
+				return false;
+			}
+			break;
 		case PlaExprChStr:
 			if (!translate_expr0_load_val(ctx, expr, get_cs_val_proc)) {
 				return false;
@@ -1171,11 +1189,7 @@ static bool translate_expr1_tse(ctx_t * ctx, expr_t * expr, ev_t * out) {
 		case PlaExprNone:
 			return false;
 		case PlaExprDtVoid:
-			if (!translate_expr1_load_val(ctx, expr, out)) {
-				return false;
-			}
-			break;
-			//case PlaExprDtBool:
+		case PlaExprDtBool:
 		case PlaExprDtInt:
 			if (!translate_expr1_load_val(ctx, expr, out)) {
 				return false;
@@ -1199,17 +1213,9 @@ static bool translate_expr1_tse(ctx_t * ctx, expr_t * expr, ev_t * out) {
 		case PlaExprDtFuncArg:
 			return false;
 			//case PlaExprValVoid:
-			//case PlaExprValBool:
+		case PlaExprValBool:
 		case PlaExprChStr:
-			if (!translate_expr1_load_val(ctx, expr, out)) {
-				return false;
-			}
-			break;
 		case PlaExprNumStr:
-			if (!translate_expr1_load_val(ctx, expr, out)) {
-				return false;
-			}
-			break;
 		case PlaExprNullofDt:
 			if (!translate_expr1_load_val(ctx, expr, out)) {
 				return false;

@@ -21,6 +21,7 @@ void ira_val_destroy(ira_val_t * val) {
 	switch (val->type) {
 		case IraValNone:
 		case IraValImmDt:
+		case IraValImmBool:
 		case IraValImmInt:
 			break;
 		case IraValImmArr:
@@ -49,6 +50,9 @@ ira_val_t * ira_val_copy(ira_val_t * val) {
 			break;
 		case IraValImmDt:
 			new_val->dt_val = val->dt_val;
+			break;
+		case IraValImmBool:
+			new_val->bool_val = val->bool_val;
 			break;
 		case IraValImmInt:
 			new_val->int_val = val->int_val;

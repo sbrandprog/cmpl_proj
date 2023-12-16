@@ -923,6 +923,13 @@ static void div_int(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_out, va
 	}
 }
 
+static void compile_load_val_bool(ctx_t * ctx, inst_t * inst) {
+	ira_val_t * val = inst->opd1.val;
+
+	load_int(ctx, AsmRegAl, AsmInstImm8, val->bool_val ? 1 : 0);
+
+	save_stack_var(ctx, inst->opd0.var, AsmRegAl);
+}
 static void compile_load_val_int(ctx_t * ctx, inst_t * inst) {
 	ira_val_t * val = inst->opd1.val;
 
@@ -963,6 +970,9 @@ static void compile_load_val(ctx_t * ctx, inst_t * inst) {
 	ira_val_t * val = inst->opd1.val;
 
 	switch (val->type) {
+		case IraValImmBool:
+			compile_load_val_bool(ctx, inst);
+			break;
 		case IraValImmInt:
 			compile_load_val_int(ctx, inst);
 			break;

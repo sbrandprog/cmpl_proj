@@ -15,6 +15,7 @@ bool ira_dt_is_ptr_dt_comp(ira_dt_t * dt) {
 			return true;
 		case IraDtDt:
 			return false;
+		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
 		case IraDtArr:
@@ -35,6 +36,7 @@ bool ira_dt_is_arr_dt_comp(ira_dt_t * dt) {
 		case IraDtVoid:
 			return true;
 		case IraDtDt:
+		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
 		case IraDtArr:
@@ -55,6 +57,7 @@ bool ira_dt_is_func_dt_comp(ira_dt_t * dt) {
 			return false;
 		case IraDtVoid:
 		case IraDtDt:
+		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
 		case IraDtArr:
@@ -75,6 +78,7 @@ bool ira_dt_is_var_comp(ira_dt_t * dt) {
 			return false;
 		case IraDtVoid:
 		case IraDtDt:
+		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
 		case IraDtArr:
@@ -97,6 +101,7 @@ bool ira_dt_is_impt_comp(ira_dt_t * dt) {
 			return true;
 		case IraDtDt:
 			return false;
+		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
 			return true;
@@ -122,6 +127,7 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 		case IraDtNone:
 		case IraDtVoid:
 		case IraDtDt:
+		case IraDtBool:
 			break;
 		case IraDtInt:
 			if (first->int_type != second->int_type) {
@@ -166,6 +172,8 @@ size_t ira_dt_get_size(ira_dt_t * dt) {
 		case IraDtVoid:
 		case IraDtDt:
 			return 0;
+		case IraDtBool:
+			return 1;
 		case IraDtInt:
 			return ira_int_get_size(dt->int_type);
 		case IraDtPtr:
@@ -183,6 +191,7 @@ size_t ira_dt_get_align(ira_dt_t * dt) {
 		case IraDtNone:
 		case IraDtVoid:
 		case IraDtDt:
+		case IraDtBool:
 			return 1;
 		case IraDtInt:
 			return ira_int_get_size(dt->int_type);
@@ -201,6 +210,7 @@ const ira_dt_info_t ira_dt_infos[IraDt_Count] = {
 	[IraDtNone] = { .type_str = U_MAKE_ROS(L"DtNone") },
 	[IraDtVoid] = { .type_str = U_MAKE_ROS(L"DtVoid") },
 	[IraDtDt] = { .type_str = U_MAKE_ROS(L"DtDt") },
+	[IraDtBool] = { .type_str = U_MAKE_ROS(L"DtBool") },
 	[IraDtInt] = { .type_str = U_MAKE_ROS(L"DtInt") },
 	[IraDtPtr] = { .type_str = U_MAKE_ROS(L"DtPtr") },
 	[IraDtArr] = { .type_str = U_MAKE_ROS(L"DtArr") },
