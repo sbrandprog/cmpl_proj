@@ -1,6 +1,22 @@
 #pragma once
 #include "pla_ast.h"
 
+enum pla_ast_t_optr_type {
+	PlaAstTOptrNone,
+	PlaAstTOptrBinInstInt,
+	PlaAstTOptr_Count
+};
+struct pla_ast_t_optr {
+	pla_ast_t_optr_type_t type;
+	pla_ast_t_optr_t * next;
+
+	union {
+		struct {
+			ira_inst_type_t inst_type;
+		} bin_inst;
+	};
+};
+
 enum pla_ast_t_tse_type {
 	PlaAstTTseNone,
 	PlaAstTTseDclr,
@@ -36,6 +52,9 @@ struct pla_ast_t_vse {
 void pla_ast_t_report(pla_ast_t_ctx_t * ctx, const wchar_t * format, ...);
 
 ira_pec_t * pla_ast_t_get_pec(pla_ast_t_ctx_t * ctx);
+
+pla_ast_t_optr_t * pla_ast_t_get_optr_chain(pla_ast_t_ctx_t * ctx, pla_expr_type_t expr_type);
+bool pla_ast_t_get_optr_dt(pla_ast_t_ctx_t * ctx, pla_ast_t_optr_t * optr, ira_dt_t * first, ira_dt_t * second, ira_dt_t ** out);
 
 void pla_ast_t_push_tse(pla_ast_t_ctx_t * ctx, pla_ast_t_tse_t * tse);
 void pla_ast_t_pop_tse(pla_ast_t_ctx_t * ctx);

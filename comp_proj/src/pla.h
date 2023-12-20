@@ -22,6 +22,9 @@ typedef struct pla_dclr_info pla_dclr_info_t;
 
 typedef struct pla_ast pla_ast_t;
 
+typedef enum pla_ast_t_optr_type pla_ast_t_optr_type_t;
+typedef struct pla_ast_t_optr pla_ast_t_optr_t;
+
 typedef enum pla_ast_t_tse_type pla_ast_t_tse_type_t;
 typedef struct pla_ast_t_tse pla_ast_t_tse_t;
 

@@ -90,6 +90,9 @@ struct expr {
 		struct {
 			size_t args_size;
 		} call;
+		struct {
+			pla_ast_t_optr_t * optr;
+		} bin_op;
 	};
 };
 
@@ -741,12 +744,26 @@ static bool translate_expr0_cast(ctx_t * ctx, expr_t * expr) {
 static bool translate_expr0_bin(ctx_t * ctx, expr_t * expr) {
 	ira_dt_t * opd0_dt = expr->opd0.expr->res_dt, * opd1_dt = expr->opd1.expr->res_dt;
 
-	if (opd0_dt->type != IraDtInt || !ira_dt_is_equivalent(opd0_dt, opd1_dt)) {
-		pla_ast_t_report(ctx->t_ctx, L"IMPLEMENTATION CONSTRAINT: binary operators support only integer argument of same size");
+	expr->bin_op.optr = NULL;
+
+	pla_ast_t_optr_t * optr = pla_ast_t_get_optr_chain(ctx->t_ctx, expr->base->type);
+	ira_dt_t * out_dt = NULL;
+
+	while (optr != NULL) {
+		if (pla_ast_t_get_optr_dt(ctx->t_ctx, optr, opd0_dt, opd1_dt, &out_dt)) {
+			expr->bin_op.optr = optr;
+			break;
+		}
+	}
+
+	if (expr->bin_op.optr == NULL) {
+		pla_ast_t_report(ctx->t_ctx, L"could not find an operator for [%s] expression with [%s], [%s] operands", pla_expr_infos[expr->base->type].type_str.str, ira_dt_infos[opd0_dt->type].type_str.str, ira_dt_infos[opd1_dt->type].type_str.str);
 		return false;
 	}
 
-	expr->res_dt = opd0_dt;
+	u_assert(out_dt != NULL);
+
+	expr->res_dt = out_dt;
 
 	return true;
 }
@@ -882,21 +899,21 @@ static bool translate_expr0_tse(ctx_t * ctx, pla_expr_t * base, expr_t ** out) {
 		case PlaExprMod:
 		case PlaExprAdd:
 		case PlaExprSub:
+		case PlaExprLeShift:
+		case PlaExprRiShift:
+		case PlaExprLess:
+		case PlaExprLessEq:
+		case PlaExprGrtr:
+		case PlaExprGrtrEq:
+		case PlaExprEq:
+		case PlaExprNeq:
+		case PlaExprBitAnd:
+		case PlaExprBitXor:
+		case PlaExprBitOr:
 			if (!translate_expr0_bin(ctx, expr)) {
 				return false;
 			}
 			break;
-			//case PlaExprLeShift:
-			//case PlaExprRiShift:
-			//case PlaExprLess:
-			//case PlaExprLessEq:
-			//case PlaExprGrtr:
-			//case PlaExprGrtrEq:
-			//case PlaExprEq:
-			//case PlaExprNeq:
-			//case PlaExprBitAnd:
-			//case PlaExprBitXor:
-			//case PlaExprBitOr:
 			//case PlaExprLogicAnd:
 			//case PlaExprLogicOr:
 		case PlaExprAsgn:
@@ -1133,31 +1150,21 @@ static bool translate_expr1_bin(ctx_t * ctx, expr_t * expr, ev_t * out) {
 		return false;
 	}
 
-	u_assert(ev0.var->dt->type == IraDtInt && ira_dt_is_equivalent(ev0.var->dt, ev1.var->dt));
+	pla_ast_t_optr_t * optr = expr->bin_op.optr;
 
-	ira_inst_t bin_op = { .opd1.hs = ev0.var->inst_name, .opd2.hs = ev1.var->inst_name };
+	u_assert(optr != NULL);
 
-	switch (expr->base->type) {
-		case PlaExprMul:
-			bin_op.type = IraInstMulInt;
+	switch (optr->type) {
+		case PlaAstTOptrBinInstInt:
+		{
+			ira_inst_t bin_op = { .type = optr->bin_inst.inst_type, .opd1.hs = ev0.var->inst_name, .opd2.hs = ev1.var->inst_name };
+
+			push_inst_imm_var0(ctx, &bin_op, out, expr->res_dt);
 			break;
-		case PlaExprDiv:
-			bin_op.type = IraInstDivInt;
-			break;
-		case PlaExprMod:
-			bin_op.type = IraInstModInt;
-			break;
-		case PlaExprAdd:
-			bin_op.type = IraInstAddInt;
-			break;
-		case PlaExprSub:
-			bin_op.type = IraInstSubInt;
-			break;
+		}
 		default:
-			u_assert_switch(expr->type);
+			u_assert_switch(optr->type);
 	}
-
-	push_inst_imm_var0(ctx, &bin_op, out, expr->res_dt);
 
 	return true;
 }
@@ -1262,21 +1269,21 @@ static bool translate_expr1_tse(ctx_t * ctx, expr_t * expr, ev_t * out) {
 		case PlaExprMod:
 		case PlaExprAdd:
 		case PlaExprSub:
+		case PlaExprLeShift:
+		case PlaExprRiShift:
+		case PlaExprLess:
+		case PlaExprLessEq:
+		case PlaExprGrtr:
+		case PlaExprGrtrEq:
+		case PlaExprEq:
+		case PlaExprNeq:
+		case PlaExprBitAnd:
+		case PlaExprBitXor:
+		case PlaExprBitOr:
 			if (!translate_expr1_bin(ctx, expr, out)) {
 				return false;
 			}
 			break;
-			//case PlaExprLeShift:
-			//case PlaExprRiShift:
-			//case PlaExprLess:
-			//case PlaExprLessEq:
-			//case PlaExprGrtr:
-			//case PlaExprGrtrEq:
-			//case PlaExprEq:
-			//case PlaExprNeq:
-			//case PlaExprBitAnd:
-			//case PlaExprBitXor:
-			//case PlaExprBitOr:
 			//case PlaExprLogicAnd:
 			//case PlaExprLogicOr:
 		case PlaExprAsgn:

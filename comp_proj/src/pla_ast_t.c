@@ -6,6 +6,7 @@
 #include "pla_dclr.h"
 #include "ira_dt.h"
 #include "ira_val.h"
+#include "ira_inst.h"
 #include "ira_func.h"
 #include "ira_lo.h"
 #include "ira_pec.h"
@@ -14,6 +15,9 @@
 
 #define UNQ_SUFFIX L"#"
 #define LO_FULL_NAME_DELIM L'.'
+
+typedef pla_ast_t_optr_type_t optr_type_t;
+typedef pla_ast_t_optr_t optr_t;
 
 typedef pla_ast_t_tse_t tse_t;
 typedef pla_ast_t_vse_t vse_t;
@@ -25,12 +29,68 @@ typedef struct pla_ast_t_ctx {
 
 	u_hst_t * hst;
 
+	pla_ast_t_optr_t * optrs[PlaExpr_Count];
+
 	tse_t * tse;
 	vse_t * vse;
 
 	wchar_t * buf;
 	size_t buf_cap;
 } ctx_t;
+
+static optr_t * create_optr(optr_type_t type) {
+	optr_t * optr = malloc(sizeof(*optr));
+
+	u_assert(optr != NULL);
+
+	*optr = (optr_t){ .type = type };
+
+	return optr;
+}
+static void destroy_optr(optr_t * optr) {
+	if (optr == NULL) {
+		return;
+	}
+
+	switch (optr->type) {
+		case PlaAstTOptrNone:
+		case PlaAstTOptrBinInstInt:
+			break;
+		default:
+			u_assert_switch(optr->type);
+	}
+
+	free(optr);
+}
+static void destroy_optr_chain(optr_t * chain) {
+	while (chain != NULL) {
+		optr_t * next = chain->next;
+
+		destroy_optr(chain);
+
+		chain = next;
+	}
+}
+
+static bool is_equal_optrs(optr_t * first, optr_t * second) {
+	if (first == second) {
+		return true;
+	}
+
+	if (first->type != second->type) {
+		return false;
+	}
+
+	switch (first->type) {
+		case PlaAstTOptrNone:
+		case PlaAstTOptrBinInstInt:
+			break;
+		default:
+			u_assert_switch(first->type);
+	}
+
+	return true;
+}
 
 void pla_ast_t_report(pla_ast_t_ctx_t * ctx, const wchar_t * format, ...) {
 	pla_ast_t_print_ts(ctx, stderr);
@@ -48,6 +108,25 @@ void pla_ast_t_report(pla_ast_t_ctx_t * ctx, const wchar_t * format, ...) {
 
 ira_pec_t * pla_ast_t_get_pec(pla_ast_t_ctx_t * ctx) {
 	return ctx->out;
+}
+
+pla_ast_t_optr_t * pla_ast_t_get_optr_chain(pla_ast_t_ctx_t * ctx, pla_expr_type_t expr_type) {
+	return ctx->optrs[expr_type];
+}
+bool pla_ast_t_get_optr_dt(pla_ast_t_ctx_t * ctx, pla_ast_t_optr_t * optr, ira_dt_t * first, ira_dt_t * second, ira_dt_t ** out) {
+	switch (optr->type) {
+		case PlaAstTOptrBinInstInt:
+			if (first->type != IraDtInt || !ira_dt_is_equivalent(first, second)) {
+				return false;
+			}
+
+			*out = first;
+			break;
+		default:
+			u_assert_switch(optr->type);
+	}
+
+	return true;
 }
 
 void pla_ast_t_push_tse(pla_ast_t_ctx_t * ctx, pla_ast_t_tse_t * tse) {
@@ -200,6 +279,39 @@ bool pla_ast_t_calculate_expr_dt(pla_ast_t_ctx_t * ctx, pla_expr_t * expr, ira_d
 	return result;
 }
 
+
+static optr_t ** get_optr_ins(ctx_t * ctx, pla_expr_type_t expr_type, optr_t * pred) {
+	optr_t ** ins = &ctx->optrs[expr_type];
+
+	for (; *ins != NULL; ins = &(*ins)->next) {
+		if (is_equal_optrs(*ins, pred)) {
+			return ins;
+		}
+	}
+
+	return ins;
+}
+static void register_bltn_optrs_bin_int(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type) {
+	optr_t pred = { .type = PlaAstTOptrBinInstInt, .bin_inst.inst_type = inst_type };
+
+	optr_t ** ins = get_optr_ins(ctx, expr_type, &pred);
+
+	u_assert(*ins == NULL);
+
+	*ins = create_optr(PlaAstTOptrBinInstInt);
+
+	optr_t * optr = *ins;
+
+	optr->bin_inst.inst_type = inst_type;
+}
+static void register_bltn_optrs(ctx_t * ctx) {
+	register_bltn_optrs_bin_int(ctx, PlaExprAdd, IraInstAddInt);
+	register_bltn_optrs_bin_int(ctx, PlaExprSub, IraInstSubInt);
+	register_bltn_optrs_bin_int(ctx, PlaExprMul, IraInstMulInt);
+	register_bltn_optrs_bin_int(ctx, PlaExprDiv, IraInstDivInt);
+	register_bltn_optrs_bin_int(ctx, PlaExprMod, IraInstModInt);
+}
+
 static bool translate_dclr(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out);
 
 static bool translate_dclr_nspc_vse(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
@@ -336,6 +448,8 @@ static bool translate_core(ctx_t * ctx) {
 
 	ira_pec_init(ctx->out, ctx->hst);
 
+	register_bltn_optrs(ctx);
+
 	if (!translate_dclr(ctx, ctx->ast->root, &ctx->out->root)) {
 		return false;
 	}
@@ -350,6 +464,10 @@ bool pla_ast_t_translate(pla_ast_t * ast, ira_pec_t * out) {
 	ctx_t ctx = { .ast = ast, .out = out };
 
 	bool result = translate_core(&ctx);
+
+	for (pla_expr_type_t expr_type = PlaExprNone; expr_type < PlaExpr_Count; ++expr_type) {
+		destroy_optr_chain(ctx.optrs[expr_type]);
+	}
 
 	free(ctx.buf);
 
