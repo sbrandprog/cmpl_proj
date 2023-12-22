@@ -50,6 +50,22 @@ enum asm_inst_type {
 	AsmInstIdiv,
 	AsmInstCbw, AsmInstCwde, AsmInstCdqe,
 	AsmInstCwd, AsmInstCdq, AsmInstCqo,
+	AsmInstSeto,
+	AsmInstSetno,
+	AsmInstSetb, AsmInstSetc = AsmInstSetb, AsmInstSetnae = AsmInstSetb,
+	AsmInstSetnb, AsmInstSetnc = AsmInstSetnb, AsmInstSetae = AsmInstSetnb,
+	AsmInstSetz, AsmInstSete = AsmInstSetz,
+	AsmInstSetnz, AsmInstSetne = AsmInstSetnz,
+	AsmInstSetbe, AsmInstSetna = AsmInstSetbe,
+	AsmInstSetnbe, AsmInstSeta = AsmInstSetnbe,
+	AsmInstSets,
+	AsmInstSetns,
+	AsmInstSetp, AsmInstSetpe = AsmInstSetp,
+	AsmInstSetnp, AsmInstSetpo = AsmInstSetnp,
+	AsmInstSetl, AsmInstSetnge = AsmInstSetl,
+	AsmInstSetnl, AsmInstSetge = AsmInstSetnl,
+	AsmInstSetle, AsmInstSetng = AsmInstSetle,
+	AsmInstSetnle, AsmInstSetg = AsmInstSetnle,
 	AsmInst_Count
 };
 enum asm_inst_opds {

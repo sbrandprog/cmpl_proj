@@ -7,6 +7,7 @@
 
 enum ira_inst_opd_type {
 	IraInstOpdNone,
+	IraInstOpdIntCmp,
 	IraInstOpdDt,
 	IraInstOpdVal,
 	IraInstOpdVarDef,
@@ -18,6 +19,7 @@ enum ira_inst_opd_type {
 	IraInstOpds_Count
 };
 union ira_inst_opd {
+	ira_int_cmp_t int_cmp;
 	size_t size;
 	u_hs_t * hs;
 	u_hs_t ** hss;

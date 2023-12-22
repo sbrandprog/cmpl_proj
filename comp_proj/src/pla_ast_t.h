@@ -4,6 +4,7 @@
 enum pla_ast_t_optr_type {
 	PlaAstTOptrNone,
 	PlaAstTOptrBinInstInt,
+	PlaAstTOptrBinInstIntBool,
 	PlaAstTOptr_Count
 };
 struct pla_ast_t_optr {
@@ -13,7 +14,11 @@ struct pla_ast_t_optr {
 	union {
 		struct {
 			ira_inst_type_t inst_type;
-		} bin_inst;
+		} bin_inst_int;
+		struct {
+			ira_inst_type_t inst_type;
+			ira_int_cmp_t int_cmp;
+		} bin_inst_int_bool;
 	};
 };
 

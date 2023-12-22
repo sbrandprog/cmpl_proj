@@ -55,6 +55,7 @@ static void destroy_optr(optr_t * optr) {
 	switch (optr->type) {
 		case PlaAstTOptrNone:
 		case PlaAstTOptrBinInstInt:
+		case PlaAstTOptrBinInstIntBool:
 			break;
 		default:
 			u_assert_switch(optr->type);
@@ -72,24 +73,27 @@ static void destroy_optr_chain(optr_t * chain) {
 	}
 }
 
-static bool is_equal_optrs(optr_t * first, optr_t * second) {
+static bool is_optrs_equivalent(optr_t * first, optr_t * second) {
 	if (first == second) {
 		return true;
 	}
 
-	if (first->type != second->type) {
-		return false;
-	}
-
 	switch (first->type) {
 		case PlaAstTOptrNone:
+			break;
 		case PlaAstTOptrBinInstInt:
+		case PlaAstTOptrBinInstIntBool:
+			switch (second->type) {
+				case PlaAstTOptrBinInstInt:
+				case PlaAstTOptrBinInstIntBool:
+					return true;
+			}
 			break;
 		default:
 			u_assert_switch(first->type);
 	}
 
-	return true;
+	return false;
 }
 
 void pla_ast_t_report(pla_ast_t_ctx_t * ctx, const wchar_t * format, ...) {
@@ -121,6 +125,13 @@ bool pla_ast_t_get_optr_dt(pla_ast_t_ctx_t * ctx, pla_ast_t_optr_t * optr, ira_d
 			}
 
 			*out = first;
+			break;
+		case PlaAstTOptrBinInstIntBool:
+			if (first->type != IraDtInt || !ira_dt_is_equivalent(first, second)) {
+				return false;
+			}
+
+			*out = &ctx->out->dt_bool;
 			break;
 		default:
 			u_assert_switch(optr->type);
@@ -284,7 +295,7 @@ static optr_t ** get_optr_ins(ctx_t * ctx, pla_expr_type_t expr_type, optr_t * p
 	optr_t ** ins = &ctx->optrs[expr_type];
 
 	for (; *ins != NULL; ins = &(*ins)->next) {
-		if (is_equal_optrs(*ins, pred)) {
+		if (is_optrs_equivalent(*ins, pred)) {
 			return ins;
 		}
 	}
@@ -292,7 +303,7 @@ static optr_t ** get_optr_ins(ctx_t * ctx, pla_expr_type_t expr_type, optr_t * p
 	return ins;
 }
 static void register_bltn_optrs_bin_int(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type) {
-	optr_t pred = { .type = PlaAstTOptrBinInstInt, .bin_inst.inst_type = inst_type };
+	optr_t pred = { .type = PlaAstTOptrBinInstInt, .bin_inst_int.inst_type = inst_type };
 
 	optr_t ** ins = get_optr_ins(ctx, expr_type, &pred);
 
@@ -302,7 +313,21 @@ static void register_bltn_optrs_bin_int(ctx_t * ctx, pla_expr_type_t expr_type, 
 
 	optr_t * optr = *ins;
 
-	optr->bin_inst.inst_type = inst_type;
+	optr->bin_inst_int.inst_type = inst_type;
+}
+static void register_bltn_optrs_bin_int_bool(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type, ira_int_cmp_t int_cmp) {
+	optr_t pred = { .type = PlaAstTOptrBinInstInt, .bin_inst_int_bool = { .inst_type = inst_type, .int_cmp = int_cmp } };
+
+	optr_t ** ins = get_optr_ins(ctx, expr_type, &pred);
+
+	u_assert(*ins == NULL);
+
+	*ins = create_optr(PlaAstTOptrBinInstIntBool);
+
+	optr_t * optr = *ins;
+
+	optr->bin_inst_int_bool.inst_type = inst_type;
+	optr->bin_inst_int_bool.int_cmp = int_cmp;
 }
 static void register_bltn_optrs(ctx_t * ctx) {
 	register_bltn_optrs_bin_int(ctx, PlaExprAdd, IraInstAddInt);
@@ -310,6 +335,13 @@ static void register_bltn_optrs(ctx_t * ctx) {
 	register_bltn_optrs_bin_int(ctx, PlaExprMul, IraInstMulInt);
 	register_bltn_optrs_bin_int(ctx, PlaExprDiv, IraInstDivInt);
 	register_bltn_optrs_bin_int(ctx, PlaExprMod, IraInstModInt);
+
+	register_bltn_optrs_bin_int_bool(ctx, PlaExprLess, IraInstCmpInt, IraIntCmpLess);
+	register_bltn_optrs_bin_int_bool(ctx, PlaExprLessEq, IraInstCmpInt, IraIntCmpLessEq);
+	register_bltn_optrs_bin_int_bool(ctx, PlaExprEq, IraInstCmpInt, IraIntCmpEq);
+	register_bltn_optrs_bin_int_bool(ctx, PlaExprGrtr, IraInstCmpInt, IraIntCmpGrtr);
+	register_bltn_optrs_bin_int_bool(ctx, PlaExprGrtrEq, IraInstCmpInt, IraIntCmpGrtrEq);
+	register_bltn_optrs_bin_int_bool(ctx, PlaExprNeq, IraInstCmpInt, IraIntCmpNeq);
 }
 
 static bool translate_dclr(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out);

@@ -945,10 +945,12 @@ enum {
 	q_func_bwdq_bwdd(q_rmmem_imm, name, 0x80, 0x81, d_modrm_reg(i)),\
 	q_func_wdq_bbb(q_gpr_rmreg_imm, name, 0x83, d_modrm_reg(i)),\
 	q_func_wdq_bbb(q_rmmem_imm, name, 0x83, d_modrm_reg(i))
-
 #define q_g1(name, i)\
 	q_imm(name, 0x70 + i, 8),\
 	q_imm(name, 0x80 + i, 32, d_use_0f)
+#define q_g2(name, i)\
+	q_rmmem(name, 0x90 + i, 8, d_modrm_reg(0), d_use_0f),\
+	q_gpr_rmreg(name, 0x90 + i, 8, d_modrm_reg(0), d_use_0f)
 
 static const inst_rec_t inst_recs[] = {
 	q_label(Label, 0x00, d_no_opc),
@@ -1063,5 +1065,22 @@ static const inst_rec_t inst_recs[] = {
 	q_none(Cwd, 0x99, d_use_osize),
 	q_none(Cdq, 0x99),
 	q_none(Cqo, 0x99, d_ext_w),
+
+	q_g2(Seto, 0),
+	q_g2(Setno, 1),
+	q_g2(Setb, 2),
+	q_g2(Setnb, 3),
+	q_g2(Setz, 4),
+	q_g2(Setnz, 5),
+	q_g2(Setbe, 6),
+	q_g2(Setnbe, 7),
+	q_g2(Sets, 8),
+	q_g2(Setns, 9),
+	q_g2(Setp, 10),
+	q_g2(Setnp, 11),
+	q_g2(Setl, 12),
+	q_g2(Setnl, 13),
+	q_g2(Setle, 14),
+	q_g2(Setnle, 15),
 };
 static const size_t inst_recs_size = _countof(inst_recs);

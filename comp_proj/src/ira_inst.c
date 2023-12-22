@@ -11,6 +11,7 @@ void ira_inst_cleanup(ira_inst_t * inst) {
 	for (size_t opd = 0; opd < IRA_INST_OPDS_SIZE; ++opd) {
 		switch (info->opds[opd]) {
 			case IraInstOpdNone:
+			case IraInstOpdIntCmp:
 			case IraInstOpdDt:
 			case IraInstOpdVarDef:
 			case IraInstOpdVar:

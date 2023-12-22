@@ -1157,7 +1157,14 @@ static bool translate_expr1_bin(ctx_t * ctx, expr_t * expr, ev_t * out) {
 	switch (optr->type) {
 		case PlaAstTOptrBinInstInt:
 		{
-			ira_inst_t bin_op = { .type = optr->bin_inst.inst_type, .opd1.hs = ev0.var->inst_name, .opd2.hs = ev1.var->inst_name };
+			ira_inst_t bin_op = { .type = optr->bin_inst_int.inst_type, .opd1.hs = ev0.var->inst_name, .opd2.hs = ev1.var->inst_name };
+
+			push_inst_imm_var0(ctx, &bin_op, out, expr->res_dt);
+			break;
+		}
+		case PlaAstTOptrBinInstIntBool:
+		{
+			ira_inst_t bin_op = { .type = optr->bin_inst_int_bool.inst_type, .opd1.hs = ev0.var->inst_name, .opd2.hs = ev1.var->inst_name, .opd3.int_cmp = optr->bin_inst_int_bool.int_cmp };
 
 			push_inst_imm_var0(ctx, &bin_op, out, expr->res_dt);
 			break;

@@ -14,6 +14,16 @@ enum ira_int_type {
 	IraInt_First = IraIntU8
 };
 
+enum ira_int_cmp {
+	IraIntCmpLess,
+	IraIntCmpLessEq,
+	IraIntCmpEq,
+	IraIntCmpGrtrEq,
+	IraIntCmpGrtr,
+	IraIntCmpNeq,
+	IraIntCmp_Count,
+};
+
 union ira_int {
 	uint8_t ui8;
 	uint16_t ui16;
