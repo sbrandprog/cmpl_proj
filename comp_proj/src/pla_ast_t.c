@@ -13,7 +13,6 @@
 #include "ira_pec_ip.h"
 #include "u_misc.h"
 
-#define UNQ_SUFFIX L"#"
 #define LO_FULL_NAME_DELIM L'.'
 
 typedef pla_ast_t_optr_type_t optr_type_t;
@@ -34,8 +33,7 @@ typedef struct pla_ast_t_ctx {
 	tse_t * tse;
 	vse_t * vse;
 
-	wchar_t * buf;
-	size_t buf_cap;
+	u_hsb_t hsb;
 } ctx_t;
 
 static optr_t * create_optr(optr_type_t type) {
@@ -110,6 +108,12 @@ void pla_ast_t_report(pla_ast_t_ctx_t * ctx, const wchar_t * format, ...) {
 	fputwc(L'\n', stderr);
 }
 
+u_hsb_t * pla_ast_t_get_hsb(pla_ast_t_ctx_t * ctx) {
+	return &ctx->hsb;
+}
+u_hst_t * pla_ast_t_get_hst(pla_ast_t_ctx_t * ctx) {
+	return ctx->hst;
+}
 ira_pec_t * pla_ast_t_get_pec(pla_ast_t_ctx_t * ctx) {
 	return ctx->out;
 }
@@ -174,42 +178,13 @@ pla_ast_t_vse_t * pla_ast_t_get_vse(pla_ast_t_ctx_t * ctx) {
 }
 
 static u_hs_t * cat_hs_delim(ctx_t * ctx, u_hs_t * str1, wchar_t delim, u_hs_t * str2) {
-	size_t max_size = str1->size + 1 + str2->size;
-	size_t max_size_null = max_size + 1;
-
-	u_assert(max_size_null < INT32_MAX);
-
-	if (max_size_null > ctx->buf_cap) {
-		u_grow_arr(&ctx->buf_cap, &ctx->buf, sizeof(*ctx->buf), max_size_null - ctx->buf_cap);
-	}
-
-	int result = swprintf_s(ctx->buf, ctx->buf_cap, L"%s%c%s", str1->str, delim, str2->str);
-
-	u_assert(result >= 0 && result < (int)max_size_null);
-
-	return u_hst_hashadd(ctx->hst, (size_t)result, ctx->buf);
+	return u_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%c%s", str1->str, delim, str2->str);
 }
 
 u_hs_t * pla_ast_t_get_pds(pla_ast_t_ctx_t * ctx, pla_pds_t pds) {
 	u_assert(pds < PlaPds_Count);
 
 	return ctx->ast->pds[pds];
-}
-u_hs_t * pla_ast_t_get_unq_var_name(pla_ast_t_ctx_t * ctx, u_hs_t * var_name, size_t unq_index) {
-	size_t max_size = var_name->size + (_countof(UNQ_SUFFIX) - 1) + U_SIZE_T_NUM_SIZE;
-	size_t max_size_null = max_size + 1;
-
-	u_assert(max_size_null < INT32_MAX);
-
-	if (max_size_null > ctx->buf_cap) {
-		u_grow_arr(&ctx->buf_cap, &ctx->buf, sizeof(*ctx->buf), max_size_null - ctx->buf_cap);
-	}
-
-	int result = swprintf_s(ctx->buf, ctx->buf_cap, L"%s%s%zi", var_name->str, UNQ_SUFFIX, unq_index);
-
-	u_assert(result >= 0 && result < (int)max_size);
-
-	return u_hst_hashadd(ctx->hst, (size_t)result, ctx->buf);
 }
 
 void pla_ast_t_print_ts(pla_ast_t_ctx_t * ctx, FILE * file) {
@@ -501,7 +476,7 @@ bool pla_ast_t_translate(pla_ast_t * ast, ira_pec_t * out) {
 		destroy_optr_chain(ctx.optrs[expr_type]);
 	}
 
-	free(ctx.buf);
+	u_hsb_cleanup(&ctx.hsb);
 
 	return result;
 }

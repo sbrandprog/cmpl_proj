@@ -13,6 +13,7 @@ void ira_inst_cleanup(ira_inst_t * inst) {
 			case IraInstOpdNone:
 			case IraInstOpdIntCmp:
 			case IraInstOpdDt:
+			case IraInstOpdLabel:
 			case IraInstOpdVarDef:
 			case IraInstOpdVar:
 			case IraInstOpdMmbr:

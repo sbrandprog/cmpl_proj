@@ -9,6 +9,7 @@ enum ira_inst_opd_type {
 	IraInstOpdNone,
 	IraInstOpdIntCmp,
 	IraInstOpdDt,
+	IraInstOpdLabel,
 	IraInstOpdVal,
 	IraInstOpdVarDef,
 	IraInstOpdVar,

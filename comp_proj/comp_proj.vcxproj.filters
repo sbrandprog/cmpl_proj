@@ -120,6 +120,9 @@
     <ClCompile Include="src\asm_it.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="src\u_hsb.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\pch.h">
@@ -240,6 +243,9 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="src\asm_it.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="src\u_hsb.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

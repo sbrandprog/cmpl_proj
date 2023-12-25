@@ -127,6 +127,7 @@
     <ClCompile Include="src\pla_stmt.c" />
     <ClCompile Include="src\u_assert.c" />
     <ClCompile Include="src\u_hs.c" />
+    <ClCompile Include="src\u_hsb.c" />
     <ClCompile Include="src\u_hst.c" />
   </ItemGroup>
   <ItemGroup>
@@ -167,6 +168,7 @@
     <ClInclude Include="src\pla_stmt.h" />
     <ClInclude Include="src\u_assert.h" />
     <ClInclude Include="src\u_hs.h" />
+    <ClInclude Include="src\u_hsb.h" />
     <ClInclude Include="src\u_hst.h" />
     <ClInclude Include="src\u_misc.h" />
     <ClInclude Include="src\u_ros.h" />

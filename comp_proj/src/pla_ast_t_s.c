@@ -10,6 +10,8 @@
 #include "ira_pec.h"
 #include "u_assert.h"
 
+#define UNQ_VAR_NAME_SUFFIX L"#"
+
 typedef pla_ast_t_tse_t tse_t;
 typedef pla_ast_t_vse_t vse_t;
 
@@ -40,6 +42,8 @@ typedef struct pla_ast_t_s_ctx {
 
 	ira_func_t ** out;
 
+	u_hsb_t * hsb;
+	u_hst_t * hst;
 	ira_pec_t * pec;
 
 	ira_func_t * func;
@@ -47,6 +51,7 @@ typedef struct pla_ast_t_s_ctx {
 
 	blk_t * blk;
 	size_t unq_var_index;
+	size_t unq_label_index;
 } ctx_t;
 
 typedef struct expr expr_t;
@@ -98,6 +103,18 @@ struct expr {
 
 typedef bool val_proc_t(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out);
 
+
+static const u_ros_t label_cond_base = U_MAKE_ROS(L"cond");
+static const u_ros_t label_cond_tc_end = U_MAKE_ROS(L"tc_end");
+static const u_ros_t label_cond_fc_end = U_MAKE_ROS(L"fc_end");
+
+static u_hs_t * get_unq_var_name(ctx_t * ctx, u_hs_t * name) {
+	return u_hsb_formatadd(ctx->hsb, ctx->hst, L"%s%s%zi", name->str, UNQ_VAR_NAME_SUFFIX, ctx->unq_var_index++);
+}
+static u_hs_t * get_unq_label_name(ctx_t * ctx, const u_ros_t * base, size_t index, const u_ros_t * suffix) {
+	return u_hsb_formatadd(ctx->hsb, ctx->hst, L"%s%zi%s", base->str, index, suffix->str);
+}
+
 static void push_blk(ctx_t * ctx, blk_t * blk) {
 	blk->prev = ctx->blk;
 
@@ -125,7 +142,7 @@ static var_t * create_var(ctx_t * ctx, u_hs_t * name, ira_dt_t * dt, bool unq_na
 	*new_var = (var_t){ .name = name, .inst_name = name, .dt = dt };
 
 	if (unq_name) {
-		new_var->inst_name = pla_ast_t_get_unq_var_name(ctx->t_ctx, name, ctx->unq_var_index++);
+		new_var->inst_name = get_unq_var_name(ctx, name);
 	}
 
 	return new_var;
@@ -237,6 +254,11 @@ static void push_def_var_inst(ctx_t * ctx, var_t * var) {
 	ira_inst_t def_var = { .type = IraInstDefVar, .opd0.hs = var->inst_name, .opd1.dt = var->dt };
 
 	ira_func_push_inst(ctx->func, &def_var);
+}
+static void push_def_label_inst(ctx_t * ctx, u_hs_t * name) {
+	ira_inst_t def_label = { .type = IraInstDefLabel, .opd0.hs = name };
+
+	ira_func_push_inst(ctx->func, &def_label);
 }
 static void push_inst_imm_var0(ctx_t * ctx, ira_inst_t * inst, ev_t * out, ira_dt_t * dt) {
 	var_t * out_var = get_imm_var(ctx, dt);
@@ -1392,6 +1414,56 @@ static bool translate_stmt_var(ctx_t * ctx, pla_stmt_t * stmt) {
 
 	return true;
 }
+static bool translate_stmt_cond(ctx_t * ctx, pla_stmt_t * stmt) {
+	ev_t cond_ev;
+	
+	if (!translate_expr(ctx, stmt->cond.cond_expr, &cond_ev)) {
+		return false;
+	}
+
+	if (cond_ev.var->dt != &ctx->pec->dt_bool) {
+		pla_ast_t_report(ctx->t_ctx, L"condition expression mush have a boolean data type");
+		return false;
+	}
+
+	size_t label_index = ctx->unq_label_index++;
+
+	u_hs_t * exit_label;
+
+	{
+		u_hs_t * tc_end = get_unq_label_name(ctx, &label_cond_base, label_index, &label_cond_tc_end);
+
+		ira_inst_t brf = { .type = IraInstBrf, .opd0.hs = tc_end, .opd1.hs = cond_ev.var->inst_name };
+
+		ira_func_push_inst(ctx->func, &brf);
+
+		if (!translate_stmt(ctx, stmt->cond.true_br)) {
+			return false;
+		}
+
+		exit_label = tc_end;
+	}
+	
+	if (stmt->cond.false_br != false) {
+		u_hs_t * fc_end = get_unq_label_name(ctx, &label_cond_base, label_index, &label_cond_fc_end);
+
+		ira_inst_t bru = { .type = IraInstBru, .opd0.hs = fc_end };
+
+		ira_func_push_inst(ctx->func, &bru);
+
+		push_def_label_inst(ctx, exit_label);
+
+		exit_label = fc_end;
+
+		if (!translate_stmt(ctx, stmt->cond.false_br)) {
+			return false;
+		}
+	}
+
+	push_def_label_inst(ctx, exit_label);
+
+	return true;
+}
 static bool translate_stmt_ret(ctx_t * ctx, pla_stmt_t * stmt) {
 	ev_t ev;
 
@@ -1431,6 +1503,11 @@ static bool translate_stmt_tse(ctx_t * ctx, pla_stmt_t * stmt) {
 			break;
 		case PlaStmtVar:
 			if (!translate_stmt_var(ctx, stmt)) {
+				return false;
+			}
+			break;
+		case PlaStmtCond:
+			if (!translate_stmt_cond(ctx, stmt)) {
 				return false;
 			}
 			break;
@@ -1503,6 +1580,8 @@ static bool translate_core(ctx_t * ctx) {
 		return false;
 	}
 
+	ctx->hsb = pla_ast_t_get_hsb(ctx->t_ctx);
+	ctx->hst = pla_ast_t_get_hst(ctx->t_ctx);
 	ctx->pec = pla_ast_t_get_pec(ctx->t_ctx);
 
 	*ctx->out = ira_func_create(ctx->func_dt);

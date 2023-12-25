@@ -1,5 +1,6 @@
 #pragma once
 #include "pla_ast.h"
+#include "u_hsb.h"
 
 enum pla_ast_t_optr_type {
 	PlaAstTOptrNone,
@@ -56,6 +57,8 @@ struct pla_ast_t_vse {
 
 void pla_ast_t_report(pla_ast_t_ctx_t * ctx, const wchar_t * format, ...);
 
+u_hsb_t * pla_ast_t_get_hsb(pla_ast_t_ctx_t * ctx);
+u_hst_t * pla_ast_t_get_hst(pla_ast_t_ctx_t * ctx);
 ira_pec_t * pla_ast_t_get_pec(pla_ast_t_ctx_t * ctx);
 
 pla_ast_t_optr_t * pla_ast_t_get_optr_chain(pla_ast_t_ctx_t * ctx, pla_expr_type_t expr_type);
@@ -70,7 +73,6 @@ void pla_ast_t_pop_vse(pla_ast_t_ctx_t * ctx);
 pla_ast_t_vse_t * pla_ast_t_get_vse(pla_ast_t_ctx_t * ctx);
 
 u_hs_t * pla_ast_t_get_pds(pla_ast_t_ctx_t * ctx, pla_pds_t pds);
-u_hs_t * pla_ast_t_get_unq_var_name(pla_ast_t_ctx_t * ctx, u_hs_t * var_name, size_t var_index);
 
 void pla_ast_t_print_ts(pla_ast_t_ctx_t * ctx, FILE * file);
 

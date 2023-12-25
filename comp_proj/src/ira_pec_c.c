@@ -17,27 +17,14 @@ typedef struct ira_pec_c_ctx {
 
 	asm_pea_t * out;
 
-	wchar_t * buf;
-	size_t buf_cap;
+	u_hsb_t hsb;
+	u_hst_t * hst;
 
 	size_t str_unq_index;
 } ctx_t;
 
 static u_hs_t * get_unq_arr_label(ctx_t * ctx) {
-	size_t max_size = (_countof(ARR_UNQ_PREFIX) - 1) + U_SIZE_T_NUM_SIZE;
-	size_t max_size_null = max_size + 1;
-
-	u_assert(max_size_null < INT32_MAX);
-
-	if (max_size_null > ctx->buf_cap) {
-		u_grow_arr(&ctx->buf_cap, &ctx->buf, sizeof(*ctx->buf), max_size_null - ctx->buf_cap);
-	}
-
-	int result = swprintf_s(ctx->buf, ctx->buf_cap, L"%s%zi", ARR_UNQ_PREFIX, ctx->str_unq_index++);
-
-	u_assert(result >= 0 && result < (int)max_size);
-
-	return u_hst_hashadd(ctx->pec->hst, (size_t)result, ctx->buf);
+	return u_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%zi", ARR_UNQ_PREFIX, ctx->str_unq_index++);
 }
 
 bool ira_pec_c_compile_int_arr(ira_pec_c_ctx_t * ctx, ira_val_t * arr, u_hs_t ** out_label) {
@@ -97,6 +84,12 @@ bool ira_pec_c_compile_int_arr(ira_pec_c_ctx_t * ctx, ira_val_t * arr, u_hs_t **
 	return true;
 }
 
+u_hsb_t * ira_pec_c_get_hsb(ira_pec_c_ctx_t * ctx) {
+	return &ctx->hsb;
+}
+u_hst_t * ira_pec_c_get_hst(ira_pec_c_ctx_t * ctx) {
+	return ctx->hst;
+}
 ira_pec_t * ira_pec_c_get_pec(ira_pec_c_ctx_t * ctx) {
 	return ctx->pec;
 }
@@ -131,7 +124,9 @@ static bool compile_lo(ctx_t * ctx, ira_lo_t * lo) {
 }
 
 static bool compile_core(ctx_t * ctx) {
-	asm_pea_init(ctx->out, ctx->pec->hst);
+	ctx->hst = ctx->pec->hst;
+
+	asm_pea_init(ctx->out, ctx->hst);
 
 	if (!compile_lo(ctx, ctx->pec->root)) {
 		return false;
@@ -146,7 +141,7 @@ bool ira_pec_c_compile(ira_pec_t * pec, asm_pea_t * out) {
 
 	bool result = compile_core(&ctx);
 
-	free(ctx.buf);
+	u_hsb_cleanup(&ctx.hsb);
 
 	return result;
 }

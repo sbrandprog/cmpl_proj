@@ -526,7 +526,9 @@ static ira_int_type_t get_int_type(pla_keyw_t keyw) {
 	}
 }
 
+
 static bool parse_expr(ctx_t * ctx, pla_expr_t ** out);
+
 static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 	while (true) {
 		const unr_oper_info_t * info = get_unr_oper_info(get_punc(ctx));
@@ -873,6 +875,29 @@ static bool parse_expr(ctx_t * ctx, pla_expr_t ** out) {
 	return parse_expr_asgn(ctx, out);
 }
 
+
+static bool parse_stmt(ctx_t * ctx, pla_stmt_t ** out);
+
+static bool parse_stmt_blk(ctx_t * ctx, pla_stmt_t ** out) {
+	if (!consume_punc_exact_crit(ctx, PlaPuncLeBrace)) {
+		return false;
+	}
+
+	*out = pla_stmt_create(PlaStmtBlk);
+
+	for (pla_stmt_t ** ins = &(*out)->block.body; !consume_punc_exact(ctx, PlaPuncRiBrace); ) {
+		if (!parse_stmt(ctx, ins)) {
+			return false;
+		}
+
+		while (*ins != NULL) {
+			ins = &(*ins)->next;
+		}
+	}
+
+	return true;
+}
+
 static bool parse_stmt_expr(ctx_t * ctx, pla_stmt_t ** out) {
 	*out = pla_stmt_create(PlaStmtExpr);
 
@@ -935,6 +960,40 @@ static bool parse_stmt_ret(ctx_t * ctx, pla_stmt_t ** out) {
 
 	return true;
 }
+static bool parse_stmt_cond(ctx_t * ctx, pla_stmt_t ** out) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywIf)) {
+		return false;
+	}
+
+	*out = pla_stmt_create(PlaStmtCond);
+
+	if (!parse_expr(ctx, &(*out)->cond.cond_expr)) {
+		return false;
+	}
+
+	if (!parse_stmt_blk(ctx, &(*out)->cond.true_br)) {
+		return false;
+	}
+
+	if (consume_keyw_exact(ctx, PlaKeywElse)) {
+		if (get_punc(ctx) == PlaPuncLeBrace) {
+			if (!parse_stmt_blk(ctx, &(*out)->cond.false_br)) {
+				return false;
+			}
+		}
+		else if (get_keyw(ctx) == PlaKeywIf) {
+			if (!parse_stmt_cond(ctx, &(*out)->cond.false_br)) {
+				return false;
+			}
+		}
+		else {
+			report(ctx, L"expected an else or else-if clause");
+			return false;
+		}
+	}
+
+	return true;
+}
 static bool parse_stmt(ctx_t * ctx, pla_stmt_t ** out) {
 	switch (ctx->tok.type) {
 		case TokPunc:
@@ -948,6 +1007,8 @@ static bool parse_stmt(ctx_t * ctx, pla_stmt_t ** out) {
 			switch (ctx->tok.keyw) {
 				case PlaKeywVrbl:
 					return parse_stmt_var(ctx, out);
+				case PlaKeywIf:
+					return parse_stmt_cond(ctx, out);
 				case PlaKeywRet:
 					return parse_stmt_ret(ctx, out);
 			}
@@ -976,20 +1037,8 @@ static bool parse_dclr_func(ctx_t * ctx, pla_dclr_t ** out) {
 		return false;
 	}
 
-	if (!consume_punc_exact_crit(ctx, PlaPuncLeBrace)) {
+	if (!parse_stmt_blk(ctx, &(*out)->func.block)) {
 		return false;
-	}
-
-	(*out)->func.block = pla_stmt_create(PlaStmtBlk);
-
-	for (pla_stmt_t ** ins = &(*out)->func.block->block.body; !consume_punc_exact(ctx, PlaPuncRiBrace); ) {
-		if (!parse_stmt(ctx, ins)) {
-			return false;
-		}
-
-		while (*ins != NULL) {
-			ins = &(*ins)->next;
-		}
 	}
 
 	return true;

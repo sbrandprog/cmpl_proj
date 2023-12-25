@@ -14,8 +14,12 @@
 #include "u_assert.h"
 #include "u_misc.h"
 
+#define GLOBAL_LABEL_DELIM L'$'
+
 #define STACK_ALIGN 16
 #define STACK_UNIT 8
+
+typedef struct inst inst_t;
 
 typedef enum trg {
 	TrgCompl,
@@ -39,17 +43,26 @@ struct var {
 	size_t pos;
 };
 
+typedef struct label label_t;
+struct label {
+	label_t * next;
+	u_hs_t * name;
+	inst_t * inst;
+	u_hs_t * global_name;
+};
+
 typedef union inst_opd {
 	ira_int_cmp_t int_cmp;
 	size_t size;
 	u_hs_t * hs;
 	u_hs_t ** hss;
 	ira_dt_t * dt;
+	label_t * label;
 	ira_val_t * val;
 	var_t * var;
 	var_t ** vars;
 } inst_opd_t;
-typedef struct inst {
+struct inst {
 	ira_inst_t * base;
 
 	union {
@@ -62,7 +75,7 @@ typedef struct inst {
 			inst_opd_t opd4;
 		};
 	};
-} inst_t;
+};
 
 typedef struct int_cast_info {
 	asm_inst_type_t inst_type;
@@ -79,6 +92,8 @@ typedef struct ira_pec_ip_ctx {
 
 	ira_val_t ** i_out;
 
+	u_hsb_t * hsb;
+	u_hst_t * hst;
 	ira_pec_t * pec;
 
 	ira_func_t * func;
@@ -86,6 +101,7 @@ typedef struct ira_pec_ip_ctx {
 	asm_frag_t * frag;
 
 	var_t * var;
+	label_t * label;
 
 	size_t insts_size;
 	inst_t * insts;
@@ -188,6 +204,7 @@ static void ctx_cleanup(ctx_t * ctx) {
 				case IraInstOpdNone:
 				case IraInstOpdIntCmp:
 				case IraInstOpdDt:
+				case IraInstOpdLabel:
 				case IraInstOpdVal:
 				case IraInstOpdVarDef:
 				case IraInstOpdVar:
@@ -205,6 +222,14 @@ static void ctx_cleanup(ctx_t * ctx) {
 	}
 
 	free(ctx->insts);
+
+	for (label_t * label = ctx->label; label != NULL; ) {
+		label_t * next = label->next;
+
+		free(label);
+
+		label = next;
+	}
 
 	for (var_t * var = ctx->var; var != NULL;) {
 		var_t * next = var->next;
@@ -254,6 +279,37 @@ static var_t * find_var(ctx_t * ctx, u_hs_t * name) {
 	}
 
 	return NULL;
+}
+static label_t * get_label(ctx_t * ctx, u_hs_t * name) {
+	label_t ** ins = &ctx->label;
+
+	for (; *ins != NULL; ins = &(*ins)->next) {
+		label_t * label = *ins;
+
+		if (label->name == name) {
+			return label;
+		}
+	}
+
+	label_t * new_label = malloc(sizeof(*new_label));
+
+	u_assert(new_label != NULL);
+
+	*new_label = (label_t){ .name = name };
+
+	*ins = new_label;
+
+	return new_label;
+}
+static bool define_label(ctx_t * ctx, inst_t * inst, label_t * label) {
+	if (label->inst != NULL) {
+		report(ctx, L">1 instructions define [%s] label", label->name->str);
+		return false;
+	}
+
+	label->inst = inst;
+
+	return true;
 }
 static bool prepare_insts_args(ctx_t * ctx) {
 	ira_dt_t * func_dt = ctx->func->dt;
@@ -311,6 +367,14 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
 					report(ctx, L"[%s]: value in [%zi]th operand is invalid", ira_inst_infos[ira_inst->type].type_str.str, opd);
 					return false;
 				}
+				break;
+			case IraInstOpdLabel:
+				if (ira_inst->opds[opd].hs == NULL) {
+					report(ctx, L"[%s]: value in [%zi]th operand is invalid", ira_inst_infos[ira_inst->type].type_str.str, opd);
+					return false;
+				}
+
+				inst->opds[opd].label = get_label(ctx, ira_inst->opds[opd].hs);
 				break;
 			case IraInstOpdVal:
 				inst->opds[opd].val = ira_inst->opds[opd].val;
@@ -416,6 +480,11 @@ static bool prepare_insts(ctx_t * ctx) {
 				break;
 			case IraInstDefVar:
 				if (!define_var(ctx, inst->opd1.dt, inst->opd0.hs)) {
+					return false;
+				}
+				break;
+			case IraInstDefLabel:
+				if (!define_label(ctx, inst, inst->opd0.label)) {
 					return false;
 				}
 				break;
@@ -650,6 +719,14 @@ static bool prepare_insts(ctx_t * ctx) {
 
 				break;
 			}
+			case IraInstBru:
+				break;
+			case IraInstBrf:
+				if (inst->opd1.var->dt != &ctx->pec->dt_bool) {
+					report(ctx, L"[%s]: opd[1] must have a boolean data type", info->type_str.str);
+					return false;
+				}
+				break;
 			case IraInstRet:
 				if (!ira_dt_is_equivalent(ctx->func->dt->func.ret, inst->opd0.var->dt)) {
 					report_opd_not_equ_dt(ctx, inst, 0);
@@ -661,9 +738,22 @@ static bool prepare_insts(ctx_t * ctx) {
 		}
 	}
 
+	for (label_t * label = ctx->label; label != NULL; label = label->next) {
+		if (label->inst == NULL) {
+			report(ctx, L"could not find an instruction for [%s] label", label->name->str);
+			return false;
+		}
+	}
+
 	return true;
 }
 
+
+static void form_global_label_names(ctx_t * ctx, u_hs_t * prefix) {
+	for (label_t * label = ctx->label; label != NULL; label = label->next) {
+		label->global_name = u_hsb_formatadd(ctx->hsb, ctx->hst, L"%s%c%s", prefix->str, GLOBAL_LABEL_DELIM, label->name->str);
+	}
+}
 
 static void push_label(ctx_t * ctx, u_hs_t * name) {
 	asm_inst_t label = { .type = AsmInstLabel, .opds = AsmInstLabel, .label = name };
@@ -1027,6 +1117,9 @@ static asm_inst_type_t get_set_inst_type(ira_dt_t * dt, ira_int_cmp_t int_cmp) {
 	}
 }
 
+static void compile_def_label(ctx_t * ctx, inst_t * inst) {
+	push_label(ctx, inst->opd0.label->global_name);
+}
 static void compile_load_val_bool(ctx_t * ctx, inst_t * inst) {
 	ira_val_t * val = inst->opd1.val;
 
@@ -1285,6 +1378,22 @@ static void compile_call_func_ptr(ctx_t * ctx, inst_t * inst) {
 	}
 
 }
+static void compile_bru(ctx_t * ctx, inst_t * inst) {
+	asm_inst_t jmp = { .type = AsmInstJmp, .opds = AsmInstOpds_Imm, .imm0_type = AsmInstImmLabelRel32, .imm0_label = inst->opd0.label->global_name };
+
+	asm_frag_push_inst(ctx->frag, &jmp);
+}
+static void compile_brf(ctx_t * ctx, inst_t * inst) {
+	load_stack_var(ctx, AsmRegAl, inst->opd1.var);
+
+	asm_inst_t test = { .type = AsmInstTest, .opds = AsmInstOpds_Reg_Reg, .reg0 = AsmRegAl, .reg1 = AsmRegAl };
+
+	asm_frag_push_inst(ctx->frag, &test);
+
+	asm_inst_t jz = { .type = AsmInstJz, .opds = AsmInstOpds_Imm, .imm0_type = AsmInstImmLabelRel32, .imm0_label = inst->opd0.label->global_name };
+	
+	asm_frag_push_inst(ctx->frag, &jz);
+}
 static void compile_ret(ctx_t * ctx, inst_t * inst) {
 	ira_dt_t * dt = inst->opd0.var->dt;
 
@@ -1314,6 +1423,9 @@ static void compile_insts(ctx_t * ctx) {
 		switch (base->type) {
 			case IraInstNone:
 			case IraInstDefVar:
+				break;
+			case IraInstDefLabel:
+				compile_def_label(ctx, inst);
 				break;
 			case IraInstLoadVal:
 				compile_load_val(ctx, inst);
@@ -1351,6 +1463,12 @@ static void compile_insts(ctx_t * ctx) {
 			case IraInstCallFuncPtr:
 				compile_call_func_ptr(ctx, inst);
 				break;
+			case IraInstBru:
+				compile_bru(ctx, inst);
+				break;
+			case IraInstBrf:
+				compile_brf(ctx, inst);
+				break;
 			case IraInstRet:
 				compile_ret(ctx, inst);
 				break;
@@ -1366,6 +1484,9 @@ static bool compile_core(ctx_t * ctx) {
 	}
 
 	ctx->c_out = &ira_pec_c_get_pea(ctx->c_ctx)->frag;
+
+	ctx->hsb = ira_pec_c_get_hsb(ctx->c_ctx);
+	ctx->hst = ira_pec_c_get_hst(ctx->c_ctx);
 	ctx->pec = ira_pec_c_get_pec(ctx->c_ctx);
 
 	ctx->frag = asm_frag_create(AsmFragProc, ctx->c_out);
@@ -1377,6 +1498,8 @@ static bool compile_core(ctx_t * ctx) {
 	if (!prepare_insts(ctx)) {
 		return false;
 	}
+
+	form_global_label_names(ctx, ctx->c_lo->full_name);
 
 	if (!calculate_stack(ctx)) {
 		return false;
@@ -1436,6 +1559,7 @@ static bool execute_insts(ctx_t * ctx) {
 		switch (inst->base->type) {
 			case IraInstNone:
 			case IraInstDefVar:
+			case IraInstDefLabel:
 				break;
 			case IraInstLoadVal:
 				ira_val_destroy(inst->opd0.var->val);
