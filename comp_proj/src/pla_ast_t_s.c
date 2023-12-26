@@ -1395,26 +1395,48 @@ static bool translate_stmt_expr(ctx_t * ctx, pla_stmt_t * stmt) {
 
 	return true;
 }
-static bool translate_stmt_var(ctx_t * ctx, pla_stmt_t * stmt) {
+static bool translate_stmt_var_dt(ctx_t * ctx, pla_stmt_t * stmt) {
 	ira_dt_t * dt;
 
-	if (!pla_ast_t_calculate_expr_dt(ctx->t_ctx, stmt->var.dt_expr, &dt)) {
+	if (!pla_ast_t_calculate_expr_dt(ctx->t_ctx, stmt->var_dt.dt_expr, &dt)) {
 		return false;
 	}
 
 	if (!ira_dt_is_var_comp(dt)) {
-		pla_ast_t_report(ctx->t_ctx, L"variable [%s] can not have [%s] data type", stmt->var.name->str, ira_dt_infos[dt->type].type_str.str);
+		pla_ast_t_report(ctx->t_ctx, L"variable [%s] can not have [%s] data type", stmt->var_dt.name->str, ira_dt_infos[dt->type].type_str.str);
 		return false;
 	}
 
-	var_t * var = define_var(ctx, stmt->var.name, dt, true);
+	var_t * var = define_var(ctx, stmt->var_dt.name, dt, true);
 
 	if (var == NULL) {
-		pla_ast_t_report(ctx->t_ctx, L"there is already variable of same name [%s] in this block", stmt->var.name->str);
+		pla_ast_t_report(ctx->t_ctx, L"there is already variable of same name [%s] in this block", stmt->var_dt.name->str);
 		return false;
 	}
 
 	push_def_var_inst(ctx, var);
+
+	return true;
+}
+static bool translate_stmt_var_val(ctx_t * ctx, pla_stmt_t * stmt) {
+	ev_t val_ev;
+
+	if (!translate_expr(ctx, stmt->var_val.val_expr, &val_ev)) {
+		return false;
+	}
+
+	var_t * var = define_var(ctx, stmt->var_val.name, val_ev.var->dt, true);
+
+	if (var == NULL) {
+		pla_ast_t_report(ctx->t_ctx, L"there is already variable of same name [%s] in this block", stmt->var_val.name->str);
+		return false;
+	}
+
+	push_def_var_inst(ctx, var);
+
+	ira_inst_t copy = { .type = IraInstCopy, .opd0.hs = var->inst_name, .opd1.hs = val_ev.var->inst_name };
+
+	ira_func_push_inst(ctx->func, &copy);
 
 	return true;
 }
@@ -1539,8 +1561,13 @@ static bool translate_stmt_tse(ctx_t * ctx, pla_stmt_t * stmt) {
 				return false;
 			}
 			break;
-		case PlaStmtVar:
-			if (!translate_stmt_var(ctx, stmt)) {
+		case PlaStmtVarDt:
+			if (!translate_stmt_var_dt(ctx, stmt)) {
+				return false;
+			}
+			break;
+		case PlaStmtVarVal:
+			if (!translate_stmt_var_val(ctx, stmt)) {
 				return false;
 			}
 			break;

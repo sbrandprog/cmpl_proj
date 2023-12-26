@@ -2,8 +2,7 @@ imprt get_std_handle : $(std_handle : u32) -> *void : "kernel32.dll"a, "GetStdHa
 imprt write_file : $(handle : *void, data : *void, data_size : u32, written : *u32, overlapped : *void) -> s32 : "kernel32.dll"a, "WriteFile"a;
 
 fnct main : $() -> s32 {
-	vrbl handle : *void;
-	handle = get_std_handle(0xFFFFFFF5'u32);
+	vrbl handle := get_std_handle(0xFFFFFFF5'u32);
 
 	vrbl str : []u8;
 
@@ -14,10 +13,8 @@ fnct main : $() -> s32 {
 		str = "rules were broken!\n"a;
 	}
 
-	vrbl i : u64;
+	vrbl i := 0'u64;
 	vrbl written : u32;
-
-	i = 0'u64;
 
 	while i != 10'u64 {
 		write_file(handle, %[*void]str.data, %[u32]str.size - 1'u32, &written, nullof[*void]);

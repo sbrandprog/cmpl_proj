@@ -7,7 +7,8 @@ enum pla_stmt_type {
 	PlaStmtNone,
 	PlaStmtBlk,
 	PlaStmtExpr,
-	PlaStmtVar,
+	PlaStmtVarDt,
+	PlaStmtVarVal,
 	PlaStmtCond,
 	PlaStmtPreLoop,
 	PlaStmtRet,
@@ -26,7 +27,11 @@ struct pla_stmt {
 		struct {
 			u_hs_t * name;
 			pla_expr_t * dt_expr;
-		} var;
+		} var_dt;
+		struct {
+			u_hs_t * name;
+			pla_expr_t * val_expr;
+		} var_val;
 		struct {
 			pla_expr_t * cond_expr;
 			pla_stmt_t * true_br;

@@ -917,17 +917,32 @@ static bool parse_stmt_var(ctx_t * ctx, pla_stmt_t ** out) {
 	}
 
 	while (true) {
-		*out = pla_stmt_create(PlaStmtVar);
+		u_hs_t * var_name;
 
-		if (!consume_ident_crit(ctx, &(*out)->var.name)) {
+		if (!consume_ident_crit(ctx, &var_name)) {
 			return false;
 		}
 
-		if (!consume_punc_exact_crit(ctx, PlaPuncColon)) {
-			return false;
-		}
+		if (consume_punc_exact(ctx, PlaPuncColon)) {
+			*out = pla_stmt_create(PlaStmtVarDt);
+		
+			(*out)->var_dt.name = var_name;
 
-		if (!parse_expr(ctx, &(*out)->var.dt_expr)) {
+			if (!parse_expr(ctx, &(*out)->var_dt.dt_expr)) {
+				return false;
+			}
+		}
+		else if (consume_punc_exact(ctx, PlaPuncScAsgn)) {
+			*out = pla_stmt_create(PlaStmtVarVal);
+
+			(*out)->var_val.name = var_name;
+
+			if (!parse_expr(ctx, &(*out)->var_val.val_expr)) {
+				return false;
+			}
+		}
+		else {
+			report(ctx, L"failed to consume a \':\' or \':=\'");
 			return false;
 		}
 

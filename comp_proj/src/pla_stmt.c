@@ -32,8 +32,11 @@ void pla_stmt_destroy(pla_stmt_t * stmt) {
 		case PlaStmtExpr:
 			pla_expr_destroy(stmt->expr.expr);
 			break;
-		case PlaStmtVar:
-			pla_expr_destroy(stmt->var.dt_expr);
+		case PlaStmtVarDt:
+			pla_expr_destroy(stmt->var_dt.dt_expr);
+			break;
+		case PlaStmtVarVal:
+			pla_expr_destroy(stmt->var_val.val_expr);
 			break;
 		case PlaStmtCond:
 			pla_expr_destroy(stmt->cond.cond_expr);
@@ -58,7 +61,8 @@ const pla_stmt_info_t pla_stmt_infos[PlaStmt_Count] = {
 	[PlaStmtNone] = { .type_str = U_MAKE_ROS(L"StmtNone") },
 	[PlaStmtBlk] = { .type_str = U_MAKE_ROS(L"StmtBlk") },
 	[PlaStmtExpr] = { .type_str = U_MAKE_ROS(L"StmtExpr") },
-	[PlaStmtVar] = { .type_str = U_MAKE_ROS(L"StmtVar") },
+	[PlaStmtVarDt] = { .type_str = U_MAKE_ROS(L"StmtVarDt") },
+	[PlaStmtVarVal] = { .type_str = U_MAKE_ROS(L"StmtVarVal") },
 	[PlaStmtCond] = { .type_str = U_MAKE_ROS(L"StmtCond") },
 	[PlaStmtPreLoop] = { .type_str = U_MAKE_ROS(L"PreLoop") },
 	[PlaStmtRet] = { .type_str = U_MAKE_ROS(L"StmtRet") },
