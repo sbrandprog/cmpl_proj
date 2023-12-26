@@ -40,6 +40,10 @@ void pla_stmt_destroy(pla_stmt_t * stmt) {
 			pla_stmt_destroy(stmt->cond.true_br);
 			pla_stmt_destroy(stmt->cond.false_br);
 			break;
+		case PlaStmtPreLoop:
+			pla_expr_destroy(stmt->pre_loop.cond_expr);
+			pla_stmt_destroy(stmt->pre_loop.body);
+			break;
 		case PlaStmtRet:
 			pla_expr_destroy(stmt->ret.expr);
 			break;
@@ -56,5 +60,6 @@ const pla_stmt_info_t pla_stmt_infos[PlaStmt_Count] = {
 	[PlaStmtExpr] = { .type_str = U_MAKE_ROS(L"StmtExpr") },
 	[PlaStmtVar] = { .type_str = U_MAKE_ROS(L"StmtVar") },
 	[PlaStmtCond] = { .type_str = U_MAKE_ROS(L"StmtCond") },
+	[PlaStmtPreLoop] = { .type_str = U_MAKE_ROS(L"PreLoop") },
 	[PlaStmtRet] = { .type_str = U_MAKE_ROS(L"StmtRet") },
 };

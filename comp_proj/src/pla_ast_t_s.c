@@ -108,6 +108,10 @@ static const u_ros_t label_cond_base = U_MAKE_ROS(L"cond");
 static const u_ros_t label_cond_tc_end = U_MAKE_ROS(L"tc_end");
 static const u_ros_t label_cond_fc_end = U_MAKE_ROS(L"fc_end");
 
+static const u_ros_t label_pre_loop_base = U_MAKE_ROS(L"pre_loop");
+static const u_ros_t label_pre_loop_cond = U_MAKE_ROS(L"cond");
+static const u_ros_t label_pre_loop_exit = U_MAKE_ROS(L"exit");
+
 static u_hs_t * get_unq_var_name(ctx_t * ctx, u_hs_t * name) {
 	return u_hsb_formatadd(ctx->hsb, ctx->hst, L"%s%s%zi", name->str, UNQ_VAR_NAME_SUFFIX, ctx->unq_var_index++);
 }
@@ -1464,6 +1468,40 @@ static bool translate_stmt_cond(ctx_t * ctx, pla_stmt_t * stmt) {
 
 	return true;
 }
+static bool translate_stmt_pre_loop(ctx_t * ctx, pla_stmt_t * stmt) {
+	size_t label_index = ctx->unq_label_index++;
+
+	u_hs_t * cond_label = get_unq_label_name(ctx, &label_pre_loop_base, label_index, &label_pre_loop_cond);
+	u_hs_t * exit_label = get_unq_label_name(ctx, &label_pre_loop_base, label_index, &label_pre_loop_exit);
+
+	push_def_label_inst(ctx, cond_label);
+	
+	ev_t cond_ev;
+
+	if (!translate_expr(ctx, stmt->cond.cond_expr, &cond_ev)) {
+		return false;
+	}
+
+	{
+		ira_inst_t brf = { .type = IraInstBrf, .opd0.hs = exit_label, .opd1.hs = cond_ev.var->inst_name };
+
+		ira_func_push_inst(ctx->func, &brf);
+	}
+
+	if (!translate_stmt(ctx, stmt->pre_loop.body)) {
+		return false;
+	}
+
+	{
+		ira_inst_t bru = { .type = IraInstBru, .opd0.hs = cond_label };
+
+		ira_func_push_inst(ctx->func, &bru);
+	}
+
+	push_def_label_inst(ctx, exit_label);
+
+	return true;
+}
 static bool translate_stmt_ret(ctx_t * ctx, pla_stmt_t * stmt) {
 	ev_t ev;
 
@@ -1508,6 +1546,11 @@ static bool translate_stmt_tse(ctx_t * ctx, pla_stmt_t * stmt) {
 			break;
 		case PlaStmtCond:
 			if (!translate_stmt_cond(ctx, stmt)) {
+				return false;
+			}
+			break;
+		case PlaStmtPreLoop:
+			if (!translate_stmt_pre_loop(ctx, stmt)) {
 				return false;
 			}
 			break;

@@ -943,23 +943,6 @@ static bool parse_stmt_var(ctx_t * ctx, pla_stmt_t ** out) {
 
 	return true;
 }
-static bool parse_stmt_ret(ctx_t * ctx, pla_stmt_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywRet)) {
-		return false;
-	}
-
-	*out = pla_stmt_create(PlaStmtRet);
-
-	if (!parse_expr(ctx, &(*out)->ret.expr)) {
-		return false;
-	}
-
-	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
-		return false;
-	}
-
-	return true;
-}
 static bool parse_stmt_cond(ctx_t * ctx, pla_stmt_t ** out) {
 	if (!consume_keyw_exact_crit(ctx, PlaKeywIf)) {
 		return false;
@@ -994,6 +977,40 @@ static bool parse_stmt_cond(ctx_t * ctx, pla_stmt_t ** out) {
 
 	return true;
 }
+static bool parse_stmt_pre_loop(ctx_t * ctx, pla_stmt_t ** out) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywWhile)) {
+		return false;
+	}
+
+	*out = pla_stmt_create(PlaStmtPreLoop);
+
+	if (!parse_expr(ctx, &(*out)->pre_loop.cond_expr)) {
+		return false;
+	}
+
+	if (!parse_stmt_blk(ctx, &(*out)->pre_loop.body)) {
+		return false;
+	}
+
+	return true;
+}
+static bool parse_stmt_ret(ctx_t * ctx, pla_stmt_t ** out) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywRet)) {
+		return false;
+	}
+
+	*out = pla_stmt_create(PlaStmtRet);
+
+	if (!parse_expr(ctx, &(*out)->ret.expr)) {
+		return false;
+	}
+
+	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+		return false;
+	}
+
+	return true;
+}
 static bool parse_stmt(ctx_t * ctx, pla_stmt_t ** out) {
 	switch (ctx->tok.type) {
 		case TokPunc:
@@ -1009,6 +1026,8 @@ static bool parse_stmt(ctx_t * ctx, pla_stmt_t ** out) {
 					return parse_stmt_var(ctx, out);
 				case PlaKeywIf:
 					return parse_stmt_cond(ctx, out);
+				case PlaKeywWhile:
+					return parse_stmt_pre_loop(ctx, out);
 				case PlaKeywRet:
 					return parse_stmt_ret(ctx, out);
 			}

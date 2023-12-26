@@ -14,8 +14,15 @@ fnct main : $() -> s32 {
 		str = "rules were broken!\n"a;
 	}
 
+	vrbl i : u64;
 	vrbl written : u32;
-	write_file(handle, %[*void]str.data, %[u32]str.size - 1'u32, &written, nullof[*void]);
+
+	i = 0'u64;
+
+	while i != 10'u64 {
+		write_file(handle, %[*void]str.data, %[u32]str.size - 1'u32, &written, nullof[*void]);
+		i = i + 1'u64;
+	}
 
 	return %[s32]written;
 }

@@ -9,6 +9,7 @@ enum pla_stmt_type {
 	PlaStmtExpr,
 	PlaStmtVar,
 	PlaStmtCond,
+	PlaStmtPreLoop,
 	PlaStmtRet,
 	PlaStmt_Count
 };
@@ -31,6 +32,10 @@ struct pla_stmt {
 			pla_stmt_t * true_br;
 			pla_stmt_t * false_br;
 		} cond;
+		struct {
+			pla_expr_t * cond_expr;
+			pla_stmt_t * body;
+		} pre_loop;
 		struct {
 			pla_expr_t * expr;
 		} ret;
