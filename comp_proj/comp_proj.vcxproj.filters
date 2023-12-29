@@ -123,6 +123,9 @@
     <ClCompile Include="src\u_hsb.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="src\pla_irid.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\pch.h">
@@ -246,6 +249,9 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="src\u_hsb.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="src\pla_irid.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

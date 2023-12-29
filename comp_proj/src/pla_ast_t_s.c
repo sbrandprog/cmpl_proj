@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "pla_ast_t_s.h"
+#include "pla_irid.h"
 #include "pla_expr.h"
 #include "pla_stmt.h"
 #include "ira_dt.h"
@@ -59,6 +60,7 @@ typedef union expr_opd {
 	bool val_bool;
 	ira_int_type_t int_type;
 	u_hs_t * hs;
+	pla_irid_t * irid;
 	expr_t * expr;
 } expr_opd_t;
 typedef enum expr_ident_type {
@@ -111,6 +113,32 @@ static const u_ros_t label_cond_fc_end = U_MAKE_ROS(L"fc_end");
 static const u_ros_t label_pre_loop_base = U_MAKE_ROS(L"pre_loop");
 static const u_ros_t label_pre_loop_cond = U_MAKE_ROS(L"cond");
 static const u_ros_t label_pre_loop_exit = U_MAKE_ROS(L"exit");
+
+static ira_lo_t * find_irid_lo(ctx_t * ctx, ira_lo_t * nspc, pla_irid_t * irid) {
+	for (ira_lo_t * lo = nspc->nspc.body; lo != NULL; lo = lo->next) {
+		if (lo->name == irid->name) {
+			switch (lo->type) {
+				case IraLoNone:
+					break;
+				case IraLoNspc:
+					if (irid->sub_name != NULL) {
+						return find_irid_lo(ctx, lo, irid->sub_name);
+					}
+					break;
+				case IraLoFunc:
+				case IraLoImpt:
+					if (irid->sub_name == NULL) {
+						return lo;
+					}
+					break;
+				default:
+					u_assert_switch(lo->type);
+			}
+		}
+	}
+
+	return NULL;
+}
 
 static u_hs_t * get_unq_var_name(ctx_t * ctx, u_hs_t * name) {
 	return u_hsb_formatadd(ctx->hsb, ctx->hst, L"%s%s%zi", name->str, UNQ_VAR_NAME_SUFFIX, ctx->unq_var_index++);
@@ -208,6 +236,7 @@ static void destroy_expr(ctx_t * ctx, expr_t * expr) {
 			case PlaExprOpdValBool:
 			case PlaExprOpdIntType:
 			case PlaExprOpdHs:
+			case PlaExprOpdIrid:
 				break;
 			case PlaExprOpdExpr:
 				destroy_expr(ctx, expr->opds[opd].expr);
@@ -239,6 +268,8 @@ static void destroy_expr(ctx_t * ctx, expr_t * expr) {
 			break;
 		case PlaExprIdent:
 			switch (expr->ident.type) {
+				case ExprIdentNone:
+					break;
 				case ExprIdentLoVal:
 					ira_val_destroy(expr->ident.lo_val);
 					expr->ident.lo_val = NULL;
@@ -555,8 +586,11 @@ static bool translate_expr0_opds(ctx_t * ctx, expr_t * expr) {
 			case PlaExprOpdHs:
 				expr->opds[opd].hs = base->opds[opd].hs;
 				break;
+			case PlaExprOpdIrid:
+				expr->opds[opd].irid = base->opds[opd].irid;
+				break;
 			case PlaExprOpdExpr:
-				if (!translate_expr0(ctx, base->opds[opd].expr, &expr->opds[opd].expr)) {
+				if (base->opds[opd].expr != NULL && !translate_expr0(ctx, base->opds[opd].expr, &expr->opds[opd].expr)) {
 					return false;
 				}
 				break;
@@ -613,54 +647,48 @@ static bool translate_expr0_make_dt_func(ctx_t * ctx, expr_t * expr) {
 	return true;
 }
 static bool translate_expr0_ident(ctx_t * ctx, expr_t * expr) {
-	u_hs_t * ident = expr->opd0.hs;
+	pla_irid_t * irid = expr->opd0.irid;
+
+	if (irid->sub_name == NULL) {
+		for (blk_t * blk = ctx->blk; blk != NULL; blk = blk->prev) {
+			for (var_t * var = blk->var; var != NULL; var = var->next) {
+				if (var->name == irid->name) {
+					expr->ident.type = ExprIdentVar;
+					expr->ident.var = var;
+
+					expr->res_dt = var->dt;
+					expr->is_lv = true;
+					return true;
+				}
+			}
+		}
+	}
 
 	for (vse_t * vse = pla_ast_t_get_vse(ctx->t_ctx); vse != NULL; vse = vse->prev) {
 		switch (vse->type) {
 			case PlaAstTVseNone:
 				break;
 			case PlaAstTVseNspc:
-				for (ira_lo_t * lo = vse->nspc.lo->nspc.body; lo != NULL; lo = lo->next) {
-					if (lo->name == ident) {
-						switch (lo->type) {
-							case IraLoNone:
-								pla_ast_t_report(ctx->t_ctx, L"identifier [%s] can not reference 'None' language object", ident->str);
-								return false;
-							case IraLoFunc:
-							case IraLoImpt:
-							{
-								expr->ident.type = ExprIdentLoVal;
-								expr->ident.lo_val = ira_pec_make_val_lo_ptr(ctx->pec, lo);
+			{
+				ira_lo_t * lo = find_irid_lo(ctx, vse->nspc.lo, irid);
 
-								expr->res_dt = expr->ident.lo_val->dt;
+				if (lo != NULL) {
+					expr->ident.type = ExprIdentLoVal;
+					expr->ident.lo_val = ira_pec_make_val_lo_ptr(ctx->pec, lo);
 
-								return true;
-							}
-							default:
-								u_assert_switch(lo->type);
-						}
-					}
+					expr->res_dt = expr->ident.lo_val->dt;
+
+					return true;
 				}
+
 				break;
+			}
 			default:
 				u_assert_switch(vse->type);
 		}
 	}
 
-	for (blk_t * blk = ctx->blk; blk != NULL; blk = blk->prev) {
-		for (var_t * var = blk->var; var != NULL; var = var->next) {
-			if (var->name == ident) {
-				expr->ident.type = ExprIdentVar;
-				expr->ident.var = var;
-
-				expr->res_dt = var->dt;
-				expr->is_lv = true;
-				return true;
-			}
-		}
-	}
-
-	pla_ast_t_report(ctx->t_ctx, L"failed to find an object for identifier [%s]", ident->str);
+	pla_ast_t_report(ctx->t_ctx, L"failed to find an object for identifier [%s]", irid->name->str);
 	return false;
 }
 static bool translate_expr0_call_func_ptr(ctx_t * ctx, expr_t * expr, ira_dt_t * callee_dt) {

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "pla_expr.h"
+#include "pla_irid.h"
 #include "u_assert.h"
 
 pla_expr_t * pla_expr_create(pla_expr_type_t type) {
@@ -26,6 +27,9 @@ void pla_expr_destroy(pla_expr_t * expr) {
 			case PlaExprOpdValBool:
 			case PlaExprOpdIntType:
 			case PlaExprOpdHs:
+				break;
+			case PlaExprOpdIrid:
+				pla_irid_destroy(expr->opds[opd].irid);
 				break;
 			case PlaExprOpdExpr:
 				pla_expr_destroy(expr->opds[opd].expr);

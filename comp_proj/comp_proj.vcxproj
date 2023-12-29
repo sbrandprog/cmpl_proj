@@ -121,6 +121,7 @@
     <ClCompile Include="src\pla_ast_t_s.c" />
     <ClCompile Include="src\pla_dclr.c" />
     <ClCompile Include="src\pla_expr.c" />
+    <ClCompile Include="src\pla_irid.c" />
     <ClCompile Include="src\pla_keyw.c" />
     <ClCompile Include="src\pla_pds.c" />
     <ClCompile Include="src\pla_punc.c" />
@@ -162,6 +163,7 @@
     <ClInclude Include="src\pla_dclr.h" />
     <ClInclude Include="src\pla_expr.h" />
     <ClInclude Include="src\pla_ast_p.h" />
+    <ClInclude Include="src\pla_irid.h" />
     <ClInclude Include="src\pla_keyw.h" />
     <ClInclude Include="src\pla_pds.h" />
     <ClInclude Include="src\pla_punc.h" />

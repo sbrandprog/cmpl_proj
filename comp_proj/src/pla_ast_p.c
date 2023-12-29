@@ -2,6 +2,7 @@
 #include "pla_ast_p.h"
 #include "pla_punc.h"
 #include "pla_keyw.h"
+#include "pla_irid.h"
 #include "pla_expr.h"
 #include "pla_stmt.h"
 #include "pla_dclr.h"
@@ -696,10 +697,21 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 			}
 			break;
 		case TokIdent:
+		{
 			*out = pla_expr_create(PlaExprIdent);
-			(*out)->opd0.hs = ctx->tok.ident;
-			next_tok(ctx);
+			
+			pla_irid_t ** ins = &(*out)->opd0.irid;
+
+			do {
+				*ins = pla_irid_create(ctx->tok.ident);
+
+				next_tok(ctx);
+
+				ins = &(*ins)->sub_name;
+			} while (consume_punc_exact(ctx, PlaPuncDcolon));
+
 			break;
+		}
 		case TokChStr:
 			*out = pla_expr_create(PlaExprChStr);
 			(*out)->opd0.hs = ctx->tok.ch_str.data;
@@ -1052,6 +1064,38 @@ static bool parse_stmt(ctx_t * ctx, pla_stmt_t ** out) {
 	return parse_stmt_expr(ctx, out);
 }
 
+
+static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out);
+
+static bool parse_dclr_nspc(ctx_t * ctx, pla_dclr_t ** out) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywNspc)) {
+		return false;
+	}
+
+	*out = pla_dclr_create(PlaDclrNspc);
+
+	if (!consume_ident_crit(ctx, &(*out)->name)) {
+		return false;
+	}
+
+	if (!consume_punc_exact_crit(ctx, PlaPuncLeBrace)) {
+		return false;
+	}
+
+	pla_dclr_t ** ins = &(*out)->nspc.body;
+
+	while (!consume_punc_exact(ctx, PlaPuncRiBrace)) {
+		if (!parse_dclr(ctx, ins)) {
+			return false;
+		}
+
+		while (*ins != NULL) {
+			ins = &(*ins)->next;
+		}
+	}
+
+	return true;
+}
 static bool parse_dclr_func(ctx_t * ctx, pla_dclr_t ** out) {
 	if (!consume_keyw_exact_crit(ctx, PlaKeywFnct)) {
 		return false;
@@ -1118,7 +1162,46 @@ static bool parse_dclr_impt(ctx_t * ctx, pla_dclr_t ** out) {
 
 	return true;
 }
+static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out) {
+	switch (ctx->tok.type) {
+		case TokNone:
+			break;
+		case TokKeyw:
+			switch (ctx->tok.keyw) {
+				case PlaKeywNspc:
+					if (!parse_dclr_nspc(ctx, out)) {
+						return false;
+					}
+					break;
+				case PlaKeywFnct:
+					if (!parse_dclr_func(ctx, out)) {
+						return false;
+					}
+					break;
+				case PlaKeywImprt:
+					if (!parse_dclr_impt(ctx, out)) {
+						return false;
+					}
+					break;
+				default:
+					return false;
+			}
+			break;
+		default:
+			return false;
+	}
 
+	return true;
+}
+
+static bool parse_root_item(ctx_t * ctx, pla_dclr_t ** ins) {
+	switch (ctx->tok.type) {
+		case TokNone:
+			break;
+	}
+
+	return parse_dclr(ctx, ins);
+}
 static bool parse_root(ctx_t * ctx, pla_dclr_t ** out) {
 	*out = pla_dclr_create(PlaDclrNspc);
 
@@ -1127,33 +1210,9 @@ static bool parse_root(ctx_t * ctx, pla_dclr_t ** out) {
 	pla_dclr_t ** ins = &(*out)->nspc.body;
 
 	while (ctx->tok.type != TokNone) {
-		bool success = true;
-
-		switch (ctx->tok.type) {
-			case TokNone:
-				break;
-			case TokKeyw:
-				switch (ctx->tok.keyw) {
-					case PlaKeywFnct:
-						if (!parse_dclr_func(ctx, ins)) {
-							return false;
-						}
-						break;
-					case PlaKeywImprt:
-						if (!parse_dclr_impt(ctx, ins)) {
-							return false;
-						}
-						break;
-					default:
-						success = false;
-				}
-				break;
-			default:
-				success = false;
-		}
-
-		if (!success) {
+		if (!parse_root_item(ctx, ins)) {
 			report(ctx, L"failed to parse a root-declarator");
+			return false;
 		}
 
 		while (*ins != NULL) {

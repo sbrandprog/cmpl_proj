@@ -155,7 +155,7 @@ static const int_cast_info_t int_cast_from_to[IraInt_Count][IraInt_Count] = {
 };
 
 static void report(ctx_t * ctx, const wchar_t * format, ...) {
-	u_assert(ctx->trg <= Trg_Count);
+	u_assert(ctx->trg < Trg_Count);
 
 	fwprintf(stderr, L"reporting error in instruction processor [%s]\n", trg_to_str[ctx->trg]);
 

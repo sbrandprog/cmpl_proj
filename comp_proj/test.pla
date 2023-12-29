@@ -1,8 +1,10 @@
-imprt get_std_handle : $(std_handle : u32) -> *void : "kernel32.dll"a, "GetStdHandle"a;
-imprt write_file : $(handle : *void, data : *void, data_size : u32, written : *u32, overlapped : *void) -> s32 : "kernel32.dll"a, "WriteFile"a;
+nspc winapi {
+	imprt get_std_handle : $(std_handle : u32) -> *void : "kernel32.dll"a, "GetStdHandle"a;
+	imprt write_file : $(handle : *void, data : *void, data_size : u32, written : *u32, overlapped : *void) -> s32 : "kernel32.dll"a, "WriteFile"a;
+}
 
 fnct main : $() -> s32 {
-	vrbl handle := get_std_handle(0xFFFFFFF5'u32);
+	vrbl handle := winapi::get_std_handle(0xFFFFFFF5'u32);
 
 	vrbl str : []u8;
 
@@ -17,7 +19,7 @@ fnct main : $() -> s32 {
 	vrbl written : u32;
 
 	while i != 10'u64 {
-		write_file(handle, %[*void]str.data, %[u32]str.size - 1'u32, &written, nullof[*void]);
+		winapi::write_file(handle, %[*void]str.data, %[u32]str.size - 1'u32, &written, nullof[*void]);
 		i = i + 1'u64;
 	}
 

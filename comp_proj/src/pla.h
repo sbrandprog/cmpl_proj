@@ -6,6 +6,8 @@ typedef enum pla_punc pla_punc_t;
 
 typedef enum pla_keyw pla_keyw_t;
 
+typedef struct pla_irid pla_irid_t;
+
 typedef enum pla_expr_opd_type pla_expr_opd_type_t;
 typedef union pla_expr_opd pla_expr_opd_t;
 typedef enum pla_expr_type pla_expr_type_t;
