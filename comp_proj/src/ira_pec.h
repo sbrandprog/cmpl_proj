@@ -14,6 +14,7 @@ struct ira_pec {
 	ira_dt_t dt_ints[IraInt_Count];
 	ira_dt_t * dt_ptr;
 	ira_dt_t * dt_arr;
+	ira_dt_t * dt_tpl;
 	ira_dt_t * dt_func;
 
 	struct {
@@ -32,6 +33,7 @@ void ira_pec_cleanup(ira_pec_t * pec);
 
 ira_dt_t * ira_pec_get_dt_ptr(ira_pec_t * pec, ira_dt_t * body);
 ira_dt_t * ira_pec_get_dt_arr(ira_pec_t * pec, ira_dt_t * body);
+ira_dt_t * ira_pec_get_dt_tpl(ira_pec_t * pec, size_t elems_size, ira_dt_n_t * elems);
 ira_dt_t * ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_dt_n_t * args);
 
 ira_val_t * ira_pec_make_val_imm_dt(ira_pec_t * pec, ira_dt_t * dt);

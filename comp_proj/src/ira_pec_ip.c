@@ -186,7 +186,7 @@ static void report_opds_not_equ(ctx_t * ctx, inst_t * inst, size_t first, size_t
 static void report_opd_not_equ_dt(ctx_t * ctx, inst_t * inst, size_t first) {
 	const ira_inst_info_t * info = &ira_inst_infos[inst->base->type];
 
-	report(ctx, L"[%s] requires opd[%zi] to have an equivalent data type", info->type_str.str, first);
+	report(ctx, L"[%s] requires opd[%zi] to have an 'data type' data type", info->type_str.str, first);
 }
 
 static void ctx_cleanup(ctx_t * ctx) {
@@ -243,7 +243,7 @@ static void ctx_cleanup(ctx_t * ctx) {
 }
 
 static bool define_var(ctx_t * ctx, ira_dt_t * dt, u_hs_t * name) {
-	if (!ira_dt_is_var_comp(dt)) {
+	if (!ira_dt_infos[dt->type].var_comp) {
 		report(ctx, L"can not define a variable with [%s] data type", ira_dt_infos[dt->type].type_str.str);
 		return false;
 	}
@@ -489,23 +489,6 @@ static bool prepare_insts(ctx_t * ctx) {
 				}
 				break;
 			case IraInstLoadVal:
-				switch (ctx->trg) {
-					case TrgCompl:
-						if (!ira_dt_is_compl_val_comp(inst->opd1.val->dt)) {
-							report(ctx, L"[%s]: value of illegal data type [%s] in %s mode", info->type_str.str, ira_dt_infos[inst->opd1.val->dt->type].type_str.str, trg_to_str[ctx->trg]);
-							return false;
-						}
-						break;
-					case TrgIntrp:
-						if (!ira_dt_is_intrp_val_comp(inst->opd1.val->dt)) {
-							report(ctx, L"[%s]: value of illegal data type [%s] in %s mode", info->type_str.str, ira_dt_infos[inst->opd1.val->dt->type].type_str.str, trg_to_str[ctx->trg]);
-							return false;
-						}
-						break;
-					default:
-						u_assert_switch(ctx->trg);
-				}
-
 				if (!ira_dt_is_equivalent(inst->opd1.val->dt, inst->opd0.var->dt)) {
 					report_opds_not_equ(ctx, inst, 1, 0);
 					return false;
@@ -539,10 +522,24 @@ static bool prepare_insts(ctx_t * ctx) {
 					return false;
 				}
 				break;
+			case IraInstMakeDtTpl:
+				for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var) {
+					if ((*var)->dt != dt_dt) {
+						report(ctx, L"[%s]: elements in opd[3] must have an 'data type' data type", info->type_str.str);
+						return false;
+					}
+				}
+
+				if (inst->opd0.var->dt != dt_dt) {
+					report_opd_not_equ_dt(ctx, inst, 0);
+					return false;
+				}
+
+				break;
 			case IraInstMakeDtFunc:
 				for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var) {
 					if ((*var)->dt != dt_dt) {
-						report(ctx, L"[%s]: arguments in opd[3] must have an equivalent data type", info->type_str.str);
+						report(ctx, L"[%s]: arguments in opd[3] must have an 'data type' data type", info->type_str.str);
 						return false;
 					}
 				}
@@ -1519,6 +1516,37 @@ bool ira_pec_ip_compile(ira_pec_c_ctx_t * c_ctx, ira_lo_t * lo) {
 	return result;
 }
 
+
+static bool execute_insts_make_dt_tpl(ctx_t * ctx, inst_t * inst) {
+	size_t elems_size = inst->opd2.size;
+
+	ira_dt_n_t * elems = _malloca(elems_size * sizeof(*elems));
+
+	u_assert(elems != NULL);
+
+	{
+		ira_dt_n_t * elem = elems;
+		u_hs_t ** id = inst->opd4.hss;
+		for (var_t ** var = inst->opd3.vars, **var_end = var + elems_size; var != var_end; ++var, ++elem, ++id) {
+			var_t * var_ptr = *var;
+
+			if (var_ptr->val == NULL || !ira_dt_infos[var_ptr->val->dt_val->type].tpl_dt_comp) {
+				_freea(elems);
+				return false;
+			}
+
+			*elem = (ira_dt_n_t){ .dt = var_ptr->val->dt_val, .name = *id };
+		}
+	}
+
+	ira_val_destroy(inst->opd0.var->val);
+
+	inst->opd0.var->val = ira_pec_make_val_imm_dt(ctx->pec, ira_pec_get_dt_tpl(ctx->pec, elems_size, elems));
+
+	_freea(elems);
+
+	return true;
+}
 static bool execute_insts_make_dt_func(ctx_t * ctx, inst_t * inst) {
 	size_t args_size = inst->opd2.size;
 
@@ -1532,7 +1560,7 @@ static bool execute_insts_make_dt_func(ctx_t * ctx, inst_t * inst) {
 		for (var_t ** var = inst->opd3.vars, **var_end = var + args_size; var != var_end; ++var, ++arg, ++id) {
 			var_t * var_ptr = *var;
 
-			if (var_ptr->val == NULL) {
+			if (var_ptr->val == NULL || !ira_dt_infos[var_ptr->val->dt_val->type].func_dt_comp) {
 				_freea(args);
 				return false;
 			}
@@ -1541,7 +1569,7 @@ static bool execute_insts_make_dt_func(ctx_t * ctx, inst_t * inst) {
 		}
 	}
 
-	if (inst->opd1.var->val == NULL) {
+	if (inst->opd1.var->val == NULL || !ira_dt_infos[inst->opd1.var->val->dt_val->type].func_dt_comp) {
 		_freea(args);
 		return false;
 	}
@@ -1576,7 +1604,7 @@ static bool execute_insts(ctx_t * ctx) {
 				inst->opd0.var->val = ira_val_copy(inst->opd1.var->val);
 				break;
 			case IraInstMakeDtPtr:
-				if (inst->opd1.var->val == NULL) {
+				if (inst->opd1.var->val == NULL || !ira_dt_infos[inst->opd1.var->val->dt_val->type].ptr_dt_comp) {
 					return false;
 				}
 
@@ -1585,13 +1613,18 @@ static bool execute_insts(ctx_t * ctx) {
 				inst->opd0.var->val = ira_pec_make_val_imm_dt(ctx->pec, ira_pec_get_dt_ptr(ctx->pec, inst->opd1.var->val->dt_val));
 				break;
 			case IraInstMakeDtArr:
-				if (inst->opd1.var->val == NULL) {
+				if (inst->opd1.var->val == NULL || !ira_dt_infos[inst->opd1.var->val->dt_val->type].arr_dt_comp) {
 					return false;
 				}
 
 				ira_val_destroy(inst->opd0.var->val);
 
 				inst->opd0.var->val = ira_pec_make_val_imm_dt(ctx->pec, ira_pec_get_dt_arr(ctx->pec, inst->opd1.var->val->dt_val));
+				break;
+			case IraInstMakeDtTpl:
+				if (!execute_insts_make_dt_tpl(ctx, inst)) {
+					return false;
+				}
 				break;
 			case IraInstMakeDtFunc:
 				if (!execute_insts_make_dt_func(ctx, inst)) {
@@ -1605,6 +1638,10 @@ static bool execute_insts(ctx_t * ctx) {
 				//case IraInstModInt:
 				//	break;
 			case IraInstRet:
+				if (inst->opd0.var->val == NULL) {
+					return false;
+				}
+
 				*ctx->i_out = inst->opd0.var->val;
 
 				inst->opd0.var->val = NULL;

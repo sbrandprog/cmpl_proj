@@ -4,6 +4,8 @@ nspc winapi {
 }
 
 fnct main : $() -> s32 {
+	vrbl a : tupl { a : s64, b : s64 };
+
 	vrbl handle := winapi::get_std_handle(0xFFFFFFF5'u32);
 
 	vrbl str : []u8;

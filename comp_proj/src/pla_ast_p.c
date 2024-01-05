@@ -659,6 +659,44 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 					(*out)->opd0.int_type = get_int_type(ctx->tok.keyw);
 					next_tok(ctx);
 					break;
+				case PlaKeywTupl:
+					next_tok(ctx);
+
+					if (!consume_punc_exact_crit(ctx, PlaPuncLeBrace)) {
+						return false;
+					}
+
+					*out = pla_expr_create(PlaExprDtTpl);
+
+					pla_expr_t ** elem = &(*out)->opd1.expr;
+
+					while (true) {
+						*elem = pla_expr_create(PlaExprDtFuncArg);
+
+						if (!consume_ident_crit(ctx, &(*elem)->opd2.hs)) {
+							return false;
+						}
+
+						if (!consume_punc_exact_crit(ctx, PlaPuncColon)) {
+							return false;
+						}
+
+						if (!parse_expr(ctx, &(*elem)->opd0.expr)) {
+							return false;
+						}
+
+						if (consume_punc_exact(ctx, PlaPuncRiBrace)) {
+							break;
+						}
+						else {
+							if (!consume_punc_exact_crit(ctx, PlaPuncComma)) {
+								return false;
+							}
+						}
+
+						elem = &(*elem)->opd1.expr;
+					}
+					break;
 
 				case PlaKeywVoidval:
 					*out = pla_expr_create(PlaExprValVoid);
@@ -666,12 +704,12 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 					break;
 				case PlaKeywTrue:
 					*out = pla_expr_create(PlaExprValBool);
-					(*out)->opd0.val_bool = true;
+					(*out)->opd0.boolean = true;
 					next_tok(ctx);
 					break;
 				case PlaKeywFalse:
 					*out = pla_expr_create(PlaExprValBool);
-					(*out)->opd0.val_bool = false;
+					(*out)->opd0.boolean = false;
 					next_tok(ctx);
 					break;
 				case PlaKeywNullof:

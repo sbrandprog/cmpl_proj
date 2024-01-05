@@ -1,160 +1,7 @@
 #include "pch.h"
 #include "ira_dt.h"
 #include "ira_int.h"
-#include "u_assert.h"
-
-bool ira_dt_is_ptr_dt_comp(ira_dt_t * dt) {
-	if (dt == NULL) {
-		return false;
-	}
-
-	switch (dt->type) {
-		case IraDtNone:
-			return false;
-		case IraDtVoid:
-		case IraDtDt:
-		case IraDtBool:
-		case IraDtInt:
-		case IraDtPtr:
-		case IraDtArr:
-		case IraDtFunc:
-			return true;
-		default:
-			u_assert_switch(dt->type);
-	}
-}
-bool ira_dt_is_arr_dt_comp(ira_dt_t * dt) {
-	if (dt == NULL) {
-		return false;
-	}
-
-	switch (dt->type) {
-		case IraDtNone:
-			return false;
-		case IraDtVoid:
-			return true;
-		case IraDtDt:
-		case IraDtBool:
-		case IraDtInt:
-		case IraDtPtr:
-		case IraDtArr:
-			return true;
-		case IraDtFunc:
-			return false;
-		default:
-			u_assert_switch(dt->type);
-	}
-}
-bool ira_dt_is_func_dt_comp(ira_dt_t * dt) {
-	if (dt == NULL) {
-		return false;
-	}
-
-	switch (dt->type) {
-		case IraDtNone:
-			return false;
-		case IraDtVoid:
-		case IraDtDt:
-		case IraDtBool:
-		case IraDtInt:
-		case IraDtPtr:
-		case IraDtArr:
-			return true;
-		case IraDtFunc:
-			return false;
-		default:
-			u_assert_switch(dt->type);
-	}
-}
-
-bool ira_dt_is_var_comp(ira_dt_t * dt) {
-	if (dt == NULL) {
-		return false;
-	}
-
-	switch (dt->type) {
-		case IraDtNone:
-			return false;
-		case IraDtVoid:
-		case IraDtDt:
-		case IraDtBool:
-		case IraDtInt:
-		case IraDtPtr:
-		case IraDtArr:
-			return true;
-		case IraDtFunc:
-			return false;
-		default:
-			u_assert_switch(dt->type);
-	}
-}
-bool ira_dt_is_impt_comp(ira_dt_t * dt) {
-	if (dt == NULL) {
-		return false;
-	}
-
-	switch (dt->type) {
-		case IraDtNone:
-			return false;
-		case IraDtVoid:
-			return true;
-		case IraDtDt:
-			return false;
-		case IraDtBool:
-		case IraDtInt:
-		case IraDtPtr:
-			return true;
-		case IraDtArr:
-			return false;
-		case IraDtFunc:
-			return true;
-		default:
-			u_assert_switch(dt->type);
-	}
-}
-
-bool ira_dt_is_compl_val_comp(ira_dt_t * dt) {
-	if (dt == NULL) {
-		return false;
-	}
-
-	switch (dt->type) {
-		case IraDtNone:
-			return false;
-		case IraDtVoid:
-			return true;
-		case IraDtDt:
-			return false;
-		case IraDtBool:
-		case IraDtInt:
-		case IraDtPtr:
-		case IraDtArr:
-		case IraDtFunc:
-			return true;
-		default:
-			u_assert_switch(dt->type);
-	}
-}
-bool ira_dt_is_intrp_val_comp(ira_dt_t * dt) {
-	if (dt == NULL) {
-		return false;
-	}
-
-	switch (dt->type) {
-		case IraDtNone:
-			return false;
-		case IraDtVoid:
-		case IraDtDt:
-		case IraDtBool:
-		case IraDtInt:
-		case IraDtPtr:
-		case IraDtArr:
-		case IraDtFunc:
-			return true;
-		default:
-			u_assert_switch(dt->type);
-	}
-}
+#include "u_misc.h"
 
 bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 	if (first == second) {
@@ -166,7 +13,6 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 	}
 
 	switch (first->type) {
-		case IraDtNone:
 		case IraDtVoid:
 		case IraDtDt:
 		case IraDtBool:
@@ -184,6 +30,17 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 		case IraDtArr:
 			if (!ira_dt_is_equivalent(first->arr.body, second->arr.body)) {
 				return false;
+			}
+			break;
+		case IraDtTpl:
+			if (first->tpl.elems_size != second->tpl.elems_size) {
+				return false;
+			}
+
+			for (ira_dt_n_t * f_elem = first->tpl.elems, *f_elem_end = f_elem + first->tpl.elems_size, *s_elem = second->tpl.elems; f_elem != f_elem_end; ++f_elem, ++s_elem) {
+				if (!ira_dt_is_equivalent(f_elem->dt, s_elem->dt)) {
+					return false;
+				}
 			}
 			break;
 		case IraDtFunc:
@@ -210,7 +67,6 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 
 size_t ira_dt_get_size(ira_dt_t * dt) {
 	switch (dt->type) {
-		case IraDtNone:
 		case IraDtVoid:
 		case IraDtDt:
 			return 0;
@@ -222,6 +78,21 @@ size_t ira_dt_get_size(ira_dt_t * dt) {
 			return 8;
 		case IraDtArr:
 			return 16;
+		case IraDtTpl:
+		{
+			size_t size = 0, align = 1;
+
+			for (ira_dt_n_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size; elem != elem_end; ++elem) {
+				size_t elem_align = ira_dt_get_align(elem->dt);
+
+				size = u_align_to(size, elem_align);
+				size += ira_dt_get_size(elem->dt);
+
+				align = max(align, elem_align);
+			}
+
+			return size;
+		}
 		case IraDtFunc:
 			return 0;
 		default:
@@ -230,7 +101,6 @@ size_t ira_dt_get_size(ira_dt_t * dt) {
 }
 size_t ira_dt_get_align(ira_dt_t * dt) {
 	switch (dt->type) {
-		case IraDtNone:
 		case IraDtVoid:
 		case IraDtDt:
 		case IraDtBool:
@@ -241,6 +111,16 @@ size_t ira_dt_get_align(ira_dt_t * dt) {
 			return 8;
 		case IraDtArr:
 			return 8;
+		case IraDtTpl:
+		{
+			size_t align = 1;
+
+			for (ira_dt_n_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size; elem != elem_end; ++elem) {
+				align = max(align, ira_dt_get_align(elem->dt));
+			}
+
+			return align;
+		}
 		case IraDtFunc:
 			return 1;
 		default:
@@ -249,12 +129,12 @@ size_t ira_dt_get_align(ira_dt_t * dt) {
 }
 
 const ira_dt_info_t ira_dt_infos[IraDt_Count] = {
-	[IraDtNone] = { .type_str = U_MAKE_ROS(L"DtNone") },
-	[IraDtVoid] = { .type_str = U_MAKE_ROS(L"DtVoid") },
-	[IraDtDt] = { .type_str = U_MAKE_ROS(L"DtDt") },
-	[IraDtBool] = { .type_str = U_MAKE_ROS(L"DtBool") },
-	[IraDtInt] = { .type_str = U_MAKE_ROS(L"DtInt") },
-	[IraDtPtr] = { .type_str = U_MAKE_ROS(L"DtPtr") },
-	[IraDtArr] = { .type_str = U_MAKE_ROS(L"DtArr") },
-	[IraDtFunc] = { .type_str = U_MAKE_ROS(L"DtFunc") }
+	[IraDtVoid] = { .type_str = U_MAKE_ROS(L"DtVoid"), .ptr_dt_comp = true, .arr_dt_comp = true, .tpl_dt_comp = true, .func_dt_comp = true, .var_comp = true, .impt_comp = true },
+	[IraDtDt] = { .type_str = U_MAKE_ROS(L"DtDt"), .ptr_dt_comp = true, .arr_dt_comp = true, .tpl_dt_comp = true, .func_dt_comp = true, .var_comp = true, .impt_comp = false },
+	[IraDtBool] = { .type_str = U_MAKE_ROS(L"DtBool"), .ptr_dt_comp = true, .arr_dt_comp = true, .tpl_dt_comp = true, .func_dt_comp = true, .var_comp = true, .impt_comp = true },
+	[IraDtInt] = { .type_str = U_MAKE_ROS(L"DtInt"), .ptr_dt_comp = true, .arr_dt_comp = true, .tpl_dt_comp = true, .func_dt_comp = true, .var_comp = true, .impt_comp = true },
+	[IraDtPtr] = { .type_str = U_MAKE_ROS(L"DtPtr"), .ptr_dt_comp = true, .arr_dt_comp = true, .tpl_dt_comp = true, .func_dt_comp = true, .var_comp = true, .impt_comp = true },
+	[IraDtArr] = { .type_str = U_MAKE_ROS(L"DtArr"), .ptr_dt_comp = true, .arr_dt_comp = true, .tpl_dt_comp = true, .func_dt_comp = true, .var_comp = true, .impt_comp = true },
+	[IraDtTpl] = { .type_str = U_MAKE_ROS(L"DtSmv"), .ptr_dt_comp = true, .arr_dt_comp = true, .tpl_dt_comp = true, .func_dt_comp = true, .var_comp = true, .impt_comp = true },
+	[IraDtFunc] = { .type_str = U_MAKE_ROS(L"DtFunc"), .ptr_dt_comp = true, .arr_dt_comp = false, .tpl_dt_comp = false, .func_dt_comp = false, .var_comp = true, .impt_comp = true }
 };

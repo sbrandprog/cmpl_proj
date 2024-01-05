@@ -24,7 +24,7 @@ void pla_expr_destroy(pla_expr_t * expr) {
 	for (size_t opd = 0; opd < PLA_EXPR_OPDS_SIZE; ++opd) {
 		switch (info->opds[opd]) {
 			case PlaExprOpdNone:
-			case PlaExprOpdValBool:
+			case PlaExprOpdBoolean:
 			case PlaExprOpdIntType:
 			case PlaExprOpdHs:
 				break;

@@ -12,13 +12,13 @@ struct ira_dt_n {
 };
 
 enum ira_dt_type {
-	IraDtNone,
 	IraDtVoid,
 	IraDtDt,
 	IraDtBool,
 	IraDtInt,
 	IraDtPtr,
 	IraDtArr,
+	IraDtTpl,
 	IraDtFunc,
 	IraDt_Count
 };
@@ -34,6 +34,10 @@ struct ira_dt {
 			ira_dt_t * body;
 		} arr;
 		struct {
+			size_t elems_size;
+			ira_dt_n_t * elems;
+		} tpl;
+		struct {
 			ira_dt_t * ret;
 			size_t args_size;
 			ira_dt_n_t * args;
@@ -43,17 +47,9 @@ struct ira_dt {
 
 struct ira_dt_info {
 	u_ros_t type_str;
+	bool ptr_dt_comp, arr_dt_comp, tpl_dt_comp, func_dt_comp;
+	bool var_comp, impt_comp;
 };
-
-bool ira_dt_is_ptr_dt_comp(ira_dt_t * dt);
-bool ira_dt_is_arr_dt_comp(ira_dt_t * dt);
-bool ira_dt_is_func_dt_comp(ira_dt_t * dt);
-
-bool ira_dt_is_var_comp(ira_dt_t * dt);
-bool ira_dt_is_impt_comp(ira_dt_t * dt);
-
-bool ira_dt_is_compl_val_comp(ira_dt_t * dt);
-bool ira_dt_is_intrp_val_comp(ira_dt_t * dt);
 
 bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second);
 

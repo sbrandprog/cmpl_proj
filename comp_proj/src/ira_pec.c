@@ -5,23 +5,6 @@
 #include "ira_lo.h"
 #include "u_assert.h"
 
-typedef struct get_listed_dt_pred {
-	ira_dt_type_t type;
-	union {
-		struct {
-			ira_dt_t * body;
-		} ptr;
-		struct {
-			ira_dt_t * body;
-		} arr;
-		struct {
-			ira_dt_t * ret;
-			size_t args_size;
-			ira_dt_n_t * args;
-		} func;
-	};
-} get_listed_dt_pred_t;
-
 static void destroy_dt_chain(ira_pec_t * pec, ira_dt_t * dt) {
 	while (dt != NULL) {
 		ira_dt_t * next = dt->next;
@@ -29,6 +12,9 @@ static void destroy_dt_chain(ira_pec_t * pec, ira_dt_t * dt) {
 		switch (dt->type) {
 			case IraDtPtr:
 			case IraDtArr:
+				break;
+			case IraDtTpl:
+				free(dt->tpl.elems);
 				break;
 			case IraDtFunc:
 				free(dt->func.args);
@@ -78,30 +64,44 @@ void ira_pec_cleanup(ira_pec_t * pec) {
 
 	destroy_dt_chain(pec, pec->dt_ptr);
 	destroy_dt_chain(pec, pec->dt_arr);
+	destroy_dt_chain(pec, pec->dt_tpl);
 	destroy_dt_chain(pec, pec->dt_func);
 
 	memset(pec, 0, sizeof(*pec));
 }
 
-static bool get_listed_dt_assert(get_listed_dt_pred_t * pred) {
+static bool get_listed_dt_assert(ira_dt_t * pred) {
 	switch (pred->type) {
 		case IraDtPtr:
-			if (!ira_dt_is_ptr_dt_comp(pred->ptr.body)) {
+			if (!ira_dt_infos[pred->ptr.body->type].ptr_dt_comp) {
 				return false;
 			}
 			break;
 		case IraDtArr:
-			if (!ira_dt_is_arr_dt_comp(pred->ptr.body)) {
+			if (!ira_dt_infos[pred->arr.body->type].arr_dt_comp) {
 				return false;
 			}
 			break;
+		case IraDtTpl:
+			for (ira_dt_n_t * elem = pred->tpl.elems, *elem_end = elem + pred->tpl.elems_size; elem != elem_end; ++elem) {
+				if (!ira_dt_infos[elem->dt->type].tpl_dt_comp) {
+					return false;
+				}
+
+				for (ira_dt_n_t * elem2 = elem + 1; elem2 != elem_end; ++elem2) {
+					if (elem->name == elem2->name) {
+						return false;
+					}
+				}
+			}
+			break;
 		case IraDtFunc:
-			if (!ira_dt_is_func_dt_comp(pred->func.ret)) {
+			if (!ira_dt_infos[pred->func.ret->type].func_dt_comp) {
 				return false;
 			}
 
 			for (ira_dt_n_t * arg = pred->func.args, *arg_end = arg + pred->func.args_size; arg != arg_end; ++arg) {
-				if (!ira_dt_is_func_dt_comp(arg->dt)) {
+				if (!ira_dt_infos[arg->dt->type].func_dt_comp) {
 					return false;
 				}
 
@@ -118,7 +118,7 @@ static bool get_listed_dt_assert(get_listed_dt_pred_t * pred) {
 
 	return true;
 }
-static bool get_listed_dt_cmp(get_listed_dt_pred_t * pred, ira_dt_t * dt) {
+static bool get_listed_dt_cmp(ira_dt_t * pred, ira_dt_t * dt) {
 	switch (pred->type) {
 		case IraDtPtr:
 			if (dt->ptr.body != pred->ptr.body) {
@@ -130,6 +130,17 @@ static bool get_listed_dt_cmp(get_listed_dt_pred_t * pred, ira_dt_t * dt) {
 				return false;
 			}
 			break;
+		case IraDtTpl:
+			if (dt->tpl.elems_size != pred->tpl.elems_size) {
+				return false;
+			}
+
+			for (ira_dt_n_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size, *pred_elem = pred->tpl.elems; elem != elem_end; ++elem, ++pred_elem) {
+				if (elem->dt != pred_elem->dt || elem->name != pred_elem->name) {
+					return false;
+				}
+			}
+			break;
 		case IraDtFunc:
 			if (dt->func.args_size != pred->func.args_size) {
 				return false;
@@ -139,7 +150,7 @@ static bool get_listed_dt_cmp(get_listed_dt_pred_t * pred, ira_dt_t * dt) {
 				return false;
 			}
 
-			for (ira_dt_n_t * arg = dt->func.args, *arg_end = arg + dt->func.args_size, *pred_arg = pred->func.args; arg != arg_end; ++arg, ++arg_end) {
+			for (ira_dt_n_t * arg = dt->func.args, *arg_end = arg + dt->func.args_size, *pred_arg = pred->func.args; arg != arg_end; ++arg, ++pred_arg) {
 				if (arg->dt != pred_arg->dt || arg->name != pred_arg->name) {
 					return false;
 				}
@@ -151,14 +162,25 @@ static bool get_listed_dt_cmp(get_listed_dt_pred_t * pred, ira_dt_t * dt) {
 
 	return true;
 }
-static void get_listed_dt_copy(get_listed_dt_pred_t * pred, ira_dt_t * out) {
+static void get_listed_dt_copy(ira_dt_t * pred, ira_dt_t * out) {
 	switch (pred->type) {
 		case IraDtPtr:
-			*out = (ira_dt_t){ .type = IraDtPtr, .ptr.body = pred->ptr.body };
+			*out = (ira_dt_t){ .type = pred->type, .ptr.body = pred->ptr.body };
 			break;
 		case IraDtArr:
-			*out = (ira_dt_t){ .type = IraDtArr, .arr.body = pred->arr.body };
+			*out = (ira_dt_t){ .type = pred->type, .arr.body = pred->arr.body };
 			break;
+		case IraDtTpl:
+		{
+			ira_dt_n_t * new_dt_elems = malloc(pred->tpl.elems_size * sizeof(*new_dt_elems));
+
+			u_assert(new_dt_elems != NULL);
+
+			memcpy(new_dt_elems, pred->tpl.elems, pred->tpl.elems_size * sizeof(*new_dt_elems));
+
+			*out = (ira_dt_t){ .type = pred->type, .tpl = { .elems_size = pred->tpl.elems_size, .elems = new_dt_elems } };
+			break;
+		}
 		case IraDtFunc:
 		{
 			ira_dt_n_t * new_dt_args = malloc(pred->func.args_size * sizeof(*new_dt_args));
@@ -167,14 +189,14 @@ static void get_listed_dt_copy(get_listed_dt_pred_t * pred, ira_dt_t * out) {
 
 			memcpy(new_dt_args, pred->func.args, pred->func.args_size * sizeof(*new_dt_args));
 
-			*out = (ira_dt_t){ .type = IraDtFunc, .func = { .args_size = pred->func.args_size, .args = new_dt_args, .ret = pred->func.ret } };
+			*out = (ira_dt_t){ .type = pred->type, .func = { .args_size = pred->func.args_size, .args = new_dt_args, .ret = pred->func.ret } };
 			break;
 		}
 		default:
 			u_assert_switch(type);
 	}
 }
-static ira_dt_t * get_listed_dt(ira_pec_t * pec, get_listed_dt_pred_t * pred, ira_dt_t ** ins) {
+static ira_dt_t * get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** ins) {
 	u_assert(get_listed_dt_assert(pred));
 
 	while (*ins != NULL) {
@@ -199,17 +221,22 @@ static ira_dt_t * get_listed_dt(ira_pec_t * pec, get_listed_dt_pred_t * pred, ir
 }
 
 ira_dt_t * ira_pec_get_dt_ptr(ira_pec_t * pec, ira_dt_t * body) {
-	get_listed_dt_pred_t pred = { .type = IraDtPtr, .ptr.body = body };
+	ira_dt_t pred = { .type = IraDtPtr, .ptr.body = body };
 
 	return get_listed_dt(pec, &pred, &pec->dt_ptr);
 }
 ira_dt_t * ira_pec_get_dt_arr(ira_pec_t * pec, ira_dt_t * body) {
-	get_listed_dt_pred_t pred = { .type = IraDtArr, .arr.body = body };
+	ira_dt_t pred = { .type = IraDtArr, .arr.body = body };
 
 	return get_listed_dt(pec, &pred, &pec->dt_arr);
 }
+ira_dt_t * ira_pec_get_dt_tpl(ira_pec_t * pec, size_t elems_size, ira_dt_n_t * elems) {
+	ira_dt_t pred = { .type = IraDtTpl, .tpl = { .elems_size = elems_size, .elems = elems } };
+
+	return get_listed_dt(pec, &pred, &pec->dt_tpl);
+}
 ira_dt_t * ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_dt_n_t * args) {
-	get_listed_dt_pred_t pred = { .type = IraDtFunc, .func = { .ret = ret, .args_size = args_size, .args = args } };
+	ira_dt_t pred = { .type = IraDtFunc, .func = { .ret = ret, .args_size = args_size, .args = args } };
 
 	return get_listed_dt(pec, &pred, &pec->dt_func);
 }
