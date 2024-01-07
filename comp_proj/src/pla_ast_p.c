@@ -87,18 +87,17 @@ typedef struct asm_ast_p_ctx {
 
 
 static const post_oper_info_t opr_post_infos[] = {
+	{ .punc = PlaPuncLeBrack, .expr_type = PlaExprDtArr },
 	{ .punc = PlaPuncDot, .expr_type = PlaExprMmbrAcc },
 	{ .punc = PlaPuncLeParen, .expr_type = PlaExprCall },
 	{ .punc = PlaPuncLeBrack, .expr_type = PlaExprSubscr },
 	{ .punc = PlaPuncDplus, .expr_type = PlaExprPostInc },
 	{ .punc = PlaPuncDminus, .expr_type = PlaExprPostDec },
-	{ .punc = PlaPuncExclMark, .expr_type = PlaExprDeref }
+	{ .punc = PlaPuncExclMark, .expr_type = PlaExprDeref },
+	{ .punc = PlaPuncTilde, .expr_type = PlaExprAddrOf },
 };
 static const size_t opr_post_infos_count = _countof(opr_post_infos);
 static const unr_oper_info_t opr_unr_infos[] = {
-	{ .punc = PlaPuncAmper, .expr_type = PlaExprAddrOf },
-	{ .punc = PlaPuncAster, .expr_type = PlaExprDtPtr },
-	{ .punc = PlaPuncLeBrack, .expr_type = PlaExprDtArr },
 	{ .punc = PlaPuncDplus, .expr_type = PlaExprPostInc },
 	{ .punc = PlaPuncDminus, .expr_type = PlaExprPostDec },
 	{ .punc = PlaPuncExclMark, .expr_type = PlaExprLogicNeg },
@@ -452,10 +451,17 @@ static bool consume_keyw_exact_crit(ctx_t * ctx, pla_keyw_t keyw) {
 	report(ctx, L"failed to consume \'%s\'", pla_keyw_strs[keyw].str);
 	return false;
 }
-static bool consume_ident_crit(ctx_t * ctx, u_hs_t ** out) {
+static bool consume_ident(ctx_t * ctx, u_hs_t ** out) {
 	if (ctx->tok.type == TokIdent) {
 		*out = ctx->tok.ident;
 		next_tok(ctx);
+		return true;
+	}
+
+	return false;
+}
+static bool consume_ident_crit(ctx_t * ctx, u_hs_t ** out) {
+	if (consume_ident(ctx, out)) {
 		return true;
 	}
 
@@ -543,11 +549,6 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 		*out = pla_expr_create(info->expr_type);
 
 		switch (info->expr_type) {
-			case PlaExprDtArr:
-				if (!consume_punc_exact_crit(ctx, PlaPuncRiBrack)) {
-					return false;
-				}
-				break;
 			case PlaExprCast:
 				if (!consume_punc_exact_crit(ctx, PlaPuncLeBrack)) {
 					return false;
@@ -787,6 +788,11 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 		*out = expr;
 
 		switch (info->expr_type) {
+			case PlaExprDtArr:
+				if (!consume_punc_exact_crit(ctx, PlaPuncRiBrack)) {
+					return false;
+				}
+				break;
 			case PlaExprMmbrAcc:
 				if (!consume_ident_crit(ctx, &(*out)->opd1.hs)) {
 					return false;
@@ -826,10 +832,11 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 				}
 				break;
 			case PlaExprDeref:
+			case PlaExprAddrOf:
 			{
 				u_hs_t * ident;
 
-				if (consume_ident_crit(ctx, &ident)) {
+				if (consume_ident(ctx, &ident)) {
 					expr = pla_expr_create(PlaExprMmbrAcc);
 
 					expr->opd0.expr = *out;

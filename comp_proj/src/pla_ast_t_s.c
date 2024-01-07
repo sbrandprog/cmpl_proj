@@ -783,6 +783,24 @@ static bool translate_expr0_mmbr_acc(ctx_t * ctx, expr_t * expr) {
 
 	return true;
 }
+static bool translate_expr0_deref(ctx_t * ctx, expr_t * expr) {
+	ira_dt_t * res_dt = expr->opd0.expr->res_dt;
+
+	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
+	
+	if (res_dt == dt_dt) {
+		expr->res_dt = dt_dt;
+	}
+	else if (res_dt->type == IraDtPtr) {
+		expr->res_dt = res_dt->ptr.body;
+	}
+	else {
+		pla_ast_t_report(ctx->t_ctx, L"deref: invalid operand [%s]", ira_dt_infos[res_dt->type].type_str.str);
+		return false;
+	}
+
+	return true;
+}
 static bool translate_expr0_addr_of(ctx_t * ctx, expr_t * expr) {
 	expr_t * opd = expr->opd0.expr;
 
@@ -889,14 +907,6 @@ static bool translate_expr0_tse(ctx_t * ctx, pla_expr_t * base, expr_t ** out) {
 				return false;
 			}
 			break;
-		case PlaExprDtPtr:
-			if (expr->opd0.expr->res_dt != dt_dt) {
-				pla_ast_t_report(ctx->t_ctx, L"make_dt_ptr requires 'dt' data type for first operand");
-				return false;
-			}
-
-			expr->res_dt = dt_dt;
-			break;
 		case PlaExprDtArr:
 			if (expr->opd0.expr->res_dt != dt_dt) {
 				pla_ast_t_report(ctx->t_ctx, L"make_dt_arr requires 'dt' data type for first operand");
@@ -960,7 +970,11 @@ static bool translate_expr0_tse(ctx_t * ctx, pla_expr_t * base, expr_t ** out) {
 			break;
 			//case PlaExprPostInc:
 			//case PlaExprPostDec:
-			//case PlaExprDeref:
+		case PlaExprDeref:
+			if (!translate_expr0_deref(ctx, expr)) {
+				return false;
+			}
+			break;
 		case PlaExprAddrOf:
 			if (!translate_expr0_addr_of(ctx, expr)) {
 				return false;
@@ -1029,23 +1043,6 @@ static bool translate_expr1_load_val(ctx_t * ctx, expr_t * expr, ev_t * out) {
 	push_inst_imm_var0(ctx, &load, out, load.opd1.val->dt);
 
 	expr->load_val.val = NULL;
-
-	return true;
-}
-static bool translate_expr1_dt_ptr(ctx_t * ctx, expr_t * expr, ev_t * out) {
-	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
-
-	ev_t ev_body;
-
-	if (!translate_expr1(ctx, expr->opd0.expr, &ev_body)) {
-		return false;
-	}
-
-	u_assert(ev_body.var->dt == dt_dt);
-
-	ira_inst_t make_dt_ptr = { .type = IraInstMakeDtPtr, .opd1.hs = ev_body.var->inst_name };
-
-	push_inst_imm_var0(ctx, &make_dt_ptr, out, dt_dt);
 
 	return true;
 }
@@ -1226,6 +1223,34 @@ static bool translate_expr1_mmbr_acc(ctx_t * ctx, expr_t * expr, ev_t * out) {
 
 	return true;
 }
+static bool translate_expr1_deref(ctx_t * ctx, expr_t * expr, ev_t * out) {
+	ira_dt_t * res_dt = expr->opd0.expr->res_dt;
+	
+	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
+
+	if (res_dt == dt_dt) {
+		ev_t ev_body;
+
+		if (!translate_expr1(ctx, expr->opd0.expr, &ev_body)) {
+			return false;
+		}
+
+		u_assert(ev_body.var->dt == dt_dt);
+
+		ira_inst_t make_dt_ptr = { .type = IraInstMakeDtPtr, .opd1.hs = ev_body.var->inst_name };
+
+		push_inst_imm_var0(ctx, &make_dt_ptr, out, dt_dt);
+	}
+	else if (res_dt->type == IraDtPtr) {
+		pla_ast_t_report(ctx->t_ctx, L"no implementation");
+		return false;
+	}
+	else {
+		u_assert(false);
+	}
+
+	return true;
+}
 static bool translate_expr1_addr_of(ctx_t * ctx, expr_t * expr, ev_t * out) {
 	ev_t opd_ev;
 
@@ -1326,11 +1351,6 @@ static bool translate_expr1_tse(ctx_t * ctx, expr_t * expr, ev_t * out) {
 				return false;
 			}
 			break;
-		case PlaExprDtPtr:
-			if (!translate_expr1_dt_ptr(ctx, expr, out)) {
-				return false;
-			}
-			break;
 		case PlaExprDtArr:
 			if (!translate_expr1_dt_arr(ctx, expr, out)) {
 				return false;
@@ -1379,7 +1399,11 @@ static bool translate_expr1_tse(ctx_t * ctx, expr_t * expr, ev_t * out) {
 			break;
 			//case PlaExprPostInc:
 			//case PlaExprPostDec:
-			//case PlaExprDeref:
+		case PlaExprDeref:
+			if (!translate_expr1_deref(ctx, expr, out)) {
+				return false;
+			}
+			break;
 		case PlaExprAddrOf:
 			if (!translate_expr1_addr_of(ctx, expr, out)) {
 				return false;
