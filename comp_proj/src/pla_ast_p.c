@@ -1113,7 +1113,7 @@ static bool parse_stmt(ctx_t * ctx, pla_stmt_t ** out) {
 static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out);
 
 static bool parse_dclr_nspc(ctx_t * ctx, pla_dclr_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywNspc)) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywNmspc)) {
 		return false;
 	}
 
@@ -1213,7 +1213,7 @@ static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out) {
 			break;
 		case TokKeyw:
 			switch (ctx->tok.keyw) {
-				case PlaKeywNspc:
+				case PlaKeywNmspc:
 					if (!parse_dclr_nspc(ctx, out)) {
 						return false;
 					}

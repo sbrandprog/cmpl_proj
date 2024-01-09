@@ -176,6 +176,30 @@ void pla_ast_t_pop_vse(pla_ast_t_ctx_t * ctx) {
 pla_ast_t_vse_t * pla_ast_t_get_vse(pla_ast_t_ctx_t * ctx) {
 	return ctx->vse;
 }
+static ira_lo_t ** get_vse_lo_ins(pla_ast_t_ctx_t * ctx, u_hs_t * name) {
+	pla_ast_t_vse_t * vse = ctx->vse;
+
+	switch (vse->type) {
+		case PlaAstTVseNone:
+			return NULL;
+		case PlaAstTVseNspc:
+		{
+			ira_lo_t ** ins = &vse->nspc.lo->nspc.body;
+
+			for (; *ins != NULL; ins = &(*ins)->next) {
+				ira_lo_t * lo = *ins;
+
+				if (lo->name == name) {
+					break;
+				}
+			}
+
+			return ins;
+		}
+		default:
+			u_assert_switch(vse->type);
+	}
+}
 
 static u_hs_t * cat_hs_delim(ctx_t * ctx, u_hs_t * str1, wchar_t delim, u_hs_t * str2) {
 	return u_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%c%s", str1->str, delim, str2->str);
@@ -319,24 +343,25 @@ static void register_bltn_optrs(ctx_t * ctx) {
 	register_bltn_optrs_bin_int_bool(ctx, PlaExprNeq, IraInstCmpInt, IraIntCmpNeq);
 }
 
-static bool translate_dclr(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out);
+static bool translate_dclr(ctx_t * ctx, pla_dclr_t * dclr);
 
 static bool translate_dclr_nspc_vse(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
-	ira_lo_t ** ins = &(*out)->nspc.body;
-
 	for (pla_dclr_t * it = dclr->nspc.body; it != NULL; it = it->next) {
-		if (!translate_dclr(ctx, it, ins)) {
+		if (!translate_dclr(ctx, it)) {
 			return false;
 		}
-
-		ins = &(*ins)->next;
-		u_assert(*ins == NULL);
 	}
 
 	return true;
 }
 static bool translate_dclr_nspc(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
-	*out = ira_lo_create(IraLoNspc, dclr->name);
+	if (*out == NULL) {
+		*out = ira_lo_create(IraLoNspc, dclr->name);
+	}
+	else if ((*out)->type != IraLoNspc) {
+		pla_ast_t_report(ctx, L"language object with [%s] name already exists", dclr->name->str);
+		return false;
+	}
 
 	vse_t vse = { .type = PlaAstTVseNspc, .nspc.lo = *out };
 
@@ -349,6 +374,11 @@ static bool translate_dclr_nspc(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 	return result;
 }
 static bool translate_dclr_func(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
+	if (*out != NULL) {
+		pla_ast_t_report(ctx, L"language object with [%s] name already exists", dclr->name->str);
+		return false;
+	}
+
 	*out = ira_lo_create(IraLoFunc, dclr->name);
 
 	ira_lo_t * lo = *out;
@@ -371,6 +401,11 @@ static bool translate_dclr_func(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 	return true;
 }
 static bool translate_dclr_impt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
+	if (*out != NULL) {
+		pla_ast_t_report(ctx, L"language object with [%s] name already exists", dclr->name->str);
+		return false;
+	}
+	
 	*out = ira_lo_create(IraLoImpt, dclr->name);
 
 	ira_lo_t * lo = *out;
@@ -389,22 +424,24 @@ static bool translate_dclr_impt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 
 	return true;
 }
-static bool translate_dclr_tse(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
+static bool translate_dclr_tse(ctx_t * ctx, pla_dclr_t * dclr) {
+	ira_lo_t ** ins = get_vse_lo_ins(ctx, dclr->name);
+
 	switch (dclr->type) {
 		case PlaDclrNone:
 			break;
 		case PlaDclrNspc:
-			if (!translate_dclr_nspc(ctx, dclr, out)) {
+			if (!translate_dclr_nspc(ctx, dclr, ins)) {
 				return false;
 			}
 			break;
 		case PlaDclrFunc:
-			if (!translate_dclr_func(ctx, dclr, out)) {
+			if (!translate_dclr_func(ctx, dclr, ins)) {
 				return false;
 			}
 			break;
 		case PlaDclrImpt:
-			if (!translate_dclr_impt(ctx, dclr, out)) {
+			if (!translate_dclr_impt(ctx, dclr, ins)) {
 				return false;
 			}
 			break;
@@ -414,12 +451,12 @@ static bool translate_dclr_tse(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) 
 
 	return true;
 }
-static bool translate_dclr(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
+static bool translate_dclr(ctx_t * ctx, pla_dclr_t * dclr) {
 	tse_t tse = { .type = PlaAstTTseDclr, .dclr = dclr };
 
 	pla_ast_t_push_tse(ctx, &tse);
 
-	bool result = translate_dclr_tse(ctx, dclr, out);
+	bool result = translate_dclr_tse(ctx, dclr);
 
 	pla_ast_t_pop_tse(ctx);
 
@@ -457,7 +494,7 @@ static bool translate_core(ctx_t * ctx) {
 
 	register_bltn_optrs(ctx);
 
-	if (!translate_dclr(ctx, ctx->ast->root, &ctx->out->root)) {
+	if (!translate_dclr_nspc(ctx, ctx->ast->root, &ctx->out->root)) {
 		return false;
 	}
 
