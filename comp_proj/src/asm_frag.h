@@ -5,7 +5,8 @@
 enum asm_frag_type {
 	AsmFragNone,
 	AsmFragProc,
-	AsmFragData,
+	AsmFragRoData,
+	AsmFragWrData,
 	AsmFrag_Count
 };
 struct asm_frag {

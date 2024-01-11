@@ -37,6 +37,12 @@ void pla_dclr_destroy(pla_dclr_t * dclr) {
 		case PlaDclrImpt:
 			pla_expr_destroy(dclr->impt.dt_expr);
 			break;
+		case PlaDclrVarDt:
+			pla_expr_destroy(dclr->var_dt.dt_expr);
+			break;
+		case PlaDclrVarVal:
+			pla_expr_destroy(dclr->var_val.val_expr);
+			break;
 		default:
 			u_assert_switch(dclr->type);
 	}
@@ -48,5 +54,7 @@ const pla_dclr_info_t pla_dclr_infos[PlaDclr_Count] = {
 	[PlaDclrNone] = { .type_str = U_MAKE_ROS(L"DclrNone") },
 	[PlaDclrNspc] = { .type_str = U_MAKE_ROS(L"DclrNspc") },
 	[PlaDclrFunc] = { .type_str = U_MAKE_ROS(L"DclrFunc") },
-	[PlaDclrImpt] = { .type_str = U_MAKE_ROS(L"DclrImpt") }
+	[PlaDclrImpt] = { .type_str = U_MAKE_ROS(L"DclrImpt") },
+	[PlaDclrVarDt] = { .type_str = U_MAKE_ROS(L"DclrVarDt") },
+	[PlaDclrVarVal] = { .type_str = U_MAKE_ROS(L"DclrVarVal") },
 };

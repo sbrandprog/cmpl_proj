@@ -497,7 +497,7 @@ static bool calculate_offsets(ctx_t * ctx) {
 		next_raw_addr += sect->raw_size;
 		next_virt_addr += sect->virt_size;
 
-		if (next_virt_addr >= UINT32_MAX) {
+		if (next_virt_addr >= LNK_PE_MAX_MODULE_SIZE) {
 			return false;
 		}
 	}

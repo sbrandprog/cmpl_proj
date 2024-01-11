@@ -424,6 +424,38 @@ static bool translate_dclr_impt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 
 	return true;
 }
+static bool translate_dclr_var_dt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
+	if (*out != NULL) {
+		pla_ast_t_report(ctx, L"language object with [%s] name already exists", dclr->name->str);
+		return false;
+	}
+
+	*out = ira_lo_create(IraLoVar, dclr->name);
+	
+	if (!pla_ast_t_calculate_expr_dt(ctx, dclr->var_dt.dt_expr, &(*out)->var.dt)) {
+		return false;
+	}
+
+	(*out)->var.val = ira_pec_make_val_null(ctx->out, (*out)->var.dt);
+
+	return true;
+}
+static bool translate_dclr_var_val(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
+	if (*out != NULL) {
+		pla_ast_t_report(ctx, L"language object with [%s] name already exists", dclr->name->str);
+		return false;
+	}
+
+	*out = ira_lo_create(IraLoVar, dclr->name);
+
+	if (!pla_ast_t_calculate_expr(ctx, dclr->var_val.val_expr, &(*out)->var.val)) {
+		return false;
+	}
+
+	(*out)->var.dt = (*out)->var.val->dt;
+
+	return true;
+}
 static bool translate_dclr_tse(ctx_t * ctx, pla_dclr_t * dclr) {
 	ira_lo_t ** ins = get_vse_lo_ins(ctx, dclr->name);
 
@@ -442,6 +474,16 @@ static bool translate_dclr_tse(ctx_t * ctx, pla_dclr_t * dclr) {
 			break;
 		case PlaDclrImpt:
 			if (!translate_dclr_impt(ctx, dclr, ins)) {
+				return false;
+			}
+			break;
+		case PlaDclrVarDt:
+			if (!translate_dclr_var_dt(ctx, dclr, ins)) {
+				return false;
+			}
+			break;
+		case PlaDclrVarVal:
+			if (!translate_dclr_var_val(ctx, dclr, ins)) {
 				return false;
 			}
 			break;

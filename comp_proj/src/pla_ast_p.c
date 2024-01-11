@@ -1003,11 +1003,16 @@ static bool parse_stmt_var(ctx_t * ctx, pla_stmt_t ** out) {
 			return false;
 		}
 
-		if (consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
-			break;
+		if (consume_punc_exact(ctx, PlaPuncComma)) {
+			/* nothing */
 		}
-		else if (!consume_punc_exact_crit(ctx, PlaPuncComma)) {
-			return false;
+		else {
+			if (consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+				break;
+			}
+			else {
+				return false;
+			}
 		}
 
 		out = &(*out)->next;
@@ -1207,6 +1212,58 @@ static bool parse_dclr_impt(ctx_t * ctx, pla_dclr_t ** out) {
 
 	return true;
 }
+static bool parse_dclr_var(ctx_t * ctx, pla_dclr_t ** out) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywVrbl)) {
+		return false;
+	}
+
+	while (true) {
+		u_hs_t * var_name;
+
+		if (!consume_ident_crit(ctx, &var_name)) {
+			return false;
+		}
+
+		if (consume_punc_exact(ctx, PlaPuncColon)) {
+			*out = pla_dclr_create(PlaDclrVarDt);
+
+			(*out)->name = var_name;
+
+			if (!parse_expr(ctx, &(*out)->var_dt.dt_expr)) {
+				return false;
+			}
+		}
+		else if (consume_punc_exact(ctx, PlaPuncScAsgn)) {
+			*out = pla_dclr_create(PlaDclrVarVal);
+
+			(*out)->name = var_name;
+
+			if (!parse_expr(ctx, &(*out)->var_val.val_expr)) {
+				return false;
+			}
+		}
+		else {
+			report(ctx, L"failed to consume a \':\' or \':=\'");
+			return false;
+		}
+
+		if (consume_punc_exact(ctx, PlaPuncComma)) {
+			/* nothing */
+		}
+		else {
+			if (consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+				break;
+			}
+			else {
+				return false;
+			}
+		}
+
+		out = &(*out)->next;
+	}
+
+	return true;
+}
 static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out) {
 	switch (ctx->tok.type) {
 		case TokNone:
@@ -1225,6 +1282,11 @@ static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out) {
 					break;
 				case PlaKeywImprt:
 					if (!parse_dclr_impt(ctx, out)) {
+						return false;
+					}
+					break;
+				case PlaKeywVrbl:
+					if (!parse_dclr_var(ctx, out)) {
 						return false;
 					}
 					break;

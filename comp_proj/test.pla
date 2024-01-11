@@ -6,9 +6,9 @@ nmspc winapi {
 	imprt write_file : $(handle : void!, data : void!, data_size : u32, written : u32!, overlapped : void!) -> s32 : "kernel32.dll"a, "WriteFile"a;
 }
 
-fnct main : $() -> s32 {
-	vrbl a : tupl { a : s64, b : s64 };
+vrbl global_a : u32, global_b := 50'u32;
 
+fnct main : $() -> s32 {
 	vrbl handle := winapi::get_std_handle(0xFFFFFFF5'u32);
 
 	vrbl str : u8[];

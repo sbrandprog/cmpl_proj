@@ -3,7 +3,7 @@
 #include "asm.h"
 #include "u_hsb.h"
 
-bool ira_pec_c_compile_int_arr(ira_pec_c_ctx_t * ctx, ira_val_t * arr, u_hs_t ** out_label);
+bool ira_pec_c_compile_val_frag(ira_pec_c_ctx_t * ctx, ira_val_t * val, u_hs_t ** out_label);
 
 u_hsb_t * ira_pec_c_get_hsb(ira_pec_c_ctx_t * ctx);
 u_hst_t * ira_pec_c_get_hst(ira_pec_c_ctx_t * ctx);

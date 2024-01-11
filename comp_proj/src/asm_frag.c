@@ -3,6 +3,7 @@
 #include "asm_size.h"
 #include "asm_reg.h"
 #include "asm_inst.h"
+#include "lnk_pe.h"
 #include "u_assert.h"
 #include "u_misc.h"
 
@@ -18,7 +19,8 @@ typedef struct sect_info {
 
 static const sect_info_t sect_infos[AsmFrag_Count] = {
 	[AsmFragProc] = { .name = ".text", .align = 16, .align_byte = 0xCC, .mem_r = true, .mem_e = true },
-	[AsmFragData] = { .name = ".rdata", .align = 16, .align_byte = 0x00, .mem_r = true }
+	[AsmFragRoData] = { .name = ".rdata", .align = 16, .align_byte = 0x00, .mem_r = true },
+	[AsmFragWrData] = { .name = ".data", .align = 16, .align_byte = 0x00, .mem_r = true, .mem_w = true }
 };
 
 asm_frag_t * asm_frag_create(asm_frag_type_t type, asm_frag_t ** ins) {
@@ -166,14 +168,54 @@ static bool get_disp_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
 	return true;
 }
 
+static bool build_special_inst(asm_frag_t * frag, asm_inst_t * inst, lnk_sect_t * out) {
+	switch (inst->type) {
+		case AsmInstLabel:
+			if (inst->opds != AsmInstOpds_Label) {
+				return false;
+			}
+
+			lnk_sect_add_lp(out, LnkSectLpLabel, LnkSectLabelNone, inst->label, out->data_size);
+
+			break;
+		case AsmInstAlign:
+		{
+			if (inst->opds != AsmInstOpds_Imm || inst->imm0_type != AsmInstImm64) {
+				return false;
+			}
+
+			size_t align_amount = u_align_to(out->data_size, (size_t)inst->imm0) - out->data_size;
+
+			u_assert(align_amount < LNK_PE_MAX_MODULE_SIZE);
+
+			if (out->data_size + align_amount > out->data_cap) {
+				u_grow_arr(&out->data_cap, &out->data, sizeof(*out->data), align_amount);
+			}
+
+			memset(out->data + out->data_size, out->data_align_byte, align_amount);
+
+			out->data_size += align_amount;
+
+			break;
+		}
+		default:
+			return false;
+	}
+
+	return true;
+}
 static bool build_core(asm_frag_t * frag, lnk_sect_t * out) {
 	if (!fill_sect_info(frag, out)) {
 		return false;
 	}
 
 	for (asm_inst_t * inst = frag->insts, *inst_end = inst + frag->insts_size; inst != inst_end; ++inst) {
-		asm_inst_bs_t inst_bs;
+		if (build_special_inst(frag, inst, out)) {
+			continue;
+		}
+
 		size_t inst_size;
+		asm_inst_bs_t inst_bs;
 		asm_inst_offs_t inst_offs;
 
 		if (!asm_inst_build(inst, &inst_size, inst_bs, &inst_offs)) {

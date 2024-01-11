@@ -44,11 +44,12 @@ typedef struct inst_rec {
 	asm_reg_grps_t reg0_grps, reg1_grps;
 	asm_size_t imm0_size, mem_size;
 	uint8_t modrm_reg_digit : 3;
-	uint8_t no_opc : 1;
 	uint8_t allow_lock : 1;
 	uint8_t use_osize : 1;
 	uint8_t use_0f : 1;
 	uint8_t ext_w : 1;
+	uint8_t no_opc : 1;
+	uint8_t skip_inst : 1;
 } inst_rec_t;
 
 typedef struct inst_desc {
@@ -868,6 +869,7 @@ enum {
 #define d_use_0f .use_0f = 1
 #define d_ext_w .ext_w = 1
 #define d_no_opc .no_opc = 1
+#define d_skip_inst .skip_inst = 1
 
 //reg groups
 #define rg_gpr(size) .gpr = 1, .s_##size = 1
@@ -953,12 +955,14 @@ enum {
 	q_gpr_rmreg(name, 0x90 + i, 8, d_modrm_reg(0), d_use_0f)
 
 static const inst_rec_t inst_recs[] = {
-	q_label(Label, 0x00, d_no_opc),
+	q_label(Label, 0x00, d_no_opc, d_skip_inst),
 
 	q_imm(Data, 0x00, 8, d_no_opc),
 	q_imm(Data, 0x00, 16, d_no_opc),
 	q_imm(Data, 0x00, 32, d_no_opc),
 	q_imm(Data, 0x00, 64, d_no_opc),
+
+	q_imm(Align, 0x00, 64, d_no_opc, d_skip_inst),
 
 	q_g0(Add, 0),
 	q_g0(Or, 1),

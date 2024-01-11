@@ -7,6 +7,7 @@ enum ira_lo_type {
 	IraLoNspc,
 	IraLoFunc,
 	IraLoImpt,
+	IraLoVar,
 	IraLo_Count
 };
 struct ira_lo {
@@ -27,6 +28,10 @@ struct ira_lo {
 			u_hs_t * lib_name;
 			u_hs_t * sym_name;
 		} impt;
+		struct {
+			ira_dt_t * dt;
+			ira_val_t * val;
+		} var;
 	};
 };
 

@@ -2,6 +2,8 @@
 #include "lnk.h"
 #include "u_hst.h"
 
+#define LNK_PE_MAX_MODULE_SIZE INT32_MAX
+
 struct lnk_pe_sett {
 	uint64_t image_base;
 	uint64_t sect_align, file_align;

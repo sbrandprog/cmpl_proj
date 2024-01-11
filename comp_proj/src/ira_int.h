@@ -1,5 +1,6 @@
 #pragma once
 #include "ira.h"
+#include "asm.h"
 
 enum ira_int_type {
 	IraIntU8,
@@ -38,3 +39,5 @@ union ira_int {
 size_t ira_int_get_size(ira_int_type_t type);
 
 uint64_t ira_int_get_max_pos(ira_int_type_t type);
+
+const asm_inst_imm_type_t ira_int_type_to_imm_type[IraInt_Count];

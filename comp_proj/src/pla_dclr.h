@@ -8,6 +8,8 @@ enum pla_dclr_type {
 	PlaDclrNspc,
 	PlaDclrFunc,
 	PlaDclrImpt,
+	PlaDclrVarDt,
+	PlaDclrVarVal,
 	PlaDclr_Count
 };
 struct pla_dclr {
@@ -27,6 +29,12 @@ struct pla_dclr {
 			u_hs_t * lib_name;
 			u_hs_t * sym_name;
 		} impt;
+		struct {
+			pla_expr_t * dt_expr;
+		} var_dt;
+		struct {
+			pla_expr_t * val_expr;
+		} var_val;
 	};
 };
 

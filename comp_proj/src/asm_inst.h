@@ -8,6 +8,7 @@ enum asm_inst_type {
 	AsmInstNone,
 	AsmInstLabel,
 	AsmInstData,
+	AsmInstAlign,
 	AsmInstAdd,
 	AsmInstOr,
 	AsmInstAdc,

@@ -2,13 +2,12 @@
 #include "ira_int.h"
 
 enum ira_val_type {
-	IraValNone,
 	IraValImmDt,
 	IraValImmBool,
 	IraValImmInt,
-	IraValImmArr,
 	IraValLoPtr,
 	IraValNullPtr,
+	IraValImmArr,
 	IraVal_Count
 };
 struct ira_val {

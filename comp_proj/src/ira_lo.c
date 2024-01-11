@@ -36,6 +36,9 @@ void ira_lo_destroy(ira_lo_t * lo) {
 			break;
 		case IraLoImpt:
 			break;
+		case IraLoVar:
+			ira_val_destroy(lo->var.val);
+			break;
 		default:
 			u_assert_switch(lo->type);
 	}

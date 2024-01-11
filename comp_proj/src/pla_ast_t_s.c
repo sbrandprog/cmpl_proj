@@ -558,13 +558,7 @@ static bool get_null_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) 
 		return false;
 	}
 
-	switch (dt->type) {
-		case IraDtPtr:
-			*out = ira_val_create(IraValNullPtr, dt);
-			break;
-		default:
-			u_assert_switch(dt->type);
-	}
+	*out = ira_pec_make_val_null(ctx->pec, dt);
 
 	return true;
 }

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "ira_int.h"
+#include "asm_inst.h"
 #include "u_assert.h"
 
 size_t ira_int_get_size(ira_int_type_t type) {
@@ -43,3 +44,7 @@ uint64_t ira_int_get_max_pos(ira_int_type_t type) {
 			return 0;
 	}
 }
+
+const asm_inst_imm_type_t ira_int_type_to_imm_type[IraInt_Count] = {
+	AsmInstImm8, AsmInstImm16, AsmInstImm32, AsmInstImm64, AsmInstImm8, AsmInstImm16, AsmInstImm32, AsmInstImm64
+};

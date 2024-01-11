@@ -27,14 +27,61 @@ static u_hs_t * get_unq_arr_label(ctx_t * ctx) {
 	return u_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%zi", ARR_UNQ_PREFIX, ctx->str_unq_index++);
 }
 
-bool ira_pec_c_compile_int_arr(ira_pec_c_ctx_t * ctx, ira_val_t * arr, u_hs_t ** out_label) {
-	if (arr->type != IraValImmArr
-		|| arr->dt->type != IraDtArr
-		|| arr->dt->arr.body->type != IraDtInt) {
-		return false;
+static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
+	{
+		size_t dt_align = ira_dt_get_align(val->dt);
+
+		asm_inst_t align = { .type = AsmInstAlign, .opds = AsmInstOpds_Imm, .imm0_type = AsmInstImm64, .imm0 = (int64_t)dt_align };
+
+		asm_frag_push_inst(frag, &align);
 	}
 
-	asm_frag_t * frag = asm_frag_create(AsmFragData, &ctx->out->frag);
+	asm_inst_t data = { .type = AsmInstData, .opds = AsmInstOpds_Imm };
+
+	switch (val->type) {
+		case IraValImmDt:
+			return false;
+		case IraValImmBool:
+			data.imm0_type = AsmInstImm8;
+			data.imm0 = val->bool_val ? 1 : 0;
+			
+			asm_frag_push_inst(frag, &data);
+			break;
+		case IraValImmInt:
+			data.imm0_type = ira_int_type_to_imm_type[val->dt->int_type];
+			data.imm0 = val->int_val.si64;
+			
+			asm_frag_push_inst(frag, &data);
+			break;
+		case IraValLoPtr:
+			data.imm0_type = AsmInstImmLabelVa64;
+			data.imm0_label = val->lo_val->full_name;
+			
+			asm_frag_push_inst(frag, &data);
+			break;
+		case IraValNullPtr:
+			data.imm0_type = AsmInstImm64;
+			data.imm0 = 0;
+			
+			asm_frag_push_inst(frag, &data);
+			break;
+		case IraValImmArr:
+			for (ira_val_t ** elem = val->arr.data, **elem_end = elem + val->arr.size; elem != elem_end; ++elem) {
+				if (!compile_val(ctx, frag, *elem)) {
+					return false;
+				}
+			}
+			break;
+		default:
+			u_assert_switch(val->type);
+	}
+
+
+	return true;
+}
+
+bool ira_pec_c_compile_val_frag(ira_pec_c_ctx_t * ctx, ira_val_t * val, u_hs_t ** out_label) {
+	asm_frag_t * frag = asm_frag_create(AsmFragRoData, &ctx->out->frag);
 
 	u_hs_t * frag_label = get_unq_arr_label(ctx);
 
@@ -44,39 +91,8 @@ bool ira_pec_c_compile_int_arr(ira_pec_c_ctx_t * ctx, ira_val_t * arr, u_hs_t **
 		asm_frag_push_inst(frag, &label);
 	}
 
-	ira_dt_t * elem_dt = arr->dt->arr.body;
-
-	asm_inst_imm_type_t imm_type;
-
-	switch (elem_dt->int_type) {
-		case IraIntU8:
-		case IraIntS8:
-			imm_type = AsmInstImm8;
-			break;
-		case IraIntU16:
-		case IraIntS16:
-			imm_type = AsmInstImm16;
-			break;
-		case IraIntU32:
-		case IraIntS32:
-			imm_type = AsmInstImm32;
-			break;
-		case IraIntU64:
-		case IraIntS64:
-			imm_type = AsmInstImm64;
-			break;
-		default:
-			u_assert_switch(elem_dt->int_type);
-	}
-
-	{
-		asm_inst_t data = { .type = AsmInstData, .opds = AsmInstOpds_Imm, .imm0_type = imm_type };
-
-		for (ira_val_t ** elem = arr->arr.data, **elem_end = elem + arr->arr.size; elem != elem_end; ++elem) {
-			data.imm0 = (*elem)->int_val.si64;
-
-			asm_frag_push_inst(frag, &data);
-		}
+	if (!compile_val(ctx, frag, val)) {
+		return false;
 	}
 
 	*out_label = frag_label;
@@ -97,6 +113,21 @@ asm_pea_t * ira_pec_c_get_pea(ira_pec_c_ctx_t * ctx) {
 	return ctx->out;
 }
 
+static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
+	asm_frag_t * frag = asm_frag_create(AsmFragWrData, &ctx->out->frag);
+
+	{
+		asm_inst_t label = { .type = AsmInstLabel, .opds = AsmInstOpds_Label, .label = lo->full_name };
+
+		asm_frag_push_inst(frag, &label);
+	}
+
+	if (!compile_val(ctx, frag, lo->var.val)) {
+		return false;
+	}
+
+	return true;
+}
 static bool compile_lo(ctx_t * ctx, ira_lo_t * lo) {
 	switch (lo->type) {
 		case IraLoNone:
@@ -115,6 +146,11 @@ static bool compile_lo(ctx_t * ctx, ira_lo_t * lo) {
 			break;
 		case IraLoImpt:
 			asm_it_add_sym(&ctx->out->it, lo->impt.lib_name, lo->impt.sym_name, lo->full_name);
+			break;
+		case IraLoVar:
+			if (!compile_lo_var(ctx, lo)) {
+				return false;
+			}
 			break;
 		default:
 			u_assert_switch(lo->type);

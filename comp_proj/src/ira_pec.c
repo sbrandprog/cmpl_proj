@@ -284,3 +284,52 @@ ira_val_t * ira_pec_make_val_lo_ptr(ira_pec_t * pec, ira_lo_t * lo) {
 
 	return val;
 }
+
+ira_val_t * ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt) {
+	ira_val_type_t val_type;
+	
+	switch (dt->type) {
+		case IraDtDt:
+			val_type = IraValImmDt;
+			break;
+		case IraDtBool:
+			val_type = IraValImmBool;
+			break;
+		case IraDtInt:
+			val_type = IraValImmInt;
+			break;
+		case IraDtPtr:
+			val_type = IraValNullPtr;
+			break;
+		case IraDtArr:
+			val_type = IraValImmArr;
+			break;
+		default:
+			u_assert_switch(dt->type);
+	}
+
+	ira_val_t * val = ira_val_create(val_type, dt);
+
+	switch (dt->type) {
+		case IraDtDt:
+			val->dt_val = &pec->dt_void;
+			break;
+		case IraDtBool:
+			val->bool_val = false;
+			break;
+		case IraDtInt:
+			val->int_val.ui64 = 0;
+			break;
+		case IraDtPtr:
+			break;
+		case IraDtArr:
+			val->arr.size = 0;
+			val->arr.data = malloc(sizeof(val->arr.data) * val->arr.size);
+			u_assert(val->arr.data != NULL);
+			break;
+		default:
+			u_assert_switch(dt->type);
+	}
+
+	return val;
+}

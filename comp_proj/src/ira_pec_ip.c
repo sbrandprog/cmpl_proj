@@ -125,9 +125,6 @@ static const asm_reg_t int_type_to_ax[IraInt_Count] = {
 static const asm_reg_t int_type_to_cx[IraInt_Count] = {
 	AsmRegCl, AsmRegCx, AsmRegEcx, AsmRegRcx, AsmRegCl, AsmRegCx, AsmRegEcx, AsmRegRcx
 };
-static const asm_inst_imm_type_t int_type_to_imm_type[IraInt_Count] = {
-	AsmInstImm8, AsmInstImm16, AsmInstImm32, AsmInstImm64, AsmInstImm8, AsmInstImm16, AsmInstImm32, AsmInstImm64
-};
 
 static const asm_reg_t w64_int_arg_to_reg[4][IraInt_Count] = {
 	[0] = { AsmRegCl, AsmRegCx, AsmRegEcx, AsmRegRcx, AsmRegCl, AsmRegCx, AsmRegEcx, AsmRegRcx },
@@ -1128,7 +1125,7 @@ static void compile_load_val_int(ctx_t * ctx, inst_t * inst) {
 	ira_val_t * val = inst->opd1.val;
 
 	asm_reg_t reg = int_type_to_ax[val->dt->int_type];
-	asm_inst_imm_type_t imm_type = int_type_to_imm_type[val->dt->int_type];
+	asm_inst_imm_type_t imm_type = ira_int_type_to_imm_type[val->dt->int_type];
 
 	load_int(ctx, reg, imm_type, val->int_val.si64);
 
@@ -1144,7 +1141,7 @@ static void compile_load_val_arr(ctx_t * ctx, inst_t * inst) {
 		{
 			u_hs_t * arr_label = NULL;
 
-			if (!ira_pec_c_compile_int_arr(ctx->c_ctx, val, &arr_label)) {
+			if (!ira_pec_c_compile_val_frag(ctx->c_ctx, val, &arr_label)) {
 				u_assert(false);
 			}
 
