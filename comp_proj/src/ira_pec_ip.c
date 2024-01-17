@@ -61,6 +61,7 @@ typedef union inst_opd {
 	ira_val_t * val;
 	var_t * var;
 	var_t ** vars;
+	ira_lo_t * lo;
 } inst_opd_t;
 struct inst {
 	ira_inst_t * base;
@@ -203,6 +204,7 @@ static void ctx_cleanup(ctx_t * ctx) {
 				case IraInstOpdDt:
 				case IraInstOpdLabel:
 				case IraInstOpdVal:
+				case IraInstOpdLo:
 				case IraInstOpdVarDef:
 				case IraInstOpdVar:
 				case IraInstOpdMmbr:
@@ -381,6 +383,14 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
 					return false;
 				}
 				break;
+			case IraInstOpdLo:
+				inst->opds[opd].lo = ira_inst->opds[opd].lo;
+
+				if (inst->opds[opd].lo == NULL) {
+					report(ctx, L"[%s]: value in [%zi]th operand is invalid", ira_inst_infos[ira_inst->type].type_str.str, opd);
+					return false;
+				}
+				break;
 			case IraInstOpdVarDef:
 				inst->opds[opd].hs = ira_inst->opds[opd].hs;
 
@@ -487,6 +497,17 @@ static bool prepare_insts(ctx_t * ctx) {
 				break;
 			case IraInstLoadVal:
 				if (!ira_dt_is_equivalent(inst->opd1.val->dt, inst->opd0.var->dt)) {
+					report_opds_not_equ(ctx, inst, 1, 0);
+					return false;
+				}
+				break;
+			case IraInstLoadVar:
+				if (inst->opd1.lo->type != IraLoVar) {
+					report(ctx, L"[%s]: opd[1] must be a variable language object", info->type_str.str);
+					return false;
+				}
+
+				if (!ira_dt_is_equivalent(inst->opd1.lo->var.dt, inst->opd0.var->dt)) {
 					report_opds_not_equ(ctx, inst, 1, 0);
 					return false;
 				}
@@ -828,7 +849,7 @@ static void load_label_off(ctx_t * ctx, asm_reg_t reg, u_hs_t * label) {
 	asm_frag_push_inst(ctx->frag, &lea);
 }
 static void load_label_val(ctx_t * ctx, asm_reg_t reg, u_hs_t * label) {
-	asm_inst_t mov = { .type = AsmInstMov, .opds = AsmInstOpds_Reg_Mem, .reg0 = AsmRegRax, .mem_size = asm_reg_get_size(reg), .mem_base = AsmRegRip, .mem_disp_type = AsmInstDispLabelRel32, .mem_disp_label = label };
+	asm_inst_t mov = { .type = AsmInstMov, .opds = AsmInstOpds_Reg_Mem, .reg0 = reg, .mem_size = asm_reg_get_size(reg), .mem_base = AsmRegRip, .mem_disp_type = AsmInstDispLabelRel32, .mem_disp_label = label };
 
 	asm_frag_push_inst(ctx->frag, &mov);
 }
@@ -1173,6 +1194,7 @@ static void compile_load_val(ctx_t * ctx, inst_t * inst) {
 		case IraValLoPtr:
 			switch (val->lo_val->type) {
 				case IraLoFunc:
+				case IraLoVar:
 					load_label_off(ctx, AsmRegRax, val->lo_val->full_name);
 					save_stack_var(ctx, inst->opd0.var, AsmRegRax);
 					break;
@@ -1190,6 +1212,36 @@ static void compile_load_val(ctx_t * ctx, inst_t * inst) {
 			break;
 		default:
 			u_assert_switch(var->dt->type);
+	}
+}
+static void compile_load_var(ctx_t * ctx, inst_t * inst) {
+	ira_lo_t * lo = inst->opd1.lo;
+
+	ira_dt_t * var_dt = lo->var.dt;
+
+	switch (var_dt->type) {
+		case IraDtVoid:
+			break;
+		case IraDtBool:
+			load_label_val(ctx, AsmRegAl, lo->full_name);
+			save_stack_var(ctx, inst->opd0.var, AsmRegAl);
+			break;
+		case IraDtInt:
+		{
+			asm_reg_t reg = int_type_to_ax[var_dt->int_type];
+
+			load_label_val(ctx, reg, lo->full_name);
+			save_stack_var(ctx, inst->opd0.var, reg);
+			break;
+		}
+		case IraDtPtr:
+		{
+			load_label_val(ctx, AsmRegRax, lo->full_name);
+			save_stack_var(ctx, inst->opd0.var, AsmRegRax);
+			break;
+		}
+		default:
+			u_assert_switch(var_dt->type);
 	}
 }
 static void compile_copy(ctx_t * ctx, inst_t * inst) {
@@ -1423,6 +1475,9 @@ static void compile_insts(ctx_t * ctx) {
 				break;
 			case IraInstLoadVal:
 				compile_load_val(ctx, inst);
+				break;
+			case IraInstLoadVar:
+				compile_load_var(ctx, inst);
 				break;
 			case IraInstCopy:
 				compile_copy(ctx, inst);

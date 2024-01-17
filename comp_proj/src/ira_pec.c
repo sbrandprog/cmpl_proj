@@ -274,6 +274,9 @@ ira_val_t * ira_pec_make_val_lo_ptr(ira_pec_t * pec, ira_lo_t * lo) {
 		case IraLoImpt:
 			val_dt = ira_pec_get_dt_ptr(pec, lo->impt.dt);
 			break;
+		case IraLoVar:
+			val_dt = ira_pec_get_dt_ptr(pec, lo->var.dt);
+			break;
 		default:
 			u_assert_switch(lo->type);
 	}

@@ -11,6 +11,7 @@ enum ira_inst_opd_type {
 	IraInstOpdDt,
 	IraInstOpdLabel,
 	IraInstOpdVal,
+	IraInstOpdLo,
 	IraInstOpdVarDef,
 	IraInstOpdVar,
 	IraInstOpdMmbr,
@@ -26,6 +27,7 @@ union ira_inst_opd {
 	u_hs_t ** hss;
 	ira_dt_t * dt;
 	ira_val_t * val;
+	ira_lo_t * lo;
 };
 
 enum ira_inst_type {

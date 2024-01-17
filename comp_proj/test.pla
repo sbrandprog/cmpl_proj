@@ -6,7 +6,7 @@ nmspc winapi {
 	imprt write_file : $(handle : void!, data : void!, data_size : u32, written : u32!, overlapped : void!) -> s32 : "kernel32.dll"a, "WriteFile"a;
 }
 
-vrbl global_a : u32, global_b := 50'u32;
+vrbl global_written : u32;
 
 fnct main : $() -> s32 {
 	vrbl handle := winapi::get_std_handle(0xFFFFFFF5'u32);
@@ -21,12 +21,11 @@ fnct main : $() -> s32 {
 	}
 
 	vrbl i := 0'u64;
-	vrbl written : u32;
 
 	while i != 10'u64 {
-		winapi::write_file(handle, %[void!]str.data, %[u32]str.size - 1'u32, written~, nullof[void!]);
+		winapi::write_file(handle, %[void!]str.data, %[u32]str.size - 1'u32, global_written~, nullof[void!]);
 		i = i + 1'u64;
 	}
 
-	return %[s32]written;
+	return %[s32]global_written;
 }

@@ -1,6 +1,7 @@
 IRA_INST(DefVar,		true,	true,	VarDef,	Dt,		None,		None,	None)
 IRA_INST(DefLabel,		true,	true,	Label,	None,	None,		None,	None)
 IRA_INST(LoadVal,		true,	true,	Var,	Val,	None,		None,	None)
+IRA_INST(LoadVar,		true,	true,	Var,	Lo,		None,		None,	None)
 IRA_INST(Copy,			true,	true,	Var,	Var,	None,		None,	None)
 IRA_INST(MakeDtPtr,		false,	true,	Var,	Var,	None,		None,	None)
 IRA_INST(MakeDtArr,		false,	true,	Var,	Var,	None,		None,	None)
