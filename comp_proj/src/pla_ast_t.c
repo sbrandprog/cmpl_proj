@@ -231,19 +231,19 @@ void pla_ast_t_print_ts(pla_ast_t_ctx_t * ctx, FILE * file) {
 					dclr_name = L"#root_nspc";
 				}
 
-				fwprintf(file, L"%10s %16s\n", pla_dclr_infos[dclr->type].type_str.str, dclr_name);
+				fwprintf(file, L"%12s %16s\n", pla_dclr_infos[dclr->type].type_str.str, dclr_name);
 				break;
 			}
 			case PlaAstTTseStmt:
 			{
 				pla_stmt_t * stmt = tse->stmt;
-				fwprintf(file, L"%10s \n", pla_stmt_infos[stmt->type].type_str.str);
+				fwprintf(file, L"%12s \n", pla_stmt_infos[stmt->type].type_str.str);
 				break;
 			}
 			case PlaAstTTseExpr:
 			{
 				pla_expr_t * expr = tse->expr;
-				fwprintf(file, L"%10s \n", pla_expr_infos[expr->type].type_str.str);
+				fwprintf(file, L"%12s \n", pla_expr_infos[expr->type].type_str.str);
 				break;
 			}
 		}

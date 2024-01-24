@@ -72,6 +72,13 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 				}
 			}
 			break;
+		case IraValImmTpl:
+			for (ira_val_t ** elem = val->tpl.elems, **elem_end = elem + val->dt->tpl.elems_size; elem != elem_end; ++elem) {
+				if (!compile_val(ctx, frag, *elem)) {
+					return false;
+				}
+			}
+			break;
 		default:
 			u_assert_switch(val->type);
 	}

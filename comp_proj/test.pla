@@ -6,26 +6,14 @@ nmspc winapi {
 	imprt write_file : $(handle : void!, data : void!, data_size : u32, written : u32!, overlapped : void!) -> s32 : "kernel32.dll"a, "WriteFile"a;
 }
 
-vrbl global_written : u32;
+vrbl con_data : tupl { handle : void!, written : u32 };
 
 fnct main : $() -> s32 {
-	vrbl handle := winapi::get_std_handle(0xFFFFFFF5'u32);
+	con_data.handle = winapi::get_std_handle(0xFFFFFFF5'u32);
 
-	vrbl str : u8[];
+	vrbl str := "Hello world!\n"a;
 
-	if 10's32 == 10's32 {
-		str = "everything is normal\n"a;
-	}
-	else {
-		str = "rules were broken!\n"a;
-	}
+	winapi::write_file(con_data.handle, %[void!]str.data, %[u32]str.size - 1'u32, con_data.written~, nullof[void!]);
 
-	vrbl i := 0'u64;
-
-	while i != 10'u64 {
-		winapi::write_file(handle, %[void!]str.data, %[u32]str.size - 1'u32, global_written~, nullof[void!]);
-		i = i + 1'u64;
-	}
-
-	return %[s32]global_written;
+	return %[s32]con_data.written;
 }

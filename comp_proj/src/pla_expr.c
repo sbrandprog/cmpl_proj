@@ -43,6 +43,10 @@ void pla_expr_destroy(pla_expr_t * expr) {
 					it = next;
 				}
 				break;
+			case PlaExprOpdExprListLink:
+				break;
+			default:
+				u_assert_switch(info->opds[opd]);
 		}
 	}
 

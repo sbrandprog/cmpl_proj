@@ -1,6 +1,24 @@
 #include "pch.h"
 #include "ira_val.h"
+#include "ira_dt.h"
 #include "u_assert.h"
+
+static void destroy_val_arr(size_t arr_size, ira_val_t ** arr) {
+	for (ira_val_t ** elem = arr, **elem_end = elem + arr_size; elem != elem_end; ++elem) {
+		ira_val_destroy(*elem);
+	}
+}
+static ira_val_t ** copy_val_arr(size_t arr_size, ira_val_t ** arr) {
+	ira_val_t ** new_arr = malloc(arr_size * sizeof(*new_arr));
+
+	u_assert(new_arr != NULL);
+
+	for (ira_val_t ** elem = arr, **elem_end = elem + arr_size, **ins = new_arr; elem != elem_end; ++elem, ++ins) {
+		*ins = ira_val_copy(*elem);
+	}
+
+	return new_arr;
+}
 
 ira_val_t * ira_val_create(ira_val_type_t type, ira_dt_t * dt) {
 	ira_val_t * val = malloc(sizeof(*val));
@@ -27,10 +45,12 @@ void ira_val_destroy(ira_val_t * val) {
 		case IraValNullPtr:
 			break;
 		case IraValImmArr:
-			for (ira_val_t ** elem = val->arr.data, **elem_end = elem + val->arr.size; elem != elem_end; ++elem) {
-				ira_val_destroy(*elem);
-			}
+			destroy_val_arr(val->arr.size, val->arr.data);
 			free(val->arr.data);
+			break;
+		case IraValImmTpl:
+			destroy_val_arr(val->dt->tpl.elems_size, val->tpl.elems);
+			free(val->tpl.elems);
 			break;
 		default:
 			u_assert_switch(val->type);
@@ -62,13 +82,10 @@ ira_val_t * ira_val_copy(ira_val_t * val) {
 		case IraValImmArr:
 			new_val->arr.size = val->arr.size;
 
-			new_val->arr.data = malloc(new_val->arr.size * sizeof(*new_val->arr.data));
-
-			u_assert(new_val->arr.data != NULL);
-
-			for (ira_val_t ** elem = val->arr.data, **elem_end = elem + val->arr.size, **ins = new_val->arr.data; elem != elem_end; ++elem, ++ins) {
-				*ins = ira_val_copy(*elem);
-			}
+			new_val->arr.data = copy_val_arr(val->arr.size, val->arr.data);
+			break;
+		case IraValImmTpl:
+			new_val->tpl.elems = copy_val_arr(val->dt->tpl.elems_size, val->tpl.elems);
 			break;
 		default:
 			u_assert_switch(val->type);

@@ -91,6 +91,8 @@ size_t ira_dt_get_size(ira_dt_t * dt) {
 				align = max(align, elem_align);
 			}
 
+			size = u_align_to(size, align);
+
 			return size;
 		}
 		case IraDtFunc:
@@ -126,6 +128,23 @@ size_t ira_dt_get_align(ira_dt_t * dt) {
 		default:
 			u_assert_switch(dt->type);
 	}
+}
+
+size_t ira_dt_get_tpl_elem_off(ira_dt_t * dt, size_t elem_ind) {
+	u_assert(dt != NULL);
+	u_assert(dt->type == IraDtTpl);
+	u_assert(elem_ind < dt->tpl.elems_size);
+
+	size_t off = 0;
+
+	for (ira_dt_n_t * elem = dt->tpl.elems, *elem_end = elem + elem_ind; elem != elem_end; ++elem) {
+		size_t elem_align = ira_dt_get_align(elem->dt);
+
+		off = u_align_to(off, elem_align);
+		off += ira_dt_get_size(elem->dt);
+	}
+
+	return off;
 }
 
 const ira_dt_info_t ira_dt_infos[IraDt_Count] = {

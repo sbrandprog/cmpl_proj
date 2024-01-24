@@ -157,7 +157,7 @@ static bool get_listed_dt_cmp(ira_dt_t * pred, ira_dt_t * dt) {
 			}
 			break;
 		default:
-			u_assert_switch(type);
+			u_assert_switch(pred->type);
 	}
 
 	return true;
@@ -193,7 +193,7 @@ static void get_listed_dt_copy(ira_dt_t * pred, ira_dt_t * out) {
 			break;
 		}
 		default:
-			u_assert_switch(type);
+			u_assert_switch(pred->type);
 	}
 }
 static ira_dt_t * get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** ins) {
@@ -307,6 +307,9 @@ ira_val_t * ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt) {
 		case IraDtArr:
 			val_type = IraValImmArr;
 			break;
+		case IraDtTpl:
+			val_type = IraValImmTpl;
+			break;
 		default:
 			u_assert_switch(dt->type);
 	}
@@ -330,6 +333,22 @@ ira_val_t * ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt) {
 			val->arr.data = malloc(sizeof(val->arr.data) * val->arr.size);
 			u_assert(val->arr.data != NULL);
 			break;
+		case IraDtTpl:
+		{
+			size_t elems_size = dt->tpl.elems_size;
+
+			val->tpl.elems = malloc(elems_size * sizeof(*val->tpl.elems));
+			u_assert(val->tpl.elems != NULL);
+
+			ira_val_t ** elem = val->tpl.elems, ** elem_end = elem + elems_size;
+			ira_dt_n_t * elem_dt = dt->tpl.elems;
+
+			for (; elem != elem_end; ++elem, ++elem_dt) {
+				*elem = ira_pec_make_val_null(pec, elem_dt->dt);
+			}
+
+			break;
+		}
 		default:
 			u_assert_switch(dt->type);
 	}

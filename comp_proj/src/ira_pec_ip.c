@@ -63,6 +63,13 @@ typedef union inst_opd {
 	var_t ** vars;
 	ira_lo_t * lo;
 } inst_opd_t;
+typedef enum inst_mmbr_acc_type {
+	InstMmbrAccNone,
+	InstMmbrAccArrSize,
+	InstMmbrAccArrData,
+	InstMmbrAccTplElem,
+	InstMmbrAcc_Count
+} inst_mmbr_acc_type_t;
 struct inst {
 	ira_inst_t * base;
 
@@ -75,6 +82,14 @@ struct inst {
 			inst_opd_t opd3;
 			inst_opd_t opd4;
 		};
+	};
+
+	union {
+		struct {
+			inst_mmbr_acc_type_t type;
+			ira_dt_t * res_dt;
+			size_t off;
+		} mmbr_acc;
 	};
 };
 
@@ -187,37 +202,43 @@ static void report_opd_not_equ_dt(ctx_t * ctx, inst_t * inst, size_t first) {
 	report(ctx, L"[%s] requires opd[%zi] to have an 'data type' data type", info->type_str.str, first);
 }
 
+static void cleanup_inst(ctx_t * ctx, inst_t * inst) {
+	ira_inst_t * base = inst->base;
+
+	if (base == NULL) {
+		return;
+	}
+
+	const ira_inst_info_t * info = &ira_inst_infos[inst->base->type];
+
+	for (size_t opd = 0; opd < IRA_INST_OPDS_SIZE; ++opd) {
+		switch (info->opds[opd]) {
+			case IraInstOpdNone:
+			case IraInstOpdIntCmp:
+			case IraInstOpdDt:
+			case IraInstOpdLabel:
+			case IraInstOpdVal:
+			case IraInstOpdVarDef:
+			case IraInstOpdVar:
+			case IraInstOpdMmbr:
+			case IraInstOpdVarsSize:
+			case IraInstOpdIds2:
+				break;
+			case IraInstOpdVars2:
+				free(inst->opds[opd].vars);
+				break;
+			default:
+				u_assert_switch(info->opds[opd]);
+		}
+	}
+}
 static void ctx_cleanup(ctx_t * ctx) {
 	for (inst_t * inst = ctx->insts, *inst_end = inst + ctx->insts_size; inst != inst_end; ++inst) {
-		ira_inst_t * base = inst->base;
-
-		if (base == NULL) {
-			continue;
+		if (inst->base == NULL) {
+			break;
 		}
 
-		const ira_inst_info_t * info = &ira_inst_infos[inst->base->type];
-
-		for (size_t opd = 0; opd < IRA_INST_OPDS_SIZE; ++opd) {
-			switch (info->opds[opd]) {
-				case IraInstOpdNone:
-				case IraInstOpdIntCmp:
-				case IraInstOpdDt:
-				case IraInstOpdLabel:
-				case IraInstOpdVal:
-				case IraInstOpdLo:
-				case IraInstOpdVarDef:
-				case IraInstOpdVar:
-				case IraInstOpdMmbr:
-				case IraInstOpdVarsSize:
-				case IraInstOpdIds2:
-					break;
-				case IraInstOpdVars2:
-					free(inst->opds[opd].vars);
-					break;
-				default:
-					u_assert_switch(info->opds[opd]);
-			}
-		}
+		cleanup_inst(ctx, inst);
 	}
 
 	free(ctx->insts);
@@ -310,6 +331,55 @@ static bool define_label(ctx_t * ctx, inst_t * inst, label_t * label) {
 
 	return true;
 }
+
+static bool set_mmbr_acc_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt, u_hs_t * mmbr) {
+	switch (opd_dt->type) {
+		case IraDtVoid:
+		case IraDtInt:
+		case IraDtPtr:
+		case IraDtFunc:
+			return false;
+		case IraDtArr:
+			if (mmbr == ctx->pec->pds[IraPdsSizeMmbr]) {
+				inst->mmbr_acc.type = InstMmbrAccArrSize;
+				inst->mmbr_acc.res_dt = ctx->pec->dt_spcl.arr_size;
+				inst->mmbr_acc.off = IRA_DT_ARR_SIZE_OFF;
+			}
+			else if (mmbr == ctx->pec->pds[IraPdsDataMmbr]) {
+				inst->mmbr_acc.type = InstMmbrAccArrData;
+				inst->mmbr_acc.res_dt = ira_pec_get_dt_ptr(ctx->pec, opd_dt->arr.body);
+				inst->mmbr_acc.off = IRA_DT_ARR_DATA_OFF;
+			}
+			else {
+				return false;
+			}
+			break;
+		case IraDtTpl:
+		{
+			ira_dt_n_t * elem = opd_dt->tpl.elems, * elem_end = elem + opd_dt->tpl.elems_size;
+
+			for (; elem != elem_end; ++elem) {
+				if (mmbr == elem->name) {
+					inst->mmbr_acc.type = InstMmbrAccTplElem;
+					inst->mmbr_acc.res_dt = elem->dt;
+					inst->mmbr_acc.off = ira_dt_get_tpl_elem_off(opd_dt, elem - opd_dt->tpl.elems);
+					return true;
+				}
+			}
+
+			if (elem == elem_end) {
+				return false;
+			}
+
+			break;
+		}
+		default:
+			u_assert_switch(opd_dt->type);
+	}
+
+	return true;
+}
+
 static bool prepare_insts_args(ctx_t * ctx) {
 	ira_dt_t * func_dt = ctx->func->dt;
 
@@ -383,14 +453,6 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
 					return false;
 				}
 				break;
-			case IraInstOpdLo:
-				inst->opds[opd].lo = ira_inst->opds[opd].lo;
-
-				if (inst->opds[opd].lo == NULL) {
-					report(ctx, L"[%s]: value in [%zi]th operand is invalid", ira_inst_infos[ira_inst->type].type_str.str, opd);
-					return false;
-				}
-				break;
 			case IraInstOpdVarDef:
 				inst->opds[opd].hs = ira_inst->opds[opd].hs;
 
@@ -433,6 +495,277 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
 
 	return true;
 }
+static bool prepare_insts_load_val(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	if (!ira_dt_is_equivalent(inst->opd1.val->dt, inst->opd0.var->dt)) {
+		report_opds_not_equ(ctx, inst, 1, 0);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_insts_copy(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	if (!ira_dt_is_equivalent(inst->opd1.var->dt, inst->opd0.var->dt)) {
+		report_opds_not_equ(ctx, inst, 1, 0);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_insts_addr_of(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * ptr_dt = inst->opd0.var->dt;
+
+	if (ptr_dt->type != IraDtPtr) {
+		report(ctx, L"[%s]: opd[0] must have a pointer data type", info->type_str.str);
+		return false;
+	}
+
+	if (!ira_dt_is_equivalent(inst->opd1.var->dt, ptr_dt->ptr.body)) {
+		report_opd_not_equ_dt(ctx, inst, 1);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_insts_read_ptr(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * ptr_dt = inst->opd1.var->dt;
+
+	if (ptr_dt->type != IraDtPtr) {
+		report(ctx, L"[%s]: opd[1] must have a pointer data type", info->type_str.str);
+		return false;
+	}
+
+	if (!ira_dt_is_equivalent(inst->opd0.var->dt, ptr_dt->ptr.body)) {
+		report_opd_not_equ_dt(ctx, inst, 1);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_insts_write_ptr(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * ptr_dt = inst->opd0.var->dt;
+
+	if (ptr_dt->type != IraDtPtr) {
+		report(ctx, L"[%s]: opd[0] must have a pointer data type", info->type_str.str);
+		return false;
+	}
+
+	if (!ira_dt_is_equivalent(inst->opd1.var->dt, ptr_dt->ptr.body)) {
+		report_opd_not_equ_dt(ctx, inst, 1);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_insts_make_dt_ptr(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
+
+	if (inst->opd1.var->dt != dt_dt) {
+		report_opd_not_equ_dt(ctx, inst, 1);
+		return false;
+	}
+
+	if (inst->opd0.var->dt != dt_dt) {
+		report_opd_not_equ_dt(ctx, inst, 0);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_insts_make_dt_arr(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
+
+	if (inst->opd1.var->dt != dt_dt) {
+		report_opd_not_equ_dt(ctx, inst, 1);
+		return false;
+	}
+
+	if (inst->opd0.var->dt != dt_dt) {
+		report_opd_not_equ_dt(ctx, inst, 0);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_insts_make_dt_tpl(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
+	
+	for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var) {
+		if ((*var)->dt != dt_dt) {
+			report(ctx, L"[%s]: elements in opd[3] must have an 'data type' data type", info->type_str.str);
+			return false;
+		}
+	}
+
+	if (inst->opd0.var->dt != dt_dt) {
+		report_opd_not_equ_dt(ctx, inst, 0);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_insts_make_dt_func(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
+
+	for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var) {
+		if ((*var)->dt != dt_dt) {
+			report(ctx, L"[%s]: arguments in opd[3] must have an 'data type' data type", info->type_str.str);
+			return false;
+		}
+	}
+
+	if (inst->opd1.var->dt != dt_dt) {
+		report_opd_not_equ_dt(ctx, inst, 1);
+		return false;
+	}
+
+	if (inst->opd0.var->dt != dt_dt) {
+		report_opd_not_equ_dt(ctx, inst, 0);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_insts_bin_int(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * dt = inst->opd1.var->dt;
+
+	if (dt->type != IraDtInt) {
+		report(ctx, L"[%s]: opd[1] must have an integer data type", info->type_str.str);
+		return false;
+	}
+
+	if (inst->opd2.var->dt != dt) {
+		report_opd_not_equ_dt(ctx, inst, 1);
+		return false;
+	}
+
+	if (inst->opd0.var->dt != dt) {
+		report_opd_not_equ_dt(ctx, inst, 1);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_insts_cmp_int(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * dt = inst->opd1.var->dt;
+
+	if (dt->type != IraDtInt) {
+		report(ctx, L"[%s]: opd[1] must have an integer data type", info->type_str.str);
+		return false;
+	}
+
+	if (inst->opd2.var->dt != dt) {
+		report_opd_not_equ_dt(ctx, inst, 1);
+		return false;
+	}
+
+	if (inst->opd0.var->dt != &ctx->pec->dt_bool) {
+		report(ctx, L"[%s]: opd[0] must have a boolean data type", info->type_str.str);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_insts_cast(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * from = inst->opd1.var->dt;
+	ira_dt_t * to = inst->opd2.dt;
+
+	switch (to->type) {
+		case IraDtInt:
+			switch (from->type) {
+				case IraDtInt:
+					break;
+				default:
+					u_assert_switch(from->type);
+			}
+			break;
+		case IraDtPtr:
+			switch (from->type) {
+				case IraDtPtr:
+					break;
+				default:
+					u_assert_switch(from->type);
+			}
+			break;
+		default:
+			u_assert_switch(to->type);
+	}
+
+	return true;
+}
+static bool prepare_insts_call_func_ptr(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * ptr_func_dt = inst->opd1.var->dt;
+
+	if (ptr_func_dt->type != IraDtPtr || ptr_func_dt->ptr.body->type != IraDtFunc) {
+		report(ctx, L"[%s]: opd[0] must have a pointer to function data type", info->type_str.str);
+		return false;
+	}
+
+	ira_dt_t * func_dt = ptr_func_dt->ptr.body;
+
+	if (func_dt->func.args_size != inst->opd2.size) {
+		report(ctx, L"[%s]: opd[2] must match function data type arguments size", info->type_str.str);
+		return false;
+	}
+
+	ira_dt_n_t * arg_dt = func_dt->func.args;
+	for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var, ++arg_dt) {
+		if (!ira_dt_is_equivalent(arg_dt->dt, (*var)->dt)) {
+			report(ctx, L"[%s]: argument in opd[3] must match function argument data type", info->type_str.str);
+			return false;
+		}
+	}
+
+	if (!ira_dt_is_equivalent(inst->opd0.var->dt, func_dt->func.ret)) {
+		report_opd_not_equ_dt(ctx, inst, 0);
+		return false;
+	}
+
+	ctx->has_calls = true;
+	ctx->call_args_size_max = max(ctx->call_args_size_max, inst->opd2.size);
+
+	return true;
+}
+static bool prepare_insts_mmbr_acc_ptr(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * opd_ptr_dt = inst->opd1.var->dt;
+
+	if (opd_ptr_dt->type != IraDtPtr) {
+		report(ctx, L"[%s]: opd[1] must have a pointer data type", info->type_str.str);
+		return false;
+	}
+
+	u_hs_t * mmbr = inst->opd2.hs;
+	ira_dt_t * opd_dt = opd_ptr_dt->ptr.body;
+
+	if (!set_mmbr_acc_data(ctx, inst, opd_dt, mmbr)) {
+		report(ctx, L"[%s]: data type of opd[1] does not support [%s] member:", info->type_str.str, mmbr->str);
+		return false;
+	}
+
+	ira_dt_t * res_ptr_dt = ira_pec_get_dt_ptr(ctx->pec, inst->mmbr_acc.res_dt);
+
+	if (!ira_dt_is_equivalent(inst->opd0.var->dt, res_ptr_dt)) {
+		report(ctx, L"[%s]: opd[0] must have a pointer to [%s] member data type", info->type_str.str, mmbr->str);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_insts_brf(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	if (inst->opd1.var->dt != &ctx->pec->dt_bool) {
+		report(ctx, L"[%s]: opd[1] must have a boolean data type", info->type_str.str);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_insts_ret(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	if (!ira_dt_is_equivalent(ctx->func->dt->func.ret, inst->opd0.var->dt)) {
+		report_opd_not_equ_dt(ctx, inst, 0);
+		return false;
+	}
+	
+	return true;
+}
 static bool prepare_insts(ctx_t * ctx) {
 	if (!prepare_insts_args(ctx)) {
 		return false;
@@ -447,8 +780,6 @@ static bool prepare_insts(ctx_t * ctx) {
 	u_assert(ctx->insts != NULL);
 
 	memset(ctx->insts, 0, ctx->insts_size * sizeof(*ctx->insts));
-
-	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
 
 	inst_t * inst = ctx->insts;
 	for (ira_inst_t * ira_inst = func->insts, *ira_inst_end = ira_inst + func->insts_size; ira_inst != ira_inst_end; ++ira_inst, ++inst) {
@@ -496,255 +827,88 @@ static bool prepare_insts(ctx_t * ctx) {
 				}
 				break;
 			case IraInstLoadVal:
-				if (!ira_dt_is_equivalent(inst->opd1.val->dt, inst->opd0.var->dt)) {
-					report_opds_not_equ(ctx, inst, 1, 0);
-					return false;
-				}
-				break;
-			case IraInstLoadVar:
-				if (inst->opd1.lo->type != IraLoVar) {
-					report(ctx, L"[%s]: opd[1] must be a variable language object", info->type_str.str);
-					return false;
-				}
-
-				if (!ira_dt_is_equivalent(inst->opd1.lo->var.dt, inst->opd0.var->dt)) {
-					report_opds_not_equ(ctx, inst, 1, 0);
+				if (!prepare_insts_load_val(ctx, inst, info)) {
 					return false;
 				}
 				break;
 			case IraInstCopy:
-				if (!ira_dt_is_equivalent(inst->opd1.var->dt, inst->opd0.var->dt)) {
-					report_opds_not_equ(ctx, inst, 1, 0);
+				if (!prepare_insts_copy(ctx, inst, info)) {
+					return false;
+				}
+				break;
+			case IraInstAddrOf:
+				if (!prepare_insts_addr_of(ctx, inst, info)) {
+					return false;
+				}
+				break;
+			case IraInstReadPtr:
+				if (!prepare_insts_read_ptr(ctx, inst, info)) {
+					return false;
+				}
+				break;
+			case IraInstWritePtr:
+				if (!prepare_insts_write_ptr(ctx, inst, info)) {
 					return false;
 				}
 				break;
 			case IraInstMakeDtPtr:
-				if (inst->opd1.var->dt != dt_dt) {
-					report_opd_not_equ_dt(ctx, inst, 1);
-					return false;
-				}
-
-				if (inst->opd0.var->dt != dt_dt) {
-					report_opd_not_equ_dt(ctx, inst, 0);
+				if (!prepare_insts_make_dt_ptr(ctx, inst, info)) {
 					return false;
 				}
 				break;
 			case IraInstMakeDtArr:
-				if (inst->opd1.var->dt != dt_dt) {
-					report_opd_not_equ_dt(ctx, inst, 1);
-					return false;
-				}
-
-				if (inst->opd0.var->dt != dt_dt) {
-					report_opd_not_equ_dt(ctx, inst, 0);
+				if (!prepare_insts_make_dt_arr(ctx, inst, info)) {
 					return false;
 				}
 				break;
 			case IraInstMakeDtTpl:
-				for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var) {
-					if ((*var)->dt != dt_dt) {
-						report(ctx, L"[%s]: elements in opd[3] must have an 'data type' data type", info->type_str.str);
-						return false;
-					}
-				}
-
-				if (inst->opd0.var->dt != dt_dt) {
-					report_opd_not_equ_dt(ctx, inst, 0);
+				if (!prepare_insts_make_dt_tpl(ctx, inst, info)) {
 					return false;
 				}
-
 				break;
 			case IraInstMakeDtFunc:
-				for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var) {
-					if ((*var)->dt != dt_dt) {
-						report(ctx, L"[%s]: arguments in opd[3] must have an 'data type' data type", info->type_str.str);
-						return false;
-					}
-				}
-
-				if (inst->opd1.var->dt != dt_dt) {
-					report_opd_not_equ_dt(ctx, inst, 1);
+				if (!prepare_insts_make_dt_func(ctx, inst, info)) {
 					return false;
 				}
-
-				if (inst->opd0.var->dt != dt_dt) {
-					report_opd_not_equ_dt(ctx, inst, 0);
-					return false;
-				}
-
 				break;
 			case IraInstAddInt:
 			case IraInstSubInt:
 			case IraInstMulInt:
 			case IraInstDivInt:
 			case IraInstModInt:
-			{
-				ira_dt_t * dt = inst->opd1.var->dt;
-
-				if (dt->type != IraDtInt) {
-					report(ctx, L"[%s]: opd[1] must have an integer data type", info->type_str.str);
+				if (!prepare_insts_bin_int(ctx, inst, info)) {
 					return false;
 				}
-
-				if (inst->opd2.var->dt != dt) {
-					report_opd_not_equ_dt(ctx, inst, 1);
-					return false;
-				}
-
-				if (inst->opd0.var->dt != dt) {
-					report_opd_not_equ_dt(ctx, inst, 1);
-					return false;
-				}
-
 				break;
-			}
 			case IraInstCmpInt:
-			{
-				ira_dt_t * dt = inst->opd1.var->dt;
-
-				if (dt->type != IraDtInt) {
-					report(ctx, L"[%s]: opd[1] must have an integer data type", info->type_str.str);
+				if (!prepare_insts_cmp_int(ctx, inst, info)) {
 					return false;
 				}
-
-				if (inst->opd2.var->dt != dt) {
-					report_opd_not_equ_dt(ctx, inst, 1);
-					return false;
-				}
-
-				if (inst->opd0.var->dt != &ctx->pec->dt_bool) {
-					report(ctx, L"[%s]: opd[0] must have a boolean data type", info->type_str.str);
-					return false;
-				}
-
 				break;
-			}
-			case IraInstMmbrAcc:
-			{
-				u_hs_t * mmbr = inst->opd2.hs;
-				ira_dt_t * opd_dt = inst->opd1.var->dt;
-				ira_dt_t * res_dt = NULL;
-
-				switch (opd_dt->type) {
-					case IraDtVoid:
-					case IraDtInt:
-					case IraDtPtr:
-					case IraDtFunc:
-						report(ctx, L"[%s]: data type [%s] of opd[1] does not support member access:", info->type_str.str, ira_dt_infos->type_str.str);
-						return false;
-					case IraDtArr:
-						if (mmbr == ctx->pec->pds[IraPdsSizeMmbr]) {
-							res_dt = res_dt = ctx->pec->dt_spcl.arr_size;
-						}
-						else if (mmbr == ctx->pec->pds[IraPdsDataMmbr]) {
-							res_dt = ira_pec_get_dt_ptr(ctx->pec, opd_dt->arr.body);
-						}
-						break;
-					default:
-						u_assert_switch(opd_dt->type);
-				}
-
-				if (res_dt != NULL) {
-					if (!ira_dt_is_equivalent(inst->opd0.var->dt, res_dt)) {
-						report_opd_not_equ_dt(ctx, inst, 0);
-						return false;
-					}
-				}
-				else {
-					report(ctx, L"[%s]: data type [%s] of opd[1] does not support [%s] member:", info->type_str.str, ira_dt_infos->type_str.str, mmbr->str);
+			case IraInstMmbrAccPtr:
+				if (!prepare_insts_mmbr_acc_ptr(ctx, inst, info)) {
 					return false;
 				}
-
 				break;
-			}
 			case IraInstCast:
-			{
-				ira_dt_t * from = inst->opd1.var->dt;
-				ira_dt_t * to = inst->opd2.dt;
-
-				switch (to->type) {
-					case IraDtInt:
-						switch (from->type) {
-							case IraDtInt:
-								break;
-							default:
-								u_assert_switch(from->type);
-						}
-						break;
-					case IraDtPtr:
-						switch (from->type) {
-							case IraDtPtr:
-								break;
-							default:
-								u_assert_switch(from->type);
-						}
-						break;
-					default:
-						u_assert_switch(to->type);
-				}
-
-				break;
-			}
-			case IraInstAddrOf:
-			{
-				ira_dt_t * ptr_dt = inst->opd0.var->dt;
-
-				if (ptr_dt->type != IraDtPtr) {
-					report(ctx, L"[%s]: opd[0] mush have a pointer data type", info->type_str.str);
-					return false;
-				}
-
-				if (!ira_dt_is_equivalent(inst->opd1.var->dt, ptr_dt->ptr.body)) {
-					report_opd_not_equ_dt(ctx, inst, 1);
+				if (!prepare_insts_cast(ctx, inst, info)) {
 					return false;
 				}
 				break;
-			}
 			case IraInstCallFuncPtr:
-			{
-				ira_dt_t * ptr_func_dt = inst->opd1.var->dt;
-
-				if (ptr_func_dt->type != IraDtPtr || ptr_func_dt->ptr.body->type != IraDtFunc) {
-					report(ctx, L"[%s]: opd[0] mush have a pointer to function data type", info->type_str.str);
+				if (!prepare_insts_call_func_ptr(ctx, inst, info)) {
 					return false;
 				}
-
-				ira_dt_t * func_dt = ptr_func_dt->ptr.body;
-
-				if (func_dt->func.args_size != inst->opd2.size) {
-					report(ctx, L"[%s]: opd[2] must match function data type arguments size", info->type_str.str);
-					return false;
-				}
-
-				ira_dt_n_t * arg_dt = func_dt->func.args;
-				for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var, ++arg_dt) {
-					if (!ira_dt_is_equivalent(arg_dt->dt, (*var)->dt)) {
-						report(ctx, L"[%s]: argument in opd[3] mush match function argument data type", info->type_str.str);
-						return false;
-					}
-				}
-
-				if (!ira_dt_is_equivalent(inst->opd0.var->dt, func_dt->func.ret)) {
-					report_opd_not_equ_dt(ctx, inst, 0);
-					return false;
-				}
-
-				ctx->has_calls = true;
-				ctx->call_args_size_max = max(ctx->call_args_size_max, inst->opd2.size);
-
 				break;
-			}
 			case IraInstBru:
 				break;
 			case IraInstBrf:
-				if (inst->opd1.var->dt != &ctx->pec->dt_bool) {
-					report(ctx, L"[%s]: opd[1] must have a boolean data type", info->type_str.str);
+				if (!prepare_insts_brf(ctx, inst, info)) {
 					return false;
 				}
 				break;
 			case IraInstRet:
-				if (!ira_dt_is_equivalent(ctx->func->dt->func.ret, inst->opd0.var->dt)) {
-					report_opd_not_equ_dt(ctx, inst, 0);
+				if (!prepare_insts_ret(ctx, inst, info)) {
 					return false;
 				}
 				break;
@@ -870,11 +1034,45 @@ static void load_stack_var_off(ctx_t * ctx, asm_reg_t reg, var_t * var, size_t o
 static void load_stack_var(ctx_t * ctx, asm_reg_t reg, var_t * var) {
 	load_stack_var_off(ctx, reg, var, 0);
 }
+static void read_ptr_off(ctx_t * ctx, asm_reg_t reg, asm_reg_t ptr, size_t offset) {
+	u_assert(offset < INT32_MAX);
+
+	asm_inst_t mov = { .type = AsmInstMov, .opds = AsmInstOpds_Reg_Mem, .reg0 = reg, .mem_size = asm_reg_get_size(reg), .mem_base = ptr, .mem_disp_type = AsmInstDispAuto, .mem_disp = (int32_t)offset };
+
+	asm_frag_push_inst(ctx->frag, &mov);
+}
+static void write_ptr_off(ctx_t * ctx, asm_reg_t ptr, asm_reg_t reg, size_t offset) {
+	u_assert(offset < INT32_MAX);
+
+	asm_inst_t mov = { .type = AsmInstMov, .opds = AsmInstOpds_Mem_Reg, .mem_size = asm_reg_get_size(reg), .mem_base = ptr, .mem_disp_type = AsmInstDispAuto, .mem_disp = (int32_t)offset, .reg0 = reg };
+
+	asm_frag_push_inst(ctx->frag, &mov);
+}
+
+static asm_reg_t get_ax_reg_dt(ira_dt_t * dt) {
+	asm_reg_t reg;
+
+	switch (dt->type) {
+		case IraDtBool:
+			reg = AsmRegAl;
+			break;
+		case IraDtInt:
+			reg = int_type_to_ax[dt->int_type];
+			break;
+		case IraDtPtr:
+			reg = AsmRegRax;
+			break;
+		default:
+			u_assert_switch(dt->type);
+	}
+
+	return reg;
+}
 
 static int32_t w64_get_stack_arg_offset(ctx_t * ctx, size_t arg) {
 	return (int32_t)((1 + arg) * STACK_UNIT);
 }
-static bool w64_pass_caller_ret(ctx_t * ctx, var_t * var) {
+static bool w64_load_callee_ret_link(ctx_t * ctx, var_t * var) {
 	ira_dt_t * var_dt = var->dt;
 
 	switch (var_dt->type) {
@@ -883,12 +1081,12 @@ static bool w64_pass_caller_ret(ctx_t * ctx, var_t * var) {
 		case IraDtPtr:
 			break;
 		default:
-			u_assert_switch(ret_dt->type);
+			u_assert_switch(var_dt->type);
 	}
 
 	return false;
 }
-static void w64_load_caller_arg(ctx_t * ctx, var_t * var, size_t arg) {
+static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg) {
 	ira_dt_t * var_dt = var->dt;
 
 	asm_reg_t reg;
@@ -930,7 +1128,27 @@ static void w64_load_caller_arg(ctx_t * ctx, var_t * var, size_t arg) {
 			u_assert_switch(var_dt->type);
 	}
 }
-static bool w64_save_callee_ret(ctx_t * ctx) {
+static void w64_save_callee_ret(ctx_t * ctx, var_t * var) {
+	ira_dt_t * ret_dt = var->dt;
+
+	switch (ret_dt->type) {
+		case IraDtVoid:
+			break;
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+		{
+			asm_reg_t reg = get_ax_reg_dt(ret_dt);
+
+			save_stack_var(ctx, var, reg);
+
+			break;
+		}
+		default:
+			u_assert_switch(ret_dt->type);
+	}
+}
+static bool w64_save_caller_ret_link(ctx_t * ctx) {
 	ira_dt_t * func_dt = ctx->func->dt;
 
 	switch (func_dt->func.ret->type) {
@@ -944,7 +1162,7 @@ static bool w64_save_callee_ret(ctx_t * ctx) {
 
 	return false;
 }
-static void w64_save_callee_arg(ctx_t * ctx, ira_dt_n_t * arg_dt_n, size_t arg) {
+static void w64_save_caller_arg(ctx_t * ctx, ira_dt_n_t * arg_dt_n, size_t arg) {
 	ira_dt_t * arg_dt = arg_dt_n->dt;
 
 	var_t * var = find_var(ctx, arg_dt_n->name);
@@ -990,18 +1208,38 @@ static void w64_save_callee_arg(ctx_t * ctx, ira_dt_n_t * arg_dt_n, size_t arg) 
 			u_assert_switch(arg_dt->type);
 	}
 }
+static void w64_load_caller_ret(ctx_t * ctx, var_t * var) {
+	ira_dt_t * ret_dt = var->dt;
+
+	switch (ret_dt->type) {
+		case IraDtVoid:
+			break;
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+		{
+			asm_reg_t reg = get_ax_reg_dt(ret_dt);
+
+			load_stack_var(ctx, reg, var);
+			
+			break;
+		}
+		default:
+			u_assert_switch(ret_dt->type);
+	}
+}
 
 static void emit_prologue_save_args(ctx_t * ctx) {
 	size_t arg = 0;
 
-	if (w64_save_callee_ret(ctx)) {
+	if (w64_save_caller_ret_link(ctx)) {
 		++arg;
 	}
 
 	ira_dt_t * func_dt = ctx->func->dt;
 
 	for (ira_dt_n_t * arg_dt_n = func_dt->func.args, *arg_dt_n_end = arg_dt_n + func_dt->func.args_size; arg_dt_n != arg_dt_n_end; ++arg_dt_n, ++arg) {
-		w64_save_callee_arg(ctx, arg_dt_n, arg);
+		w64_save_caller_arg(ctx, arg_dt_n, arg);
 	}
 }
 static void emit_prologue(ctx_t * ctx) {
@@ -1045,7 +1283,7 @@ static void div_int(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_out, va
 			reg2 = AsmRegRdx;
 			break;
 		default:
-			u_assert_switch(inst->opd0.var->dt->int_type);
+			u_assert_switch(opd0->dt->int_type);
 	}
 
 	load_stack_var(ctx, reg0, opd0);
@@ -1131,26 +1369,30 @@ static asm_inst_type_t get_set_inst_type(ira_dt_t * dt, ira_int_cmp_t int_cmp) {
 		}
 	}
 }
+static void get_ptr_copy_data(var_t * var, asm_reg_t * reg_out, size_t * off_step_out) {
+	if (var->align >= 8 && var->size % 8 == 0) {
+		*reg_out = AsmRegRax;
+		*off_step_out = 8;
+	}
+	else if (var->align >= 4 && var->size % 4 == 0) {
+		*reg_out = AsmRegEax;
+		*off_step_out = 4;
+	}
+	else if (var->align >= 2 && var->size % 2 == 0) {
+		*reg_out = AsmRegAx;
+		*off_step_out = 2;
+	}
+	else {
+		*reg_out = AsmRegAl;
+		*off_step_out = 1;
+	}
+}
+static void copy_ptr_to_var() {
+
+}
 
 static void compile_def_label(ctx_t * ctx, inst_t * inst) {
 	push_label(ctx, inst->opd0.label->global_name);
-}
-static void compile_load_val_bool(ctx_t * ctx, inst_t * inst) {
-	ira_val_t * val = inst->opd1.val;
-
-	load_int(ctx, AsmRegAl, AsmInstImm8, val->bool_val ? 1 : 0);
-
-	save_stack_var(ctx, inst->opd0.var, AsmRegAl);
-}
-static void compile_load_val_int(ctx_t * ctx, inst_t * inst) {
-	ira_val_t * val = inst->opd1.val;
-
-	asm_reg_t reg = int_type_to_ax[val->dt->int_type];
-	asm_inst_imm_type_t imm_type = ira_int_type_to_imm_type[val->dt->int_type];
-
-	load_int(ctx, reg, imm_type, val->int_val.si64);
-
-	save_stack_var(ctx, inst->opd0.var, reg);
 }
 static void compile_load_val_arr(ctx_t * ctx, inst_t * inst) {
 	ira_val_t * val = inst->opd1.val;
@@ -1183,14 +1425,18 @@ static void compile_load_val(ctx_t * ctx, inst_t * inst) {
 
 	switch (val->type) {
 		case IraValImmBool:
-			compile_load_val_bool(ctx, inst);
+			load_int(ctx, AsmRegAl, AsmInstImm8, val->bool_val ? 1 : 0);
+			save_stack_var(ctx, inst->opd0.var, AsmRegAl);
 			break;
 		case IraValImmInt:
-			compile_load_val_int(ctx, inst);
+		{
+			asm_reg_t reg = int_type_to_ax[val->dt->int_type];
+			asm_inst_imm_type_t imm_type = ira_int_type_to_imm_type[val->dt->int_type];
+
+			load_int(ctx, reg, imm_type, val->int_val.si64);
+			save_stack_var(ctx, inst->opd0.var, reg);
 			break;
-		case IraValImmArr:
-			compile_load_val_arr(ctx, inst);
-			break;
+		}
 		case IraValLoPtr:
 			switch (val->lo_val->type) {
 				case IraLoFunc:
@@ -1210,38 +1456,11 @@ static void compile_load_val(ctx_t * ctx, inst_t * inst) {
 			load_int(ctx, AsmRegRax, AsmInstImm64, 0);
 			save_stack_var(ctx, inst->opd0.var, AsmRegRax);
 			break;
+		case IraValImmArr:
+			compile_load_val_arr(ctx, inst);
+			break;
 		default:
-			u_assert_switch(var->dt->type);
-	}
-}
-static void compile_load_var(ctx_t * ctx, inst_t * inst) {
-	ira_lo_t * lo = inst->opd1.lo;
-
-	ira_dt_t * var_dt = lo->var.dt;
-
-	switch (var_dt->type) {
-		case IraDtVoid:
-			break;
-		case IraDtBool:
-			load_label_val(ctx, AsmRegAl, lo->full_name);
-			save_stack_var(ctx, inst->opd0.var, AsmRegAl);
-			break;
-		case IraDtInt:
-		{
-			asm_reg_t reg = int_type_to_ax[var_dt->int_type];
-
-			load_label_val(ctx, reg, lo->full_name);
-			save_stack_var(ctx, inst->opd0.var, reg);
-			break;
-		}
-		case IraDtPtr:
-		{
-			load_label_val(ctx, AsmRegRax, lo->full_name);
-			save_stack_var(ctx, inst->opd0.var, AsmRegRax);
-			break;
-		}
-		default:
-			u_assert_switch(var_dt->type);
+			u_assert_switch(val->type);
 	}
 }
 static void compile_copy(ctx_t * ctx, inst_t * inst) {
@@ -1250,27 +1469,70 @@ static void compile_copy(ctx_t * ctx, inst_t * inst) {
 	switch (dt->type) {
 		case IraDtVoid:
 			break;
+		case IraDtBool:
 		case IraDtInt:
+		case IraDtPtr:
 		{
-			asm_reg_t reg = int_type_to_ax[dt->int_type];
+			asm_reg_t reg = get_ax_reg_dt(dt);
 
 			load_stack_var(ctx, reg, inst->opd1.var);
 			save_stack_var(ctx, inst->opd0.var, reg);
 			break;
 		}
-		case IraDtPtr:
-			load_stack_var(ctx, AsmRegRax, inst->opd1.var);
-			save_stack_var(ctx, inst->opd0.var, AsmRegRax);
-			break;
 		case IraDtArr:
-			load_stack_var_off(ctx, AsmRegRax, inst->opd1.var, 0);
-			save_stack_var_off(ctx, inst->opd0.var, AsmRegRax, 0);
+			load_stack_var_off(ctx, AsmRegRax, inst->opd1.var, IRA_DT_ARR_SIZE_OFF);
+			save_stack_var_off(ctx, inst->opd0.var, AsmRegRax, IRA_DT_ARR_SIZE_OFF);
 
-			load_stack_var_off(ctx, AsmRegRax, inst->opd1.var, 8);
-			save_stack_var_off(ctx, inst->opd0.var, AsmRegRax, 8);
+			load_stack_var_off(ctx, AsmRegRax, inst->opd1.var, IRA_DT_ARR_DATA_OFF);
+			save_stack_var_off(ctx, inst->opd0.var, AsmRegRax, IRA_DT_ARR_DATA_OFF);
 			break;
 		default:
 			u_assert_switch(dt->type);
+	}
+}
+static void compile_addr_of(ctx_t * ctx, inst_t * inst) {
+	asm_inst_t lea = { .type = AsmInstLea, .opds = AsmInstOpds_Reg_Mem, .reg0 = AsmRegRax, .mem_base = AsmRegRsp, .mem_disp_type = AsmInstDispAuto, .mem_disp = (int32_t)(ctx->stack_vars_pos + inst->opd1.var->pos) };
+
+	asm_frag_push_inst(ctx->frag, &lea);
+
+	save_stack_var(ctx, inst->opd0.var, AsmRegRax);
+}
+static void compile_read_ptr(ctx_t * ctx, inst_t * inst) {
+	var_t * ptr_var = inst->opd1.var;
+
+	ira_dt_t * body_dt = ptr_var->dt->ptr.body;
+
+	load_stack_var(ctx, AsmRegRcx, ptr_var);
+
+	var_t * dst_var = inst->opd0.var;
+
+	size_t off_step = 1;
+	asm_reg_t reg = AsmRegAl;
+
+	get_ptr_copy_data(dst_var, &reg, &off_step);
+
+	for (size_t off = 0; off < dst_var->size; off += off_step) {
+		read_ptr_off(ctx, reg, AsmRegRcx, off);
+		save_stack_var_off(ctx, dst_var, reg, off);
+	}
+}
+static void compile_write_ptr(ctx_t * ctx, inst_t * inst) {
+	var_t * ptr_var = inst->opd0.var;
+
+	ira_dt_t * body_dt = ptr_var->dt->ptr.body;
+
+	load_stack_var(ctx, AsmRegRcx, ptr_var);
+
+	var_t * src_var = inst->opd1.var;
+
+	size_t off_step = 1;
+	asm_reg_t reg = AsmRegAl;
+
+	get_ptr_copy_data(src_var, &reg, &off_step);
+
+	for (size_t off = 0; off < src_var->size; off += off_step) {
+		load_stack_var_off(ctx, reg, src_var, off);
+		write_ptr_off(ctx, AsmRegRcx, reg, off);
 	}
 }
 static void compile_bopr_int(ctx_t * ctx, inst_t * inst, asm_inst_type_t bopr_type) {
@@ -1315,27 +1577,16 @@ static void compile_cmp_int(ctx_t * ctx, inst_t * inst) {
 
 	save_stack_var(ctx, inst->opd0.var, AsmRegAl);
 }
-static void compile_mmbr_acc(ctx_t * ctx, inst_t * inst) {
-	u_hs_t * mmbr = inst->opd2.hs;
-	ira_dt_t * opd_dt = inst->opd1.var->dt;
+static void compile_mmbr_acc_ptr(ctx_t * ctx, inst_t * inst) {
+	var_t * opd_var = inst->opd1.var;
 
-	switch (opd_dt->type) {
-		case IraDtArr:
-			if (mmbr == ctx->pec->pds[IraPdsSizeMmbr]) {
-				load_stack_var_off(ctx, AsmRegRax, inst->opd1.var, IRA_DT_ARR_SIZE_OFF);
-				save_stack_var(ctx, inst->opd0.var, AsmRegRax);
-			}
-			else if (mmbr == ctx->pec->pds[IraPdsDataMmbr]) {
-				load_stack_var_off(ctx, AsmRegRax, inst->opd1.var, IRA_DT_ARR_DATA_OFF);
-				save_stack_var(ctx, inst->opd0.var, AsmRegRax);
-			}
-			else {
-				u_assert_switch(mmbr);
-			}
-			break;
-		default:
-			u_assert_switch(opd_dt->type);
-	}
+	load_stack_var(ctx, AsmRegRax, opd_var);
+	
+	asm_inst_t lea = { .type = AsmInstLea, .opds = AsmInstOpds_Reg_Mem, .reg0 = AsmRegRax, .mem_base = AsmRegRax, .mem_disp_type = AsmInstDispAuto, .mem_disp = (int32_t)inst->mmbr_acc.off };
+
+	asm_frag_push_inst(ctx->frag, &lea);
+
+	save_stack_var(ctx, inst->opd0.var, AsmRegRax);
 }
 static void compile_cast_int(ctx_t * ctx, inst_t * inst) {
 	ira_dt_t * from = inst->opd1.var->dt;
@@ -1381,22 +1632,15 @@ static void compile_cast(ctx_t * ctx, inst_t * inst) {
 			u_assert_switch(to->type);
 	}
 }
-static void compile_addr_of(ctx_t * ctx, inst_t * inst) {
-	asm_inst_t lea = { .type = AsmInstLea, .opds = AsmInstOpds_Reg_Mem, .reg0 = AsmRegRax, .mem_base = AsmRegRsp, .mem_disp_type = AsmInstDispAuto, .mem_disp = (int32_t)(ctx->stack_vars_pos + inst->opd1.var->pos) };
-
-	asm_frag_push_inst(ctx->frag, &lea);
-
-	save_stack_var(ctx, inst->opd0.var, AsmRegRax);
-}
 static void compile_call_func_ptr(ctx_t * ctx, inst_t * inst) {
 	size_t arg_off = 0;
 
-	if (w64_pass_caller_ret(ctx, inst->opd0.var)) {
+	if (w64_load_callee_ret_link(ctx, inst->opd0.var)) {
 		++arg_off;
 	}
 
 	for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var, ++arg_off) {
-		w64_load_caller_arg(ctx, *var, arg_off);
+		w64_load_callee_arg(ctx, *var, arg_off);
 	}
 
 	load_stack_var(ctx, AsmRegRax, inst->opd1.var);
@@ -1405,24 +1649,7 @@ static void compile_call_func_ptr(ctx_t * ctx, inst_t * inst) {
 
 	asm_frag_push_inst(ctx->frag, &call);
 
-	ira_dt_t * ret_dt = inst->opd0.var->dt;
-
-	switch (ret_dt->type) {
-		case IraDtVoid:
-			break;
-		case IraDtInt:
-		{
-			asm_reg_t reg = int_type_to_ax[ret_dt->int_type];
-			save_stack_var(ctx, inst->opd0.var, reg);
-			break;
-		}
-		case IraDtPtr:
-			save_stack_var(ctx, inst->opd0.var, AsmRegRax);
-			break;
-		default:
-			u_assert_switch(ret_dt->type);
-	}
-
+	w64_save_callee_ret(ctx, inst->opd0.var);
 }
 static void compile_bru(ctx_t * ctx, inst_t * inst) {
 	asm_inst_t jmp = { .type = AsmInstJmp, .opds = AsmInstOpds_Imm, .imm0_type = AsmInstImmLabelRel32, .imm0_label = inst->opd0.label->global_name };
@@ -1441,17 +1668,7 @@ static void compile_brf(ctx_t * ctx, inst_t * inst) {
 	asm_frag_push_inst(ctx->frag, &jz);
 }
 static void compile_ret(ctx_t * ctx, inst_t * inst) {
-	ira_dt_t * dt = inst->opd0.var->dt;
-
-	switch (dt->type) {
-		case IraDtVoid:
-			break;
-		case IraDtInt:
-			load_stack_var(ctx, AsmRegEax, inst->opd0.var);
-			break;
-		default:
-			u_assert_switch(dt->type);
-	}
+	w64_load_caller_ret(ctx, inst->opd0.var);
 
 	emit_epilogue(ctx);
 
@@ -1476,11 +1693,17 @@ static void compile_insts(ctx_t * ctx) {
 			case IraInstLoadVal:
 				compile_load_val(ctx, inst);
 				break;
-			case IraInstLoadVar:
-				compile_load_var(ctx, inst);
-				break;
 			case IraInstCopy:
 				compile_copy(ctx, inst);
+				break;
+			case IraInstAddrOf:
+				compile_addr_of(ctx, inst);
+				break;
+			case IraInstReadPtr:
+				compile_read_ptr(ctx, inst);
+				break;
+			case IraInstWritePtr:
+				compile_write_ptr(ctx, inst);
 				break;
 			case IraInstAddInt:
 				compile_bopr_int(ctx, inst, AsmInstAdd);
@@ -1500,14 +1723,11 @@ static void compile_insts(ctx_t * ctx) {
 			case IraInstCmpInt:
 				compile_cmp_int(ctx, inst);
 				break;
-			case IraInstMmbrAcc:
-				compile_mmbr_acc(ctx, inst);
+			case IraInstMmbrAccPtr:
+				compile_mmbr_acc_ptr(ctx, inst);
 				break;
 			case IraInstCast:
 				compile_cast(ctx, inst);
-				break;
-			case IraInstAddrOf:
-				compile_addr_of(ctx, inst);
 				break;
 			case IraInstCallFuncPtr:
 				compile_call_func_ptr(ctx, inst);
