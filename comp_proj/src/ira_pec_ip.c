@@ -263,11 +263,6 @@ static void ctx_cleanup(ctx_t * ctx) {
 }
 
 static bool define_var(ctx_t * ctx, ira_dt_t * dt, u_hs_t * name) {
-	if (!ira_dt_infos[dt->type].var_comp) {
-		report(ctx, L"can not define a variable with [%s] data type", ira_dt_infos[dt->type].type_str.str);
-		return false;
-	}
-
 	var_t ** ins = &ctx->var;
 
 	while (*ins != NULL) {
@@ -1802,7 +1797,7 @@ static bool execute_insts_make_dt_tpl(ctx_t * ctx, inst_t * inst) {
 		for (var_t ** var = inst->opd3.vars, **var_end = var + elems_size; var != var_end; ++var, ++elem, ++id) {
 			var_t * var_ptr = *var;
 
-			if (var_ptr->val == NULL || !ira_dt_infos[var_ptr->val->dt_val->type].tpl_dt_comp) {
+			if (var_ptr->val == NULL) {
 				_freea(elems);
 				return false;
 			}
@@ -1832,7 +1827,7 @@ static bool execute_insts_make_dt_func(ctx_t * ctx, inst_t * inst) {
 		for (var_t ** var = inst->opd3.vars, **var_end = var + args_size; var != var_end; ++var, ++arg, ++id) {
 			var_t * var_ptr = *var;
 
-			if (var_ptr->val == NULL || !ira_dt_infos[var_ptr->val->dt_val->type].func_dt_comp) {
+			if (var_ptr->val == NULL) {
 				_freea(args);
 				return false;
 			}
@@ -1841,7 +1836,7 @@ static bool execute_insts_make_dt_func(ctx_t * ctx, inst_t * inst) {
 		}
 	}
 
-	if (inst->opd1.var->val == NULL || !ira_dt_infos[inst->opd1.var->val->dt_val->type].func_dt_comp) {
+	if (inst->opd1.var->val == NULL) {
 		_freea(args);
 		return false;
 	}
@@ -1876,7 +1871,7 @@ static bool execute_insts(ctx_t * ctx) {
 				inst->opd0.var->val = ira_val_copy(inst->opd1.var->val);
 				break;
 			case IraInstMakeDtPtr:
-				if (inst->opd1.var->val == NULL || !ira_dt_infos[inst->opd1.var->val->dt_val->type].ptr_dt_comp) {
+				if (inst->opd1.var->val == NULL) {
 					return false;
 				}
 
@@ -1885,7 +1880,7 @@ static bool execute_insts(ctx_t * ctx) {
 				inst->opd0.var->val = ira_pec_make_val_imm_dt(ctx->pec, ira_pec_get_dt_ptr(ctx->pec, inst->opd1.var->val->dt_val));
 				break;
 			case IraInstMakeDtArr:
-				if (inst->opd1.var->val == NULL || !ira_dt_infos[inst->opd1.var->val->dt_val->type].arr_dt_comp) {
+				if (inst->opd1.var->val == NULL) {
 					return false;
 				}
 

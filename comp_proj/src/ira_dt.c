@@ -148,12 +148,12 @@ size_t ira_dt_get_tpl_elem_off(ira_dt_t * dt, size_t elem_ind) {
 }
 
 const ira_dt_info_t ira_dt_infos[IraDt_Count] = {
-	[IraDtVoid] = { .type_str = U_MAKE_ROS(L"DtVoid"), .ptr_dt_comp = true, .arr_dt_comp = true, .tpl_dt_comp = true, .func_dt_comp = true, .var_comp = true, .impt_comp = true },
-	[IraDtDt] = { .type_str = U_MAKE_ROS(L"DtDt"), .ptr_dt_comp = true, .arr_dt_comp = true, .tpl_dt_comp = true, .func_dt_comp = true, .var_comp = true, .impt_comp = false },
-	[IraDtBool] = { .type_str = U_MAKE_ROS(L"DtBool"), .ptr_dt_comp = true, .arr_dt_comp = true, .tpl_dt_comp = true, .func_dt_comp = true, .var_comp = true, .impt_comp = true },
-	[IraDtInt] = { .type_str = U_MAKE_ROS(L"DtInt"), .ptr_dt_comp = true, .arr_dt_comp = true, .tpl_dt_comp = true, .func_dt_comp = true, .var_comp = true, .impt_comp = true },
-	[IraDtPtr] = { .type_str = U_MAKE_ROS(L"DtPtr"), .ptr_dt_comp = true, .arr_dt_comp = true, .tpl_dt_comp = true, .func_dt_comp = true, .var_comp = true, .impt_comp = true },
-	[IraDtArr] = { .type_str = U_MAKE_ROS(L"DtArr"), .ptr_dt_comp = true, .arr_dt_comp = true, .tpl_dt_comp = true, .func_dt_comp = true, .var_comp = true, .impt_comp = true },
-	[IraDtTpl] = { .type_str = U_MAKE_ROS(L"DtSmv"), .ptr_dt_comp = true, .arr_dt_comp = true, .tpl_dt_comp = true, .func_dt_comp = true, .var_comp = true, .impt_comp = true },
-	[IraDtFunc] = { .type_str = U_MAKE_ROS(L"DtFunc"), .ptr_dt_comp = true, .arr_dt_comp = false, .tpl_dt_comp = false, .func_dt_comp = false, .var_comp = true, .impt_comp = true }
+	[IraDtVoid] = { .type_str = U_MAKE_ROS(L"DtVoid") },
+	[IraDtDt] = { .type_str = U_MAKE_ROS(L"DtDt") },
+	[IraDtBool] = { .type_str = U_MAKE_ROS(L"DtBool") },
+	[IraDtInt] = { .type_str = U_MAKE_ROS(L"DtInt") },
+	[IraDtPtr] = { .type_str = U_MAKE_ROS(L"DtPtr") },
+	[IraDtArr] = { .type_str = U_MAKE_ROS(L"DtArr") },
+	[IraDtTpl] = { .type_str = U_MAKE_ROS(L"DtTpl") },
+	[IraDtFunc] = { .type_str = U_MAKE_ROS(L"DtFunc") }
 };

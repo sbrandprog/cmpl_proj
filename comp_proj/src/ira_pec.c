@@ -70,54 +70,6 @@ void ira_pec_cleanup(ira_pec_t * pec) {
 	memset(pec, 0, sizeof(*pec));
 }
 
-static bool get_listed_dt_assert(ira_dt_t * pred) {
-	switch (pred->type) {
-		case IraDtPtr:
-			if (!ira_dt_infos[pred->ptr.body->type].ptr_dt_comp) {
-				return false;
-			}
-			break;
-		case IraDtArr:
-			if (!ira_dt_infos[pred->arr.body->type].arr_dt_comp) {
-				return false;
-			}
-			break;
-		case IraDtTpl:
-			for (ira_dt_n_t * elem = pred->tpl.elems, *elem_end = elem + pred->tpl.elems_size; elem != elem_end; ++elem) {
-				if (!ira_dt_infos[elem->dt->type].tpl_dt_comp) {
-					return false;
-				}
-
-				for (ira_dt_n_t * elem2 = elem + 1; elem2 != elem_end; ++elem2) {
-					if (elem->name == elem2->name) {
-						return false;
-					}
-				}
-			}
-			break;
-		case IraDtFunc:
-			if (!ira_dt_infos[pred->func.ret->type].func_dt_comp) {
-				return false;
-			}
-
-			for (ira_dt_n_t * arg = pred->func.args, *arg_end = arg + pred->func.args_size; arg != arg_end; ++arg) {
-				if (!ira_dt_infos[arg->dt->type].func_dt_comp) {
-					return false;
-				}
-
-				for (ira_dt_n_t * arg2 = arg + 1; arg2 != arg_end; ++arg2) {
-					if (arg->name == arg2->name) {
-						return false;
-					}
-				}
-			}
-			break;
-		default:
-			u_assert_switch(pred->type);
-	}
-
-	return true;
-}
 static bool get_listed_dt_cmp(ira_dt_t * pred, ira_dt_t * dt) {
 	switch (pred->type) {
 		case IraDtPtr:
@@ -197,8 +149,6 @@ static void get_listed_dt_copy(ira_dt_t * pred, ira_dt_t * out) {
 	}
 }
 static ira_dt_t * get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** ins) {
-	u_assert(get_listed_dt_assert(pred));
-
 	while (*ins != NULL) {
 		ira_dt_t * dt = *ins;
 

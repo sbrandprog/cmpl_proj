@@ -47,8 +47,6 @@ struct ira_dt {
 
 struct ira_dt_info {
 	u_ros_t type_str;
-	bool ptr_dt_comp, arr_dt_comp, tpl_dt_comp, func_dt_comp;
-	bool var_comp, impt_comp;
 };
 
 bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second);

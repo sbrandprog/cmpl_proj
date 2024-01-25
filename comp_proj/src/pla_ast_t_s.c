@@ -1654,11 +1654,6 @@ static bool translate_stmt_var_dt(ctx_t * ctx, pla_stmt_t * stmt) {
 		return false;
 	}
 
-	if (!ira_dt_infos[dt->type].var_comp) {
-		pla_ast_t_report(ctx->t_ctx, L"variable [%s] can not have [%s] data type", stmt->var_dt.name->str, ira_dt_infos[dt->type].type_str.str);
-		return false;
-	}
-
 	var_t * var = define_var(ctx, stmt->var_dt.name, dt, true);
 
 	if (var == NULL) {

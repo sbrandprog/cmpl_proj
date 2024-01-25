@@ -414,11 +414,6 @@ static bool translate_dclr_impt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 		return false;
 	}
 
-	if (!ira_dt_infos[lo->impt.dt->type].impt_comp) {
-		pla_ast_t_report(ctx, L"import language object requires import compatible data type");
-		return false;
-	}
-
 	lo->impt.lib_name = dclr->impt.lib_name;
 	lo->impt.sym_name = dclr->impt.sym_name;
 
