@@ -1,10 +1,4 @@
-nmspc winapi {
-	imprt get_std_handle : $(std_handle : u32) -> void! : "kernel32.dll"a, "GetStdHandle"a;
-}
-
-nmspc winapi {
-	imprt write_file : $(handle : void!, data : void!, data_size : u32, written : u32!, overlapped : void!) -> s32 : "kernel32.dll"a, "WriteFile"a;
-}
+incld "pla_lib/w64_kernel32.pla"a;
 
 vrbl con_data : tupl { handle : void!, written : u32 };
 

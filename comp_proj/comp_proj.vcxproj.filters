@@ -275,5 +275,6 @@
     <None Include="src\pla_expr.def">
       <Filter>Исходные файлы</Filter>
     </None>
+    <None Include="pla_lib\w64_kernel32.pla" />
   </ItemGroup>
 </Project>

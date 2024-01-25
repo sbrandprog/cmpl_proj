@@ -56,14 +56,15 @@ typedef struct bin_oper_info {
 	bin_oper_preced_t preced;
 } bin_oper_info_t;
 
-typedef struct asm_ast_p_ctx {
+typedef struct lc lc_t;
+struct lc {
 	u_hst_t * hst;
-
 	const wchar_t * file_name;
-
-	pla_ast_t * out;
+	lc_t * prev;
 
 	FILE * file;
+
+	long long saved_pos;
 
 	wchar_t ch;
 	bool ch_succ;
@@ -82,6 +83,18 @@ typedef struct asm_ast_p_ctx {
 	size_t punc_start;
 
 	file_pos_t tok_start;
+	tok_t tok;
+};
+
+typedef struct asm_ast_p_ctx {
+	u_hst_t * hst;
+
+	const wchar_t * file_name;
+
+	pla_ast_t * out;
+
+	lc_t * lc;
+
 	tok_t tok;
 } ctx_t;
 
@@ -167,20 +180,22 @@ static bool is_num_str_tag_intro_ch(wchar_t ch) {
 
 
 static void report(ctx_t * ctx, const wchar_t * format, ...) {
-	fwprintf(stderr, L"@%4zi:%4zi\n", ctx->tok_start.line_num, ctx->tok_start.line_ch);
+	lc_t * lc = ctx->lc;
 
-	long long backup_cur = _ftelli64(ctx->file);
+	fwprintf(stderr, L"@%4zi:%4zi\n", lc->tok_start.line_num, lc->tok_start.line_ch);
+
+	long long backup_cur = _ftelli64(lc->file);
 	u_assert(backup_cur != -1L);
 
 	{
-		int res = _fseeki64(ctx->file, ctx->line_start, SEEK_SET);
+		int res = _fseeki64(lc->file, lc->line_start, SEEK_SET);
 		u_assert(res == 0);
 	}
 
 	wint_t ch;
 
-	while ((ch = fgetwc(ctx->file)) != WEOF) {
-		u_assert(ferror(ctx->file) == 0);
+	while ((ch = fgetwc(lc->file)) != WEOF) {
+		u_assert(ferror(lc->file) == 0);
 
 		if (ch == L'\t') {
 			ch = L' ';
@@ -194,16 +209,16 @@ static void report(ctx_t * ctx, const wchar_t * format, ...) {
 	}
 
 	{
-		int res = _fseeki64(ctx->file, backup_cur, SEEK_SET);
+		int res = _fseeki64(lc->file, backup_cur, SEEK_SET);
 		u_assert(res == 0);
 	}
 
-	long long diff = ctx->tok_start.file_cur - ctx->line_start;
+	long long diff = lc->tok_start.file_cur - lc->line_start;
 	for (long long ch = 0; ch < diff; ++ch) {
 		fputwc(L' ', stderr);
 	}
 
-	diff = ctx->ch_pos - ctx->tok_start.file_cur;
+	diff = lc->ch_pos - lc->tok_start.file_cur;
 	for (long long ch = 0; ch < diff; ++ch) {
 		fputwc(L'^', stderr);
 	}
@@ -223,174 +238,232 @@ static void report(ctx_t * ctx, const wchar_t * format, ...) {
 }
 
 
-static bool next_ch(ctx_t * ctx) {
-	ctx->ch_succ = false;
+static bool push_lc(ctx_t * ctx, lc_t * lc, const wchar_t * file_name) {
+	*lc = (lc_t){ .hst = ctx->hst, .file_name = file_name, .prev = ctx->lc };
 
-	ctx->ch_pos = _ftelli64(ctx->file);
-	u_assert(ctx->ch_pos != -1);
+	if (lc->prev != NULL) {
+		lc_t * prev_lc = lc->prev;
 
-	wint_t new_ch = fgetwc(ctx->file);
+		prev_lc->saved_pos = _ftelli64(prev_lc->file);
+		u_assert(prev_lc->saved_pos != -1L);
 
-	if (new_ch == WEOF) {
-		u_assert(ferror(ctx->file) == 0);
-		return false;
+		if (_wfreopen_s(&lc->file, lc->file_name, L"r", prev_lc->file) != 0) {
+			fwprintf(stderr, L"failed to open [%s] file", lc->file_name);
+			return false;
+		}
+	}
+	else {
+		if (_wfopen_s(&lc->file, lc->file_name, L"r") != 0) {
+			fwprintf(stderr, L"failed to open [%s] file", lc->file_name);
+			return false;
+		}
 	}
 
-	ctx->ch = (wchar_t)new_ch;
-	ctx->ch_succ = true;
+	ctx->lc = lc;
 
-	++ctx->line_ch;
+	return true;
+}
+static bool pop_lc(ctx_t * ctx) {
+	lc_t * lc = ctx->lc;
 
-	if (ctx->line_switch) {
-		ctx->line_switch = false;
-		++ctx->line_num;
-		ctx->line_ch = 0;
-		ctx->line_start = ctx->ch_pos;
+	free(lc->str);
+
+	lc_t * prev_lc = lc->prev;
+
+	if (prev_lc != NULL) {
+		if (_wfreopen_s(&prev_lc->file, prev_lc->file_name, L"r", lc->file) != 0) {
+			fwprintf(stderr, L"failed to reopen [%s] file", lc->file_name);
+			return false;
+		}
+
+		{
+			int res = _fseeki64(prev_lc->file, prev_lc->saved_pos, SEEK_SET);
+			u_assert(res == 0);
+		}
+	}
+	else {
+		fclose(lc->file);
 	}
 
-	if (ctx->ch == L'\n') {
-		ctx->line_switch = true;
+	ctx->lc = prev_lc;
+	if (ctx->lc != NULL) {
+		ctx->tok = ctx->lc->tok;
 	}
 
 	return true;
 }
-static file_pos_t capture_file_pos(ctx_t * ctx) {
-	return (file_pos_t) {
-		.file_cur = ctx->ch_pos, .line_num = ctx->line_num, .line_ch = ctx->line_ch
-	};
-}
-static void push_str_ch(ctx_t * ctx, wchar_t ch) {
-	if (ctx->str_size + 1 > ctx->str_cap) {
-		u_grow_arr(&ctx->str_cap, &ctx->str, sizeof(*ctx->str), 1);
-	}
 
-	ctx->str[ctx->str_size++] = ch;
-	ctx->str_hash = u_hs_hash_ch(ctx->str_hash, ch);
-}
-static void fetch_str(ctx_t * ctx, ch_pred_t * pred) {
-	ctx->str_size = 0;
-	ctx->str_hash = 0;
 
-	do {
-		push_str_ch(ctx, ctx->ch);
-	} while (next_ch(ctx) && pred(ctx->ch));
-}
-static u_hs_t * hadd_str(ctx_t * ctx) {
-	return u_hst_add(ctx->hst, ctx->str_size, ctx->str, ctx->str_hash);
-}
-static u_hs_t * fadd_str(ctx_t * ctx, ch_pred_t * pred) {
-	fetch_str(ctx, pred);
-	return hadd_str(ctx);
-}
-static bool next_tok(ctx_t * ctx) {
-	ctx->tok.type = TokNone;
+static bool next_ch(lc_t * lc) {
+	lc->ch_succ = false;
 
-	if (ctx->punc_start != 0) {
-		size_t punc_len;
-		pla_punc_t punc = pla_punc_fetch_best(ctx->str_size, ctx->str + ctx->punc_start, &punc_len);
+	lc->ch_pos = _ftelli64(lc->file);
+	u_assert(lc->ch_pos != -1);
 
-		if (punc == PlaPuncNone) {
-			report(ctx, L"invalid punctuator string");
-			return false;
-		}
+	wint_t new_ch = fgetwc(lc->file);
 
-		if (ctx->punc_start + punc_len < ctx->str_size) {
-			ctx->punc_start += punc_len;
-		}
-		else {
-			ctx->punc_start = 0;
-		}
-
-		ctx->tok.type = TokPunc;
-		ctx->tok.punc = punc;
-
-		return true;
-	}
-
-	if (!ctx->ch_succ) {
+	if (new_ch == WEOF) {
+		u_assert(ferror(lc->file) == 0);
 		return false;
 	}
 
-	while (is_emp_ch(ctx->ch)) {
-		if (!next_ch(ctx)) {
-			return false;
-		}
+	lc->ch = (wchar_t)new_ch;
+	lc->ch_succ = true;
+
+	++lc->line_ch;
+
+	if (lc->line_switch) {
+		lc->line_switch = false;
+		++lc->line_num;
+		lc->line_ch = 0;
+		lc->line_start = lc->ch_pos;
 	}
 
-	ctx->tok_start = capture_file_pos(ctx);
+	if (lc->ch == L'\n') {
+		lc->line_switch = true;
+	}
 
-	if (is_punc_ch(ctx->ch)) {
-		fetch_str(ctx, is_punc_ch);
+	return true;
+}
+static file_pos_t capture_file_pos(lc_t * lc) {
+	return (file_pos_t) {
+		.file_cur = lc->ch_pos, .line_num = lc->line_num, .line_ch = lc->line_ch
+	};
+}
+static void push_str_ch(lc_t * lc, wchar_t ch) {
+	if (lc->str_size + 1 > lc->str_cap) {
+		u_grow_arr(&lc->str_cap, &lc->str, sizeof(*lc->str), 1);
+	}
 
+	lc->str[lc->str_size++] = ch;
+	lc->str_hash = u_hs_hash_ch(lc->str_hash, ch);
+}
+static void fetch_str(lc_t * lc, ch_pred_t * pred) {
+	lc->str_size = 0;
+	lc->str_hash = 0;
+
+	do {
+		push_str_ch(lc, lc->ch);
+	} while (next_ch(lc) && pred(lc->ch));
+}
+static u_hs_t * hadd_str(lc_t * lc) {
+	return u_hst_add(lc->hst, lc->str_size, lc->str, lc->str_hash);
+}
+static u_hs_t * fadd_str(lc_t * lc, ch_pred_t * pred) {
+	fetch_str(lc, pred);
+	return hadd_str(lc);
+}
+static bool next_tok_core(ctx_t * ctx) {
+	lc_t * lc = ctx->lc;
+
+	lc->tok.type = TokNone;
+
+	if (lc->punc_start != 0) {
 		size_t punc_len;
-		pla_punc_t punc = pla_punc_fetch_best(ctx->str_size, ctx->str, &punc_len);
+		pla_punc_t punc = pla_punc_fetch_best(lc->str_size, lc->str + lc->punc_start, &punc_len);
 
 		if (punc == PlaPuncNone) {
 			report(ctx, L"invalid punctuator string");
 			return false;
 		}
 
-		if (punc_len < ctx->str_size) {
-			ctx->punc_start = punc_len;
+		if (lc->punc_start + punc_len < lc->str_size) {
+			lc->punc_start += punc_len;
+		}
+		else {
+			lc->punc_start = 0;
 		}
 
-		ctx->tok.type = TokPunc;
-		ctx->tok.punc = punc;
+		lc->tok.type = TokPunc;
+		lc->tok.punc = punc;
 
 		return true;
 	}
-	else if (is_first_ident_ch(ctx->ch)) {
-		fetch_str(ctx, is_ident_ch);
 
-		pla_keyw_t keyw = pla_keyw_fetch_exact(ctx->str_size, ctx->str);
+	if (!lc->ch_succ) {
+		return false;
+	}
+
+	while (is_emp_ch(lc->ch)) {
+		if (!next_ch(lc)) {
+			return false;
+		}
+	}
+
+	lc->tok_start = capture_file_pos(lc);
+
+	if (is_punc_ch(lc->ch)) {
+		fetch_str(lc, is_punc_ch);
+
+		size_t punc_len;
+		pla_punc_t punc = pla_punc_fetch_best(lc->str_size, lc->str, &punc_len);
+
+		if (punc == PlaPuncNone) {
+			report(ctx, L"invalid punctuator string");
+			return false;
+		}
+
+		if (punc_len < lc->str_size) {
+			lc->punc_start = punc_len;
+		}
+
+		lc->tok.type = TokPunc;
+		lc->tok.punc = punc;
+
+		return true;
+	}
+	else if (is_first_ident_ch(lc->ch)) {
+		fetch_str(lc, is_ident_ch);
+
+		pla_keyw_t keyw = pla_keyw_fetch_exact(lc->str_size, lc->str);
 
 		if (keyw != PlaKeywNone) {
-			ctx->tok.type = TokKeyw;
-			ctx->tok.keyw = keyw;
+			lc->tok.type = TokKeyw;
+			lc->tok.keyw = keyw;
 
 			return true;
 		}
 
-		u_hs_t * str = hadd_str(ctx);
+		u_hs_t * str = hadd_str(lc);
 
-		ctx->tok.type = TokIdent;
-		ctx->tok.ident = str;
+		lc->tok.type = TokIdent;
+		lc->tok.ident = str;
 
 		return true;
 	}
-	else if (is_dqoute_ch(ctx->ch)) {
-		if (!next_ch(ctx)) {
+	else if (is_dqoute_ch(lc->ch)) {
+		if (!next_ch(lc)) {
 			return false;
 		}
 
-		u_hs_t * data = fadd_str(ctx, is_ch_str_ch);
+		u_hs_t * data = fadd_str(lc, is_ch_str_ch);
 
-		if (!is_dqoute_ch(ctx->ch) || !next_ch(ctx) || !is_tag_ch(ctx->ch)) {
+		if (!is_dqoute_ch(lc->ch) || !next_ch(lc) || !is_tag_ch(lc->ch)) {
 			report(ctx, L"invalid character string");
 			return false;
 		}
 
-		u_hs_t * tag = fadd_str(ctx, is_tag_ch);
+		u_hs_t * tag = fadd_str(lc, is_tag_ch);
 
-		ctx->tok.type = TokChStr;
-		ctx->tok.ch_str.data = data;
-		ctx->tok.ch_str.tag = tag;
+		lc->tok.type = TokChStr;
+		lc->tok.ch_str.data = data;
+		lc->tok.ch_str.tag = tag;
 
 		return true;
 	}
-	else if (is_first_num_str_ch(ctx->ch)) {
-		u_hs_t * data = fadd_str(ctx, is_num_str_ch);
+	else if (is_first_num_str_ch(lc->ch)) {
+		u_hs_t * data = fadd_str(lc, is_num_str_ch);
 
-		if (!is_num_str_tag_intro_ch(ctx->ch) || !next_ch(ctx) || !is_tag_ch(ctx->ch)) {
+		if (!is_num_str_tag_intro_ch(lc->ch) || !next_ch(lc) || !is_tag_ch(lc->ch)) {
 			report(ctx, L"invalid number string");
 			return false;
 		}
 
-		u_hs_t * tag = fadd_str(ctx, is_tag_ch);
+		u_hs_t * tag = fadd_str(lc, is_tag_ch);
 
-		ctx->tok.type = TokNumStr;
-		ctx->tok.num_str.data = data;
-		ctx->tok.num_str.tag = tag;
+		lc->tok.type = TokNumStr;
+		lc->tok.num_str.data = data;
+		lc->tok.num_str.tag = tag;
 
 		return true;
 	}
@@ -398,6 +471,17 @@ static bool next_tok(ctx_t * ctx) {
 		report(ctx, L"unknown character");
 		return false;
 	}
+}
+static bool next_tok(ctx_t * ctx) {
+	ctx->tok.type = TokNone;
+	
+	if (!next_tok_core(ctx)) {
+		return false;
+	}
+
+	ctx->tok = ctx->lc->tok;
+
+	return true;
 }
 
 
@@ -1301,24 +1385,55 @@ static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out) {
 	return true;
 }
 
-static bool parse_root_item(ctx_t * ctx, pla_dclr_t ** ins) {
+
+static bool parse_file(ctx_t * ctx, const wchar_t * file_name, pla_dclr_t ** ins);
+
+static bool parse_file_include(ctx_t * ctx, pla_dclr_t ** ins) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywIncld)) {
+		return false;
+	}
+
+	u_hs_t * file_name;
+
+	if (!consume_ch_str_crit(ctx, &file_name, NULL)) {
+		return false;
+	}
+
+	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+		return false;
+	}
+
+	if (!parse_file(ctx, file_name->str, ins)) {
+		return false;
+	}
+
+	return true;
+}
+static bool parse_file_item(ctx_t * ctx, pla_dclr_t ** ins) {
 	switch (ctx->tok.type) {
 		case TokNone:
+			break;
+		case TokKeyw:
+			switch (ctx->tok.keyw) {
+				case PlaKeywIncld:
+					return parse_file_include(ctx, ins);
+			}
 			break;
 	}
 
 	return parse_dclr(ctx, ins);
 }
-static bool parse_root(ctx_t * ctx, pla_dclr_t ** out) {
-	*out = pla_dclr_create(PlaDclrNspc);
+static bool parse_file_lc(ctx_t * ctx, pla_dclr_t ** ins) {
+	if (!next_ch(ctx->lc)) {
+		return false;
+	}
 
-	(*out)->name = NULL;
-
-	pla_dclr_t ** ins = &(*out)->nspc.body;
+	if (!next_tok(ctx)) {
+		return false;
+	}
 
 	while (ctx->tok.type != TokNone) {
-		if (!parse_root_item(ctx, ins)) {
-			report(ctx, L"failed to parse a root-declarator");
+		if (!parse_file_item(ctx, ins)) {
 			return false;
 		}
 
@@ -1329,23 +1444,34 @@ static bool parse_root(ctx_t * ctx, pla_dclr_t ** out) {
 
 	return true;
 }
+static bool parse_file(ctx_t * ctx, const wchar_t * file_name, pla_dclr_t ** ins) {
+	lc_t lc;
+
+	if (!push_lc(ctx, &lc, file_name)) {
+		return false;
+	}
+
+	bool result = parse_file_lc(ctx, ins);
+
+	if (!pop_lc(ctx)) {
+		return false;
+	}
+	
+	return true;
+}
 
 static bool parse_core(ctx_t * ctx) {
 	pla_ast_init(ctx->out, ctx->hst);
 
-	if (_wfopen_s(&ctx->file, ctx->file_name, L"r") != 0) {
-		return false;
-	}
+	pla_dclr_t ** root = &ctx->out->root;
 
-	if (!next_ch(ctx)) {
-		return false;
-	}
+	*root = pla_dclr_create(PlaDclrNspc);
 
-	if (!next_tok(ctx)) {
-		return false;
-	}
+	(*root)->name = NULL;
 
-	if (!parse_root(ctx, &ctx->out->root)) {
+	pla_dclr_t ** ins = &(*root)->nspc.body;
+
+	if (!parse_file(ctx, ctx->file_name, ins)) {
 		return false;
 	}
 
@@ -1355,12 +1481,6 @@ bool pla_ast_p_parse(u_hst_t * hst, const wchar_t * file_name, pla_ast_t * out) 
 	ctx_t ctx = { .hst = hst, .file_name = file_name, .out = out };
 
 	bool result = parse_core(&ctx);
-
-	free(ctx.str);
-
-	if (ctx.file != NULL) {
-		fclose(ctx.file);
-	}
 
 	return result;
 }
