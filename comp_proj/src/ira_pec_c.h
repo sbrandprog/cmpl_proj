@@ -3,6 +3,7 @@
 #include "asm.h"
 #include "u_hsb.h"
 
+bool ira_pec_c_is_val_compilable(ira_val_t * val);
 bool ira_pec_c_compile_val_frag(ira_pec_c_ctx_t * ctx, ira_val_t * val, u_hs_t ** out_label);
 
 u_hsb_t * ira_pec_c_get_hsb(ira_pec_c_ctx_t * ctx);

@@ -27,6 +27,35 @@ static u_hs_t * get_unq_arr_label(ctx_t * ctx) {
 	return u_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%zi", ARR_UNQ_PREFIX, ctx->str_unq_index++);
 }
 
+bool ira_pec_c_is_val_compilable(ira_val_t * val) {
+	switch (val->type) {
+		case IraValImmDt:
+			return false;
+		case IraValImmBool:
+		case IraValImmInt:
+		case IraValLoPtr:
+		case IraValNullPtr:
+			break;
+		case IraValImmArr:
+			for (ira_val_t ** elem = val->arr.data, **elem_end = elem + val->arr.size; elem != elem_end; ++elem) {
+				if (!ira_pec_c_is_val_compilable(*elem)) {
+					return false;
+				}
+			}
+			break;
+		case IraValImmTpl:
+			for (ira_val_t ** elem = val->tpl.elems, **elem_end = elem + val->dt->tpl.elems_size; elem != elem_end; ++elem) {
+				if (!ira_pec_c_is_val_compilable(*elem)) {
+					return false;
+				}
+			}
+			break;
+		default:
+			u_assert_switch(val->type);
+	}
+
+	return true;
+}
 static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 	{
 		size_t dt_align = ira_dt_get_align(val->dt);
@@ -86,7 +115,6 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 
 	return true;
 }
-
 bool ira_pec_c_compile_val_frag(ira_pec_c_ctx_t * ctx, ira_val_t * val, u_hs_t ** out_label) {
 	asm_frag_t * frag = asm_frag_create(AsmFragRoData, &ctx->out->frag);
 

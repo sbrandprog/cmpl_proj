@@ -496,6 +496,11 @@ static bool prepare_insts_load_val(ctx_t * ctx, inst_t * inst, const ira_inst_in
 		return false;
 	}
 
+	if (ctx->trg == TrgCompl && !ira_pec_c_is_val_compilable(inst->opd1.val)) {
+		report(ctx, L"[%s]: value in opd[1] contains non compilable elements", ira_inst_infos[inst->base->type].type_str.str);
+		return false;
+	}
+
 	return true;
 }
 static bool prepare_insts_copy(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
@@ -1382,38 +1387,9 @@ static void get_ptr_copy_data(var_t * var, asm_reg_t * reg_out, size_t * off_ste
 		*off_step_out = 1;
 	}
 }
-static void copy_ptr_to_var() {
-
-}
 
 static void compile_def_label(ctx_t * ctx, inst_t * inst) {
 	push_label(ctx, inst->opd0.label->global_name);
-}
-static void compile_load_val_arr(ctx_t * ctx, inst_t * inst) {
-	ira_val_t * val = inst->opd1.val;
-
-	ira_dt_t * elem_dt = val->dt->arr.body;
-
-	switch (elem_dt->type) {
-		case IraDtInt:
-		{
-			u_hs_t * arr_label = NULL;
-
-			if (!ira_pec_c_compile_val_frag(ctx->c_ctx, val, &arr_label)) {
-				u_assert(false);
-			}
-
-			load_int(ctx, AsmRegRax, AsmInstImm64, (int64_t)val->arr.size);
-			save_stack_var_off(ctx, inst->opd0.var, AsmRegRax, IRA_DT_ARR_SIZE_OFF);
-
-			load_label_off(ctx, AsmRegRax, arr_label);
-			save_stack_var_off(ctx, inst->opd0.var, AsmRegRax, IRA_DT_ARR_DATA_OFF);
-
-			break;
-		}
-		default:
-			u_assert_switch(elem_dt->type);
-	}
 }
 static void compile_load_val(ctx_t * ctx, inst_t * inst) {
 	ira_val_t * val = inst->opd1.val;
@@ -1452,8 +1428,20 @@ static void compile_load_val(ctx_t * ctx, inst_t * inst) {
 			save_stack_var(ctx, inst->opd0.var, AsmRegRax);
 			break;
 		case IraValImmArr:
-			compile_load_val_arr(ctx, inst);
+		{
+			u_hs_t * arr_label = NULL;
+
+			bool result = ira_pec_c_compile_val_frag(ctx->c_ctx, val, &arr_label);
+			u_assert(result);
+
+			load_int(ctx, AsmRegRax, AsmInstImm64, (int64_t)val->arr.size);
+			save_stack_var_off(ctx, inst->opd0.var, AsmRegRax, IRA_DT_ARR_SIZE_OFF);
+
+			load_label_off(ctx, AsmRegRax, arr_label);
+			save_stack_var_off(ctx, inst->opd0.var, AsmRegRax, IRA_DT_ARR_DATA_OFF);
+
 			break;
+		}
 		default:
 			u_assert_switch(val->type);
 	}
