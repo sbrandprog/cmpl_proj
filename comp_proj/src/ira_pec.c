@@ -191,6 +191,11 @@ ira_dt_t * ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size
 	return get_listed_dt(pec, &pred, &pec->dt_func);
 }
 
+ira_val_t * ira_pec_make_val_imm_void(ira_pec_t * pec) {
+	ira_val_t * val = ira_val_create(IraValImmVoid, &pec->dt_void);
+
+	return val;
+}
 ira_val_t * ira_pec_make_val_imm_dt(ira_pec_t * pec, ira_dt_t * dt) {
 	ira_val_t * val = ira_val_create(IraValImmDt, &pec->dt_dt);
 

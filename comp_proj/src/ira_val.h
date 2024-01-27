@@ -2,6 +2,7 @@
 #include "ira_int.h"
 
 enum ira_val_type {
+	IraValImmVoid,
 	IraValImmDt,
 	IraValImmBool,
 	IraValImmInt,

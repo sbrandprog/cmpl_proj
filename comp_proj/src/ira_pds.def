@@ -1,4 +1,3 @@
 IRA_PDS(EpName, L"main")
-IRA_PDS(AsciiStrTag, L"a")
 IRA_PDS(SizeMmbr, L"size")
 IRA_PDS(DataMmbr, L"data")

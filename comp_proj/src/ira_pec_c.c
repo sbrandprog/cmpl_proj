@@ -29,6 +29,8 @@ static u_hs_t * get_unq_arr_label(ctx_t * ctx) {
 
 bool ira_pec_c_is_val_compilable(ira_val_t * val) {
 	switch (val->type) {
+		case IraValImmVoid:
+			break;
 		case IraValImmDt:
 			return false;
 		case IraValImmBool:
@@ -68,6 +70,8 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 	asm_inst_t data = { .type = AsmInstData, .opds = AsmInstOpds_Imm };
 
 	switch (val->type) {
+		case IraValImmVoid:
+			break;
 		case IraValImmDt:
 			return false;
 		case IraValImmBool:
@@ -157,8 +161,41 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 		asm_frag_push_inst(frag, &label);
 	}
 
-	if (!compile_val(ctx, frag, lo->var.val)) {
-		return false;
+	switch (lo->var.val->type) {
+		case IraValImmDt:
+			return false;
+		case IraValImmVoid:
+		case IraValImmBool:
+		case IraValImmInt:
+		case IraValLoPtr:
+		case IraValNullPtr:
+		case IraValImmTpl:
+			if (!compile_val(ctx, frag, lo->var.val)) {
+				return false;
+			}
+			break;
+		case IraValImmArr:
+		{
+			u_hs_t * arr_label;
+
+			if (!ira_pec_c_compile_val_frag(ctx, lo->var.val, &arr_label)) {
+				return false;
+			}
+
+			{
+				asm_inst_t data = { .type = AsmInstData, .opds = AsmInstOpds_Imm, .imm0_type = AsmInstImm64, .imm0 = (int64_t)lo->var.val->arr.size };
+
+				asm_frag_push_inst(frag, &data);
+			}
+
+			{
+				asm_inst_t data = { .type = AsmInstData, .type = AsmInstData, .opds = AsmInstOpds_Imm, .imm0_type = AsmInstImmLabelVa64, .imm0_label = arr_label };
+
+				asm_frag_push_inst(frag, &data);
+			}
+
+			break;
+		}
 	}
 
 	return true;

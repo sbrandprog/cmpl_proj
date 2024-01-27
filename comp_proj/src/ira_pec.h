@@ -36,6 +36,7 @@ ira_dt_t * ira_pec_get_dt_arr(ira_pec_t * pec, ira_dt_t * body);
 ira_dt_t * ira_pec_get_dt_tpl(ira_pec_t * pec, size_t elems_size, ira_dt_n_t * elems);
 ira_dt_t * ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_dt_n_t * args);
 
+ira_val_t * ira_pec_make_val_imm_void(ira_pec_t * pec);
 ira_val_t * ira_pec_make_val_imm_dt(ira_pec_t * pec, ira_dt_t * dt);
 ira_val_t * ira_pec_make_val_imm_bool(ira_pec_t * pec, bool bool_val);
 ira_val_t * ira_pec_make_val_imm_int(ira_pec_t * pec, ira_int_type_t int_type, ira_int_t int_val);

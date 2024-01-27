@@ -625,6 +625,21 @@ static bool prepare_insts_make_dt_func(ctx_t * ctx, inst_t * inst, const ira_ins
 
 	return true;
 }
+static bool prepare_insts_unr_int(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * dt = inst->opd1.var->dt;
+
+	if (dt->type != IraDtInt) {
+		report(ctx, L"[%s]: opd[1] must have an integer data type", info->type_str.str);
+		return false;
+	}
+
+	if (inst->opd0.var->dt != dt) {
+		report_opds_not_equ(ctx, inst, 1, 0);
+		return false;
+	}
+
+	return true;
+}
 static bool prepare_insts_bin_int(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
 	ira_dt_t * dt = inst->opd1.var->dt;
 
@@ -634,12 +649,12 @@ static bool prepare_insts_bin_int(ctx_t * ctx, inst_t * inst, const ira_inst_inf
 	}
 
 	if (inst->opd2.var->dt != dt) {
-		report_opd_not_equ_dt(ctx, inst, 1);
+		report_opds_not_equ(ctx, inst, 1, 2);
 		return false;
 	}
 
 	if (inst->opd0.var->dt != dt) {
-		report_opd_not_equ_dt(ctx, inst, 1);
+		report_opds_not_equ(ctx, inst, 1, 0);
 		return false;
 	}
 
@@ -654,7 +669,27 @@ static bool prepare_insts_cmp_int(ctx_t * ctx, inst_t * inst, const ira_inst_inf
 	}
 
 	if (inst->opd2.var->dt != dt) {
-		report_opd_not_equ_dt(ctx, inst, 1);
+		report_opds_not_equ(ctx, inst, 1, 2);
+		return false;
+	}
+
+	if (inst->opd0.var->dt != &ctx->pec->dt_bool) {
+		report(ctx, L"[%s]: opd[0] must have a boolean data type", info->type_str.str);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_insts_cmp_ptr(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * dt = inst->opd1.var->dt;
+
+	if (dt->type != IraDtPtr) {
+		report(ctx, L"[%s]: opd[1] must have a pointer data type", info->type_str.str);
+		return false;
+	}
+
+	if (!ira_dt_is_equivalent(inst->opd2.var->dt, dt)) {
+		report_opds_not_equ(ctx, inst, 1, 2);
 		return false;
 	}
 
@@ -673,6 +708,7 @@ static bool prepare_insts_cast(ctx_t * ctx, inst_t * inst, const ira_inst_info_t
 		case IraDtInt:
 			switch (from->type) {
 				case IraDtInt:
+				case IraDtPtr:
 					break;
 				default:
 					u_assert_switch(from->type);
@@ -680,6 +716,7 @@ static bool prepare_insts_cast(ctx_t * ctx, inst_t * inst, const ira_inst_info_t
 			break;
 		case IraDtPtr:
 			switch (from->type) {
+				case IraDtInt:
 				case IraDtPtr:
 					break;
 				default:
@@ -871,6 +908,11 @@ static bool prepare_insts(ctx_t * ctx) {
 					return false;
 				}
 				break;
+			case IraInstNegInt:
+				if (!prepare_insts_unr_int(ctx, inst, info)) {
+					return false;
+				}
+				break;
 			case IraInstAddInt:
 			case IraInstSubInt:
 			case IraInstMulInt:
@@ -882,6 +924,11 @@ static bool prepare_insts(ctx_t * ctx) {
 				break;
 			case IraInstCmpInt:
 				if (!prepare_insts_cmp_int(ctx, inst, info)) {
+					return false;
+				}
+				break;
+			case IraInstCmpPtr:
+				if (!prepare_insts_cmp_ptr(ctx, inst, info)) {
 					return false;
 				}
 				break;
@@ -1070,7 +1117,7 @@ static asm_reg_t get_ax_reg_dt(ira_dt_t * dt) {
 }
 
 static int32_t w64_get_stack_arg_offset(ctx_t * ctx, size_t arg) {
-	return (int32_t)((1 + arg) * STACK_UNIT);
+	return (int32_t)((arg) * STACK_UNIT);
 }
 static bool w64_load_callee_ret_link(ctx_t * ctx, var_t * var) {
 	ira_dt_t * var_dt = var->dt;
@@ -1106,7 +1153,10 @@ static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg) {
 					load_stack_var(ctx, reg, var);
 					break;
 				default:
-					u_assert_switch(arg);
+					reg = int_type_to_ax[var_dt->int_type];
+					load_stack_var(ctx, reg, var);
+					save_stack_gpr(ctx, arg_offset, reg);
+					break;
 			}
 			break;
 		case IraDtPtr:
@@ -1313,10 +1363,10 @@ static void div_int(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_out, va
 		save_stack_var(ctx, mod_out, reg2);
 	}
 }
-static asm_inst_type_t get_set_inst_type(ira_dt_t * dt, ira_int_cmp_t int_cmp) {
+static bool get_int_type_sign(ira_int_type_t int_type) {
 	bool sign = false;
 	
-	switch (dt->int_type) {
+	switch (int_type) {
 		case IraIntU8:
 		case IraIntU16:
 		case IraIntU32:
@@ -1329,9 +1379,12 @@ static asm_inst_type_t get_set_inst_type(ira_dt_t * dt, ira_int_cmp_t int_cmp) {
 			sign = true;
 			break;
 		default:
-			u_assert_switch(dt->int_type);
+			u_assert_switch(int_type);
 	}
 
+	return sign;
+}
+static asm_inst_type_t get_set_inst_type(bool sign, ira_int_cmp_t int_cmp) {
 	if (sign) {
 		switch (int_cmp) {
 			case IraIntCmpLess:
@@ -1395,6 +1448,8 @@ static void compile_load_val(ctx_t * ctx, inst_t * inst) {
 	ira_val_t * val = inst->opd1.val;
 
 	switch (val->type) {
+		case IraValImmVoid:
+			break;
 		case IraValImmBool:
 			load_int(ctx, AsmRegAl, AsmInstImm8, val->bool_val ? 1 : 0);
 			save_stack_var(ctx, inst->opd0.var, AsmRegAl);
@@ -1518,7 +1573,20 @@ static void compile_write_ptr(ctx_t * ctx, inst_t * inst) {
 		write_ptr_off(ctx, AsmRegRcx, reg, off);
 	}
 }
-static void compile_bopr_int(ctx_t * ctx, inst_t * inst, asm_inst_type_t bopr_type) {
+static void compile_unr_int(ctx_t * ctx, inst_t * inst, asm_inst_type_t unr_opr_type) {
+	ira_int_type_t int_type = inst->opd0.var->dt->int_type;
+
+	asm_reg_t reg = int_type_to_ax[int_type];
+
+	load_stack_var(ctx, reg, inst->opd1.var);
+
+	asm_inst_t unr_opr = { .type = unr_opr_type, .opds = AsmInstOpds_Reg, .reg0 = reg };
+
+	asm_frag_push_inst(ctx->frag, &unr_opr);
+
+	save_stack_var(ctx, inst->opd0.var, reg);
+}
+static void compile_bin_int(ctx_t * ctx, inst_t * inst, asm_inst_type_t bin_opr_type) {
 	ira_int_type_t int_type = inst->opd0.var->dt->int_type;
 	
 	asm_reg_t reg0 = int_type_to_ax[int_type], reg1 = int_type_to_cx[int_type];
@@ -1526,9 +1594,9 @@ static void compile_bopr_int(ctx_t * ctx, inst_t * inst, asm_inst_type_t bopr_ty
 	load_stack_var(ctx, reg0, inst->opd1.var);
 	load_stack_var(ctx, reg1, inst->opd2.var);
 
-	asm_inst_t bopr = { .type = bopr_type, .opds = AsmInstOpds_Reg_Reg, .reg0 = reg0, .reg1 = reg1 };
+	asm_inst_t bin_opr = { .type = bin_opr_type, .opds = AsmInstOpds_Reg_Reg, .reg0 = reg0, .reg1 = reg1 };
 
-	asm_frag_push_inst(ctx->frag, &bopr);
+	asm_frag_push_inst(ctx->frag, &bin_opr);
 
 	save_stack_var(ctx, inst->opd0.var, reg0);
 }
@@ -1538,11 +1606,7 @@ static void compile_div_int(ctx_t * ctx, inst_t * inst) {
 static void compile_mod_int(ctx_t * ctx, inst_t * inst) {
 	div_int(ctx, inst->opd1.var, inst->opd2.var, NULL, inst->opd0.var);
 }
-static void compile_cmp_int(ctx_t * ctx, inst_t * inst) {
-	ira_int_type_t int_type = inst->opd1.var->dt->int_type;
-
-	asm_reg_t reg0 = int_type_to_ax[int_type], reg1 = int_type_to_cx[int_type];
-
+static void compile_int_like_cmp(ctx_t * ctx, inst_t * inst, asm_reg_t reg0, asm_reg_t reg1, bool cmp_sign) {
 	load_stack_var(ctx, reg0, inst->opd1.var);
 	load_stack_var(ctx, reg1, inst->opd2.var);
 
@@ -1553,12 +1617,20 @@ static void compile_cmp_int(ctx_t * ctx, inst_t * inst) {
 	}
 
 	{
-		asm_inst_t setcc = { .type = get_set_inst_type(inst->opd1.var->dt, inst->opd3.int_cmp), .opds = AsmInstOpds_Reg, .reg0 = AsmRegAl };
+		asm_inst_t setcc = { .type = get_set_inst_type(cmp_sign, inst->opd3.int_cmp), .opds = AsmInstOpds_Reg, .reg0 = AsmRegAl };
 
 		asm_frag_push_inst(ctx->frag, &setcc);
 	}
 
 	save_stack_var(ctx, inst->opd0.var, AsmRegAl);
+}
+static void compile_cmp_int(ctx_t * ctx, inst_t * inst) {
+	ira_int_type_t int_type = inst->opd1.var->dt->int_type;
+
+	compile_int_like_cmp(ctx, inst, int_type_to_ax[int_type], int_type_to_cx[int_type], get_int_type_sign(int_type));
+}
+static void compile_cmp_ptr(ctx_t * ctx, inst_t * inst) {
+	compile_int_like_cmp(ctx, inst, AsmRegRax, AsmRegRcx, false);
 }
 static void compile_mmbr_acc_ptr(ctx_t * ctx, inst_t * inst) {
 	var_t * opd_var = inst->opd1.var;
@@ -1571,15 +1643,12 @@ static void compile_mmbr_acc_ptr(ctx_t * ctx, inst_t * inst) {
 
 	save_stack_var(ctx, inst->opd0.var, AsmRegRax);
 }
-static void compile_cast_int(ctx_t * ctx, inst_t * inst) {
-	ira_dt_t * from = inst->opd1.var->dt;
-	ira_dt_t * to = inst->opd2.dt;
+static void compile_int_like_cast(ctx_t * ctx, inst_t * inst, ira_int_type_t from, ira_int_type_t to, asm_reg_t opd_reg) {
+	const int_cast_info_t * info = &int_cast_from_to[from][to];
 
-	u_assert(from->type == IraDtInt && to->type == IraDtInt);
+	u_assert(opd_reg == info->reg1);
 
-	load_stack_var(ctx, int_type_to_cx[from->int_type], inst->opd1.var);
-
-	const int_cast_info_t * info = &int_cast_from_to[from->int_type][to->int_type];
+	load_stack_var(ctx, opd_reg, inst->opd1.var);
 
 	asm_inst_t cast = { .type = info->inst_type, .opds = AsmInstOpds_Reg_Reg, .reg0 = info->reg0, .reg1 = info->reg1 };
 
@@ -1595,7 +1664,10 @@ static void compile_cast(ctx_t * ctx, inst_t * inst) {
 		case IraDtInt:
 			switch (from->type) {
 				case IraDtInt:
-					compile_cast_int(ctx, inst);
+					compile_int_like_cast(ctx, inst, from->int_type, to->int_type, int_type_to_cx[from->int_type]);
+					break;
+				case IraDtPtr:
+					compile_int_like_cast(ctx, inst, IraIntU64, to->int_type, int_type_to_cx[IraIntU64]);
 					break;
 				default:
 					u_assert_switch(from->type);
@@ -1603,6 +1675,9 @@ static void compile_cast(ctx_t * ctx, inst_t * inst) {
 			break;
 		case IraDtPtr:
 			switch (from->type) {
+				case IraDtInt:
+					compile_int_like_cast(ctx, inst, from->int_type, IraIntU64, int_type_to_cx[from->int_type]);
+					break;
 				case IraDtPtr:
 					load_stack_var(ctx, AsmRegRax, inst->opd1.var);
 					save_stack_var(ctx, inst->opd0.var, AsmRegRax);
@@ -1688,14 +1763,17 @@ static void compile_insts(ctx_t * ctx) {
 			case IraInstWritePtr:
 				compile_write_ptr(ctx, inst);
 				break;
+			case IraInstNegInt:
+				compile_unr_int(ctx, inst, AsmInstNeg);
+				break;
 			case IraInstAddInt:
-				compile_bopr_int(ctx, inst, AsmInstAdd);
+				compile_bin_int(ctx, inst, AsmInstAdd);
 				break;
 			case IraInstSubInt:
-				compile_bopr_int(ctx, inst, AsmInstSub);
+				compile_bin_int(ctx, inst, AsmInstSub);
 				break;
 			case IraInstMulInt:
-				compile_bopr_int(ctx, inst, AsmInstImul);
+				compile_bin_int(ctx, inst, AsmInstImul);
 				break;
 			case IraInstDivInt:
 				compile_div_int(ctx, inst);
@@ -1705,6 +1783,9 @@ static void compile_insts(ctx_t * ctx) {
 				break;
 			case IraInstCmpInt:
 				compile_cmp_int(ctx, inst);
+				break;
+			case IraInstCmpPtr:
+				compile_cmp_ptr(ctx, inst);
 				break;
 			case IraInstMmbrAccPtr:
 				compile_mmbr_acc_ptr(ctx, inst);

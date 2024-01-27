@@ -84,9 +84,7 @@ struct expr {
 		struct {
 			size_t args_size;
 		} call;
-		struct {
-			pla_ast_t_optr_t * optr;
-		} bin_op;
+		pla_ast_t_optr_t * optr;
 	};
 };
 
@@ -288,7 +286,6 @@ static void push_inst_imm_var0_expr(ctx_t * ctx, expr_t * expr, ira_inst_t * ins
 
 static bool translate_expr0(ctx_t * ctx, pla_expr_t * base, expr_t ** out);
 
-
 static bool get_cs_ascii(ctx_t * ctx, u_hs_t * str, ira_val_t ** out) {
 	ira_val_t * val = ira_val_create(IraValImmArr, ira_pec_get_dt_arr(ctx->pec, &ctx->pec->dt_ints[IraIntU8]));
 
@@ -301,41 +298,52 @@ static bool get_cs_ascii(ctx_t * ctx, u_hs_t * str, ira_val_t ** out) {
 	memset(val->arr.data, 0, val->arr.size * sizeof(*val->arr.data));
 
 	ira_val_t ** ins = val->arr.data;
-	for (wchar_t * ch = str->str, *ch_end = ch + str->size; ch != ch_end;) {
+	for (wchar_t * ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch) {
 		if ((*ch & ~0x7F) != 0) {
 			pla_ast_t_report(ctx->t_ctx, L"non-ascii character [%c] in ascii string:\n%s", *ch, str->str);
 			ira_val_destroy(val);
 			return false;
 		}
 
-		uint8_t val = (uint8_t)*ch;
-
-		if (*ch == L'\\') {
-			++ch;
-
-			if (ch == ch_end) {
-				pla_ast_t_report(ctx->t_ctx, L"invalid escape sequence in ascii string:\n%s", str->str);
-				return false;
-			}
-
-			switch (*ch) {
-				case L'n':
-					val = L'\n';
-					break;
-				default:
-					pla_ast_t_report(ctx->t_ctx, L"invalid character [%c] of escape sequence in ascii string:\n%s", *ch, str->str);
-					break;
-			}
-		}
-
 		*ins++ = ira_pec_make_val_imm_int(ctx->pec, IraIntU8, (ira_int_t) {
-			.ui8 = val
+			.ui8 = (uint8_t)*ch
 		});
-		ch++;
 	}
 
 	*ins++ = ira_pec_make_val_imm_int(ctx->pec, IraIntU8, (ira_int_t) {
 		.ui8 = 0
+	});
+
+	size_t final_size = ins - val->arr.data;
+
+	u_assert(final_size <= val->arr.size);
+
+	val->arr.size = final_size;
+
+	*out = val;
+
+	return true;
+}
+static bool get_cs_wide(ctx_t * ctx, u_hs_t * str, ira_val_t ** out) {
+	ira_val_t * val = ira_val_create(IraValImmArr, ira_pec_get_dt_arr(ctx->pec, &ctx->pec->dt_ints[IraIntU16]));
+
+	val->arr.size = str->size + 1;
+
+	val->arr.data = malloc(val->arr.size * sizeof(*val->arr.data));
+
+	u_assert(val->arr.data != NULL);
+
+	memset(val->arr.data, 0, val->arr.size * sizeof(*val->arr.data));
+
+	ira_val_t ** ins = val->arr.data;
+	for (wchar_t * ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch) {
+		*ins++ = ira_pec_make_val_imm_int(ctx->pec, IraIntU16, (ira_int_t) {
+			.ui16 = (uint16_t)*ch
+		});
+	}
+
+	*ins++ = ira_pec_make_val_imm_int(ctx->pec, IraIntU8, (ira_int_t) {
+		.ui16 = 0
 	});
 
 	size_t final_size = ins - val->arr.data;
@@ -437,6 +445,7 @@ static bool get_ns_int(ctx_t * ctx, u_hs_t * str, ira_int_type_t int_type, ira_v
 	uint64_t digit;
 	while (cur != cur_end) {
 		if (*cur == L'_') {
+			++cur;
 			continue;
 		}
 
@@ -452,7 +461,7 @@ static bool get_ns_int(ctx_t * ctx, u_hs_t * str, ira_int_type_t int_type, ira_v
 
 		var = var * radix + digit;
 
-		cur++;
+		++cur;
 	}
 
 	uint64_t lim = ira_int_get_max_pos(int_type);
@@ -491,6 +500,11 @@ static bool get_dt_int_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out
 
 	return true;
 }
+static bool get_void_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) {
+	*out = ira_pec_make_val_imm_void(ctx->pec);
+
+	return true;
+}
 static bool get_bool_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) {
 	*out = ira_pec_make_val_imm_bool(ctx->pec, expr->opd0.boolean);
 
@@ -500,8 +514,13 @@ static bool get_cs_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) {
 	u_hs_t * data = expr->opd0.hs;
 	u_hs_t * tag = expr->opd1.hs;
 
-	if (tag == ctx->pec->pds[IraPdsAsciiStrTag]) {
+	if (tag == pla_ast_t_get_pds(ctx->t_ctx, PlaPdsAsciiStrTag)) {
 		if (!get_cs_ascii(ctx, data, out)) {
+			return false;
+		}
+	}
+	else if (tag == pla_ast_t_get_pds(ctx->t_ctx, PlaPdsWideStrTag)) {
+		if (!get_cs_wide(ctx, data, out)) {
 			return false;
 		}
 	}
@@ -587,6 +606,31 @@ static bool process_ident_lo(ctx_t * ctx, expr_t * expr, ira_lo_t * lo) {
 
 	expr->ident.type = ExprIdentLo;
 	expr->ident.lo = lo;
+
+	return true;
+}
+static bool find_optr(ctx_t * ctx, expr_t * expr, ira_dt_t * first, ira_dt_t * second) {
+	expr->optr = NULL;
+
+	for (pla_ast_t_optr_t * optr = pla_ast_t_get_optr_chain(ctx->t_ctx, expr->base->type); optr != NULL; optr = optr->next) {
+		if (pla_ast_t_get_optr_dt(ctx->t_ctx, optr, first, second, &expr->val_dt)) {
+			expr->optr = optr;
+			break;
+		}
+	}
+
+	if (expr->optr == NULL) {
+		if (second == NULL) {
+			pla_ast_t_report(ctx->t_ctx, L"could not find an operator for [%s] expression with [%s] operand", pla_expr_infos[expr->base->type].type_str.str, ira_dt_infos[first->type].type_str.str);
+		}
+		else {
+			pla_ast_t_report(ctx->t_ctx, L"could not find an operator for [%s] expression with [%s], [%s] operands", pla_expr_infos[expr->base->type].type_str.str, ira_dt_infos[first->type].type_str.str, ira_dt_infos[second->type].type_str.str);
+		}
+
+		return false;
+	}
+
+	u_assert(expr->val_dt != NULL);
 
 	return true;
 }
@@ -856,29 +900,17 @@ static bool translate_expr0_cast(ctx_t * ctx, expr_t * expr) {
 
 	return true;
 }
-static bool translate_expr0_bin(ctx_t * ctx, expr_t * expr) {
-	ira_dt_t * opd0_dt = expr->opd0.expr->val_dt, * opd1_dt = expr->opd1.expr->val_dt;
-
-	expr->bin_op.optr = NULL;
-
-	pla_ast_t_optr_t * optr = pla_ast_t_get_optr_chain(ctx->t_ctx, expr->base->type);
-	ira_dt_t * out_dt = NULL;
-
-	while (optr != NULL) {
-		if (pla_ast_t_get_optr_dt(ctx->t_ctx, optr, opd0_dt, opd1_dt, &out_dt)) {
-			expr->bin_op.optr = optr;
-			break;
-		}
-	}
-
-	if (expr->bin_op.optr == NULL) {
-		pla_ast_t_report(ctx->t_ctx, L"could not find an operator for [%s] expression with [%s], [%s] operands", pla_expr_infos[expr->base->type].type_str.str, ira_dt_infos[opd0_dt->type].type_str.str, ira_dt_infos[opd1_dt->type].type_str.str);
+static bool translate_expr0_unr(ctx_t * ctx, expr_t * expr) {
+	if (!find_optr(ctx, expr, expr->opd0.expr->val_dt, NULL)) {
 		return false;
 	}
 
-	u_assert(out_dt != NULL);
-
-	expr->val_dt = out_dt;
+	return true;
+}
+static bool translate_expr0_bin(ctx_t * ctx, expr_t * expr) {
+	if (!find_optr(ctx, expr, expr->opd0.expr->val_dt, expr->opd1.expr->val_dt)) {
+		return false;
+	}
 
 	return true;
 }
@@ -947,7 +979,11 @@ static bool translate_expr0_tse(ctx_t * ctx, pla_expr_t * base, expr_t ** out) {
 			break;
 		case PlaExprDtFuncArg:
 			break;
-			//case PlaExprValVoid:
+		case PlaExprValVoid:
+			if (!translate_expr0_load_val(ctx, expr, get_void_val_proc)) {
+				return false;
+			}
+			break;
 		case PlaExprValBool:
 			if (!translate_expr0_load_val(ctx, expr, get_bool_val_proc)) {
 				return false;
@@ -1000,14 +1036,18 @@ static bool translate_expr0_tse(ctx_t * ctx, pla_expr_t * base, expr_t ** out) {
 			break;
 			//case PlaExprPreInc:
 			//case PlaExprPreDec:
-			//case PlaExprLogicNeg:
 		case PlaExprCast:
 			if (!translate_expr0_cast(ctx, expr)) {
 				return false;
 			}
 			break;
-			//case PlaExprBitNeg:
-			//case PlaExprArithNeg:
+		case PlaExprLogicNeg:
+		case PlaExprBitNeg:
+		case PlaExprArithNeg:
+			if (!translate_expr0_unr(ctx, expr)) {
+				return false;
+			}
+			break;
 		case PlaExprMul:
 		case PlaExprDiv:
 		case PlaExprMod:
@@ -1391,6 +1431,30 @@ static bool translate_expr1_cast(ctx_t * ctx, expr_t * expr) {
 
 	return true;
 }
+static bool translate_expr1_unr(ctx_t * ctx, expr_t * expr) {
+	var_t * opd_var;
+
+	if (!translate_expr1_imm_var(ctx, expr->opd0.expr, &opd_var)) {
+		return false;
+	}
+
+	pla_ast_t_optr_t * optr = expr->optr;
+
+	switch (optr->type) {
+		case PlaAstTOptrUnrInstInt:
+		{
+			ira_inst_t unr_op = { .type = optr->unr_inst_int.inst_type, .opd1.hs = opd_var->inst_name };
+
+			push_inst_imm_var0_expr(ctx, expr, &unr_op);
+
+			break;
+		}
+		default:
+			u_assert_switch(optr->type);
+	}
+
+	return true;
+}
 static bool translate_expr1_bin(ctx_t * ctx, expr_t * expr) {
 	var_t * opd0_var, * opd1_var;
 
@@ -1402,7 +1466,7 @@ static bool translate_expr1_bin(ctx_t * ctx, expr_t * expr) {
 		return false;
 	}
 
-	pla_ast_t_optr_t * optr = expr->bin_op.optr;
+	pla_ast_t_optr_t * optr = expr->optr;
 
 	switch (optr->type) {
 		case PlaAstTOptrBinInstInt:
@@ -1410,6 +1474,7 @@ static bool translate_expr1_bin(ctx_t * ctx, expr_t * expr) {
 			ira_inst_t bin_op = { .type = optr->bin_inst_int.inst_type, .opd1.hs = opd0_var->inst_name, .opd2.hs = opd1_var->inst_name };
 
 			push_inst_imm_var0_expr(ctx, expr, &bin_op);
+
 			break;
 		}
 		case PlaAstTOptrBinInstIntBool:
@@ -1417,6 +1482,15 @@ static bool translate_expr1_bin(ctx_t * ctx, expr_t * expr) {
 			ira_inst_t bin_op = { .type = optr->bin_inst_int_bool.inst_type, .opd1.hs = opd0_var->inst_name, .opd2.hs = opd1_var->inst_name, .opd3.int_cmp = optr->bin_inst_int_bool.int_cmp };
 
 			push_inst_imm_var0_expr(ctx, expr, &bin_op);
+
+			break;
+		}
+		case PlaAstTOptrBinInstPtrBool:
+		{
+			ira_inst_t bin_op = { .type = optr->bin_inst_ptr_bool.inst_type, .opd1.hs = opd0_var->inst_name, .opd2.hs = opd1_var->inst_name, .opd3.int_cmp = optr->bin_inst_ptr_bool.int_cmp };
+
+			push_inst_imm_var0_expr(ctx, expr, &bin_op);
+
 			break;
 		}
 		default:
@@ -1500,7 +1574,7 @@ static bool translate_expr1_tse(ctx_t * ctx, expr_t * expr) {
 			break;
 		case PlaExprDtFuncArg:
 			return false;
-			//case PlaExprValVoid:
+		case PlaExprValVoid:
 		case PlaExprValBool:
 		case PlaExprChStr:
 		case PlaExprNumStr:
@@ -1541,14 +1615,18 @@ static bool translate_expr1_tse(ctx_t * ctx, expr_t * expr) {
 			break;
 			//case PlaExprPreInc:
 			//case PlaExprPreDec:
-			//case PlaExprLogicNeg:
 		case PlaExprCast:
 			if (!translate_expr1_cast(ctx, expr)) {
 				return false;
 			}
 			break;
-			//case PlaExprBitNeg:
-			//case PlaExprArithNeg:
+		case PlaExprLogicNeg:
+		case PlaExprBitNeg:
+		case PlaExprArithNeg:
+			if (!translate_expr1_unr(ctx, expr)) {
+				return false;
+			}
+			break;
 		case PlaExprMul:
 		case PlaExprDiv:
 		case PlaExprMod:

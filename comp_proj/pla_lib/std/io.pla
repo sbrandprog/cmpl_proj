@@ -1,0 +1,21 @@
+incld "pla_lib/w64/kernel32.pla"a;
+
+nmspc std {
+	vrbl con_handle_name := "CON"w;
+
+	vrbl con_in : tupl {
+		handle : void!,
+		buf_ch : u16,
+		buf_ch_flag : bool
+		};
+
+	fnct init_con_in : $() -> void {
+		con_in.handle = w64::create_file_w(con_handle_name.data, 0x8000_0000'u32, 0'u32, nullof[void!], 3'u32, 0'u32, nullof[void!]);
+
+		if con_in.handle == %[void!]-1's64 {
+			w64::exit_process(%[u32]-1's32);
+		}
+
+		return;
+	}
+}

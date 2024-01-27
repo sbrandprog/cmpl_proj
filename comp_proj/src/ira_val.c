@@ -37,6 +37,7 @@ void ira_val_destroy(ira_val_t * val) {
 	}
 
 	switch (val->type) {
+		case IraValImmVoid:
 		case IraValImmDt:
 		case IraValImmBool:
 		case IraValImmInt:
@@ -65,6 +66,8 @@ ira_val_t * ira_val_copy(ira_val_t * val) {
 	ira_val_t * new_val = ira_val_create(val->type, val->dt);
 
 	switch (val->type) {
+		case IraValImmVoid:
+			break;
 		case IraValImmDt:
 			new_val->dt_val = val->dt_val;
 			break;

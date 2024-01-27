@@ -176,7 +176,8 @@
     <ClInclude Include="src\u_ros.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="pla_lib\w64_kernel32.pla" />
+    <None Include="pla_lib\std\io.pla" />
+    <None Include="pla_lib\w64\kernel32.pla" />
     <None Include="src\ira_inst.def" />
     <None Include="src\ira_pds.def" />
     <None Include="src\pla_expr.def" />

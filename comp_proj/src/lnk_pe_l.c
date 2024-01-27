@@ -246,7 +246,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 				return false;
 			}
 
-			if (lp->offset + lnk_sect_fixups_size[lp->stype] >= sect->data_size) {
+			if (lp->offset + lnk_sect_fixups_size[lp->stype] > sect->data_size) {
 				return false;
 			}
 

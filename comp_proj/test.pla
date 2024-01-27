@@ -1,13 +1,7 @@
-incld "pla_lib/w64_kernel32.pla"a;
-
-vrbl con_data : tupl { handle : void!, written : u32 };
+incld "pla_lib/std/io.pla"a;
 
 fnct main : $() -> s32 {
-	con_data.handle = winapi::get_std_handle(0xFFFFFFF5'u32);
+	std::init_con_in();
 
-	vrbl str := "Hello world!\n"a;
-
-	winapi::write_file(con_data.handle, %[void!]str.data, %[u32]str.size - 1'u32, con_data.written~, nullof[void!]);
-
-	return %[s32]con_data.written;
+	return 0's32;
 }
