@@ -3,5 +3,7 @@ incld "pla_lib/std/io.pla"a;
 fnct main : $() -> s32 {
 	std::init_con_in();
 
-	return 0's32;
+	vrbl ch := std::read_con_ch();
+
+	return %[s32]ch;
 }

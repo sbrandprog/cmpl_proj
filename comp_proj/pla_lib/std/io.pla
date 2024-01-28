@@ -4,9 +4,7 @@ nmspc std {
 	vrbl con_handle_name := "CON"w;
 
 	vrbl con_in : tupl {
-		handle : void!,
-		buf_ch : u16,
-		buf_ch_flag : bool
+		handle : void!
 		};
 
 	fnct init_con_in : $() -> void {
@@ -17,5 +15,21 @@ nmspc std {
 		}
 
 		return;
+	}
+
+	fnct read_con_ch : $() -> u16 {
+		vrbl ch : u16;
+
+		vrbl read : u32;
+
+		if w64::read_console_w(con_in.handle, %[void!]ch~, 1'u32, read~, nullof[void!]) == 0's32 {
+			return 0xFFFF'u16; 
+		}
+
+		if read < 1'u32 {
+			return 0xFFFF'u16; 
+		}
+
+		return ch;
 	}
 }

@@ -180,7 +180,7 @@ static bool is_num_str_tag_intro_ch(wchar_t ch) {
 }
 
 static void report_file_pos(lc_t * lc) {
-	fwprintf(stderr, L"@%4zi:%4zi\n", lc->tok_start.line_num, lc->tok_start.line_ch);
+	fwprintf(stderr, L"@%4ziC:%4ziL:%s\n", lc->tok_start.line_ch, lc->tok_start.line_num, lc->file_name);
 
 	long long backup_cur = _ftelli64(lc->file);
 	u_assert(backup_cur != -1L);
