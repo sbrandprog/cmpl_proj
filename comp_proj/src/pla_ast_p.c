@@ -108,14 +108,14 @@ static const post_oper_info_t opr_post_infos[] = {
 	{ .punc = PlaPuncDplus, .expr_type = PlaExprPostInc },
 	{ .punc = PlaPuncDminus, .expr_type = PlaExprPostDec },
 	{ .punc = PlaPuncExclMark, .expr_type = PlaExprDeref },
-	{ .punc = PlaPuncTilde, .expr_type = PlaExprAddrOf },
 };
 static const size_t opr_post_infos_count = _countof(opr_post_infos);
 static const unr_oper_info_t opr_unr_infos[] = {
 	{ .punc = PlaPuncDplus, .expr_type = PlaExprPostInc },
 	{ .punc = PlaPuncDminus, .expr_type = PlaExprPostDec },
-	{ .punc = PlaPuncExclMark, .expr_type = PlaExprLogicNeg },
+	{ .punc = PlaPuncAmper, .expr_type = PlaExprAddrOf },
 	{ .punc = PlaPuncPerc, .expr_type = PlaExprCast },
+	{ .punc = PlaPuncExclMark, .expr_type = PlaExprLogicNeg },
 	{ .punc = PlaPuncTilde, .expr_type = PlaExprBitNeg },
 	{ .punc = PlaPuncMinus, .expr_type = PlaExprArithNeg }
 };
@@ -1010,7 +1010,6 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 				}
 				break;
 			case PlaExprDeref:
-			case PlaExprAddrOf:
 			{
 				u_hs_t * ident;
 

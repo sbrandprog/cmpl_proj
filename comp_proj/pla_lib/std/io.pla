@@ -22,7 +22,7 @@ nmspc std {
 
 		vrbl read : u32;
 
-		if w64::read_console_w(con_in.handle, %[void!]ch~, 1'u32, read~, nullof[void!]) == 0's32 {
+		if w64::read_console_w(con_in.handle, %[void!]&ch, 1'u32, &read, nullof[void!]) == 0's32 {
 			return 0xFFFF'u16; 
 		}
 
