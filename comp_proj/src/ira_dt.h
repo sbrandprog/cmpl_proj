@@ -51,9 +51,9 @@ struct ira_dt_info {
 
 bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second);
 
-size_t ira_dt_get_size(ira_dt_t * dt);
-size_t ira_dt_get_align(ira_dt_t * dt);
+bool ira_dt_get_size(ira_dt_t * dt, size_t * out);
+bool ira_dt_get_align(ira_dt_t * dt, size_t * out);
 
-size_t ira_dt_get_tpl_elem_off(ira_dt_t * dt, size_t elem_ind);
+bool ira_dt_get_tpl_elem_off(ira_dt_t * dt, size_t elem_ind, size_t * out);
 
 const ira_dt_info_t ira_dt_infos[IraDt_Count];

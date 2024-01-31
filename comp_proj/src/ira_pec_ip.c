@@ -280,7 +280,14 @@ static bool define_var(ctx_t * ctx, ira_dt_t * dt, u_hs_t * name) {
 
 	u_assert(new_var != NULL);
 
-	*new_var = (var_t){ .name = name, .dt = dt, .size = ira_dt_get_size(dt), .align = ira_dt_get_align(dt) };
+	size_t dt_size, dt_align;
+
+	if (!ira_dt_get_size(dt, &dt_size) || !ira_dt_get_align(dt, &dt_align)) {
+		report(ctx, L"size & alignment of variable [%s] are undefined");
+		return false;
+	}
+
+	*new_var = (var_t){ .name = name, .dt = dt, .size = dt_size, .align = dt_align };
 
 	*ins = new_var;
 
@@ -357,7 +364,10 @@ static bool set_mmbr_acc_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt, u_h
 				if (mmbr == elem->name) {
 					inst->mmbr_acc.type = InstMmbrAccTplElem;
 					inst->mmbr_acc.res_dt = elem->dt;
-					inst->mmbr_acc.off = ira_dt_get_tpl_elem_off(opd_dt, elem - opd_dt->tpl.elems);
+					
+					if (!ira_dt_get_tpl_elem_off(opd_dt, elem - opd_dt->tpl.elems, &inst->mmbr_acc.off)) {
+						return false;
+					}
 					return true;
 				}
 			}

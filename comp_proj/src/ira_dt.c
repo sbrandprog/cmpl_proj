@@ -65,72 +65,104 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 	return true;
 }
 
-size_t ira_dt_get_size(ira_dt_t * dt) {
+bool ira_dt_get_size(ira_dt_t * dt, size_t * out) {
 	switch (dt->type) {
 		case IraDtVoid:
 		case IraDtDt:
-			return 0;
+			*out = 0;
+			break;
 		case IraDtBool:
-			return 1;
+			*out = 1;
+			break;
 		case IraDtInt:
-			return ira_int_get_size(dt->int_type);
+			*out = ira_int_get_size(dt->int_type);
+			break;
 		case IraDtPtr:
-			return 8;
+			*out = 8;
+			break;
 		case IraDtArr:
-			return 16;
+			*out = 16;
+			break;
 		case IraDtTpl:
 		{
 			size_t size = 0, align = 1;
 
 			for (ira_dt_n_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size; elem != elem_end; ++elem) {
-				size_t elem_align = ira_dt_get_align(elem->dt);
+				size_t elem_align;
+
+				if (!ira_dt_get_align(elem->dt, &elem_align)) {
+					return false;
+				}
 
 				size = u_align_to(size, elem_align);
-				size += ira_dt_get_size(elem->dt);
+				
+				size_t elem_size;
+				
+				if (!ira_dt_get_size(elem->dt, &elem_size)) {
+					return false;
+				}
+				
+				size += elem_size;
 
 				align = max(align, elem_align);
 			}
 
 			size = u_align_to(size, align);
 
-			return size;
+			*out = size;
+			break;
 		}
 		case IraDtFunc:
-			return 0;
+			*out = 0;
+			break;
 		default:
 			u_assert_switch(dt->type);
 	}
+
+	return true;
 }
-size_t ira_dt_get_align(ira_dt_t * dt) {
+bool ira_dt_get_align(ira_dt_t * dt, size_t * out) {
 	switch (dt->type) {
 		case IraDtVoid:
 		case IraDtDt:
 		case IraDtBool:
-			return 1;
+			*out = 1;
+			break;
 		case IraDtInt:
-			return ira_int_get_size(dt->int_type);
+			*out = ira_int_get_size(dt->int_type);
+			break;
 		case IraDtPtr:
-			return 8;
 		case IraDtArr:
-			return 8;
+			*out = 8;
+			break;
 		case IraDtTpl:
 		{
 			size_t align = 1;
 
 			for (ira_dt_n_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size; elem != elem_end; ++elem) {
-				align = max(align, ira_dt_get_align(elem->dt));
+				size_t elem_align;
+				
+				if (!ira_dt_get_align(elem->dt, &elem_align)) {
+					return false;
+				}
+
+				align = max(align, elem_align);
 			}
 
-			return align;
+			*out = align;
+			break;
 		}
 		case IraDtFunc:
-			return 1;
+			*out = 1;
+			break;
 		default:
 			u_assert_switch(dt->type);
 	}
+
+	return true;
 }
 
-size_t ira_dt_get_tpl_elem_off(ira_dt_t * dt, size_t elem_ind) {
+bool ira_dt_get_tpl_elem_off(ira_dt_t * dt, size_t elem_ind, size_t * out) {
 	u_assert(dt != NULL);
 	u_assert(dt->type == IraDtTpl);
 	u_assert(elem_ind < dt->tpl.elems_size);
@@ -138,13 +170,25 @@ size_t ira_dt_get_tpl_elem_off(ira_dt_t * dt, size_t elem_ind) {
 	size_t off = 0;
 
 	for (ira_dt_n_t * elem = dt->tpl.elems, *elem_end = elem + elem_ind; elem != elem_end; ++elem) {
-		size_t elem_align = ira_dt_get_align(elem->dt);
+		size_t elem_align;
+		
+		if (!ira_dt_get_align(elem->dt, &elem_align)) {
+			return false;
+		}
 
 		off = u_align_to(off, elem_align);
-		off += ira_dt_get_size(elem->dt);
+
+		size_t elem_size;
+
+		if (!ira_dt_get_size(elem->dt, &elem_size)) {
+			return false;
+		}
+
+		off += elem_size;
 	}
 
-	return off;
+	*out = off;
+	return true;
 }
 
 const ira_dt_info_t ira_dt_infos[IraDt_Count] = {

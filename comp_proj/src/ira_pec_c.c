@@ -60,7 +60,11 @@ bool ira_pec_c_is_val_compilable(ira_val_t * val) {
 }
 static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 	{
-		size_t dt_align = ira_dt_get_align(val->dt);
+		size_t dt_align;
+		
+		if (!ira_dt_get_align(val->dt, &dt_align)) {
+			return false;
+		}
 
 		asm_inst_t align = { .type = AsmInstAlign, .opds = AsmInstOpds_Imm, .imm0_type = AsmInstImm64, .imm0 = (int64_t)dt_align };
 
