@@ -556,7 +556,10 @@ static bool get_null_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) 
 		return false;
 	}
 
-	*out = ira_pec_make_val_null(ctx->pec, dt);
+	if (!ira_pec_make_val_null(ctx->pec, dt, out)) {
+		pla_ast_t_report(ctx->t_ctx, L"failed to generate a null value");
+		return false;
+	}
 
 	return true;
 }
@@ -886,17 +889,21 @@ static bool translate_expr0_addr_of(ctx_t * ctx, expr_t * expr) {
 	return true;
 }
 static bool translate_expr0_cast(ctx_t * ctx, expr_t * expr) {
-	ira_dt_t * to_dt;
+	ira_dt_t * from = expr->opd0.expr->val_dt;
+	ira_dt_t * to;
 
 	if (expr->opd1.expr->val_dt != &ctx->pec->dt_dt
-		|| !pla_ast_t_calculate_expr_dt(ctx->t_ctx, expr->opd1.expr->base, &to_dt)) {
+		|| !pla_ast_t_calculate_expr_dt(ctx->t_ctx, expr->opd1.expr->base, &to)) {
 		pla_ast_t_report(ctx->t_ctx, L"'cast-to' operand requires a valid 'dt' data type");
 		return false;
 	}
 
-	//Check dt for castability?
+	if (!ira_dt_is_castable(from, to)) {
+		pla_ast_t_report(ctx->t_ctx, L"cannot cast operand of [%s] data type to a [%s] data type", ira_dt_infos[from->type].type_str.str, ira_dt_infos[to->type].type_str.str);
+		return false;
+	}
 
-	expr->val_dt = to_dt;
+	expr->val_dt = to;
 
 	return true;
 }

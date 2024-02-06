@@ -1,26 +1,40 @@
-incld "pla_lib/w64/kernel32.pla"a;
+include "pla_lib/w64/kernel32.pla"a;
 
-nmspc std {
-	vrbl con_handle_name := "CON"w;
+namespace std {
+	variable con_handle_name := "CON"w;
 
-	vrbl con_in : tupl {
+	variable con_in : tuple {
+		handle : void!,
+		buf_ch : u16,
+		buf_ch_has : bool
+		};
+	variable con_out : tuple {
 		handle : void!
 		};
 
-	fnct init_con_in : $() -> void {
+	function init_con_io : $() -> void {
 		con_in.handle = w64::create_file_w(con_handle_name.data, 0x8000_0000'u32, 0'u32, nullof[void!], 3'u32, 0'u32, nullof[void!]);
 
 		if con_in.handle == %[void!]-1's64 {
 			w64::exit_process(%[u32]-1's32);
 		}
 
+		con_out.handle = w64::create_file_w(con_handle_name.data, 0x4000_0000'u32, 0'u32, nullof[void!], 3'u32, 0'u32, nullof[void!]);
+
+		if con_out.handle == %[void!]-1's64 {
+			w64::exit_process(%[u32]-1's32);
+		}
+
 		return;
 	}
 
-	fnct read_con_ch : $() -> u16 {
-		vrbl ch : u16;
-
-		vrbl read : u32;
+	function read_con_ch_raw : $() -> u16 {
+		if con_in.buf_ch_has {
+			con_in.buf_ch_has = false;
+			return con_in.buf_ch;
+		}
+		
+		variable ch : u16, read : u32;
 
 		if w64::read_console_w(con_in.handle, %[void!]&ch, 1'u32, &read, nullof[void!]) == 0's32 {
 			return 0xFFFF'u16; 
@@ -31,5 +45,29 @@ nmspc std {
 		}
 
 		return ch;
+	}
+
+	function read_con_ch : $() -> u16 {
+		variable ch := read_con_ch_raw();
+
+		if ch == 13'u16 {
+			ch = read_con_ch_raw();
+
+			if ch != 10'u16 {
+				con_in.buf_ch = ch;
+				con_in.buf_ch_has = true;
+				return 13'u16;
+			}
+		}
+
+		return ch;
+	}
+
+	function write_con_ch : $(ch : u16) -> void {
+		variable written : u32;
+
+		w64::write_console_w(con_out.handle, %[void!]&ch, 1'u32, &written, nullof[void!]);
+
+		return;
 	}
 }

@@ -65,6 +65,209 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 	return true;
 }
 
+static bool is_castable_to_void(ira_dt_t * from, ira_dt_t * to) {
+	switch (from->type) {
+		case IraDtVoid:
+		case IraDtDt:
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+		case IraDtArr:
+		case IraDtTpl:
+		case IraDtFunc:
+			break;
+		default:
+			u_assert_switch(from->type);
+	}
+
+	return true;
+}
+static bool is_castable_to_dt(ira_dt_t * from, ira_dt_t * to) {
+	switch (from->type) {
+		case IraDtVoid:
+		case IraDtDt:
+			break;
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+		case IraDtArr:
+		case IraDtTpl:
+		case IraDtFunc:
+			return false;
+		default:
+			u_assert_switch(from->type);
+	}
+
+	return true;
+}
+static bool is_castable_to_bool(ira_dt_t * from, ira_dt_t * to) {
+	switch (from->type) {
+		case IraDtVoid:
+			break;
+		case IraDtDt:
+			return false;
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+			break;
+		case IraDtArr:
+		case IraDtTpl:
+		case IraDtFunc:
+			return false;
+		default:
+			u_assert_switch(from->type);
+	}
+
+	return true;
+}
+static bool is_castable_to_int(ira_dt_t * from, ira_dt_t * to) {
+	switch (from->type) {
+		case IraDtVoid:
+			break;
+		case IraDtDt:
+			return false;
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+			break;
+		case IraDtArr:
+		case IraDtTpl:
+		case IraDtFunc:
+			return false;
+		default:
+			u_assert_switch(from->type);
+	}
+
+	return true;
+}
+static bool is_castable_to_ptr(ira_dt_t * from, ira_dt_t * to) {
+	switch (from->type) {
+		case IraDtVoid:
+			break;
+		case IraDtDt:
+			return false;
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+			break;
+		case IraDtArr:
+		case IraDtTpl:
+		case IraDtFunc:
+			return false;
+		default:
+			u_assert_switch(from->type);
+	}
+
+	return true;
+}
+static bool is_castable_to_arr(ira_dt_t * from, ira_dt_t * to) {
+	switch (from->type) {
+		case IraDtVoid:
+			break;
+		case IraDtDt:
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+			return false;
+		case IraDtArr:
+			__debugbreak();
+			return false;
+		case IraDtTpl:
+		case IraDtFunc:
+			return false;
+		default:
+			u_assert_switch(from->type);
+	}
+
+	return true;
+}
+static bool is_castable_to_tpl(ira_dt_t * from, ira_dt_t * to) {
+	switch (from->type) {
+		case IraDtVoid:
+			break;
+		case IraDtDt:
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+		case IraDtArr:
+			return false;
+		case IraDtTpl:
+			__debugbreak();
+			return false;
+		case IraDtFunc:
+			return false;
+		default:
+			u_assert_switch(from->type);
+	}
+
+	return true;
+}
+static bool is_castable_to_func(ira_dt_t * from, ira_dt_t * to) {
+	switch (from->type) {
+		case IraDtVoid:
+		case IraDtDt:
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+		case IraDtArr:
+		case IraDtTpl:
+		case IraDtFunc:
+			return false;
+		default:
+			u_assert_switch(from->type);
+	}
+
+	return true;
+}
+bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to) {
+	switch (to->type) {
+		case IraDtVoid:
+			if (!is_castable_to_void(from, to)) {
+				return false;
+			}
+			break;
+		case IraDtDt:
+			if (!is_castable_to_dt(from, to)) {
+				return false;
+			}
+			break;
+		case IraDtBool:
+			if (!is_castable_to_bool(from, to)) {
+				return false;
+			}
+			break;
+		case IraDtInt:
+			if (!is_castable_to_int(from, to)) {
+				return false;
+			}
+			break;
+		case IraDtPtr:
+			if (!is_castable_to_ptr(from, to)) {
+				return false;
+			}
+			break;
+		case IraDtArr:
+			if (!is_castable_to_arr(from, to)) {
+				return false;
+			}
+			break;
+		case IraDtTpl:
+			if (!is_castable_to_tpl(from, to)) {
+				return false;
+			}
+			break;
+		case IraDtFunc:
+			if (!is_castable_to_func(from, to)) {
+				return false;
+			}
+			break;
+		default:
+			u_assert_switch(to->type);
+	}
+
+	return true;
+}
+
 bool ira_dt_get_size(ira_dt_t * dt, size_t * out) {
 	switch (dt->type) {
 		case IraDtVoid:

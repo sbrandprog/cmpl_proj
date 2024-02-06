@@ -714,27 +714,9 @@ static bool prepare_insts_cast(ctx_t * ctx, inst_t * inst, const ira_inst_info_t
 	ira_dt_t * from = inst->opd1.var->dt;
 	ira_dt_t * to = inst->opd2.dt;
 
-	switch (to->type) {
-		case IraDtInt:
-			switch (from->type) {
-				case IraDtInt:
-				case IraDtPtr:
-					break;
-				default:
-					u_assert_switch(from->type);
-			}
-			break;
-		case IraDtPtr:
-			switch (from->type) {
-				case IraDtInt:
-				case IraDtPtr:
-					break;
-				default:
-					u_assert_switch(from->type);
-			}
-			break;
-		default:
-			u_assert_switch(to->type);
+	if (!ira_dt_is_castable(from, to)) {
+		report(ctx, L"cannot cast operand of [%s] data type to a [%s] data type", ira_dt_infos[from->type].type_str.str, ira_dt_infos[to->type].type_str.str);
+		return false;
 	}
 
 	return true;
@@ -1131,17 +1113,15 @@ static int32_t w64_get_stack_arg_offset(ctx_t * ctx, size_t arg) {
 }
 static bool w64_load_callee_ret_link(ctx_t * ctx, var_t * var) {
 	ira_dt_t * var_dt = var->dt;
-
+	
 	switch (var_dt->type) {
 		case IraDtVoid:
 		case IraDtInt:
 		case IraDtPtr:
-			break;
+			return false;
 		default:
-			u_assert_switch(var_dt->type);
+			u_assert_switch(var->dt->type);
 	}
-
-	return false;
 }
 static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg) {
 	ira_dt_t * var_dt = var->dt;
@@ -1189,47 +1169,45 @@ static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg) {
 	}
 }
 static void w64_save_callee_ret(ctx_t * ctx, var_t * var) {
-	ira_dt_t * ret_dt = var->dt;
+	ira_dt_t * var_dt = var->dt;
 
-	switch (ret_dt->type) {
+	switch (var_dt->type) {
 		case IraDtVoid:
 			break;
 		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
 		{
-			asm_reg_t reg = get_ax_reg_dt(ret_dt);
+			asm_reg_t reg = get_ax_reg_dt(var_dt);
 
 			save_stack_var(ctx, var, reg);
 
 			break;
 		}
 		default:
-			u_assert_switch(ret_dt->type);
+			u_assert_switch(var_dt->type);
 	}
 }
 static bool w64_save_caller_ret_link(ctx_t * ctx) {
-	ira_dt_t * func_dt = ctx->func->dt;
+	ira_dt_t * var_dt = ctx->func->dt->func.ret;
 
-	switch (func_dt->func.ret->type) {
+	switch (var_dt->type) {
 		case IraDtVoid:
 		case IraDtInt:
 		case IraDtPtr:
-			break;
+			return false;
 		default:
-			u_assert_switch(func_dt->func.ret->type);
+			u_assert_switch(var_dt->type);
 	}
-
-	return false;
 }
-static void w64_save_caller_arg(ctx_t * ctx, ira_dt_n_t * arg_dt_n, size_t arg) {
-	ira_dt_t * arg_dt = arg_dt_n->dt;
-
-	var_t * var = find_var(ctx, arg_dt_n->name);
+static void w64_save_caller_arg(ctx_t * ctx, u_hs_t * arg_name, size_t arg) {
+	var_t * var = find_var(ctx, arg_name);
 
 	u_assert(var != NULL);
 
-	switch (arg_dt->type) {
+	ira_dt_t * var_dt = var->dt;
+
+	switch (var_dt->type) {
 		case IraDtVoid:
 			break;
 		case IraDtInt:
@@ -1238,11 +1216,11 @@ static void w64_save_caller_arg(ctx_t * ctx, ira_dt_n_t * arg_dt_n, size_t arg) 
 				case 1:
 				case 2:
 				case 3:
-					save_stack_var(ctx, var, w64_int_arg_to_reg[arg][arg_dt_n->dt->int_type]);
+					save_stack_var(ctx, var, w64_int_arg_to_reg[arg][var_dt->int_type]);
 					break;
 				default:
 				{
-					asm_reg_t reg = int_type_to_ax[arg_dt->int_type];
+					asm_reg_t reg = int_type_to_ax[var_dt->int_type];
 
 					load_stack_gpr(ctx, reg, w64_get_stack_arg_offset(ctx, arg));
 					save_stack_var(ctx, var, reg);
@@ -1265,27 +1243,27 @@ static void w64_save_caller_arg(ctx_t * ctx, ira_dt_n_t * arg_dt_n, size_t arg) 
 			}
 			break;
 		default:
-			u_assert_switch(arg_dt->type);
+			u_assert_switch(var_dt->type);
 	}
 }
 static void w64_load_caller_ret(ctx_t * ctx, var_t * var) {
-	ira_dt_t * ret_dt = var->dt;
+	ira_dt_t * var_dt = var->dt;
 
-	switch (ret_dt->type) {
+	switch (var_dt->type) {
 		case IraDtVoid:
 			break;
 		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
 		{
-			asm_reg_t reg = get_ax_reg_dt(ret_dt);
+			asm_reg_t reg = get_ax_reg_dt(var_dt);
 
 			load_stack_var(ctx, reg, var);
-			
+
 			break;
 		}
 		default:
-			u_assert_switch(ret_dt->type);
+			u_assert_switch(var_dt->type);
 	}
 }
 
@@ -1299,7 +1277,7 @@ static void emit_prologue_save_args(ctx_t * ctx) {
 	ira_dt_t * func_dt = ctx->func->dt;
 
 	for (ira_dt_n_t * arg_dt_n = func_dt->func.args, *arg_dt_n_end = arg_dt_n + func_dt->func.args_size; arg_dt_n != arg_dt_n_end; ++arg_dt_n, ++arg) {
-		w64_save_caller_arg(ctx, arg_dt_n, arg);
+		w64_save_caller_arg(ctx, arg_dt_n->name, arg);
 	}
 }
 static void emit_prologue(ctx_t * ctx) {
@@ -1666,35 +1644,41 @@ static void compile_int_like_cast(ctx_t * ctx, inst_t * inst, ira_int_type_t fro
 
 	save_stack_var(ctx, inst->opd0.var, info->reg0);
 }
+static void compile_cast_to_int(ctx_t * ctx, inst_t * inst, ira_dt_t * from, ira_dt_t * to) {
+	switch (from->type) {
+		case IraDtInt:
+			compile_int_like_cast(ctx, inst, from->int_type, to->int_type, int_type_to_cx[from->int_type]);
+			break;
+		case IraDtPtr:
+			compile_int_like_cast(ctx, inst, IraIntU64, to->int_type, int_type_to_cx[IraIntU64]);
+			break;
+		default:
+			u_assert_switch(from->type);
+	}
+}
+static void compile_cast_to_ptr(ctx_t * ctx, inst_t * inst, ira_dt_t * from, ira_dt_t * to) {
+	switch (from->type) {
+		case IraDtInt:
+			compile_int_like_cast(ctx, inst, from->int_type, IraIntU64, int_type_to_cx[from->int_type]);
+			break;
+		case IraDtPtr:
+			load_stack_var(ctx, AsmRegRax, inst->opd1.var);
+			save_stack_var(ctx, inst->opd0.var, AsmRegRax);
+			break;
+		default:
+			u_assert_switch(from->type);
+	}
+}
 static void compile_cast(ctx_t * ctx, inst_t * inst) {
 	ira_dt_t * from = inst->opd1.var->dt;
 	ira_dt_t * to = inst->opd2.dt;
 
 	switch (to->type) {
 		case IraDtInt:
-			switch (from->type) {
-				case IraDtInt:
-					compile_int_like_cast(ctx, inst, from->int_type, to->int_type, int_type_to_cx[from->int_type]);
-					break;
-				case IraDtPtr:
-					compile_int_like_cast(ctx, inst, IraIntU64, to->int_type, int_type_to_cx[IraIntU64]);
-					break;
-				default:
-					u_assert_switch(from->type);
-			}
+			compile_cast_to_int(ctx, inst, from, to);
 			break;
 		case IraDtPtr:
-			switch (from->type) {
-				case IraDtInt:
-					compile_int_like_cast(ctx, inst, from->int_type, IraIntU64, int_type_to_cx[from->int_type]);
-					break;
-				case IraDtPtr:
-					load_stack_var(ctx, AsmRegRax, inst->opd1.var);
-					save_stack_var(ctx, inst->opd0.var, AsmRegRax);
-					break;
-				default:
-					u_assert_switch(from->type);
-			}
+			compile_cast_to_ptr(ctx, inst, from, to);
 			break;
 		default:
 			u_assert_switch(to->type);

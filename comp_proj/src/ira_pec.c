@@ -243,10 +243,13 @@ ira_val_t * ira_pec_make_val_lo_ptr(ira_pec_t * pec, ira_lo_t * lo) {
 	return val;
 }
 
-ira_val_t * ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt) {
+bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 	ira_val_type_t val_type;
 	
 	switch (dt->type) {
+		case IraDtVoid:
+			val_type = IraValImmVoid;
+			break;
 		case IraDtDt:
 			val_type = IraValImmDt;
 			break;
@@ -272,6 +275,8 @@ ira_val_t * ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt) {
 	ira_val_t * val = ira_val_create(val_type, dt);
 
 	switch (dt->type) {
+		case IraDtVoid:
+			break;
 		case IraDtDt:
 			val->dt_val = &pec->dt_void;
 			break;
@@ -299,7 +304,9 @@ ira_val_t * ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt) {
 			ira_dt_n_t * elem_dt = dt->tpl.elems;
 
 			for (; elem != elem_end; ++elem, ++elem_dt) {
-				*elem = ira_pec_make_val_null(pec, elem_dt->dt);
+				if (!ira_pec_make_val_null(pec, elem_dt->dt, elem)) {
+					return false;
+				}
 			}
 
 			break;
@@ -308,5 +315,7 @@ ira_val_t * ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt) {
 			u_assert_switch(dt->type);
 	}
 
-	return val;
+	*out = val;
+
+	return true;
 }

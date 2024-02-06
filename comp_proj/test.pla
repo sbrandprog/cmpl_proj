@@ -1,9 +1,14 @@
-incld "pla_lib/std/io.pla"a;
+include "pla_lib/std/io.pla"a;
 
-fnct main : $() -> s32 {
-	std::init_con_in();
+function main : $() -> s32 {
+	std::init_con_io();
 
-	vrbl ch := std::read_con_ch();
+	variable ch : u16;
+
+	while ch != 10'u16 {
+		ch = std::read_con_ch();
+		std::write_con_ch(ch);
+	}
 
 	return %[s32]ch;
 }

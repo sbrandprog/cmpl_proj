@@ -56,5 +56,5 @@ const pla_dclr_info_t pla_dclr_infos[PlaDclr_Count] = {
 	[PlaDclrFunc] = { .type_str = U_MAKE_ROS(L"DclrFunc") },
 	[PlaDclrImpt] = { .type_str = U_MAKE_ROS(L"DclrImpt") },
 	[PlaDclrVarDt] = { .type_str = U_MAKE_ROS(L"DclrVarDt") },
-	[PlaDclrVarVal] = { .type_str = U_MAKE_ROS(L"DclrVarVal") },
+	[PlaDclrVarVal] = { .type_str = U_MAKE_ROS(L"DclrVarVal") }
 };

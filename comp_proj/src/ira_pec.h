@@ -42,4 +42,4 @@ ira_val_t * ira_pec_make_val_imm_bool(ira_pec_t * pec, bool bool_val);
 ira_val_t * ira_pec_make_val_imm_int(ira_pec_t * pec, ira_int_type_t int_type, ira_int_t int_val);
 ira_val_t * ira_pec_make_val_lo_ptr(ira_pec_t * pec, ira_lo_t * lo);
 
-ira_val_t * ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt);
+bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out);

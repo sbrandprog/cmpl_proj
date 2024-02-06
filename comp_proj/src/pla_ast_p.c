@@ -838,7 +838,7 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 					(*out)->opd0.int_type = get_int_type(ctx->tok.keyw);
 					next_tok(ctx);
 					break;
-				case PlaKeywTupl:
+				case PlaKeywTuple:
 					next_tok(ctx);
 
 					if (!consume_punc_exact_crit(ctx, PlaPuncLeBrace)) {
@@ -1146,7 +1146,7 @@ static bool parse_stmt_expr(ctx_t * ctx, pla_stmt_t ** out) {
 	return true;
 }
 static bool parse_stmt_var(ctx_t * ctx, pla_stmt_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywVrbl)) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywVariable)) {
 		return false;
 	}
 
@@ -1281,7 +1281,7 @@ static bool parse_stmt(ctx_t * ctx, pla_stmt_t ** out) {
 			break;
 		case TokKeyw:
 			switch (ctx->tok.keyw) {
-				case PlaKeywVrbl:
+				case PlaKeywVariable:
 					return parse_stmt_var(ctx, out);
 				case PlaKeywIf:
 					return parse_stmt_cond(ctx, out);
@@ -1300,7 +1300,7 @@ static bool parse_stmt(ctx_t * ctx, pla_stmt_t ** out) {
 static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out);
 
 static bool parse_dclr_nspc(ctx_t * ctx, pla_dclr_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywNmspc)) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywNamespace)) {
 		return false;
 	}
 
@@ -1329,7 +1329,7 @@ static bool parse_dclr_nspc(ctx_t * ctx, pla_dclr_t ** out) {
 	return true;
 }
 static bool parse_dclr_func(ctx_t * ctx, pla_dclr_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywFnct)) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywFunction)) {
 		return false;
 	}
 
@@ -1354,7 +1354,7 @@ static bool parse_dclr_func(ctx_t * ctx, pla_dclr_t ** out) {
 	return true;
 }
 static bool parse_dclr_impt(ctx_t * ctx, pla_dclr_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywImprt)) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywImport)) {
 		return false;
 	}
 
@@ -1395,7 +1395,7 @@ static bool parse_dclr_impt(ctx_t * ctx, pla_dclr_t ** out) {
 	return true;
 }
 static bool parse_dclr_var(ctx_t * ctx, pla_dclr_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywVrbl)) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywVariable)) {
 		return false;
 	}
 
@@ -1452,42 +1452,27 @@ static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out) {
 			break;
 		case TokKeyw:
 			switch (ctx->tok.keyw) {
-				case PlaKeywNmspc:
-					if (!parse_dclr_nspc(ctx, out)) {
-						return false;
-					}
-					break;
-				case PlaKeywFnct:
-					if (!parse_dclr_func(ctx, out)) {
-						return false;
-					}
-					break;
-				case PlaKeywImprt:
-					if (!parse_dclr_impt(ctx, out)) {
-						return false;
-					}
-					break;
-				case PlaKeywVrbl:
-					if (!parse_dclr_var(ctx, out)) {
-						return false;
-					}
-					break;
-				default:
-					return false;
+				case PlaKeywNamespace:
+					return parse_dclr_nspc(ctx, out);
+				case PlaKeywFunction:
+					return parse_dclr_func(ctx, out);
+				case PlaKeywImport:
+					return parse_dclr_impt(ctx, out);
+				case PlaKeywVariable:
+					return parse_dclr_var(ctx, out);
 			}
 			break;
-		default:
-			return false;
 	}
 
-	return true;
+	report(ctx, L"expected a declarator");
+	return false;
 }
 
 
 static bool parse_file(ctx_t * ctx, const wchar_t * file_name, pla_dclr_t ** ins);
 
 static bool parse_file_include(ctx_t * ctx, pla_dclr_t ** ins) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywIncld)) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywInclude)) {
 		return false;
 	}
 
@@ -1513,7 +1498,7 @@ static bool parse_file_item(ctx_t * ctx, pla_dclr_t ** ins) {
 			break;
 		case TokKeyw:
 			switch (ctx->tok.keyw) {
-				case PlaKeywIncld:
+				case PlaKeywInclude:
 					return parse_file_include(ctx, ins);
 			}
 			break;

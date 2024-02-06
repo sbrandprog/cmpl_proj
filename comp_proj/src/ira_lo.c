@@ -53,24 +53,3 @@ void ira_lo_destroy_chain(ira_lo_t * lo) {
 		lo = next;
 	}
 }
-
-bool ira_lo_get_dt(ira_lo_t * lo, ira_dt_t ** out) {
-	switch (lo->type) {
-		case IraLoNone:
-		case IraLoNspc:
-			return false;
-		case IraLoFunc:
-			*out = lo->func->dt;
-			break;
-		case IraLoImpt:
-			*out = lo->impt.dt;
-			break;
-		case IraLoVar:
-			*out = lo->var.dt;
-			break;
-		default:
-			u_assert_switch(lo->type);
-	}
-
-	return true;
-}

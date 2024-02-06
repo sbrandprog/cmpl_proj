@@ -51,6 +51,8 @@ struct ira_dt_info {
 
 bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second);
 
+bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to);
+
 bool ira_dt_get_size(ira_dt_t * dt, size_t * out);
 bool ira_dt_get_align(ira_dt_t * dt, size_t * out);
 

@@ -495,7 +495,10 @@ static bool translate_dclr_var_dt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** ou
 		return false;
 	}
 
-	(*out)->var.val = ira_pec_make_val_null(ctx->out, (*out)->var.dt);
+	if (!ira_pec_make_val_null(ctx->out, (*out)->var.dt, &(*out)->var.val)) {
+		pla_ast_t_report(ctx, L"failed to generate a null value");
+		return false;
+	}
 
 	return true;
 }
