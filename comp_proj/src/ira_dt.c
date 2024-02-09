@@ -3,6 +3,14 @@
 #include "ira_int.h"
 #include "u_misc.h"
 
+bool ira_dt_is_qual_equal(ira_dt_qual_t first, ira_dt_qual_t second) {
+	if (first.const_q != second.const_q) {
+		return false;
+	}
+
+	return true;
+}
+
 bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 	if (first == second) {
 		return true;
@@ -23,11 +31,19 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 			}
 			break;
 		case IraDtPtr:
+			if (!ira_dt_is_qual_equal(first->ptr.qual, second->ptr.qual)) {
+				return false;
+			}
+
 			if (!ira_dt_is_equivalent(first->ptr.body, second->ptr.body)) {
 				return false;
 			}
 			break;
 		case IraDtArr:
+			if (!ira_dt_is_qual_equal(first->arr.qual, second->arr.qual)) {
+				return false;
+			}
+
 			if (!ira_dt_is_equivalent(first->arr.body, second->arr.body)) {
 				return false;
 			}
@@ -37,7 +53,11 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 				return false;
 			}
 
-			for (ira_dt_n_t * f_elem = first->tpl.elems, *f_elem_end = f_elem + first->tpl.elems_size, *s_elem = second->tpl.elems; f_elem != f_elem_end; ++f_elem, ++s_elem) {
+			if (!ira_dt_is_qual_equal(first->tpl.qual, second->tpl.qual)) {
+				return false;
+			}
+
+			for (ira_dt_ndt_t * f_elem = first->tpl.elems, *f_elem_end = f_elem + first->tpl.elems_size, *s_elem = second->tpl.elems; f_elem != f_elem_end; ++f_elem, ++s_elem) {
 				if (!ira_dt_is_equivalent(f_elem->dt, s_elem->dt)) {
 					return false;
 				}
@@ -52,7 +72,7 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 				return false;
 			}
 
-			for (ira_dt_n_t * f_arg = first->func.args, *f_arg_end = f_arg + first->func.args_size, *s_arg = second->func.args; f_arg != f_arg_end; ++f_arg, ++s_arg) {
+			for (ira_dt_ndt_t * f_arg = first->func.args, *f_arg_end = f_arg + first->func.args_size, *s_arg = second->func.args; f_arg != f_arg_end; ++f_arg, ++s_arg) {
 				if (!ira_dt_is_equivalent(f_arg->dt, s_arg->dt)) {
 					return false;
 				}
@@ -268,6 +288,33 @@ bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to) {
 	return true;
 }
 
+bool ira_dt_get_qual(ira_dt_t * dt, ira_dt_qual_t * out) {
+	switch (dt->type) {
+		case IraDtVoid:
+		case IraDtDt:
+		case IraDtBool:
+		case IraDtInt:
+			*out = ira_dt_qual_none;
+			break;
+		case IraDtPtr:
+			*out = dt->ptr.qual;
+			break;
+		case IraDtArr:
+			*out = dt->arr.qual;
+			break;
+		case IraDtTpl:
+			*out = dt->tpl.qual;
+			break;
+		case IraDtFunc:
+			*out = ira_dt_qual_none;
+			break;
+		default:
+			u_assert_switch(dt->type);
+	}
+
+	return true;
+}
+
 bool ira_dt_get_size(ira_dt_t * dt, size_t * out) {
 	switch (dt->type) {
 		case IraDtVoid:
@@ -290,7 +337,7 @@ bool ira_dt_get_size(ira_dt_t * dt, size_t * out) {
 		{
 			size_t size = 0, align = 1;
 
-			for (ira_dt_n_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size; elem != elem_end; ++elem) {
+			for (ira_dt_ndt_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size; elem != elem_end; ++elem) {
 				size_t elem_align;
 
 				if (!ira_dt_get_align(elem->dt, &elem_align)) {
@@ -342,7 +389,7 @@ bool ira_dt_get_align(ira_dt_t * dt, size_t * out) {
 		{
 			size_t align = 1;
 
-			for (ira_dt_n_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size; elem != elem_end; ++elem) {
+			for (ira_dt_ndt_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size; elem != elem_end; ++elem) {
 				size_t elem_align;
 				
 				if (!ira_dt_get_align(elem->dt, &elem_align)) {
@@ -372,7 +419,7 @@ bool ira_dt_get_tpl_elem_off(ira_dt_t * dt, size_t elem_ind, size_t * out) {
 
 	size_t off = 0;
 
-	for (ira_dt_n_t * elem = dt->tpl.elems, *elem_end = elem + elem_ind; elem != elem_end; ++elem) {
+	for (ira_dt_ndt_t * elem = dt->tpl.elems, *elem_end = elem + elem_ind; elem != elem_end; ++elem) {
 		size_t elem_align;
 		
 		if (!ira_dt_get_align(elem->dt, &elem_align)) {
@@ -393,6 +440,9 @@ bool ira_dt_get_tpl_elem_off(ira_dt_t * dt, size_t elem_ind, size_t * out) {
 	*out = off;
 	return true;
 }
+
+const ira_dt_qual_t ira_dt_qual_none;
+const ira_dt_qual_t ira_dt_qual_const = { .const_q = true };
 
 const ira_dt_info_t ira_dt_infos[IraDt_Count] = {
 	[IraDtVoid] = { .type_str = U_MAKE_ROS(L"DtVoid") },

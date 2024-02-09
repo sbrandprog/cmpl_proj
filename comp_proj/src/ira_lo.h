@@ -1,5 +1,5 @@
 #pragma once
-#include "ira.h"
+#include "ira_dt.h"
 #include "u_hs.h"
 
 enum ira_lo_type {
@@ -29,7 +29,7 @@ struct ira_lo {
 			u_hs_t * sym_name;
 		} impt;
 		struct {
-			ira_dt_t * dt;
+			ira_dt_qdt_t qdt;
 			ira_val_t * val;
 		} var;
 	};

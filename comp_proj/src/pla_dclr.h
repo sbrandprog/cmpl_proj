@@ -1,5 +1,6 @@
 #pragma once
 #include "pla.h"
+#include "ira_dt.h"
 #include "u_ros.h"
 #include "u_hs.h"
 
@@ -31,9 +32,11 @@ struct pla_dclr {
 		} impt;
 		struct {
 			pla_expr_t * dt_expr;
+			ira_dt_qual_t dt_qual;
 		} var_dt;
 		struct {
 			pla_expr_t * val_expr;
+			ira_dt_qual_t dt_qual;
 		} var_val;
 	};
 };

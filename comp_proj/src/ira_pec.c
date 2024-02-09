@@ -54,7 +54,8 @@ void ira_pec_init(ira_pec_t * pec, u_hst_t * hst) {
 
 		pec->dt_spcl.size = &pec->dt_ints[IraIntU64];
 		pec->dt_spcl.arr_size = pec->dt_spcl.size;
-		pec->dt_spcl.ascii_str = ira_pec_get_dt_arr(pec, &pec->dt_ints[IraIntU8]);
+		pec->dt_spcl.ascii_str = ira_pec_get_dt_arr(pec, &pec->dt_ints[IraIntU8], ira_dt_qual_const);
+		pec->dt_spcl.wide_str = ira_pec_get_dt_arr(pec, &pec->dt_ints[IraIntU16], ira_dt_qual_const);
 	}
 
 	pec->ep_name = pec->pds[IraPdsEpName];
@@ -73,11 +74,19 @@ void ira_pec_cleanup(ira_pec_t * pec) {
 static bool get_listed_dt_cmp(ira_dt_t * pred, ira_dt_t * dt) {
 	switch (pred->type) {
 		case IraDtPtr:
+			if (!ira_dt_is_qual_equal(dt->ptr.qual, pred->ptr.qual)) {
+				return false;
+			}
+
 			if (dt->ptr.body != pred->ptr.body) {
 				return false;
 			}
 			break;
 		case IraDtArr:
+			if (!ira_dt_is_qual_equal(dt->ptr.qual, pred->ptr.qual)) {
+				return false;
+			}
+
 			if (dt->arr.body != pred->arr.body) {
 				return false;
 			}
@@ -87,7 +96,11 @@ static bool get_listed_dt_cmp(ira_dt_t * pred, ira_dt_t * dt) {
 				return false;
 			}
 
-			for (ira_dt_n_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size, *pred_elem = pred->tpl.elems; elem != elem_end; ++elem, ++pred_elem) {
+			if (!ira_dt_is_qual_equal(dt->ptr.qual, pred->ptr.qual)) {
+				return false;
+			}
+
+			for (ira_dt_ndt_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size, *pred_elem = pred->tpl.elems; elem != elem_end; ++elem, ++pred_elem) {
 				if (elem->dt != pred_elem->dt || elem->name != pred_elem->name) {
 					return false;
 				}
@@ -102,7 +115,7 @@ static bool get_listed_dt_cmp(ira_dt_t * pred, ira_dt_t * dt) {
 				return false;
 			}
 
-			for (ira_dt_n_t * arg = dt->func.args, *arg_end = arg + dt->func.args_size, *pred_arg = pred->func.args; arg != arg_end; ++arg, ++pred_arg) {
+			for (ira_dt_ndt_t * arg = dt->func.args, *arg_end = arg + dt->func.args_size, *pred_arg = pred->func.args; arg != arg_end; ++arg, ++pred_arg) {
 				if (arg->dt != pred_arg->dt || arg->name != pred_arg->name) {
 					return false;
 				}
@@ -117,25 +130,25 @@ static bool get_listed_dt_cmp(ira_dt_t * pred, ira_dt_t * dt) {
 static void get_listed_dt_copy(ira_dt_t * pred, ira_dt_t * out) {
 	switch (pred->type) {
 		case IraDtPtr:
-			*out = (ira_dt_t){ .type = pred->type, .ptr.body = pred->ptr.body };
+			*out = (ira_dt_t){ .type = pred->type, .ptr = { .body = pred->ptr.body, .qual = pred->ptr.qual } };
 			break;
 		case IraDtArr:
-			*out = (ira_dt_t){ .type = pred->type, .arr.body = pred->arr.body };
+			*out = (ira_dt_t){ .type = pred->type, .arr = { .body = pred->arr.body, .qual = pred->arr.qual } };
 			break;
 		case IraDtTpl:
 		{
-			ira_dt_n_t * new_dt_elems = malloc(pred->tpl.elems_size * sizeof(*new_dt_elems));
+			ira_dt_ndt_t * new_dt_elems = malloc(pred->tpl.elems_size * sizeof(*new_dt_elems));
 
 			u_assert(new_dt_elems != NULL);
 
 			memcpy(new_dt_elems, pred->tpl.elems, pred->tpl.elems_size * sizeof(*new_dt_elems));
 
-			*out = (ira_dt_t){ .type = pred->type, .tpl = { .elems_size = pred->tpl.elems_size, .elems = new_dt_elems } };
+			*out = (ira_dt_t){ .type = pred->type, .tpl = { .elems_size = pred->tpl.elems_size, .elems = new_dt_elems, .qual = pred->tpl.qual } };
 			break;
 		}
 		case IraDtFunc:
 		{
-			ira_dt_n_t * new_dt_args = malloc(pred->func.args_size * sizeof(*new_dt_args));
+			ira_dt_ndt_t * new_dt_args = malloc(pred->func.args_size * sizeof(*new_dt_args));
 
 			u_assert(new_dt_args != NULL);
 
@@ -170,22 +183,22 @@ static ira_dt_t * get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** in
 	return new_dt;
 }
 
-ira_dt_t * ira_pec_get_dt_ptr(ira_pec_t * pec, ira_dt_t * body) {
-	ira_dt_t pred = { .type = IraDtPtr, .ptr.body = body };
+ira_dt_t * ira_pec_get_dt_ptr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual) {
+	ira_dt_t pred = { .type = IraDtPtr, .ptr = { .body = body, .qual = qual } };
 
 	return get_listed_dt(pec, &pred, &pec->dt_ptr);
 }
-ira_dt_t * ira_pec_get_dt_arr(ira_pec_t * pec, ira_dt_t * body) {
-	ira_dt_t pred = { .type = IraDtArr, .arr.body = body };
+ira_dt_t * ira_pec_get_dt_arr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual) {
+	ira_dt_t pred = { .type = IraDtArr, .arr = { .body = body, .qual = qual } };
 
 	return get_listed_dt(pec, &pred, &pec->dt_arr);
 }
-ira_dt_t * ira_pec_get_dt_tpl(ira_pec_t * pec, size_t elems_size, ira_dt_n_t * elems) {
-	ira_dt_t pred = { .type = IraDtTpl, .tpl = { .elems_size = elems_size, .elems = elems } };
+ira_dt_t * ira_pec_get_dt_tpl(ira_pec_t * pec, size_t elems_size, ira_dt_ndt_t * elems, ira_dt_qual_t qual) {
+	ira_dt_t pred = { .type = IraDtTpl, .tpl = { .elems_size = elems_size, .elems = elems, .qual = qual } };
 
 	return get_listed_dt(pec, &pred, &pec->dt_tpl);
 }
-ira_dt_t * ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_dt_n_t * args) {
+ira_dt_t * ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_dt_ndt_t * args) {
 	ira_dt_t pred = { .type = IraDtFunc, .func = { .ret = ret, .args_size = args_size, .args = args } };
 
 	return get_listed_dt(pec, &pred, &pec->dt_func);
@@ -224,13 +237,13 @@ ira_val_t * ira_pec_make_val_lo_ptr(ira_pec_t * pec, ira_lo_t * lo) {
 
 	switch (lo->type) {
 		case IraLoFunc:
-			val_dt = ira_pec_get_dt_ptr(pec, lo->func->dt);
+			val_dt = ira_pec_get_dt_ptr(pec, lo->func->dt, ira_dt_qual_none);
 			break;
 		case IraLoImpt:
-			val_dt = ira_pec_get_dt_ptr(pec, lo->impt.dt);
+			val_dt = ira_pec_get_dt_ptr(pec, lo->impt.dt, ira_dt_qual_none);
 			break;
 		case IraLoVar:
-			val_dt = ira_pec_get_dt_ptr(pec, lo->var.dt);
+			val_dt = ira_pec_get_dt_ptr(pec, lo->var.qdt.dt, lo->var.qdt.qual);
 			break;
 		default:
 			u_assert_switch(lo->type);
@@ -301,7 +314,7 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 			u_assert(val->tpl.elems != NULL);
 
 			ira_val_t ** elem = val->tpl.elems, ** elem_end = elem + elems_size;
-			ira_dt_n_t * elem_dt = dt->tpl.elems;
+			ira_dt_ndt_t * elem_dt = dt->tpl.elems;
 
 			for (; elem != elem_end; ++elem, ++elem_dt) {
 				if (!ira_pec_make_val_null(pec, elem_dt->dt, elem)) {

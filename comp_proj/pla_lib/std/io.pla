@@ -1,27 +1,27 @@
 include "pla_lib/w64/kernel32.pla"a;
 
 namespace std {
-	variable con_handle_name := "CON"w;
+	variable const con_handle_name := "CON"w;
 
 	variable con_in : tuple {
-		handle : void!,
+		handle : * void,
 		buf_ch : u16,
 		buf_ch_has : bool
 		};
 	variable con_out : tuple {
-		handle : void!
+		handle : * void
 		};
 
 	function init_con_io : $() -> void {
-		con_in.handle = w64::create_file_w(con_handle_name.data, 0x8000_0000'u32, 0'u32, nullof[void!], 3'u32, 0'u32, nullof[void!]);
+		con_in.handle = w64::create_file_w(con_handle_name.data, 0x8000_0000'u32, 0'u32, nullof[* void], 3'u32, 0'u32, nullof[* void]);
 
-		if con_in.handle == %[void!]-1's64 {
+		if con_in.handle == %[* void]-1's64 {
 			w64::exit_process(%[u32]-1's32);
 		}
 
-		con_out.handle = w64::create_file_w(con_handle_name.data, 0x4000_0000'u32, 0'u32, nullof[void!], 3'u32, 0'u32, nullof[void!]);
+		con_out.handle = w64::create_file_w(con_handle_name.data, 0x4000_0000'u32, 0'u32, nullof[* void], 3'u32, 0'u32, nullof[* void]);
 
-		if con_out.handle == %[void!]-1's64 {
+		if con_out.handle == %[* void]-1's64 {
 			w64::exit_process(%[u32]-1's32);
 		}
 
@@ -36,7 +36,7 @@ namespace std {
 		
 		variable ch : u16, read : u32;
 
-		if w64::read_console_w(con_in.handle, %[void!]&ch, 1'u32, &read, nullof[void!]) == 0's32 {
+		if w64::read_console_w(con_in.handle, %[* void]&ch, 1'u32, &read, nullof[* void]) == 0's32 {
 			return 0xFFFF'u16; 
 		}
 
@@ -66,7 +66,7 @@ namespace std {
 	function write_con_ch : $(ch : u16) -> void {
 		variable written : u32;
 
-		w64::write_console_w(con_out.handle, %[void!]&ch, 1'u32, &written, nullof[void!]);
+		w64::write_console_w(con_out.handle, %[const * void]&ch, 1'u32, &written, nullof[* void]);
 
 		return;
 	}

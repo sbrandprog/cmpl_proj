@@ -1,5 +1,5 @@
 #pragma once
-#include "ira.h"
+#include "ira_dt.h"
 #include "u_ros.h"
 #include "u_hs.h"
 
@@ -8,6 +8,7 @@
 enum ira_inst_opd_type {
 	IraInstOpdNone,
 	IraInstOpdIntCmp,
+	IraInstOpdDtQual,
 	IraInstOpdDt,
 	IraInstOpdLabel,
 	IraInstOpdVal,
@@ -21,6 +22,7 @@ enum ira_inst_opd_type {
 };
 union ira_inst_opd {
 	ira_int_cmp_t int_cmp;
+	ira_dt_qual_t dt_qual;
 	size_t size;
 	u_hs_t * hs;
 	u_hs_t ** hss;

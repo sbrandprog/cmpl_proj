@@ -1,8 +1,8 @@
 namespace w64 {
-	import create_file_w : $(file_name : u16!, access : u32, share_mode : u32, security_attributes : void!, creation_disposition : u32, flags_attributes : u32, template_file : void!) -> void! : "kernel32.dll"a, "CreateFileW"a;
+	import create_file_w : $(file_name : const * u16, access : u32, share_mode : u32, security_attributes : * void, creation_disposition : u32, flags_attributes : u32, template_file : * void) -> * void : "kernel32.dll"a, "CreateFileW"a;
 	import exit_process : $(exit_code : u32) -> void : "kernel32.dll"a, "ExitProcess"a;
-	import get_std_handle : $(std_handle : u32) -> void! : "kernel32.dll"a, "GetStdHandle"a;
-	import read_console_w : $(handle : void!, buf : void!, buf_size : u32, read : u32!, control : void!) -> s32 : "kernel32.dll"a, "ReadConsoleW"a;
-	import write_console_w : $(handle : void!, buf : void!, buf_size : u32, written : u32!, reserved : void!) -> s32 : "kernel32.dll"a, "WriteConsoleW"a;
-	import write_file : $(handle : void!, buf : void!, buf_size : u32, written : u32!, overlapped : void!) -> s32 : "kernel32.dll"a, "WriteFile"a;
+	import get_std_handle : $(std_handle : u32) -> * void : "kernel32.dll"a, "GetStdHandle"a;
+	import read_console_w : $(handle : * void, buf : * void, buf_size : u32, read : * u32, control : * void) -> s32 : "kernel32.dll"a, "ReadConsoleW"a;
+	import write_console_w : $(handle : * void, buf : const * void, buf_size : u32, written : * u32, reserved : * void) -> s32 : "kernel32.dll"a, "WriteConsoleW"a;
+	import write_file : $(handle : * void, buf : const * void, buf_size : u32, written : * u32, overlapped : * void) -> s32 : "kernel32.dll"a, "WriteFile"a;
 }

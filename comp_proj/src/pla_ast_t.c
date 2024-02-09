@@ -491,11 +491,11 @@ static bool translate_dclr_var_dt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** ou
 
 	*out = ira_lo_create(IraLoVar, dclr->name);
 	
-	if (!pla_ast_t_calculate_expr_dt(ctx, dclr->var_dt.dt_expr, &(*out)->var.dt)) {
+	if (!pla_ast_t_calculate_expr_dt(ctx, dclr->var_dt.dt_expr, &(*out)->var.qdt.dt)) {
 		return false;
 	}
 
-	if (!ira_pec_make_val_null(ctx->out, (*out)->var.dt, &(*out)->var.val)) {
+	if (!ira_pec_make_val_null(ctx->out, (*out)->var.qdt.dt, &(*out)->var.val)) {
 		pla_ast_t_report(ctx, L"failed to generate a null value");
 		return false;
 	}
@@ -514,7 +514,7 @@ static bool translate_dclr_var_val(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** o
 		return false;
 	}
 
-	(*out)->var.dt = (*out)->var.val->dt;
+	(*out)->var.qdt.dt = (*out)->var.val->dt;
 
 	return true;
 }

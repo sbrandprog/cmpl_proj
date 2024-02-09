@@ -12,6 +12,7 @@ void ira_inst_cleanup(ira_inst_t * inst) {
 		switch (info->opds[opd]) {
 			case IraInstOpdNone:
 			case IraInstOpdIntCmp:
+			case IraInstOpdDtQual:
 			case IraInstOpdDt:
 			case IraInstOpdLabel:
 			case IraInstOpdVarDef:

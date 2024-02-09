@@ -101,7 +101,6 @@ typedef bool ch_proc_t(lc_t * lc, wchar_t * out);
 
 
 static const post_oper_info_t opr_post_infos[] = {
-	{ .punc = PlaPuncLeBrack, .expr_type = PlaExprDtArr },
 	{ .punc = PlaPuncDot, .expr_type = PlaExprMmbrAcc },
 	{ .punc = PlaPuncLeParen, .expr_type = PlaExprCall },
 	{ .punc = PlaPuncLeBrack, .expr_type = PlaExprSubscr },
@@ -111,6 +110,8 @@ static const post_oper_info_t opr_post_infos[] = {
 };
 static const size_t opr_post_infos_count = _countof(opr_post_infos);
 static const unr_oper_info_t opr_unr_infos[] = {
+	{ .punc = PlaPuncAster, .expr_type = PlaExprDtPtr },
+	{ .punc = PlaPuncLeBrack, .expr_type = PlaExprDtArr },
 	{ .punc = PlaPuncDplus, .expr_type = PlaExprPostInc },
 	{ .punc = PlaPuncDminus, .expr_type = PlaExprPostDec },
 	{ .punc = PlaPuncAmper, .expr_type = PlaExprAddrOf },
@@ -712,37 +713,88 @@ static ira_int_type_t get_int_type(pla_keyw_t keyw) {
 }
 
 
+static void parse_quals(ctx_t * ctx, ira_dt_qual_t * out) {
+	*out = ira_dt_qual_none;
+
+	while (true) {
+		if (consume_keyw_exact(ctx, PlaKeywConst)) {
+			out->const_q = true;
+			continue;
+		}
+
+		break;
+	}
+}
+
+
 static bool parse_expr(ctx_t * ctx, pla_expr_t ** out);
 
 static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 	while (true) {
-		const unr_oper_info_t * info = get_unr_oper_info(get_punc(ctx));
+		bool success = true;
 
-		if (info == NULL) {
-			break;
-		}
+		switch (ctx->tok.type) {
+			case TokPunc:
+			{
+				const unr_oper_info_t * info = get_unr_oper_info(ctx->tok.punc);
 
-		next_tok(ctx);
-
-		*out = pla_expr_create(info->expr_type);
-
-		switch (info->expr_type) {
-			case PlaExprCast:
-				if (!consume_punc_exact_crit(ctx, PlaPuncLeBrack)) {
-					return false;
+				if (info == NULL) {
+					success = false;
+					break;
 				}
 
-				if (!parse_expr(ctx, &(*out)->opd1.expr)) {
-					return false;
+				next_tok(ctx);
+
+				*out = pla_expr_create(info->expr_type);
+
+				switch (info->expr_type) {
+					case PlaExprDtArr:
+						if (!consume_punc_exact_crit(ctx, PlaPuncRiBrack)) {
+							return false;
+						}
+						break;
+					case PlaExprCast:
+						if (!consume_punc_exact_crit(ctx, PlaPuncLeBrack)) {
+							return false;
+						}
+
+						if (!parse_expr(ctx, &(*out)->opd1.expr)) {
+							return false;
+						}
+
+						if (!consume_punc_exact_crit(ctx, PlaPuncRiBrack)) {
+							return false;
+						}
+						break;
 				}
 
-				if (!consume_punc_exact_crit(ctx, PlaPuncRiBrack)) {
-					return false;
+				out = &(*out)->opd0.expr;
+
+				break;
+			}
+			case TokKeyw:
+				switch (ctx->tok.keyw) {
+					case PlaKeywConst:
+						next_tok(ctx);
+
+						*out = pla_expr_create(PlaExprDtConst);
+
+						out = &(*out)->opd0.expr;
+
+						break;
+					default:
+						success = false;
+						break;
 				}
+				break;
+			default:
+				success = false;
 				break;
 		}
 
-		out = &(*out)->opd0.expr;
+		if (success == false) {
+			break;
+		}
 	}
 
 
@@ -966,11 +1018,6 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 		*out = expr;
 
 		switch (info->expr_type) {
-			case PlaExprDtArr:
-				if (!consume_punc_exact_crit(ctx, PlaPuncRiBrack)) {
-					return false;
-				}
-				break;
 			case PlaExprMmbrAcc:
 				if (!consume_ident_crit(ctx, &(*out)->opd1.hs)) {
 					return false;
@@ -1151,6 +1198,10 @@ static bool parse_stmt_var(ctx_t * ctx, pla_stmt_t ** out) {
 	}
 
 	while (true) {
+		ira_dt_qual_t qual;
+
+		parse_quals(ctx, &qual);
+
 		u_hs_t * var_name;
 
 		if (!consume_ident_crit(ctx, &var_name)) {
@@ -1161,6 +1212,7 @@ static bool parse_stmt_var(ctx_t * ctx, pla_stmt_t ** out) {
 			*out = pla_stmt_create(PlaStmtVarDt);
 		
 			(*out)->var_dt.name = var_name;
+			(*out)->var_dt.dt_qual = qual;
 
 			if (!parse_expr(ctx, &(*out)->var_dt.dt_expr)) {
 				return false;
@@ -1170,6 +1222,7 @@ static bool parse_stmt_var(ctx_t * ctx, pla_stmt_t ** out) {
 			*out = pla_stmt_create(PlaStmtVarVal);
 
 			(*out)->var_val.name = var_name;
+			(*out)->var_val.dt_qual = qual;
 
 			if (!parse_expr(ctx, &(*out)->var_val.val_expr)) {
 				return false;
@@ -1400,6 +1453,10 @@ static bool parse_dclr_var(ctx_t * ctx, pla_dclr_t ** out) {
 	}
 
 	while (true) {
+		ira_dt_qual_t qual;
+
+		parse_quals(ctx, &qual);
+
 		u_hs_t * var_name;
 
 		if (!consume_ident_crit(ctx, &var_name)) {
@@ -1410,6 +1467,7 @@ static bool parse_dclr_var(ctx_t * ctx, pla_dclr_t ** out) {
 			*out = pla_dclr_create(PlaDclrVarDt);
 
 			(*out)->name = var_name;
+			(*out)->var_dt.dt_qual = qual;
 
 			if (!parse_expr(ctx, &(*out)->var_dt.dt_expr)) {
 				return false;
@@ -1419,6 +1477,7 @@ static bool parse_dclr_var(ctx_t * ctx, pla_dclr_t ** out) {
 			*out = pla_dclr_create(PlaDclrVarVal);
 
 			(*out)->name = var_name;
+			(*out)->var_val.dt_qual = qual;
 
 			if (!parse_expr(ctx, &(*out)->var_val.val_expr)) {
 				return false;
