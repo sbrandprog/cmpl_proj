@@ -890,14 +890,14 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 					(*out)->opd0.int_type = get_int_type(ctx->tok.keyw);
 					next_tok(ctx);
 					break;
-				case PlaKeywTuple:
+				case PlaKeywStruct:
 					next_tok(ctx);
 
 					if (!consume_punc_exact_crit(ctx, PlaPuncLeBrace)) {
 						return false;
 					}
 
-					*out = pla_expr_create(PlaExprDtTpl);
+					*out = pla_expr_create(PlaExprDtStct);
 
 					pla_expr_t ** elem = &(*out)->opd1.expr;
 

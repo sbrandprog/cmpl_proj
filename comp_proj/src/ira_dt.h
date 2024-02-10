@@ -26,7 +26,7 @@ enum ira_dt_type {
 	IraDtInt,
 	IraDtPtr,
 	IraDtArr,
-	IraDtTpl,
+	IraDtStct,
 	IraDtFunc,
 	IraDt_Count
 };
@@ -47,7 +47,7 @@ struct ira_dt {
 			size_t elems_size;
 			ira_dt_ndt_t * elems;
 			ira_dt_qual_t qual;
-		} tpl;
+		} stct;
 		struct {
 			ira_dt_t * ret;
 			size_t args_size;
@@ -71,7 +71,7 @@ bool ira_dt_get_qual(ira_dt_t * dt, ira_dt_qual_t * out);
 bool ira_dt_get_size(ira_dt_t * dt, size_t * out);
 bool ira_dt_get_align(ira_dt_t * dt, size_t * out);
 
-bool ira_dt_get_tpl_elem_off(ira_dt_t * dt, size_t elem_ind, size_t * out);
+bool ira_dt_get_stct_elem_off(ira_dt_t * dt, size_t elem_ind, size_t * out);
 
 extern const ira_dt_qual_t ira_dt_qual_none;
 extern const ira_dt_qual_t ira_dt_qual_const;

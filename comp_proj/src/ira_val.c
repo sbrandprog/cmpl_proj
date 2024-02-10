@@ -49,9 +49,9 @@ void ira_val_destroy(ira_val_t * val) {
 			destroy_val_arr(val->arr.size, val->arr.data);
 			free(val->arr.data);
 			break;
-		case IraValImmTpl:
-			destroy_val_arr(val->dt->tpl.elems_size, val->tpl.elems);
-			free(val->tpl.elems);
+		case IraValImmStct:
+			destroy_val_arr(val->dt->stct.elems_size, val->stct.elems);
+			free(val->stct.elems);
 			break;
 		default:
 			u_assert_switch(val->type);
@@ -87,8 +87,8 @@ ira_val_t * ira_val_copy(ira_val_t * val) {
 
 			new_val->arr.data = copy_val_arr(val->arr.size, val->arr.data);
 			break;
-		case IraValImmTpl:
-			new_val->tpl.elems = copy_val_arr(val->dt->tpl.elems_size, val->tpl.elems);
+		case IraValImmStct:
+			new_val->stct.elems = copy_val_arr(val->dt->stct.elems_size, val->stct.elems);
 			break;
 		default:
 			u_assert_switch(val->type);

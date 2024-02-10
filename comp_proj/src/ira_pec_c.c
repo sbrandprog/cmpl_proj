@@ -45,8 +45,8 @@ bool ira_pec_c_is_val_compilable(ira_val_t * val) {
 				}
 			}
 			break;
-		case IraValImmTpl:
-			for (ira_val_t ** elem = val->tpl.elems, **elem_end = elem + val->dt->tpl.elems_size; elem != elem_end; ++elem) {
+		case IraValImmStct:
+			for (ira_val_t ** elem = val->stct.elems, **elem_end = elem + val->dt->stct.elems_size; elem != elem_end; ++elem) {
 				if (!ira_pec_c_is_val_compilable(*elem)) {
 					return false;
 				}
@@ -109,8 +109,8 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 				}
 			}
 			break;
-		case IraValImmTpl:
-			for (ira_val_t ** elem = val->tpl.elems, **elem_end = elem + val->dt->tpl.elems_size; elem != elem_end; ++elem) {
+		case IraValImmStct:
+			for (ira_val_t ** elem = val->stct.elems, **elem_end = elem + val->dt->stct.elems_size; elem != elem_end; ++elem) {
 				if (!compile_val(ctx, frag, *elem)) {
 					return false;
 				}
@@ -175,7 +175,7 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 		case IraValImmInt:
 		case IraValLoPtr:
 		case IraValNullPtr:
-		case IraValImmTpl:
+		case IraValImmStct:
 			if (!compile_val(ctx, frag, lo->var.val)) {
 				return false;
 			}

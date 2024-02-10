@@ -64,13 +64,6 @@ typedef union inst_opd {
 	var_t ** vars;
 	ira_lo_t * lo;
 } inst_opd_t;
-typedef enum inst_mmbr_acc_type {
-	InstMmbrAccNone,
-	InstMmbrAccArrSize,
-	InstMmbrAccArrData,
-	InstMmbrAccTplElem,
-	InstMmbrAcc_Count
-} inst_mmbr_acc_type_t;
 struct inst {
 	ira_inst_t * base;
 
@@ -90,7 +83,6 @@ struct inst {
 			var_t * var;
 		} def_var_copy;
 		struct {
-			inst_mmbr_acc_type_t type;
 			ira_dt_t * res_dt;
 			size_t off;
 		} mmbr_acc;
@@ -370,12 +362,10 @@ static bool set_mmbr_acc_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt, u_h
 			return false;
 		case IraDtArr:
 			if (mmbr == ctx->pec->pds[IraPdsSizeMmbr]) {
-				inst->mmbr_acc.type = InstMmbrAccArrSize;
 				inst->mmbr_acc.res_dt = ctx->pec->dt_spcl.arr_size;
 				inst->mmbr_acc.off = IRA_DT_ARR_SIZE_OFF;
 			}
 			else if (mmbr == ctx->pec->pds[IraPdsDataMmbr]) {
-				inst->mmbr_acc.type = InstMmbrAccArrData;
 				inst->mmbr_acc.res_dt = ira_pec_get_dt_ptr(ctx->pec, opd_dt->arr.body, opd_dt->arr.qual);
 				inst->mmbr_acc.off = IRA_DT_ARR_DATA_OFF;
 			}
@@ -383,16 +373,15 @@ static bool set_mmbr_acc_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt, u_h
 				return false;
 			}
 			break;
-		case IraDtTpl:
+		case IraDtStct:
 		{
-			ira_dt_ndt_t * elem = opd_dt->tpl.elems, * elem_end = elem + opd_dt->tpl.elems_size;
+			ira_dt_ndt_t * elem = opd_dt->stct.elems, * elem_end = elem + opd_dt->stct.elems_size;
 
 			for (; elem != elem_end; ++elem) {
 				if (mmbr == elem->name) {
-					inst->mmbr_acc.type = InstMmbrAccTplElem;
 					inst->mmbr_acc.res_dt = elem->dt;
 					
-					if (!ira_dt_get_tpl_elem_off(opd_dt, elem - opd_dt->tpl.elems, &inst->mmbr_acc.off)) {
+					if (!ira_dt_get_stct_elem_off(opd_dt, elem - opd_dt->stct.elems, &inst->mmbr_acc.off)) {
 						return false;
 					}
 					return true;
@@ -665,7 +654,7 @@ static bool prepare_insts_make_dt_arr(ctx_t * ctx, inst_t * inst, const ira_inst
 
 	return true;
 }
-static bool prepare_insts_make_dt_tpl(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+static bool prepare_insts_make_dt_stct(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
 	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
 	
 	for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var) {
@@ -1008,8 +997,8 @@ static bool prepare_insts(ctx_t * ctx) {
 					return false;
 				}
 				break;
-			case IraInstMakeDtTpl:
-				if (!prepare_insts_make_dt_tpl(ctx, inst, info)) {
+			case IraInstMakeDtStct:
+				if (!prepare_insts_make_dt_stct(ctx, inst, info)) {
 					return false;
 				}
 				break;
@@ -1976,7 +1965,7 @@ bool ira_pec_ip_compile(ira_pec_c_ctx_t * c_ctx, ira_lo_t * lo) {
 }
 
 
-static bool execute_insts_make_dt_tpl(ctx_t * ctx, inst_t * inst) {
+static bool execute_insts_make_dt_stct(ctx_t * ctx, inst_t * inst) {
 	size_t elems_size = inst->opd2.size;
 
 	ira_dt_ndt_t * elems = _malloca(elems_size * sizeof(*elems));
@@ -2000,7 +1989,7 @@ static bool execute_insts_make_dt_tpl(ctx_t * ctx, inst_t * inst) {
 
 	ira_val_destroy(inst->opd0.var->val);
 
-	inst->opd0.var->val = ira_pec_make_val_imm_dt(ctx->pec, ira_pec_get_dt_tpl(ctx->pec, elems_size, elems, inst->opd1.dt_qual));
+	inst->opd0.var->val = ira_pec_make_val_imm_dt(ctx->pec, ira_pec_get_dt_stct(ctx->pec, elems_size, elems, inst->opd1.dt_qual));
 
 	_freea(elems);
 
@@ -2070,9 +2059,11 @@ static bool execute_insts_make_dt_const(ctx_t * ctx, inst_t * inst) {
 		case IraDtArr:
 			dt = ira_pec_get_dt_arr(ctx->pec, dt->arr.body, dt_qual);
 			break;
-		case IraDtTpl:
-			dt = ira_pec_get_dt_tpl(ctx->pec, dt->tpl.elems_size, dt->tpl.elems, dt_qual);
+		case IraDtStct:
+		{
+			dt = ira_pec_get_dt_stct(ctx->pec, dt->stct.elems_size, dt->stct.elems, dt_qual);
 			break;
+		}
 		case IraDtFunc:
 			break;
 		default:
@@ -2124,8 +2115,8 @@ static bool execute_insts(ctx_t * ctx) {
 
 				inst->opd0.var->val = ira_pec_make_val_imm_dt(ctx->pec, ira_pec_get_dt_arr(ctx->pec, inst->opd1.var->val->dt_val, inst->opd2.dt_qual));
 				break;
-			case IraInstMakeDtTpl:
-				if (!execute_insts_make_dt_tpl(ctx, inst)) {
+			case IraInstMakeDtStct:
+				if (!execute_insts_make_dt_stct(ctx, inst)) {
 					return false;
 				}
 				break;

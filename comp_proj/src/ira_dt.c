@@ -31,14 +31,25 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 			}
 			break;
 		case IraDtPtr:
+		{
 			if (!ira_dt_is_qual_equal(first->ptr.qual, second->ptr.qual)) {
 				return false;
 			}
 
-			if (!ira_dt_is_equivalent(first->ptr.body, second->ptr.body)) {
+			size_t first_size, second_size;
+
+			if (!ira_dt_get_size(first, &first_size) || !ira_dt_get_size(second, &second_size) || first_size != second_size) {
 				return false;
 			}
+
+			size_t first_align, second_align;
+
+			if (!ira_dt_get_align(first, &first_align) || !ira_dt_get_align(second, &second_align) || first_align != second_align) {
+				return false;
+			}
+
 			break;
+		}
 		case IraDtArr:
 			if (!ira_dt_is_qual_equal(first->arr.qual, second->arr.qual)) {
 				return false;
@@ -48,16 +59,16 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 				return false;
 			}
 			break;
-		case IraDtTpl:
-			if (first->tpl.elems_size != second->tpl.elems_size) {
+		case IraDtStct:
+			if (first->stct.elems_size != second->stct.elems_size) {
 				return false;
 			}
 
-			if (!ira_dt_is_qual_equal(first->tpl.qual, second->tpl.qual)) {
+			if (!ira_dt_is_qual_equal(first->stct.qual, second->stct.qual)) {
 				return false;
 			}
 
-			for (ira_dt_ndt_t * f_elem = first->tpl.elems, *f_elem_end = f_elem + first->tpl.elems_size, *s_elem = second->tpl.elems; f_elem != f_elem_end; ++f_elem, ++s_elem) {
+			for (ira_dt_ndt_t * f_elem = first->stct.elems, *f_elem_end = f_elem + first->stct.elems_size, *s_elem = second->stct.elems; f_elem != f_elem_end; ++f_elem, ++s_elem) {
 				if (!ira_dt_is_equivalent(f_elem->dt, s_elem->dt)) {
 					return false;
 				}
@@ -93,7 +104,7 @@ static bool is_castable_to_void(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtInt:
 		case IraDtPtr:
 		case IraDtArr:
-		case IraDtTpl:
+		case IraDtStct:
 		case IraDtFunc:
 			break;
 		default:
@@ -111,7 +122,7 @@ static bool is_castable_to_dt(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtInt:
 		case IraDtPtr:
 		case IraDtArr:
-		case IraDtTpl:
+		case IraDtStct:
 		case IraDtFunc:
 			return false;
 		default:
@@ -131,7 +142,7 @@ static bool is_castable_to_bool(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtPtr:
 			break;
 		case IraDtArr:
-		case IraDtTpl:
+		case IraDtStct:
 		case IraDtFunc:
 			return false;
 		default:
@@ -151,7 +162,7 @@ static bool is_castable_to_int(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtPtr:
 			break;
 		case IraDtArr:
-		case IraDtTpl:
+		case IraDtStct:
 		case IraDtFunc:
 			return false;
 		default:
@@ -171,7 +182,7 @@ static bool is_castable_to_ptr(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtPtr:
 			break;
 		case IraDtArr:
-		case IraDtTpl:
+		case IraDtStct:
 		case IraDtFunc:
 			return false;
 		default:
@@ -192,7 +203,7 @@ static bool is_castable_to_arr(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtArr:
 			__debugbreak();
 			return false;
-		case IraDtTpl:
+		case IraDtStct:
 		case IraDtFunc:
 			return false;
 		default:
@@ -201,7 +212,7 @@ static bool is_castable_to_arr(ira_dt_t * from, ira_dt_t * to) {
 
 	return true;
 }
-static bool is_castable_to_tpl(ira_dt_t * from, ira_dt_t * to) {
+static bool is_castable_to_stct(ira_dt_t * from, ira_dt_t * to) {
 	switch (from->type) {
 		case IraDtVoid:
 			break;
@@ -211,7 +222,7 @@ static bool is_castable_to_tpl(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtPtr:
 		case IraDtArr:
 			return false;
-		case IraDtTpl:
+		case IraDtStct:
 			__debugbreak();
 			return false;
 		case IraDtFunc:
@@ -230,7 +241,7 @@ static bool is_castable_to_func(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtInt:
 		case IraDtPtr:
 		case IraDtArr:
-		case IraDtTpl:
+		case IraDtStct:
 		case IraDtFunc:
 			return false;
 		default:
@@ -271,8 +282,8 @@ bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to) {
 				return false;
 			}
 			break;
-		case IraDtTpl:
-			if (!is_castable_to_tpl(from, to)) {
+		case IraDtStct:
+			if (!is_castable_to_stct(from, to)) {
 				return false;
 			}
 			break;
@@ -302,8 +313,8 @@ bool ira_dt_get_qual(ira_dt_t * dt, ira_dt_qual_t * out) {
 		case IraDtArr:
 			*out = dt->arr.qual;
 			break;
-		case IraDtTpl:
-			*out = dt->tpl.qual;
+		case IraDtStct:
+			*out = dt->stct.qual;
 			break;
 		case IraDtFunc:
 			*out = ira_dt_qual_none;
@@ -333,11 +344,11 @@ bool ira_dt_get_size(ira_dt_t * dt, size_t * out) {
 		case IraDtArr:
 			*out = 16;
 			break;
-		case IraDtTpl:
+		case IraDtStct:
 		{
 			size_t size = 0, align = 1;
 
-			for (ira_dt_ndt_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size; elem != elem_end; ++elem) {
+			for (ira_dt_ndt_t * elem = dt->stct.elems, *elem_end = elem + dt->stct.elems_size; elem != elem_end; ++elem) {
 				size_t elem_align;
 
 				if (!ira_dt_get_align(elem->dt, &elem_align)) {
@@ -385,11 +396,11 @@ bool ira_dt_get_align(ira_dt_t * dt, size_t * out) {
 		case IraDtArr:
 			*out = 8;
 			break;
-		case IraDtTpl:
+		case IraDtStct:
 		{
 			size_t align = 1;
 
-			for (ira_dt_ndt_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size; elem != elem_end; ++elem) {
+			for (ira_dt_ndt_t * elem = dt->stct.elems, *elem_end = elem + dt->stct.elems_size; elem != elem_end; ++elem) {
 				size_t elem_align;
 				
 				if (!ira_dt_get_align(elem->dt, &elem_align)) {
@@ -412,14 +423,13 @@ bool ira_dt_get_align(ira_dt_t * dt, size_t * out) {
 	return true;
 }
 
-bool ira_dt_get_tpl_elem_off(ira_dt_t * dt, size_t elem_ind, size_t * out) {
-	u_assert(dt != NULL);
-	u_assert(dt->type == IraDtTpl);
-	u_assert(elem_ind < dt->tpl.elems_size);
+bool ira_dt_get_stct_elem_off(ira_dt_t * dt, size_t elem_ind, size_t * out) {
+	u_assert(dt->type == IraDtStct);
+	u_assert(elem_ind < dt->stct.elems_size);
 
 	size_t off = 0;
 
-	for (ira_dt_ndt_t * elem = dt->tpl.elems, *elem_end = elem + elem_ind; elem != elem_end; ++elem) {
+	for (ira_dt_ndt_t * elem = dt->stct.elems, *elem_end = elem + elem_ind; elem != elem_end; ++elem) {
 		size_t elem_align;
 		
 		if (!ira_dt_get_align(elem->dt, &elem_align)) {
@@ -451,6 +461,6 @@ const ira_dt_info_t ira_dt_infos[IraDt_Count] = {
 	[IraDtInt] = { .type_str = U_MAKE_ROS(L"DtInt") },
 	[IraDtPtr] = { .type_str = U_MAKE_ROS(L"DtPtr") },
 	[IraDtArr] = { .type_str = U_MAKE_ROS(L"DtArr") },
-	[IraDtTpl] = { .type_str = U_MAKE_ROS(L"DtTpl") },
+	[IraDtStct] = { .type_str = U_MAKE_ROS(L"DtStct") },
 	[IraDtFunc] = { .type_str = U_MAKE_ROS(L"DtFunc") }
 };

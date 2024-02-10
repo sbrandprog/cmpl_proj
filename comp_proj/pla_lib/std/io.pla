@@ -3,12 +3,12 @@ include "pla_lib/w64/kernel32.pla"a;
 namespace std {
 	variable const con_handle_name := "CON"w;
 
-	variable con_in : tuple {
+	variable con_in : struct {
 		handle : * void,
 		buf_ch : u16,
 		buf_ch_has : bool
 		};
-	variable con_out : tuple {
+	variable con_out : struct {
 		handle : * void
 		};
 

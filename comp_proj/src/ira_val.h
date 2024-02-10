@@ -9,7 +9,7 @@ enum ira_val_type {
 	IraValLoPtr,
 	IraValNullPtr,
 	IraValImmArr,
-	IraValImmTpl,
+	IraValImmStct,
 	IraVal_Count
 };
 struct ira_val {
@@ -26,7 +26,7 @@ struct ira_val {
 		} arr;
 		struct {
 			ira_val_t ** elems;
-		} tpl;
+		} stct;
 	};
 };
 
