@@ -29,19 +29,18 @@ struct ira_pec {
 	u_hs_t * ep_name;
 };
 
-void ira_pec_init(ira_pec_t * pec, u_hst_t * hst);
+bool ira_pec_init(ira_pec_t * pec, u_hst_t * hst);
 void ira_pec_cleanup(ira_pec_t * pec);
 
-ira_dt_t * ira_pec_get_dt_ptr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual);
-ira_dt_t * ira_pec_get_dt_arr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual);
-ira_dt_t * ira_pec_get_dt_stct(ira_pec_t * pec, size_t elems_size, ira_dt_ndt_t * elems, ira_dt_qual_t qual);
-ira_dt_t * ira_pec_get_dt_stct_lo(ira_pec_t * pec, ira_lo_t * lo);
-ira_dt_t * ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_dt_ndt_t * args);
+bool ira_pec_get_dt_ptr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual, ira_dt_t ** out);
+bool ira_pec_get_dt_arr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual, ira_dt_t ** out);
+bool ira_pec_get_dt_stct(ira_pec_t * pec, size_t elems_size, ira_dt_ndt_t * elems, ira_dt_qual_t qual, ira_dt_t ** out);
+bool ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_dt_ndt_t * args, ira_dt_t ** out);
 
-ira_val_t * ira_pec_make_val_imm_void(ira_pec_t * pec);
-ira_val_t * ira_pec_make_val_imm_dt(ira_pec_t * pec, ira_dt_t * dt);
-ira_val_t * ira_pec_make_val_imm_bool(ira_pec_t * pec, bool bool_val);
-ira_val_t * ira_pec_make_val_imm_int(ira_pec_t * pec, ira_int_type_t int_type, ira_int_t int_val);
-ira_val_t * ira_pec_make_val_lo_ptr(ira_pec_t * pec, ira_lo_t * lo);
+bool ira_pec_make_val_imm_void(ira_pec_t * pec, ira_val_t ** out);
+bool ira_pec_make_val_imm_dt(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out);
+bool ira_pec_make_val_imm_bool(ira_pec_t * pec, bool bool_val, ira_val_t ** out);
+bool ira_pec_make_val_imm_int(ira_pec_t * pec, ira_int_type_t int_type, ira_int_t int_val, ira_val_t ** out);
+bool ira_pec_make_val_lo_ptr(ira_pec_t * pec, ira_lo_t * lo, ira_val_t ** out);
 
 bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out);

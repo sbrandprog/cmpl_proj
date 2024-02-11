@@ -3,6 +3,24 @@
 #include "ira_int.h"
 #include "u_misc.h"
 
+bool ira_dt_is_complete(ira_dt_t * dt) {
+	switch (dt->type) {
+		case IraDtVoid:
+		case IraDtDt:
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+		case IraDtArr:
+		case IraDtStct:
+		case IraDtFunc:
+			break;
+		default:
+			u_assert_switch(dt->type);
+	}
+
+	return true;
+}
+
 bool ira_dt_is_qual_equal(ira_dt_qual_t first, ira_dt_qual_t second) {
 	if (first.const_q != second.const_q) {
 		return false;
@@ -12,6 +30,10 @@ bool ira_dt_is_qual_equal(ira_dt_qual_t first, ira_dt_qual_t second) {
 }
 
 bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
+	if (!ira_dt_is_complete(first) || !ira_dt_is_complete(second)) {
+		return false;
+	}
+
 	if (first == second) {
 		return true;
 	}
@@ -251,6 +273,10 @@ static bool is_castable_to_func(ira_dt_t * from, ira_dt_t * to) {
 	return true;
 }
 bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to) {
+	if (!ira_dt_is_complete(from) || !ira_dt_is_complete(to)) {
+		return false;
+	}
+
 	switch (to->type) {
 		case IraDtVoid:
 			if (!is_castable_to_void(from, to)) {

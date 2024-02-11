@@ -98,6 +98,8 @@ typedef struct int_cast_info {
 typedef struct ira_pec_ip_ctx {
 	trg_t trg;
 
+	bool report_head_printed;
+
 	ira_pec_c_ctx_t * c_ctx;
 	ira_lo_t * c_lo;
 	asm_frag_t ** c_out;
@@ -166,13 +168,17 @@ static const int_cast_info_t int_cast_from_to[IraInt_Count][IraInt_Count] = {
 static void report(ctx_t * ctx, const wchar_t * format, ...) {
 	u_assert(ctx->trg < Trg_Count);
 
-	fwprintf(stderr, L"reporting error in instruction processor [%s]\n", trg_to_str[ctx->trg]);
+	if (!ctx->report_head_printed) {
+		fwprintf(stderr, L"reporting error in instruction processor [%s]\n", trg_to_str[ctx->trg]);
 
-	if (ctx->c_lo != NULL) {
-		fwprintf(stderr, L"processing [%s] function language object\n", ctx->c_lo->full_name->str);
-	}
-	else {
-		fwprintf(stderr, L"processing anonymouse function\n");
+		if (ctx->c_lo != NULL) {
+			fwprintf(stderr, L"processing [%s] function language object\n", ctx->c_lo->full_name->str);
+		}
+		else {
+			fwprintf(stderr, L"processing anonymouse function\n");
+		}
+
+		ctx->report_head_printed = true;
 	}
 
 	{
@@ -366,7 +372,9 @@ static bool set_mmbr_acc_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt, u_h
 				inst->mmbr_acc.off = IRA_DT_ARR_SIZE_OFF;
 			}
 			else if (mmbr == ctx->pec->pds[IraPdsDataMmbr]) {
-				inst->mmbr_acc.res_dt = ira_pec_get_dt_ptr(ctx->pec, opd_dt->arr.body, opd_dt->arr.qual);
+				if (!ira_pec_get_dt_ptr(ctx->pec, opd_dt->arr.body, opd_dt->arr.qual, &inst->mmbr_acc.res_dt)) {
+					return false;
+				}
 				inst->mmbr_acc.off = IRA_DT_ARR_DATA_OFF;
 			}
 			else {
@@ -384,6 +392,7 @@ static bool set_mmbr_acc_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt, u_h
 					if (!ira_dt_get_stct_elem_off(opd_dt, elem - opd_dt->stct.elems, &inst->mmbr_acc.off)) {
 						return false;
 					}
+
 					return true;
 				}
 			}
@@ -868,7 +877,12 @@ static bool prepare_insts_mmbr_acc_ptr(ctx_t * ctx, inst_t * inst, const ira_ins
 		return false;
 	}
 
-	ira_dt_t * res_ptr_dt = ira_pec_get_dt_ptr(ctx->pec, inst->mmbr_acc.res_dt, opd_ptr_dt->ptr.qual);
+	ira_dt_t * res_ptr_dt;
+	
+	if (!ira_pec_get_dt_ptr(ctx->pec, inst->mmbr_acc.res_dt, opd_ptr_dt->ptr.qual, &res_ptr_dt)) {
+		report(ctx, L"[%s]: get_dt function error", info->type_str.str);
+		return false;
+	}
 
 	if (!ira_dt_is_equivalent(inst->opd0.var->qdt.dt, res_ptr_dt)) {
 		report(ctx, L"[%s]: opd[0] must have a pointer to [%s] member data type", info->type_str.str, mmbr->str);
@@ -1965,6 +1979,44 @@ bool ira_pec_ip_compile(ira_pec_c_ctx_t * c_ctx, ira_lo_t * lo) {
 }
 
 
+static bool execute_insts_make_dt_ptr(ctx_t * ctx, inst_t * inst) {
+	if (inst->opd1.var->val == NULL) {
+		return false;
+	}
+
+	ira_val_destroy(inst->opd0.var->val);
+
+	ira_dt_t * res_dt;
+
+	if (!ira_pec_get_dt_ptr(ctx->pec, inst->opd1.var->val->dt_val, inst->opd2.dt_qual, &res_dt)) {
+		return false;
+	}
+
+	if (!ira_pec_make_val_imm_dt(ctx->pec, res_dt, &inst->opd0.var->val)) {
+		return false;
+	}
+
+	return true;
+}
+static bool execute_insts_make_dt_arr(ctx_t * ctx, inst_t * inst) {
+	if (inst->opd1.var->val == NULL) {
+		return false;
+	}
+
+	ira_val_destroy(inst->opd0.var->val);
+
+	ira_dt_t * res_dt;
+
+	if (!ira_pec_get_dt_arr(ctx->pec, inst->opd1.var->val->dt_val, inst->opd2.dt_qual, &res_dt)) {
+		return false;
+	}
+
+	if (!ira_pec_make_val_imm_dt(ctx->pec, res_dt, &inst->opd0.var->val)) {
+		return false;
+	}
+
+	return true;
+}
 static bool execute_insts_make_dt_stct(ctx_t * ctx, inst_t * inst) {
 	size_t elems_size = inst->opd2.size;
 
@@ -1989,7 +2041,15 @@ static bool execute_insts_make_dt_stct(ctx_t * ctx, inst_t * inst) {
 
 	ira_val_destroy(inst->opd0.var->val);
 
-	inst->opd0.var->val = ira_pec_make_val_imm_dt(ctx->pec, ira_pec_get_dt_stct(ctx->pec, elems_size, elems, inst->opd1.dt_qual));
+	ira_dt_t * res_dt;
+
+	if (!ira_pec_get_dt_stct(ctx->pec, elems_size, elems, inst->opd1.dt_qual, &res_dt)) {
+		return false;
+	}
+
+	if (!ira_pec_make_val_imm_dt(ctx->pec, res_dt, &inst->opd0.var->val)) {
+		return false;
+	}
 
 	_freea(elems);
 
@@ -2024,7 +2084,15 @@ static bool execute_insts_make_dt_func(ctx_t * ctx, inst_t * inst) {
 
 	ira_val_destroy(inst->opd0.var->val);
 
-	inst->opd0.var->val = ira_pec_make_val_imm_dt(ctx->pec, ira_pec_get_dt_func(ctx->pec, inst->opd1.var->val->dt_val, args_size, args));
+	ira_dt_t * res_dt;
+
+	if (!ira_pec_get_dt_func(ctx->pec, inst->opd1.var->val->dt_val, args_size, args, &res_dt)) {
+		return false;
+	}
+
+	if (!ira_pec_make_val_imm_dt(ctx->pec, res_dt, &inst->opd0.var->val)) {
+		return false;
+	}
 
 	_freea(args);
 
@@ -2054,16 +2122,20 @@ static bool execute_insts_make_dt_const(ctx_t * ctx, inst_t * inst) {
 		case IraDtInt:
 			break;
 		case IraDtPtr:
-			dt = ira_pec_get_dt_ptr(ctx->pec, dt->ptr.body, dt_qual);
+			if (!ira_pec_get_dt_ptr(ctx->pec, dt->ptr.body, dt_qual, &dt)) {
+				return false;
+			}
 			break;
 		case IraDtArr:
-			dt = ira_pec_get_dt_arr(ctx->pec, dt->arr.body, dt_qual);
+			if (!ira_pec_get_dt_arr(ctx->pec, dt->arr.body, dt_qual, &dt)) {
+				return false;
+			}
 			break;
 		case IraDtStct:
-		{
-			dt = ira_pec_get_dt_stct(ctx->pec, dt->stct.elems_size, dt->stct.elems, dt_qual);
+			if (!ira_pec_get_dt_stct(ctx->pec, dt->stct.elems_size, dt->stct.elems, dt_qual, &dt)) {
+				return false;
+			}
 			break;
-		}
 		case IraDtFunc:
 			break;
 		default:
@@ -2072,7 +2144,9 @@ static bool execute_insts_make_dt_const(ctx_t * ctx, inst_t * inst) {
 
 	ira_val_destroy(inst->opd0.var->val);
 
-	inst->opd0.var->val = ira_pec_make_val_imm_dt(ctx->pec, dt);
+	if (!ira_pec_make_val_imm_dt(ctx->pec, dt, &inst->opd0.var->val)) {
+		return false;
+	}
 
 	return true;
 }
@@ -2098,22 +2172,14 @@ static bool execute_insts(ctx_t * ctx) {
 				inst->opd0.var->val = ira_val_copy(inst->opd1.var->val);
 				break;
 			case IraInstMakeDtPtr:
-				if (inst->opd1.var->val == NULL) {
+				if (!execute_insts_make_dt_ptr(ctx, inst)) {
 					return false;
 				}
-
-				ira_val_destroy(inst->opd0.var->val);
-
-				inst->opd0.var->val = ira_pec_make_val_imm_dt(ctx->pec, ira_pec_get_dt_ptr(ctx->pec, inst->opd1.var->val->dt_val, inst->opd2.dt_qual));
 				break;
 			case IraInstMakeDtArr:
-				if (inst->opd1.var->val == NULL) {
+				if (!execute_insts_make_dt_arr(ctx, inst)) {
 					return false;
 				}
-
-				ira_val_destroy(inst->opd0.var->val);
-
-				inst->opd0.var->val = ira_pec_make_val_imm_dt(ctx->pec, ira_pec_get_dt_arr(ctx->pec, inst->opd1.var->val->dt_val, inst->opd2.dt_qual));
 				break;
 			case IraInstMakeDtStct:
 				if (!execute_insts_make_dt_stct(ctx, inst)) {

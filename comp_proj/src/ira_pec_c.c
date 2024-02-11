@@ -157,6 +157,10 @@ asm_pea_t * ira_pec_c_get_pea(ira_pec_c_ctx_t * ctx) {
 }
 
 static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
+	if (!ira_dt_is_complete(lo->var.qdt.dt)) {
+		return false;
+	}
+
 	asm_frag_type_t frag_type = lo->var.qdt.qual.const_q ? AsmFragRoData : AsmFragWrData;
 
 	asm_frag_t * frag = asm_frag_create(frag_type, &ctx->out->frag);

@@ -308,14 +308,20 @@ static bool get_cs_ascii(ctx_t * ctx, u_hs_t * str, ira_val_t ** out) {
 			return false;
 		}
 
-		*ins++ = ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t) {
+		if (!ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t) {
 			.ui8 = (uint8_t)*ch
-		});
+		}, ins++)) {
+			pla_ast_t_report_pec_err(ctx->t_ctx);
+			return false;
+		}
 	}
 
-	*ins++ = ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t) {
+	if (!ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t) {
 		.ui8 = 0
-	});
+	}, ins++)) {
+		pla_ast_t_report_pec_err(ctx->t_ctx);
+		return false;
+	}
 
 	size_t final_size = ins - val->arr.data;
 
@@ -344,14 +350,20 @@ static bool get_cs_wide(ctx_t * ctx, u_hs_t * str, ira_val_t ** out) {
 
 	ira_val_t ** ins = val->arr.data;
 	for (wchar_t * ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch) {
-		*ins++ = ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t) {
+		if (!ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t) {
 			.ui16 = (uint16_t)*ch
-		});
+		}, ins++)) {
+			pla_ast_t_report_pec_err(ctx->t_ctx);
+			return false;
+		}
 	}
 
-	*ins++ = ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t) {
+	if (!ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t) {
 		.ui16 = 0
-	});
+	}, ins++)) {
+		pla_ast_t_report_pec_err(ctx->t_ctx);
+		return false;
+	}
 
 	size_t final_size = ins - val->arr.data;
 
@@ -478,20 +490,29 @@ static bool get_ns_int(ctx_t * ctx, u_hs_t * str, ira_int_type_t int_type, ira_v
 		return false;
 	}
 
-	*out = ira_pec_make_val_imm_int(ctx->pec, int_type, (ira_int_t) {
+	if (!ira_pec_make_val_imm_int(ctx->pec, int_type, (ira_int_t) {
 		.ui64 = var
-	});
+	}, out)) {
+		pla_ast_t_report_pec_err(ctx->t_ctx);
+		return false;
+	}
 
 	return true;
 }
 
 static bool get_dt_void_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) {
-	*out = ira_pec_make_val_imm_dt(ctx->pec, &ctx->pec->dt_void);
+	if (!ira_pec_make_val_imm_dt(ctx->pec, &ctx->pec->dt_void, out)) {
+		pla_ast_t_report_pec_err(ctx->t_ctx);
+		return false;
+	}
 
 	return true;
 }
 static bool get_dt_bool_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) {
-	*out = ira_pec_make_val_imm_dt(ctx->pec, &ctx->pec->dt_bool);
+	if (!ira_pec_make_val_imm_dt(ctx->pec, &ctx->pec->dt_bool, out)) {
+		pla_ast_t_report_pec_err(ctx->t_ctx);
+		return false;
+	}
 
 	return true;
 }
@@ -503,17 +524,26 @@ static bool get_dt_int_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out
 		return false;
 	}
 
-	*out = ira_pec_make_val_imm_dt(ctx->pec, &ctx->pec->dt_ints[expr->opd0.int_type]);
+	if (!ira_pec_make_val_imm_dt(ctx->pec, &ctx->pec->dt_ints[expr->opd0.int_type], out)) {
+		pla_ast_t_report_pec_err(ctx->t_ctx);
+		return false;
+	}
 
 	return true;
 }
 static bool get_void_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) {
-	*out = ira_pec_make_val_imm_void(ctx->pec);
+	if (!ira_pec_make_val_imm_void(ctx->pec, out)) {
+		pla_ast_t_report_pec_err(ctx->t_ctx);
+		return false;
+	}
 
 	return true;
 }
 static bool get_bool_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) {
-	*out = ira_pec_make_val_imm_bool(ctx->pec, expr->opd0.boolean);
+	if (!ira_pec_make_val_imm_bool(ctx->pec, expr->opd0.boolean, out)) {
+		pla_ast_t_report_pec_err(ctx->t_ctx);
+		return false;
+	}
 
 	return true;
 }
@@ -564,7 +594,7 @@ static bool get_null_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) 
 	}
 
 	if (!ira_pec_make_val_null(ctx->pec, dt, out)) {
-		pla_ast_t_report(ctx->t_ctx, L"failed to generate a null value");
+		pla_ast_t_report_pec_err(ctx->t_ctx);
 		return false;
 	}
 
@@ -602,10 +632,16 @@ static bool process_ident_lo(ctx_t * ctx, expr_t * expr, ira_lo_t * lo) {
 		case IraLoNspc:
 			return false;
 		case IraLoFunc:
-			expr->val_qdt.dt = ira_pec_get_dt_ptr(ctx->pec, lo->func->dt, ira_dt_qual_none);
+			if (!ira_pec_get_dt_ptr(ctx->pec, lo->func->dt, ira_dt_qual_none, &expr->val_qdt.dt)) {
+				pla_ast_t_report_pec_err(ctx->t_ctx);
+				return false;
+			}
 			break;
 		case IraLoImpt:
-			expr->val_qdt.dt = ira_pec_get_dt_ptr(ctx->pec, lo->impt.dt, ira_dt_qual_none);
+			if (!ira_pec_get_dt_ptr(ctx->pec, lo->impt.dt, ira_dt_qual_none, &expr->val_qdt.dt)) {
+				pla_ast_t_report_pec_err(ctx->t_ctx);
+				return false;
+			}
 			break;
 		case IraLoVar:
 			expr->val_qdt = lo->var.qdt;
@@ -633,7 +669,10 @@ static bool get_mmbr_acc_dt(ctx_t * ctx, ira_dt_t * opd_dt, u_hs_t * mmbr, ira_d
 				*out = ctx->pec->dt_spcl.arr_size;
 			}
 			else if (mmbr == pla_ast_t_get_pds(ctx->t_ctx, PlaPdsDataMmbr)) {
-				*out = ira_pec_get_dt_ptr(ctx->pec, opd_dt->arr.body, opd_dt->arr.qual);
+				if (!ira_pec_get_dt_ptr(ctx->pec, opd_dt->arr.body, opd_dt->arr.qual, out)) {
+					pla_ast_t_report_pec_err(ctx->t_ctx);
+					return false;
+				}
 			}
 			else {
 				pla_ast_t_report(ctx->t_ctx, L"operand of [%s] data type does not support [%s] member", ira_dt_infos[opd_dt->type].type_str.str, mmbr->str);
@@ -894,7 +933,10 @@ static bool translate_expr0_deref(ctx_t * ctx, expr_t * expr) {
 static bool translate_expr0_addr_of(ctx_t * ctx, expr_t * expr) {
 	expr_t * opd = expr->opd0.expr;
 
-	expr->val_qdt.dt = ira_pec_get_dt_ptr(ctx->pec, opd->val_qdt.dt, opd->val_qdt.qual);
+	if (!ira_pec_get_dt_ptr(ctx->pec, opd->val_qdt.dt, opd->val_qdt.qual, &expr->val_qdt.dt)) {
+		pla_ast_t_report_pec_err(ctx->t_ctx);
+		return false;
+	}
 
 	return true;
 }
@@ -1282,16 +1324,30 @@ static bool translate_expr1_ident(ctx_t * ctx, expr_t * expr) {
 				case IraLoFunc:
 				case IraLoImpt:
 				{
-					ira_inst_t load_val = { .type = IraInstLoadVal, .opd1.val = ira_pec_make_val_lo_ptr(ctx->pec, expr->ident.lo) };
+					ira_val_t * lo_val;
+
+					if (!ira_pec_make_val_lo_ptr(ctx->pec, expr->ident.lo, &lo_val)) {
+						pla_ast_t_report_pec_err(ctx->t_ctx);
+						return false;
+					}
+
+					ira_inst_t load_val = { .type = IraInstLoadVal, .opd1.val = lo_val };
 
 					push_inst_imm_var0_expr(ctx, expr, &load_val);
 					break;
 				}
 				case IraLoVar:
 				{
-					var_t * lo_ptr_var;
+					ira_val_t * lo_val;
 
-					ira_inst_t load_val = { .type = IraInstLoadVal, .opd1.val = ira_pec_make_val_lo_ptr(ctx->pec, expr->ident.lo) };
+					if (!ira_pec_make_val_lo_ptr(ctx->pec, expr->ident.lo, &lo_val)) {
+						pla_ast_t_report_pec_err(ctx->t_ctx);
+						return false;
+					}
+
+					ira_inst_t load_val = { .type = IraInstLoadVal, .opd1.val = lo_val };
+
+					var_t * lo_ptr_var;
 
 					push_inst_imm_var0(ctx, &load_val, load_val.opd1.val->dt, &lo_ptr_var);
 
@@ -1371,9 +1427,15 @@ static bool translate_expr1_mmbr_acc(ctx_t * ctx, expr_t * expr) {
 		case ExprValImmVar:
 		case ExprValVar:
 		{
+			ira_dt_t * ptr_dt;
+
+			if (!ira_pec_get_dt_ptr(ctx->pec, opd->val.var->qdt.dt, opd->val.var->qdt.qual, &ptr_dt)) {
+				return false;
+			}
+
 			ira_inst_t addr_of = { .type = IraInstAddrOf, .opd1.hs = opd->val.var->inst_name };
 
-			push_inst_imm_var0(ctx, &addr_of, ira_pec_get_dt_ptr(ctx->pec, opd->val.var->qdt.dt, opd->val.var->qdt.qual), &ptr_var);
+			push_inst_imm_var0(ctx, &addr_of, ptr_dt, &ptr_var);
 
 			break;
 		}
@@ -1386,11 +1448,17 @@ static bool translate_expr1_mmbr_acc(ctx_t * ctx, expr_t * expr) {
 			u_assert_switch(opd->val_type);
 	}
 
+	ira_dt_t * ptr_mmbr_dt;
+
+	if (!ira_pec_get_dt_ptr(ctx->pec, expr->val_qdt.dt, ptr_var->qdt.dt->ptr.qual, &ptr_mmbr_dt)) {
+		return false;
+	}
+
 	var_t * ptr_mmbr_var;
 
 	ira_inst_t mmbr_acc_ptr = { .type = IraInstMmbrAccPtr, .opd1.hs = ptr_var->inst_name, .opd2.hs = expr->opd1.hs };
 
-	push_inst_imm_var0(ctx, &mmbr_acc_ptr, ira_pec_get_dt_ptr(ctx->pec, expr->val_qdt.dt, ptr_var->qdt.dt->ptr.qual), &ptr_mmbr_var);
+	push_inst_imm_var0(ctx, &mmbr_acc_ptr, ptr_mmbr_dt, &ptr_mmbr_var);
 
 	switch (opd->val_type) {
 		case ExprValImmVar:
@@ -1782,6 +1850,11 @@ static bool translate_stmt_var_dt(ctx_t * ctx, pla_stmt_t * stmt) {
 		return false;
 	}
 
+	if (!ira_dt_is_complete(dt)) {
+		pla_ast_t_report(ctx->t_ctx, L"variables must have only complete data type");
+		return false;
+	}
+
 	var_t * var = define_var(ctx, stmt->var_dt.name, dt, stmt->var_dt.dt_qual, true);
 
 	if (var == NULL) {
@@ -1982,6 +2055,11 @@ static bool translate_args_blk(ctx_t * ctx) {
 		ctx->func_ret = ctx->func_dt->func.ret;
 
 		for (ira_dt_ndt_t * arg = ctx->func_dt->func.args, *arg_end = arg + ctx->func_dt->func.args_size; arg != arg_end; ++arg) {
+			if (!ira_dt_is_complete(arg->dt)) {
+				pla_ast_t_report(ctx->t_ctx, L"function arguments must have only complete data type");
+				return false;
+			}
+
 			var_t * var = define_var(ctx, arg->name, arg->dt, ira_dt_qual_none, false);
 
 			u_assert(var != NULL);
@@ -1997,7 +2075,9 @@ static bool translate_args_blk(ctx_t * ctx) {
 			return false;
 		}
 
-		ctx->func->dt = ira_pec_get_dt_func(ctx->pec, ctx->func_ret, 0, NULL);
+		if (!ira_pec_get_dt_func(ctx->pec, ctx->func_ret, 0, NULL, &ctx->func->dt)) {
+			return false;
+		}
 	}
 
 	return true;

@@ -29,7 +29,7 @@ static void destroy_dt_chain(ira_pec_t * pec, ira_dt_t * dt) {
 	}
 }
 
-void ira_pec_init(ira_pec_t * pec, u_hst_t * hst) {
+bool ira_pec_init(ira_pec_t * pec, u_hst_t * hst) {
 	*pec = (ira_pec_t){ .hst = hst };
 
 	for (ira_pds_t pds = 0; pds < IraPds_Count; ++pds) {
@@ -54,11 +54,19 @@ void ira_pec_init(ira_pec_t * pec, u_hst_t * hst) {
 
 		pec->dt_spcl.size = &pec->dt_ints[IraIntU64];
 		pec->dt_spcl.arr_size = pec->dt_spcl.size;
-		pec->dt_spcl.ascii_str = ira_pec_get_dt_arr(pec, &pec->dt_ints[IraIntU8], ira_dt_qual_const);
-		pec->dt_spcl.wide_str = ira_pec_get_dt_arr(pec, &pec->dt_ints[IraIntU16], ira_dt_qual_const);
+		
+		if (!ira_pec_get_dt_arr(pec, &pec->dt_ints[IraIntU8], ira_dt_qual_const, &pec->dt_spcl.ascii_str)) {
+			return false;
+		}
+
+		if (!ira_pec_get_dt_arr(pec, &pec->dt_ints[IraIntU16], ira_dt_qual_const, &pec->dt_spcl.wide_str)) {
+			return false;
+		}
 	}
 
 	pec->ep_name = pec->pds[IraPdsEpName];
+
+	return true;
 }
 void ira_pec_cleanup(ira_pec_t * pec) {
 	ira_lo_destroy(pec->root);
@@ -71,6 +79,39 @@ void ira_pec_cleanup(ira_pec_t * pec) {
 	memset(pec, 0, sizeof(*pec));
 }
 
+static bool get_listed_dt_check(ira_dt_t * pred) {
+	switch (pred->type) {
+		case IraDtPtr:
+			break;
+		case IraDtArr:
+			if (!ira_dt_is_complete(pred->arr.body)) {
+				return false;
+			}
+			break;
+		case IraDtStct:
+			for (ira_dt_ndt_t * elem = pred->stct.elems, *elem_end = elem + pred->stct.elems_size; elem != elem_end; ++elem) {
+				if (elem->name == NULL || !ira_dt_is_complete(elem->dt)) {
+					return false;
+				}
+			}
+			break;
+		case IraDtFunc:
+			if (!ira_dt_is_complete(pred->func.ret)) {
+				return false;
+			}
+
+			for (ira_dt_ndt_t * arg = pred->func.args, *arg_end = arg + pred->func.args_size; arg != arg_end; ++arg) {
+				if (arg->name == NULL || !ira_dt_is_complete(arg->dt)) {
+					return false;
+				}
+			}
+			break;
+		default:
+			u_assert_switch(pred->type);
+	}
+
+	return true;
+}
 static bool get_listed_dt_cmp(ira_dt_t * pred, ira_dt_t * dt) {
 	u_assert(pred->type == dt->type);
 
@@ -163,12 +204,17 @@ static void get_listed_dt_copy(ira_dt_t * pred, ira_dt_t * out) {
 			u_assert_switch(pred->type);
 	}
 }
-static ira_dt_t * get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** ins) {
+static bool get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** ins, ira_dt_t ** out) {
+	if (!get_listed_dt_check(pred)) {
+		return false;
+	}
+	
 	while (*ins != NULL) {
 		ira_dt_t * dt = *ins;
 
 		if (get_listed_dt_cmp(pred, dt)) {
-			return dt;
+			*out = dt;
+			return true;
 		}
 
 		ins = &dt->next;
@@ -182,83 +228,94 @@ static ira_dt_t * get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** in
 
 	*ins = new_dt;
 
-	return new_dt;
+	*out = new_dt;
+	return true;
 }
 
-ira_dt_t * ira_pec_get_dt_ptr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual) {
+bool ira_pec_get_dt_ptr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual, ira_dt_t ** out) {
 	ira_dt_t pred = { .type = IraDtPtr, .ptr = { .body = body, .qual = qual } };
 
-	return get_listed_dt(pec, &pred, &pec->dt_ptr);
+	return get_listed_dt(pec, &pred, &pec->dt_ptr, out);
 }
-ira_dt_t * ira_pec_get_dt_arr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual) {
+bool ira_pec_get_dt_arr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual, ira_dt_t ** out) {
 	ira_dt_t pred = { .type = IraDtArr, .arr = { .body = body, .qual = qual } };
 
-	return get_listed_dt(pec, &pred, &pec->dt_arr);
+	return get_listed_dt(pec, &pred, &pec->dt_arr, out);
 }
-ira_dt_t * ira_pec_get_dt_stct(ira_pec_t * pec, size_t elems_size, ira_dt_ndt_t * elems, ira_dt_qual_t qual) {
+bool ira_pec_get_dt_stct(ira_pec_t * pec, size_t elems_size, ira_dt_ndt_t * elems, ira_dt_qual_t qual, ira_dt_t ** out) {
 	ira_dt_t pred = { .type = IraDtStct, .stct = { .elems_size = elems_size, .elems = elems, .qual = qual } };
 
-	return get_listed_dt(pec, &pred, &pec->dt_stct);
+	return get_listed_dt(pec, &pred, &pec->dt_stct, out);
 }
-ira_dt_t * ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_dt_ndt_t * args) {
+bool ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_dt_ndt_t * args, ira_dt_t ** out) {
 	ira_dt_t pred = { .type = IraDtFunc, .func = { .ret = ret, .args_size = args_size, .args = args } };
 
-	return get_listed_dt(pec, &pred, &pec->dt_func);
+	return get_listed_dt(pec, &pred, &pec->dt_func, out);
 }
 
-ira_val_t * ira_pec_make_val_imm_void(ira_pec_t * pec) {
-	ira_val_t * val = ira_val_create(IraValImmVoid, &pec->dt_void);
+bool ira_pec_make_val_imm_void(ira_pec_t * pec, ira_val_t ** out) {
+	*out = ira_val_create(IraValImmVoid, &pec->dt_void);
 
-	return val;
+	return true;
 }
-ira_val_t * ira_pec_make_val_imm_dt(ira_pec_t * pec, ira_dt_t * dt) {
-	ira_val_t * val = ira_val_create(IraValImmDt, &pec->dt_dt);
+bool ira_pec_make_val_imm_dt(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
+	*out = ira_val_create(IraValImmDt, &pec->dt_dt);
 
-	val->dt_val = dt;
+	(*out)->dt_val = dt;
 
-	return val;
+	return true;
 }
-ira_val_t * ira_pec_make_val_imm_bool(ira_pec_t * pec, bool bool_val) {
-	ira_val_t * val = ira_val_create(IraValImmBool, &pec->dt_bool);
+bool ira_pec_make_val_imm_bool(ira_pec_t * pec, bool bool_val, ira_val_t ** out) {
+	*out = ira_val_create(IraValImmBool, &pec->dt_bool);
 
-	val->bool_val = bool_val;
+	(*out)->bool_val = bool_val;
 
-	return val;
+	return true;
 }
-ira_val_t * ira_pec_make_val_imm_int(ira_pec_t * pec, ira_int_type_t int_type, ira_int_t int_val) {
+bool ira_pec_make_val_imm_int(ira_pec_t * pec, ira_int_type_t int_type, ira_int_t int_val, ira_val_t ** out) {
 	u_assert(int_type < IraInt_Count);
 
-	ira_val_t * val = ira_val_create(IraValImmInt, &pec->dt_ints[int_type]);
+	*out = ira_val_create(IraValImmInt, &pec->dt_ints[int_type]);
 
-	val->int_val = int_val;
+	(*out)->int_val = int_val;
 
-	return val;
+	return true;
 }
-ira_val_t * ira_pec_make_val_lo_ptr(ira_pec_t * pec, ira_lo_t * lo) {
+bool ira_pec_make_val_lo_ptr(ira_pec_t * pec, ira_lo_t * lo, ira_val_t ** out) {
 	ira_dt_t * val_dt;
 
 	switch (lo->type) {
 		case IraLoFunc:
-			val_dt = ira_pec_get_dt_ptr(pec, lo->func->dt, ira_dt_qual_none);
+			if (!ira_pec_get_dt_ptr(pec, lo->func->dt, ira_dt_qual_none, &val_dt)) {
+				return false;
+			}
 			break;
 		case IraLoImpt:
-			val_dt = ira_pec_get_dt_ptr(pec, lo->impt.dt, ira_dt_qual_none);
+			if (!ira_pec_get_dt_ptr(pec, lo->impt.dt, ira_dt_qual_none, &val_dt)) {
+				return false;
+			}
 			break;
 		case IraLoVar:
-			val_dt = ira_pec_get_dt_ptr(pec, lo->var.qdt.dt, lo->var.qdt.qual);
+			if (!ira_pec_get_dt_ptr(pec, lo->var.qdt.dt, lo->var.qdt.qual, &val_dt)) {
+				return false;
+			}
 			break;
 		default:
 			u_assert_switch(lo->type);
 	}
 
-	ira_val_t * val = ira_val_create(IraValLoPtr, val_dt);
+	*out = ira_val_create(IraValLoPtr, val_dt);
 
-	val->lo_val = lo;
+	(*out)->lo_val = lo;
 
-	return val;
+	return true;
 }
 
 bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
+	if (!ira_dt_is_complete(dt)) {
+		return false;
+	}
+	
 	ira_val_type_t val_type;
 	
 	switch (dt->type) {
@@ -304,24 +361,30 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 		case IraDtPtr:
 			break;
 		case IraDtArr:
+		{
 			(*out)->arr.size = 0;
 
-			(*out)->arr.data = malloc(sizeof((*out)->arr.data) * (*out)->arr.size);
+			size_t arr_size_bytes = (*out)->arr.size * sizeof((*out)->arr.data);
+
+			(*out)->arr.data = malloc(arr_size_bytes);
 
 			u_assert((*out)->arr.data != NULL);
 
-			memset((*out)->arr.data, 0, sizeof((*out)->arr.data) * (*out)->arr.size);
+			memset((*out)->arr.data, 0, arr_size_bytes);
 
 			break;
+		}
 		case IraDtStct:
 		{
 			size_t elems_size = dt->stct.elems_size;
 
-			(*out)->stct.elems = malloc(elems_size * sizeof((*out)->stct.elems));
+			size_t elems_size_bytes = elems_size * sizeof((*out)->stct.elems);
+
+			(*out)->stct.elems = malloc(elems_size_bytes);
 
 			u_assert((*out)->stct.elems != NULL);
 
-			memset((*out)->stct.elems, 0, elems_size * sizeof((*out)->stct.elems));
+			memset((*out)->stct.elems, 0, elems_size_bytes);
 
 			ira_val_t ** elem = (*out)->stct.elems, ** elem_end = elem + elems_size;
 			ira_dt_ndt_t * elem_dt = dt->stct.elems;

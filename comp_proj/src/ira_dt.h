@@ -60,6 +60,8 @@ struct ira_dt_info {
 	u_ros_t type_str;
 };
 
+bool ira_dt_is_complete(ira_dt_t * dt);
+
 bool ira_dt_is_qual_equal(ira_dt_qual_t first, ira_dt_qual_t second);
 
 bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second);

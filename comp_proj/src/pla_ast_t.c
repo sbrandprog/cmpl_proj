@@ -121,6 +121,9 @@ void pla_ast_t_report(pla_ast_t_ctx_t * ctx, const wchar_t * format, ...) {
 
 	fputwc(L'\n', stderr);
 }
+void pla_ast_t_report_pec_err(pla_ast_t_ctx_t * ctx) {
+	pla_ast_t_report(ctx, L"pec function error");
+}
 
 u_hsb_t * pla_ast_t_get_hsb(pla_ast_t_ctx_t * ctx) {
 	return &ctx->hsb;
@@ -495,8 +498,13 @@ static bool translate_dclr_var_dt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** ou
 		return false;
 	}
 
+	if (!ira_dt_is_complete((*out)->var.qdt.dt)) {
+		pla_ast_t_report(ctx, L"global variables must have only complete data types");
+		return false;
+	}
+
 	if (!ira_pec_make_val_null(ctx->out, (*out)->var.qdt.dt, &(*out)->var.val)) {
-		pla_ast_t_report(ctx, L"failed to generate a null value");
+		pla_ast_t_report_pec_err(ctx);
 		return false;
 	}
 
@@ -594,7 +602,9 @@ static bool translate_core(ctx_t * ctx) {
 
 	ctx->hst = ctx->ast->hst;
 
-	ira_pec_init(ctx->out, ctx->hst);
+	if (!ira_pec_init(ctx->out, ctx->hst)) {
+		return false;
+	}
 
 	register_bltn_optrs(ctx);
 

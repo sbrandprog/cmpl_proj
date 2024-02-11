@@ -65,6 +65,7 @@ struct pla_ast_t_vse {
 };
 
 void pla_ast_t_report(pla_ast_t_ctx_t * ctx, const wchar_t * format, ...);
+void pla_ast_t_report_pec_err(pla_ast_t_ctx_t * ctx);
 
 u_hsb_t * pla_ast_t_get_hsb(pla_ast_t_ctx_t * ctx);
 u_hst_t * pla_ast_t_get_hst(pla_ast_t_ctx_t * ctx);
