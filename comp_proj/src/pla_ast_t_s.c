@@ -615,6 +615,7 @@ static ira_lo_t * find_irid_lo(ctx_t * ctx, ira_lo_t * nspc, pla_irid_t * irid) 
 				case IraLoFunc:
 				case IraLoImpt:
 				case IraLoVar:
+				case IraLoDtStct:
 					if (irid->sub_name == NULL) {
 						return lo;
 					}
@@ -645,6 +646,9 @@ static bool process_ident_lo(ctx_t * ctx, expr_t * expr, ira_lo_t * lo) {
 			break;
 		case IraLoVar:
 			expr->val_qdt = lo->var.qdt;
+			break;
+		case IraLoDtStct:
+			expr->val_qdt.dt = &ctx->pec->dt_dt;
 			break;
 		default:
 			u_assert_switch(lo->type);
@@ -681,7 +685,13 @@ static bool get_mmbr_acc_dt(ctx_t * ctx, ira_dt_t * opd_dt, u_hs_t * mmbr, ira_d
 			break;
 		case IraDtStct:
 		{
-			ira_dt_ndt_t * elem = opd_dt->stct.elems, * elem_end = elem + opd_dt->stct.elems_size;
+			ira_dt_sd_t * sd = opd_dt->stct.lo->dt_stct.sd;
+
+			if (sd == NULL) {
+				return false;
+			}
+
+			ira_dt_ndt_t * elem = sd->elems, * elem_end = elem + sd->elems_size;
 
 			for (; elem != elem_end; ++elem) {
 				if (mmbr == elem->name) {
@@ -1356,6 +1366,26 @@ static bool translate_expr1_ident(ctx_t * ctx, expr_t * expr) {
 
 					break;
 				}
+				case IraLoDtStct:
+				{
+					ira_dt_t * dt;
+
+					if (!ira_pec_get_dt_stct_lo(ctx->pec, expr->ident.lo, ira_dt_qual_none, &dt)) {
+						pla_ast_t_report_pec_err(ctx->t_ctx);
+						return false;
+					}
+
+					ira_val_t * val_dt;
+
+					if (!ira_pec_make_val_imm_dt(ctx->pec, dt, &val_dt)) {
+						return false;
+					}
+
+					ira_inst_t load_val = { .type = IraInstLoadVal, .opd1.val = val_dt };
+
+					push_inst_imm_var0_expr(ctx, expr, &load_val);
+					break;
+				}
 				default:
 					u_assert_switch(expr->ident.lo->type);
 			}
@@ -1800,8 +1830,15 @@ static bool translate_expr(ctx_t * ctx, pla_expr_t * pla_expr, var_t ** out) {
 			break;
 		}
 
-		if (!translate_expr1_imm_var(ctx, expr, out)) {
-			break;
+		if (out != NULL) {
+			if (!translate_expr1_imm_var(ctx, expr, out)) {
+				break;
+			}
+		}
+		else {
+			if (!translate_expr1(ctx, expr)) {
+				break;
+			}
 		}
 
 		result = true;
@@ -1835,9 +1872,7 @@ static bool translate_stmt_blk(ctx_t * ctx, pla_stmt_t * stmt) {
 	return result;
 }
 static bool translate_stmt_expr(ctx_t * ctx, pla_stmt_t * stmt) {
-	var_t * res;
-
-	if (!translate_expr(ctx, stmt->expr.expr, &res)) {
+	if (!translate_expr(ctx, stmt->expr.expr, NULL)) {
 		return false;
 	}
 

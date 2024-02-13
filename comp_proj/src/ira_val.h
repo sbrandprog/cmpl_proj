@@ -25,6 +25,7 @@ struct ira_val {
 			ira_val_t ** data;
 		} arr;
 		struct {
+			size_t size;
 			ira_val_t ** elems;
 		} stct;
 	};

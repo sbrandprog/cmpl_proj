@@ -526,6 +526,50 @@ static bool translate_dclr_var_val(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** o
 
 	return true;
 }
+static bool translate_dclr_stct(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
+	if (*out != NULL) {
+		if ((*out)->type != IraLoDtStct) {
+			pla_ast_t_report(ctx, L"language object with [%s] name already exists", dclr->name->str);
+			return false;
+		}
+
+		if ((*out)->dt_stct.sd != NULL) {
+			pla_ast_t_report(ctx, L"struct [%s] already defined", dclr->name->str);
+			return false;
+		}
+	}
+	else {
+		*out = ira_lo_create(IraLoDtStct, dclr->name);
+	}
+
+	ira_dt_t * dt;
+
+	if (!pla_ast_t_calculate_expr_dt(ctx, dclr->dt_stct.dt_stct_expr, &dt)) {
+		return false;
+	}
+
+	ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
+
+	if (sd == NULL || !ira_dt_create_sd(sd->elems_size, sd->elems, &(*out)->dt_stct.sd)) {
+		pla_ast_t_report_pec_err(ctx);
+		return false;
+	}
+
+	return true;
+}
+static bool translate_dclr_stct_decl(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
+	if (*out != NULL) {
+		if ((*out)->type != IraLoDtStct) {
+			pla_ast_t_report(ctx, L"language object with [%s] name already exists", dclr->name->str);
+			return false;
+		}
+	}
+	else {
+		*out = ira_lo_create(IraLoDtStct, dclr->name);
+	}
+
+	return true;
+}
 static bool translate_dclr_tse(ctx_t * ctx, pla_dclr_t * dclr) {
 	ira_lo_t ** ins = get_vse_lo_ins(ctx, dclr->name);
 
@@ -554,6 +598,16 @@ static bool translate_dclr_tse(ctx_t * ctx, pla_dclr_t * dclr) {
 			break;
 		case PlaDclrVarVal:
 			if (!translate_dclr_var_val(ctx, dclr, ins)) {
+				return false;
+			}
+			break;
+		case PlaDclrDtStct:
+			if (!translate_dclr_stct(ctx, dclr, ins)) {
+				return false;
+			}
+			break;
+		case PlaDclrDtStctDecl:
+			if (!translate_dclr_stct_decl(ctx, dclr, ins)) {
 				return false;
 			}
 			break;

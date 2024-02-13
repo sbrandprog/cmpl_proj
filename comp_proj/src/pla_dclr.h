@@ -11,6 +11,8 @@ enum pla_dclr_type {
 	PlaDclrImpt,
 	PlaDclrVarDt,
 	PlaDclrVarVal,
+	PlaDclrDtStct,
+	PlaDclrDtStctDecl,
 	PlaDclr_Count
 };
 struct pla_dclr {
@@ -38,6 +40,9 @@ struct pla_dclr {
 			pla_expr_t * val_expr;
 			ira_dt_qual_t dt_qual;
 		} var_val;
+		struct {
+			pla_expr_t * dt_stct_expr;
+		} dt_stct;
 	};
 };
 

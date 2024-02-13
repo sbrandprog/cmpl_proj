@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "ira_dt.h"
 #include "ira_int.h"
+#include "ira_lo.h"
 #include "u_misc.h"
 
 bool ira_dt_is_complete(ira_dt_t * dt) {
@@ -11,7 +12,12 @@ bool ira_dt_is_complete(ira_dt_t * dt) {
 		case IraDtInt:
 		case IraDtPtr:
 		case IraDtArr:
+			break;
 		case IraDtStct:
+			if (dt->stct.lo->dt_stct.sd == NULL) {
+				return false;
+			}
+			break;
 		case IraDtFunc:
 			break;
 		default:
@@ -82,17 +88,21 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 			}
 			break;
 		case IraDtStct:
-			if (first->stct.elems_size != second->stct.elems_size) {
-				return false;
-			}
-
 			if (!ira_dt_is_qual_equal(first->stct.qual, second->stct.qual)) {
 				return false;
 			}
 
-			for (ira_dt_ndt_t * f_elem = first->stct.elems, *f_elem_end = f_elem + first->stct.elems_size, *s_elem = second->stct.elems; f_elem != f_elem_end; ++f_elem, ++s_elem) {
-				if (!ira_dt_is_equivalent(f_elem->dt, s_elem->dt)) {
+			if (first->stct.lo != second->stct.lo) {
+				ira_dt_sd_t * first_sd = first->stct.lo->dt_stct.sd, * second_sd = second->stct.lo->dt_stct.sd;
+
+				if (first_sd->elems_size != second_sd->elems_size) {
 					return false;
+				}
+
+				for (ira_dt_ndt_t * f_elem = first_sd->elems, *f_elem_end = f_elem + first_sd->elems_size, *s_elem = second_sd->elems; f_elem != f_elem_end; ++f_elem, ++s_elem) {
+					if (!ira_dt_is_equivalent(f_elem->dt, s_elem->dt)) {
+						return false;
+					}
 				}
 			}
 			break;
@@ -372,9 +382,15 @@ bool ira_dt_get_size(ira_dt_t * dt, size_t * out) {
 			break;
 		case IraDtStct:
 		{
+			ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
+
+			if (sd == NULL) {
+				return false;
+			}
+
 			size_t size = 0, align = 1;
 
-			for (ira_dt_ndt_t * elem = dt->stct.elems, *elem_end = elem + dt->stct.elems_size; elem != elem_end; ++elem) {
+			for (ira_dt_ndt_t * elem = sd->elems, *elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
 				size_t elem_align;
 
 				if (!ira_dt_get_align(elem->dt, &elem_align)) {
@@ -424,9 +440,15 @@ bool ira_dt_get_align(ira_dt_t * dt, size_t * out) {
 			break;
 		case IraDtStct:
 		{
+			ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
+
+			if (sd == NULL) {
+				return false;
+			}
+
 			size_t align = 1;
 
-			for (ira_dt_ndt_t * elem = dt->stct.elems, *elem_end = elem + dt->stct.elems_size; elem != elem_end; ++elem) {
+			for (ira_dt_ndt_t * elem = sd->elems, *elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
 				size_t elem_align;
 				
 				if (!ira_dt_get_align(elem->dt, &elem_align)) {
@@ -451,11 +473,18 @@ bool ira_dt_get_align(ira_dt_t * dt, size_t * out) {
 
 bool ira_dt_get_stct_elem_off(ira_dt_t * dt, size_t elem_ind, size_t * out) {
 	u_assert(dt->type == IraDtStct);
-	u_assert(elem_ind < dt->stct.elems_size);
+
+	ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
+	
+	if (sd == NULL) {
+		return false;
+	}
+
+	u_assert(elem_ind < sd->elems_size);
 
 	size_t off = 0;
 
-	for (ira_dt_ndt_t * elem = dt->stct.elems, *elem_end = elem + elem_ind; elem != elem_end; ++elem) {
+	for (ira_dt_ndt_t * elem = sd->elems, *elem_end = elem + elem_ind; elem != elem_end; ++elem) {
 		size_t elem_align;
 		
 		if (!ira_dt_get_align(elem->dt, &elem_align)) {
@@ -474,7 +503,41 @@ bool ira_dt_get_stct_elem_off(ira_dt_t * dt, size_t elem_ind, size_t * out) {
 	}
 
 	*out = off;
+
 	return true;
+}
+
+bool ira_dt_create_sd(size_t elems_size, ira_dt_ndt_t * elems, ira_dt_sd_t ** out) {
+	for (ira_dt_ndt_t * elem = elems, *elem_end = elem + elems_size; elem != elem_end; ++elem) {
+		if (!ira_dt_is_complete(elem->dt)) {
+			return false;
+		}
+	}
+
+	*out = malloc(sizeof(**out));
+
+	u_assert(*out != NULL);
+
+	**out = (ira_dt_sd_t){ .elems_size = elems_size };
+
+	ira_dt_ndt_t * new_elems = malloc(elems_size * sizeof(*new_elems));
+
+	u_assert(new_elems != NULL);
+
+	memcpy(new_elems, elems, elems_size * sizeof(*new_elems));
+
+	(*out)->elems = new_elems;
+
+	return true;
+}
+void ira_dt_destroy_sd(ira_dt_sd_t * sd) {
+	if (sd == NULL) {
+		return;
+	}
+
+	free(sd->elems);
+
+	free(sd);
 }
 
 const ira_dt_qual_t ira_dt_qual_none;

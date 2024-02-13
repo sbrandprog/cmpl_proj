@@ -729,6 +729,41 @@ static void parse_quals(ctx_t * ctx, ira_dt_qual_t * out) {
 
 static bool parse_expr(ctx_t * ctx, pla_expr_t ** out);
 
+static bool parse_expr_stct_body(ctx_t * ctx, pla_expr_t ** elem_out) {
+	if (!consume_punc_exact_crit(ctx, PlaPuncLeBrace)) {
+		return false;
+	}
+
+	while (true) {
+		*elem_out = pla_expr_create(PlaExprDtFuncArg);
+
+		if (!consume_ident_crit(ctx, &(*elem_out)->opd2.hs)) {
+			return false;
+		}
+
+		if (!consume_punc_exact_crit(ctx, PlaPuncColon)) {
+			return false;
+		}
+
+		if (!parse_expr(ctx, &(*elem_out)->opd0.expr)) {
+			return false;
+		}
+
+		if (consume_punc_exact(ctx, PlaPuncRiBrace)) {
+			break;
+		}
+		else {
+			if (!consume_punc_exact_crit(ctx, PlaPuncComma)) {
+				return false;
+			}
+		}
+
+		elem_out = &(*elem_out)->opd1.expr;
+	}
+
+	return true;
+}
+
 static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 	while (true) {
 		bool success = true;
@@ -893,39 +928,10 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 				case PlaKeywStruct:
 					next_tok(ctx);
 
-					if (!consume_punc_exact_crit(ctx, PlaPuncLeBrace)) {
-						return false;
-					}
-
 					*out = pla_expr_create(PlaExprDtStct);
 
-					pla_expr_t ** elem = &(*out)->opd1.expr;
-
-					while (true) {
-						*elem = pla_expr_create(PlaExprDtFuncArg);
-
-						if (!consume_ident_crit(ctx, &(*elem)->opd2.hs)) {
-							return false;
-						}
-
-						if (!consume_punc_exact_crit(ctx, PlaPuncColon)) {
-							return false;
-						}
-
-						if (!parse_expr(ctx, &(*elem)->opd0.expr)) {
-							return false;
-						}
-
-						if (consume_punc_exact(ctx, PlaPuncRiBrace)) {
-							break;
-						}
-						else {
-							if (!consume_punc_exact_crit(ctx, PlaPuncComma)) {
-								return false;
-							}
-						}
-
-						elem = &(*elem)->opd1.expr;
+					if (!parse_expr_stct_body(ctx, &(*out)->opd1.expr)) {
+						return false;
 					}
 					break;
 
@@ -1505,6 +1511,35 @@ static bool parse_dclr_var(ctx_t * ctx, pla_dclr_t ** out) {
 
 	return true;
 }
+static bool parse_dclr_stct(ctx_t * ctx, pla_dclr_t ** out) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywStruct)) {
+		return false;
+	}
+
+	u_hs_t * name;
+
+	if (!consume_ident_crit(ctx, &name)) {
+		return false;
+	}
+
+	if (get_punc(ctx) == PlaPuncLeBrace) {
+		*out = pla_dclr_create(PlaDclrDtStct);
+
+		(*out)->name = name;
+
+		(*out)->dt_stct.dt_stct_expr = pla_expr_create(PlaExprDtStct);
+
+		if (!parse_expr_stct_body(ctx, &(*out)->dt_stct.dt_stct_expr->opd1.expr)) {
+			return false;
+		}
+	}
+
+	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+		return false;
+	}
+
+	return true;
+}
 static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out) {
 	switch (ctx->tok.type) {
 		case TokNone:
@@ -1519,6 +1554,8 @@ static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out) {
 					return parse_dclr_impt(ctx, out);
 				case PlaKeywVariable:
 					return parse_dclr_var(ctx, out);
+				case PlaKeywStruct:
+					return parse_dclr_stct(ctx, out);
 			}
 			break;
 	}

@@ -19,6 +19,11 @@ struct ira_dt_ndt {
 	u_hs_t * name;
 };
 
+struct ira_dt_sd {
+	size_t elems_size;
+	ira_dt_ndt_t * elems;
+};
+
 enum ira_dt_type {
 	IraDtVoid,
 	IraDtDt,
@@ -44,8 +49,7 @@ struct ira_dt {
 			ira_dt_qual_t qual;
 		} arr;
 		struct {
-			size_t elems_size;
-			ira_dt_ndt_t * elems;
+			ira_lo_t * lo;
 			ira_dt_qual_t qual;
 		} stct;
 		struct {
@@ -74,6 +78,9 @@ bool ira_dt_get_size(ira_dt_t * dt, size_t * out);
 bool ira_dt_get_align(ira_dt_t * dt, size_t * out);
 
 bool ira_dt_get_stct_elem_off(ira_dt_t * dt, size_t elem_ind, size_t * out);
+
+bool ira_dt_create_sd(size_t elems_size, ira_dt_ndt_t * elems, ira_dt_sd_t ** out);
+void ira_dt_destroy_sd(ira_dt_sd_t * sd);
 
 extern const ira_dt_qual_t ira_dt_qual_none;
 extern const ira_dt_qual_t ira_dt_qual_const;

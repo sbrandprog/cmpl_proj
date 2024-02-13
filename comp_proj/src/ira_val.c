@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "ira_val.h"
 #include "ira_dt.h"
+#include "ira_lo.h"
 #include "u_assert.h"
 
 static void destroy_val_arr(size_t arr_size, ira_val_t ** arr) {
@@ -50,7 +51,7 @@ void ira_val_destroy(ira_val_t * val) {
 			free(val->arr.data);
 			break;
 		case IraValImmStct:
-			destroy_val_arr(val->dt->stct.elems_size, val->stct.elems);
+			destroy_val_arr(val->stct.size, val->stct.elems);
 			free(val->stct.elems);
 			break;
 		default:
@@ -88,7 +89,9 @@ ira_val_t * ira_val_copy(ira_val_t * val) {
 			new_val->arr.data = copy_val_arr(val->arr.size, val->arr.data);
 			break;
 		case IraValImmStct:
-			new_val->stct.elems = copy_val_arr(val->dt->stct.elems_size, val->stct.elems);
+			new_val->stct.size = val->stct.size;
+
+			new_val->stct.elems = copy_val_arr(val->stct.size, val->stct.elems);
 			break;
 		default:
 			u_assert_switch(val->type);

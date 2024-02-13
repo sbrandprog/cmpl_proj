@@ -46,12 +46,20 @@ bool ira_pec_c_is_val_compilable(ira_val_t * val) {
 			}
 			break;
 		case IraValImmStct:
-			for (ira_val_t ** elem = val->stct.elems, **elem_end = elem + val->dt->stct.elems_size; elem != elem_end; ++elem) {
+		{
+			ira_dt_sd_t * sd = val->dt->stct.lo->dt_stct.sd;
+
+			if (sd == NULL) {
+				return false;
+			}
+
+			for (ira_val_t ** elem = val->stct.elems, **elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
 				if (!ira_pec_c_is_val_compilable(*elem)) {
 					return false;
 				}
 			}
 			break;
+		}
 		default:
 			u_assert_switch(val->type);
 	}
@@ -110,12 +118,20 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 			}
 			break;
 		case IraValImmStct:
-			for (ira_val_t ** elem = val->stct.elems, **elem_end = elem + val->dt->stct.elems_size; elem != elem_end; ++elem) {
+		{
+			ira_dt_sd_t * sd = val->dt->stct.lo->dt_stct.sd;
+
+			if (sd == NULL) {
+				return false;
+			}
+
+			for (ira_val_t ** elem = val->stct.elems, **elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
 				if (!compile_val(ctx, frag, *elem)) {
 					return false;
 				}
 			}
 			break;
+		}
 		default:
 			u_assert_switch(val->type);
 	}
@@ -233,6 +249,8 @@ static bool compile_lo(ctx_t * ctx, ira_lo_t * lo) {
 			if (!compile_lo_var(ctx, lo)) {
 				return false;
 			}
+			break;
+		case IraLoDtStct:
 			break;
 		default:
 			u_assert_switch(lo->type);

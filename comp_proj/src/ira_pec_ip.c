@@ -383,13 +383,19 @@ static bool set_mmbr_acc_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt, u_h
 			break;
 		case IraDtStct:
 		{
-			ira_dt_ndt_t * elem = opd_dt->stct.elems, * elem_end = elem + opd_dt->stct.elems_size;
+			ira_dt_sd_t * sd = opd_dt->stct.lo->dt_stct.sd;
+
+			if (sd == NULL) {
+				return false;
+			}
+
+			ira_dt_ndt_t * elem = sd->elems, * elem_end = elem + sd->elems_size;
 
 			for (; elem != elem_end; ++elem) {
 				if (mmbr == elem->name) {
 					inst->mmbr_acc.res_dt = elem->dt;
 					
-					if (!ira_dt_get_stct_elem_off(opd_dt, elem - opd_dt->stct.elems, &inst->mmbr_acc.off)) {
+					if (!ira_dt_get_stct_elem_off(opd_dt, elem - sd->elems, &inst->mmbr_acc.off)) {
 						return false;
 					}
 
@@ -1234,6 +1240,27 @@ static asm_reg_t get_ax_reg_dt(ira_dt_t * dt) {
 	return reg;
 }
 
+static asm_reg_t w64_get_arg_reg(ira_dt_t * dt, size_t arg) {
+	u_assert(arg < 4);
+	
+	asm_reg_t reg;
+
+	switch (dt->type) {
+		case IraDtBool:
+			reg = w64_int_arg_to_reg[arg][IraIntU8];
+			break;
+		case IraDtInt:
+			reg = w64_int_arg_to_reg[arg][dt->int_type];
+			break;
+		case IraDtPtr:
+			reg = w64_int_arg_to_reg[arg][IraIntU64];
+			break;
+		default:
+			u_assert_switch(dt->type);
+	}
+
+	return reg;
+}
 static int32_t w64_get_stack_arg_offset(ctx_t * ctx, size_t arg) {
 	return (int32_t)((arg) * STACK_UNIT);
 }
@@ -1242,6 +1269,7 @@ static bool w64_load_callee_ret_link(ctx_t * ctx, var_t * var) {
 	
 	switch (var_dt->type) {
 		case IraDtVoid:
+		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
 			return false;
@@ -1259,34 +1287,21 @@ static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg) {
 	switch (var_dt->type) {
 		case IraDtVoid:
 			break;
+		case IraDtBool:
 		case IraDtInt:
-			switch (arg) {
-				case 0:
-				case 1:
-				case 2:
-				case 3:
-					reg = w64_int_arg_to_reg[arg][var_dt->int_type];
-					load_stack_var(ctx, reg, var);
-					break;
-				default:
-					reg = int_type_to_ax[var_dt->int_type];
-					load_stack_var(ctx, reg, var);
-					save_stack_gpr(ctx, arg_offset, reg);
-					break;
-			}
-			break;
 		case IraDtPtr:
 			switch (arg) {
 				case 0:
 				case 1:
 				case 2:
 				case 3:
-					reg = w64_ptr_arg_to_reg[arg];
+					reg = w64_get_arg_reg(var_dt, arg);
 					load_stack_var(ctx, reg, var);
 					break;
 				default:
-					load_stack_var(ctx, AsmRegRax, var);
-					save_stack_gpr(ctx, arg_offset, AsmRegRax);
+					reg = get_ax_reg_dt(var_dt);
+					load_stack_var(ctx, reg, var);
+					save_stack_gpr(ctx, arg_offset, reg);
 					break;
 			}
 			break;
@@ -1297,19 +1312,17 @@ static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg) {
 static void w64_save_callee_ret(ctx_t * ctx, var_t * var) {
 	ira_dt_t * var_dt = var->qdt.dt;
 
+	asm_reg_t reg;
+
 	switch (var_dt->type) {
 		case IraDtVoid:
 			break;
 		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
-		{
-			asm_reg_t reg = get_ax_reg_dt(var_dt);
-
+			reg = get_ax_reg_dt(var_dt);
 			save_stack_var(ctx, var, reg);
-
 			break;
-		}
 		default:
 			u_assert_switch(var_dt->type);
 	}
@@ -1319,6 +1332,7 @@ static bool w64_save_caller_ret_link(ctx_t * ctx) {
 
 	switch (var_dt->type) {
 		case IraDtVoid:
+		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
 			return false;
@@ -1333,38 +1347,26 @@ static void w64_save_caller_arg(ctx_t * ctx, u_hs_t * arg_name, size_t arg) {
 
 	ira_dt_t * var_dt = var->qdt.dt;
 
+	asm_reg_t reg;
+
 	switch (var_dt->type) {
 		case IraDtVoid:
 			break;
+		case IraDtBool:
 		case IraDtInt:
-			switch (arg) {
-				case 0:
-				case 1:
-				case 2:
-				case 3:
-					save_stack_var(ctx, var, w64_int_arg_to_reg[arg][var_dt->int_type]);
-					break;
-				default:
-				{
-					asm_reg_t reg = int_type_to_ax[var_dt->int_type];
-
-					load_stack_gpr(ctx, reg, w64_get_stack_arg_offset(ctx, arg));
-					save_stack_var(ctx, var, reg);
-					break;
-				}
-			}
-			break;
 		case IraDtPtr:
 			switch (arg) {
 				case 0:
 				case 1:
 				case 2:
 				case 3:
-					save_stack_var(ctx, var, w64_ptr_arg_to_reg[arg]);
+					reg = w64_get_arg_reg(var_dt, arg);
+					save_stack_var(ctx, var, reg);
 					break;
 				default:
-					load_stack_gpr(ctx, AsmRegRax, w64_get_stack_arg_offset(ctx, arg));
-					save_stack_var(ctx, var, AsmRegRax);
+					reg = get_ax_reg_dt(var_dt);
+					load_stack_gpr(ctx, reg, w64_get_stack_arg_offset(ctx, arg));
+					save_stack_var(ctx, var, reg);
 					break;
 			}
 			break;
@@ -2132,7 +2134,7 @@ static bool execute_insts_make_dt_const(ctx_t * ctx, inst_t * inst) {
 			}
 			break;
 		case IraDtStct:
-			if (!ira_pec_get_dt_stct(ctx->pec, dt->stct.elems_size, dt->stct.elems, dt_qual, &dt)) {
+			if (!ira_pec_get_dt_stct_lo(ctx->pec, dt->stct.lo, dt_qual, &dt)) {
 				return false;
 			}
 			break;

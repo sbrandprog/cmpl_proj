@@ -43,6 +43,11 @@ void pla_dclr_destroy(pla_dclr_t * dclr) {
 		case PlaDclrVarVal:
 			pla_expr_destroy(dclr->var_val.val_expr);
 			break;
+		case PlaDclrDtStct:
+			pla_expr_destroy(dclr->dt_stct.dt_stct_expr);
+			break;
+		case PlaDclrDtStctDecl:
+			break;
 		default:
 			u_assert_switch(dclr->type);
 	}

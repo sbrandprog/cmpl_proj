@@ -1,6 +1,32 @@
 include "pla_lib/std/io.pla"a;
 
+struct list_t;
+struct list_t;
+
+struct list_t {
+	next : * list_t
+};
+
+struct list_t;
+struct list_t;
+
+function list_test : $() -> bool {
+	variable a : list_t, b : list_t, c : list_t, d : list_t, e : list_t, f : list_t, g : list_t;
+
+	a.next = &b;
+	b.next = &c;
+	c.next = &d;
+	d.next = &e;
+	e.next = &f;
+	f.next = &g;
+	g.next = nullof[* list_t];
+
+	return a.next!next!next!next!next!next!next == nullof[* list_t];
+}
+
 function main : $() -> s32 {
+	list_test();
+
 	std::init_con_io();
 
 	variable ch : u16;

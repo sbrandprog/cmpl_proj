@@ -12,9 +12,7 @@ static void destroy_dt_chain(ira_pec_t * pec, ira_dt_t * dt) {
 		switch (dt->type) {
 			case IraDtPtr:
 			case IraDtArr:
-				break;
 			case IraDtStct:
-				free(dt->stct.elems);
 				break;
 			case IraDtFunc:
 				free(dt->func.args);
@@ -71,6 +69,8 @@ bool ira_pec_init(ira_pec_t * pec, u_hst_t * hst) {
 void ira_pec_cleanup(ira_pec_t * pec) {
 	ira_lo_destroy(pec->root);
 
+	ira_lo_destroy_chain(pec->dt_stct_lo);
+
 	destroy_dt_chain(pec, pec->dt_ptr);
 	destroy_dt_chain(pec, pec->dt_arr);
 	destroy_dt_chain(pec, pec->dt_stct);
@@ -89,11 +89,6 @@ static bool get_listed_dt_check(ira_dt_t * pred) {
 			}
 			break;
 		case IraDtStct:
-			for (ira_dt_ndt_t * elem = pred->stct.elems, *elem_end = elem + pred->stct.elems_size; elem != elem_end; ++elem) {
-				if (elem->name == NULL || !ira_dt_is_complete(elem->dt)) {
-					return false;
-				}
-			}
 			break;
 		case IraDtFunc:
 			if (!ira_dt_is_complete(pred->func.ret)) {
@@ -112,7 +107,7 @@ static bool get_listed_dt_check(ira_dt_t * pred) {
 
 	return true;
 }
-static bool get_listed_dt_cmp(ira_dt_t * pred, ira_dt_t * dt) {
+static bool get_listed_dt_cmp(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * dt) {
 	u_assert(pred->type == dt->type);
 
 	switch (pred->type) {
@@ -135,20 +130,32 @@ static bool get_listed_dt_cmp(ira_dt_t * pred, ira_dt_t * dt) {
 			}
 			break;
 		case IraDtStct:
-			if (dt->stct.elems_size != pred->stct.elems_size) {
-				return false;
-			}
-
 			if (!ira_dt_is_qual_equal(dt->stct.qual, pred->stct.qual)) {
 				return false;
 			}
 
-			for (ira_dt_ndt_t * elem = dt->stct.elems, *elem_end = elem + dt->stct.elems_size, *pred_elem = pred->stct.elems; elem != elem_end; ++elem, ++pred_elem) {
-				if (elem->dt != pred_elem->dt || elem->name != pred_elem->name) {
+			if (dt->stct.lo != pred->stct.lo) {
+				if (dt->stct.lo->name == pec->pds[IraPdsStctLoName] && dt->stct.lo->name == pred->stct.lo->name) {
+					ira_dt_sd_t * dt_sd = dt->stct.lo->dt_stct.sd, * pred_sd = pred->stct.lo->dt_stct.sd;
+
+					u_assert(dt_sd != NULL && pred_sd != NULL);
+
+					if (dt_sd->elems_size != pred_sd->elems_size) {
+						return false;
+					}
+
+					for (ira_dt_ndt_t * elem = dt_sd->elems, *elem_end = elem + dt_sd->elems_size, *pred_elem = pred_sd->elems; elem != elem_end; ++elem, ++pred_elem) {
+						if (elem->dt != pred_elem->dt || elem->name != pred_elem->name) {
+							return false;
+						}
+					}
+				}
+				else {
 					return false;
 				}
 			}
 			break;
+
 		case IraDtFunc:
 			if (dt->func.args_size != pred->func.args_size) {
 				return false;
@@ -170,7 +177,7 @@ static bool get_listed_dt_cmp(ira_dt_t * pred, ira_dt_t * dt) {
 
 	return true;
 }
-static void get_listed_dt_copy(ira_dt_t * pred, ira_dt_t * out) {
+static bool get_listed_dt_copy(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * out) {
 	switch (pred->type) {
 		case IraDtPtr:
 			*out = (ira_dt_t){ .type = pred->type, .ptr = { .body = pred->ptr.body, .qual = pred->ptr.qual } };
@@ -179,30 +186,40 @@ static void get_listed_dt_copy(ira_dt_t * pred, ira_dt_t * out) {
 			*out = (ira_dt_t){ .type = pred->type, .arr = { .body = pred->arr.body, .qual = pred->arr.qual } };
 			break;
 		case IraDtStct:
-		{
-			ira_dt_ndt_t * new_dt_elems = malloc(pred->stct.elems_size * sizeof(*new_dt_elems));
+			if (pred->stct.lo->name != pec->pds[IraPdsStctLoName]) {
+				*out = (ira_dt_t){ .type = pred->type, .stct = { .lo = pred->stct.lo, .qual = pred->stct.qual } };
+			}
+			else {
+				ira_dt_sd_t * pred_sd = pred->stct.lo->dt_stct.sd;
 
-			u_assert(new_dt_elems != NULL);
+				ira_lo_t * lo = ira_lo_create(IraLoDtStct, pec->pds[IraPdsStctLoName]);
 
-			memcpy(new_dt_elems, pred->stct.elems, pred->stct.elems_size * sizeof(*new_dt_elems));
+				lo->next = pec->dt_stct_lo;
+				pec->dt_stct_lo = lo;
 
-			*out = (ira_dt_t){ .type = pred->type, .stct = { .elems_size = pred->stct.elems_size, .elems = new_dt_elems, .qual = pred->stct.qual } };
+				if (!ira_dt_create_sd(pred_sd->elems_size, pred_sd->elems, &lo->dt_stct.sd)) {
+					return false;
+				}
+				
+				*out = (ira_dt_t){ .type = pred->type, .stct = { .lo = lo, .qual = pred->stct.qual } };
+			}
 			break;
-		}
 		case IraDtFunc:
 		{
-			ira_dt_ndt_t * new_dt_args = malloc(pred->func.args_size * sizeof(*new_dt_args));
+			ira_dt_ndt_t * new_args = malloc(pred->func.args_size * sizeof(*new_args));
 
-			u_assert(new_dt_args != NULL);
+			u_assert(new_args != NULL);
 
-			memcpy(new_dt_args, pred->func.args, pred->func.args_size * sizeof(*new_dt_args));
+			memcpy(new_args, pred->func.args, pred->func.args_size * sizeof(*new_args));
 
-			*out = (ira_dt_t){ .type = pred->type, .func = { .args_size = pred->func.args_size, .args = new_dt_args, .ret = pred->func.ret } };
+			*out = (ira_dt_t){ .type = pred->type, .func = { .args_size = pred->func.args_size, .args = new_args, .ret = pred->func.ret } };
 			break;
 		}
 		default:
 			u_assert_switch(pred->type);
 	}
+
+	return true;
 }
 static bool get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** ins, ira_dt_t ** out) {
 	if (!get_listed_dt_check(pred)) {
@@ -212,7 +229,7 @@ static bool get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** ins, ira
 	while (*ins != NULL) {
 		ira_dt_t * dt = *ins;
 
-		if (get_listed_dt_cmp(pred, dt)) {
+		if (get_listed_dt_cmp(pec, pred, dt)) {
 			*out = dt;
 			return true;
 		}
@@ -224,7 +241,9 @@ static bool get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** ins, ira
 
 	u_assert(new_dt != NULL);
 
-	get_listed_dt_copy(pred, new_dt);
+	if (!get_listed_dt_copy(pec, pred, new_dt)) {
+		return false;
+	}
 
 	*ins = new_dt;
 
@@ -243,7 +262,16 @@ bool ira_pec_get_dt_arr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual, ir
 	return get_listed_dt(pec, &pred, &pec->dt_arr, out);
 }
 bool ira_pec_get_dt_stct(ira_pec_t * pec, size_t elems_size, ira_dt_ndt_t * elems, ira_dt_qual_t qual, ira_dt_t ** out) {
-	ira_dt_t pred = { .type = IraDtStct, .stct = { .elems_size = elems_size, .elems = elems, .qual = qual } };
+	ira_dt_sd_t sd = { .elems_size = elems_size, .elems = elems };
+
+	ira_lo_t lo = { .type = IraLoDtStct, .name = pec->pds[IraPdsStctLoName], .dt_stct.sd = &sd };
+
+	ira_dt_t pred = { .type = IraDtStct, .stct = { .lo = &lo, .qual = qual } };
+
+	return get_listed_dt(pec, &pred, &pec->dt_stct, out);
+}
+bool ira_pec_get_dt_stct_lo(ira_pec_t * pec, ira_lo_t * lo, ira_dt_qual_t qual, ira_dt_t ** out) {
+	ira_dt_t pred = { .type = IraDtStct, .stct = { .lo = lo, .qual = qual } };
 
 	return get_listed_dt(pec, &pred, &pec->dt_stct, out);
 }
@@ -376,18 +404,22 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 		}
 		case IraDtStct:
 		{
-			size_t elems_size = dt->stct.elems_size;
+			ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
 
-			size_t elems_size_bytes = elems_size * sizeof((*out)->stct.elems);
+			if (sd == NULL) {
+				return false;
+			}
 
-			(*out)->stct.elems = malloc(elems_size_bytes);
+			(*out)->stct.size = sd->elems_size;
+
+			(*out)->stct.elems = malloc((*out)->stct.size * sizeof((*out)->stct.elems));
 
 			u_assert((*out)->stct.elems != NULL);
 
-			memset((*out)->stct.elems, 0, elems_size_bytes);
+			memset((*out)->stct.elems, 0, (*out)->stct.size * sizeof((*out)->stct.elems));
 
-			ira_val_t ** elem = (*out)->stct.elems, ** elem_end = elem + elems_size;
-			ira_dt_ndt_t * elem_dt = dt->stct.elems;
+			ira_val_t ** elem = (*out)->stct.elems, ** elem_end = elem + (*out)->stct.size;
+			ira_dt_ndt_t * elem_dt = sd->elems;
 
 			for (; elem != elem_end; ++elem, ++elem_dt) {
 				if (!ira_pec_make_val_null(pec, elem_dt->dt, elem)) {
