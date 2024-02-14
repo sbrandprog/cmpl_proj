@@ -11,13 +11,13 @@ bool ira_dt_is_complete(ira_dt_t * dt) {
 		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
-		case IraDtArr:
 			break;
 		case IraDtStct:
 			if (dt->stct.lo->dt_stct.sd == NULL) {
 				return false;
 			}
 			break;
+		case IraDtArr:
 		case IraDtFunc:
 			break;
 		default:
@@ -78,15 +78,6 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 
 			break;
 		}
-		case IraDtArr:
-			if (!ira_dt_is_qual_equal(first->arr.qual, second->arr.qual)) {
-				return false;
-			}
-
-			if (!ira_dt_is_equivalent(first->arr.body, second->arr.body)) {
-				return false;
-			}
-			break;
 		case IraDtStct:
 			if (!ira_dt_is_qual_equal(first->stct.qual, second->stct.qual)) {
 				return false;
@@ -104,6 +95,15 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 						return false;
 					}
 				}
+			}
+			break;
+		case IraDtArr:
+			if (!ira_dt_is_qual_equal(first->arr.qual, second->arr.qual)) {
+				return false;
+			}
+
+			if (!ira_dt_is_equivalent(first->arr.body, second->arr.body)) {
+				return false;
 			}
 			break;
 		case IraDtFunc:
@@ -135,8 +135,8 @@ static bool is_castable_to_void(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
-		case IraDtArr:
 		case IraDtStct:
+		case IraDtArr:
 		case IraDtFunc:
 			break;
 		default:
@@ -153,8 +153,8 @@ static bool is_castable_to_dt(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
-		case IraDtArr:
 		case IraDtStct:
+		case IraDtArr:
 		case IraDtFunc:
 			return false;
 		default:
@@ -173,8 +173,8 @@ static bool is_castable_to_bool(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtInt:
 		case IraDtPtr:
 			break;
-		case IraDtArr:
 		case IraDtStct:
+		case IraDtArr:
 		case IraDtFunc:
 			return false;
 		default:
@@ -193,8 +193,8 @@ static bool is_castable_to_int(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtInt:
 		case IraDtPtr:
 			break;
-		case IraDtArr:
 		case IraDtStct:
+		case IraDtArr:
 		case IraDtFunc:
 			return false;
 		default:
@@ -213,8 +213,8 @@ static bool is_castable_to_ptr(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtInt:
 		case IraDtPtr:
 			break;
-		case IraDtArr:
 		case IraDtStct:
+		case IraDtArr:
 		case IraDtFunc:
 			return false;
 		default:
@@ -231,11 +231,11 @@ static bool is_castable_to_arr(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
+		case IraDtStct:
 			return false;
 		case IraDtArr:
 			__debugbreak();
 			return false;
-		case IraDtStct:
 		case IraDtFunc:
 			return false;
 		default:
@@ -252,11 +252,11 @@ static bool is_castable_to_stct(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
-		case IraDtArr:
 			return false;
 		case IraDtStct:
 			__debugbreak();
 			return false;
+		case IraDtArr:
 		case IraDtFunc:
 			return false;
 		default:
@@ -272,8 +272,8 @@ static bool is_castable_to_func(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
-		case IraDtArr:
 		case IraDtStct:
+		case IraDtArr:
 		case IraDtFunc:
 			return false;
 		default:
@@ -313,13 +313,13 @@ bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to) {
 				return false;
 			}
 			break;
-		case IraDtArr:
-			if (!is_castable_to_arr(from, to)) {
+		case IraDtStct:
+			if (!is_castable_to_stct(from, to)) {
 				return false;
 			}
 			break;
-		case IraDtStct:
-			if (!is_castable_to_stct(from, to)) {
+		case IraDtArr:
+			if (!is_castable_to_arr(from, to)) {
 				return false;
 			}
 			break;
@@ -346,11 +346,11 @@ bool ira_dt_get_qual(ira_dt_t * dt, ira_dt_qual_t * out) {
 		case IraDtPtr:
 			*out = dt->ptr.qual;
 			break;
-		case IraDtArr:
-			*out = dt->arr.qual;
-			break;
 		case IraDtStct:
 			*out = dt->stct.qual;
+			break;
+		case IraDtArr:
+			*out = dt->arr.qual;
 			break;
 		case IraDtFunc:
 			*out = ira_dt_qual_none;
@@ -377,9 +377,6 @@ bool ira_dt_get_size(ira_dt_t * dt, size_t * out) {
 		case IraDtPtr:
 			*out = 8;
 			break;
-		case IraDtArr:
-			*out = 16;
-			break;
 		case IraDtStct:
 		{
 			ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
@@ -388,33 +385,14 @@ bool ira_dt_get_size(ira_dt_t * dt, size_t * out) {
 				return false;
 			}
 
-			size_t size = 0, align = 1;
-
-			for (ira_dt_ndt_t * elem = sd->elems, *elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
-				size_t elem_align;
-
-				if (!ira_dt_get_align(elem->dt, &elem_align)) {
-					return false;
-				}
-
-				size = u_align_to(size, elem_align);
-				
-				size_t elem_size;
-				
-				if (!ira_dt_get_size(elem->dt, &elem_size)) {
-					return false;
-				}
-				
-				size += elem_size;
-
-				align = max(align, elem_align);
-			}
-
-			size = u_align_to(size, align);
-
-			*out = size;
+			*out = sd->size;
 			break;
 		}
+		case IraDtArr:
+			if (!ira_dt_get_size(dt->arr.assoc_stct, out)) {
+				return false;
+			}
+			break;
 		case IraDtFunc:
 			*out = 0;
 			break;
@@ -435,7 +413,6 @@ bool ira_dt_get_align(ira_dt_t * dt, size_t * out) {
 			*out = ira_int_get_size(dt->int_type);
 			break;
 		case IraDtPtr:
-		case IraDtArr:
 			*out = 8;
 			break;
 		case IraDtStct:
@@ -446,21 +423,14 @@ bool ira_dt_get_align(ira_dt_t * dt, size_t * out) {
 				return false;
 			}
 
-			size_t align = 1;
-
-			for (ira_dt_ndt_t * elem = sd->elems, *elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
-				size_t elem_align;
-				
-				if (!ira_dt_get_align(elem->dt, &elem_align)) {
-					return false;
-				}
-
-				align = max(align, elem_align);
-			}
-
-			*out = align;
+			*out = sd->align;
 			break;
 		}
+		case IraDtArr:
+			if (!ira_dt_get_align(dt->arr.assoc_stct, out)) {
+				return false;
+			}
+			break;
 		case IraDtFunc:
 			*out = 1;
 			break;
@@ -471,42 +441,32 @@ bool ira_dt_get_align(ira_dt_t * dt, size_t * out) {
 	return true;
 }
 
-bool ira_dt_get_stct_elem_off(ira_dt_t * dt, size_t elem_ind, size_t * out) {
-	u_assert(dt->type == IraDtStct);
+static void calc_sd_props(ira_dt_sd_t * sd) {
+	size_t size = 0, align = 1;
 
-	ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
-	
-	if (sd == NULL) {
-		return false;
-	}
-
-	u_assert(elem_ind < sd->elems_size);
-
-	size_t off = 0;
-
-	for (ira_dt_ndt_t * elem = sd->elems, *elem_end = elem + elem_ind; elem != elem_end; ++elem) {
+	for (ira_dt_ndt_t * elem = sd->elems, *elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
 		size_t elem_align;
-		
-		if (!ira_dt_get_align(elem->dt, &elem_align)) {
-			return false;
-		}
 
-		off = u_align_to(off, elem_align);
+		bool res = ira_dt_get_align(elem->dt, &elem_align);
+		u_assert(res);
+
+		size = u_align_to(size, elem_align);
 
 		size_t elem_size;
 
-		if (!ira_dt_get_size(elem->dt, &elem_size)) {
-			return false;
-		}
+		res = ira_dt_get_size(elem->dt, &elem_size);
+		u_assert(res);
 
-		off += elem_size;
+		size += elem_size;
+
+		align = max(align, elem_align);
 	}
 
-	*out = off;
+	size = u_align_to(size, align);
 
-	return true;
+	sd->size = size;
+	sd->align = align;
 }
-
 bool ira_dt_create_sd(size_t elems_size, ira_dt_ndt_t * elems, ira_dt_sd_t ** out) {
 	for (ira_dt_ndt_t * elem = elems, *elem_end = elem + elems_size; elem != elem_end; ++elem) {
 		if (!ira_dt_is_complete(elem->dt)) {
@@ -528,6 +488,8 @@ bool ira_dt_create_sd(size_t elems_size, ira_dt_ndt_t * elems, ira_dt_sd_t ** ou
 
 	(*out)->elems = new_elems;
 
+	calc_sd_props(*out);
+
 	return true;
 }
 void ira_dt_destroy_sd(ira_dt_sd_t * sd) {
@@ -538,6 +500,30 @@ void ira_dt_destroy_sd(ira_dt_sd_t * sd) {
 	free(sd->elems);
 
 	free(sd);
+}
+
+size_t ira_dt_get_sd_elem_off(ira_dt_sd_t * sd, size_t elem_ind) {
+	u_assert(elem_ind < sd->elems_size);
+
+	size_t off = 0;
+
+	for (ira_dt_ndt_t * elem = sd->elems, *elem_end = elem + elem_ind; elem != elem_end; ++elem) {
+		size_t elem_align;
+
+		bool res = ira_dt_get_align(elem->dt, &elem_align);
+		u_assert(res);
+
+		off = u_align_to(off, elem_align);
+
+		size_t elem_size;
+
+		res = ira_dt_get_size(elem->dt, &elem_size);
+		u_assert(res);
+
+		off += elem_size;
+	}
+
+	return off;
 }
 
 const ira_dt_qual_t ira_dt_qual_none;

@@ -359,6 +359,26 @@ static bool define_label(ctx_t * ctx, inst_t * inst, label_t * label) {
 	return true;
 }
 
+static bool get_stct_mmbr(ctx_t * ctx, ira_dt_t * dt, u_hs_t * mmbr, ira_dt_t ** dt_out, size_t * off_out) {
+	ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
+
+	if (sd == NULL) {
+		return false;
+	}
+
+	ira_dt_ndt_t * elem = sd->elems, * elem_end = elem + sd->elems_size;
+
+	for (; elem != elem_end; ++elem) {
+		if (mmbr == elem->name) {
+			*dt_out = elem->dt;
+			*off_out = ira_dt_get_sd_elem_off(sd, elem - sd->elems);
+
+			return true;
+		}
+	}
+
+	return false;
+}
 static bool set_mmbr_acc_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt, u_hs_t * mmbr) {
 	switch (opd_dt->type) {
 		case IraDtVoid:
@@ -366,49 +386,16 @@ static bool set_mmbr_acc_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt, u_h
 		case IraDtPtr:
 		case IraDtFunc:
 			return false;
-		case IraDtArr:
-			if (mmbr == ctx->pec->pds[IraPdsSizeMmbr]) {
-				inst->mmbr_acc.res_dt = ctx->pec->dt_spcl.arr_size;
-				inst->mmbr_acc.off = IRA_DT_ARR_SIZE_OFF;
-			}
-			else if (mmbr == ctx->pec->pds[IraPdsDataMmbr]) {
-				if (!ira_pec_get_dt_ptr(ctx->pec, opd_dt->arr.body, opd_dt->arr.qual, &inst->mmbr_acc.res_dt)) {
-					return false;
-				}
-				inst->mmbr_acc.off = IRA_DT_ARR_DATA_OFF;
-			}
-			else {
-				return false;
-			}
-			break;
 		case IraDtStct:
-		{
-			ira_dt_sd_t * sd = opd_dt->stct.lo->dt_stct.sd;
-
-			if (sd == NULL) {
+			if (!get_stct_mmbr(ctx, opd_dt, mmbr, &inst->mmbr_acc.res_dt, &inst->mmbr_acc.off)) {
 				return false;
 			}
-
-			ira_dt_ndt_t * elem = sd->elems, * elem_end = elem + sd->elems_size;
-
-			for (; elem != elem_end; ++elem) {
-				if (mmbr == elem->name) {
-					inst->mmbr_acc.res_dt = elem->dt;
-					
-					if (!ira_dt_get_stct_elem_off(opd_dt, elem - sd->elems, &inst->mmbr_acc.off)) {
-						return false;
-					}
-
-					return true;
-				}
-			}
-
-			if (elem == elem_end) {
-				return false;
-			}
-
 			break;
-		}
+		case IraDtArr:
+			if (!get_stct_mmbr(ctx, opd_dt->arr.assoc_stct, mmbr, &inst->mmbr_acc.res_dt, &inst->mmbr_acc.off)) {
+				return false;
+			}
+			break;
 		default:
 			u_assert_switch(opd_dt->type);
 	}
@@ -1012,13 +999,13 @@ static bool prepare_insts(ctx_t * ctx) {
 					return false;
 				}
 				break;
-			case IraInstMakeDtArr:
-				if (!prepare_insts_make_dt_arr(ctx, inst, info)) {
+			case IraInstMakeDtStct:
+				if (!prepare_insts_make_dt_stct(ctx, inst, info)) {
 					return false;
 				}
 				break;
-			case IraInstMakeDtStct:
-				if (!prepare_insts_make_dt_stct(ctx, inst, info)) {
+			case IraInstMakeDtArr:
+				if (!prepare_insts_make_dt_arr(ctx, inst, info)) {
 					return false;
 				}
 				break;
@@ -1600,14 +1587,21 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 		{
 			u_hs_t * arr_label = NULL;
 
-			bool result = ira_pec_c_compile_val_frag(ctx->c_ctx, val, &arr_label);
-			u_assert(result);
+			bool res = ira_pec_c_compile_val_frag(ctx->c_ctx, val, &arr_label);
+			u_assert(res);
 
+			ira_dt_sd_t * sd = val->dt->arr.assoc_stct->stct.lo->dt_stct.sd;
+			u_assert(sd != NULL);
+
+			size_t off;
+
+			off = ira_dt_get_sd_elem_off(sd, IRA_DT_ARR_SIZE_IND);
 			load_int(ctx, AsmRegRax, AsmInstImm64, (int64_t)val->arr.size);
-			save_stack_var_off(ctx, var, AsmRegRax, IRA_DT_ARR_SIZE_OFF);
+			save_stack_var_off(ctx, var, AsmRegRax, off);
 
+			off = ira_dt_get_sd_elem_off(sd, IRA_DT_ARR_DATA_IND);
 			load_label_off(ctx, AsmRegRax, arr_label);
-			save_stack_var_off(ctx, var, AsmRegRax, IRA_DT_ARR_DATA_OFF);
+			save_stack_var_off(ctx, var, AsmRegRax, off);
 
 			break;
 		}
@@ -1635,12 +1629,21 @@ static void compile_copy_impl(ctx_t * ctx, var_t * dst, var_t * src) {
 			break;
 		}
 		case IraDtArr:
-			load_stack_var_off(ctx, AsmRegRax, src, IRA_DT_ARR_SIZE_OFF);
-			save_stack_var_off(ctx, dst, AsmRegRax, IRA_DT_ARR_SIZE_OFF);
+		{
+			ira_dt_sd_t * sd = dt->arr.assoc_stct->stct.lo->dt_stct.sd;
+			u_assert(sd != NULL);
 
-			load_stack_var_off(ctx, AsmRegRax, src, IRA_DT_ARR_DATA_OFF);
-			save_stack_var_off(ctx, dst, AsmRegRax, IRA_DT_ARR_DATA_OFF);
+			size_t off;
+
+			off = ira_dt_get_sd_elem_off(sd, IRA_DT_ARR_SIZE_IND);
+			load_stack_var_off(ctx, AsmRegRax, src, off);
+			save_stack_var_off(ctx, dst, AsmRegRax, off);
+
+			off = ira_dt_get_sd_elem_off(sd, IRA_DT_ARR_DATA_IND);
+			load_stack_var_off(ctx, AsmRegRax, src, off);
+			save_stack_var_off(ctx, dst, AsmRegRax, off);
 			break;
+		}
 		default:
 			u_assert_switch(dt->type);
 	}
@@ -2000,25 +2003,6 @@ static bool execute_insts_make_dt_ptr(ctx_t * ctx, inst_t * inst) {
 
 	return true;
 }
-static bool execute_insts_make_dt_arr(ctx_t * ctx, inst_t * inst) {
-	if (inst->opd1.var->val == NULL) {
-		return false;
-	}
-
-	ira_val_destroy(inst->opd0.var->val);
-
-	ira_dt_t * res_dt;
-
-	if (!ira_pec_get_dt_arr(ctx->pec, inst->opd1.var->val->dt_val, inst->opd2.dt_qual, &res_dt)) {
-		return false;
-	}
-
-	if (!ira_pec_make_val_imm_dt(ctx->pec, res_dt, &inst->opd0.var->val)) {
-		return false;
-	}
-
-	return true;
-}
 static bool execute_insts_make_dt_stct(ctx_t * ctx, inst_t * inst) {
 	size_t elems_size = inst->opd2.size;
 
@@ -2054,6 +2038,25 @@ static bool execute_insts_make_dt_stct(ctx_t * ctx, inst_t * inst) {
 	}
 
 	_freea(elems);
+
+	return true;
+}
+static bool execute_insts_make_dt_arr(ctx_t * ctx, inst_t * inst) {
+	if (inst->opd1.var->val == NULL) {
+		return false;
+	}
+
+	ira_val_destroy(inst->opd0.var->val);
+
+	ira_dt_t * res_dt;
+
+	if (!ira_pec_get_dt_arr(ctx->pec, inst->opd1.var->val->dt_val, inst->opd2.dt_qual, &res_dt)) {
+		return false;
+	}
+
+	if (!ira_pec_make_val_imm_dt(ctx->pec, res_dt, &inst->opd0.var->val)) {
+		return false;
+	}
 
 	return true;
 }
@@ -2128,13 +2131,13 @@ static bool execute_insts_make_dt_const(ctx_t * ctx, inst_t * inst) {
 				return false;
 			}
 			break;
-		case IraDtArr:
-			if (!ira_pec_get_dt_arr(ctx->pec, dt->arr.body, dt_qual, &dt)) {
+		case IraDtStct:
+			if (!ira_pec_get_dt_stct_lo(ctx->pec, dt->stct.lo, dt_qual, &dt)) {
 				return false;
 			}
 			break;
-		case IraDtStct:
-			if (!ira_pec_get_dt_stct_lo(ctx->pec, dt->stct.lo, dt_qual, &dt)) {
+		case IraDtArr:
+			if (!ira_pec_get_dt_arr(ctx->pec, dt->arr.body, dt_qual, &dt)) {
 				return false;
 			}
 			break;
@@ -2178,13 +2181,13 @@ static bool execute_insts(ctx_t * ctx) {
 					return false;
 				}
 				break;
-			case IraInstMakeDtArr:
-				if (!execute_insts_make_dt_arr(ctx, inst)) {
+			case IraInstMakeDtStct:
+				if (!execute_insts_make_dt_stct(ctx, inst)) {
 					return false;
 				}
 				break;
-			case IraInstMakeDtStct:
-				if (!execute_insts_make_dt_stct(ctx, inst)) {
+			case IraInstMakeDtArr:
+				if (!execute_insts_make_dt_arr(ctx, inst)) {
 					return false;
 				}
 				break;

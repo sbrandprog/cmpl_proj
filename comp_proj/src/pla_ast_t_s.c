@@ -668,21 +668,6 @@ static bool get_mmbr_acc_dt(ctx_t * ctx, ira_dt_t * opd_dt, u_hs_t * mmbr, ira_d
 		case IraDtFunc:
 			pla_ast_t_report(ctx->t_ctx, L"operand of [%s] data type does not support member access", ira_dt_infos[opd_dt->type].type_str.str);
 			return false;
-		case IraDtArr:
-			if (mmbr == pla_ast_t_get_pds(ctx->t_ctx, PlaPdsSizeMmbr)) {
-				*out = ctx->pec->dt_spcl.arr_size;
-			}
-			else if (mmbr == pla_ast_t_get_pds(ctx->t_ctx, PlaPdsDataMmbr)) {
-				if (!ira_pec_get_dt_ptr(ctx->pec, opd_dt->arr.body, opd_dt->arr.qual, out)) {
-					pla_ast_t_report_pec_err(ctx->t_ctx);
-					return false;
-				}
-			}
-			else {
-				pla_ast_t_report(ctx->t_ctx, L"operand of [%s] data type does not support [%s] member", ira_dt_infos[opd_dt->type].type_str.str, mmbr->str);
-				return false;
-			}
-			break;
 		case IraDtStct:
 		{
 			ira_dt_sd_t * sd = opd_dt->stct.lo->dt_stct.sd;
@@ -706,6 +691,21 @@ static bool get_mmbr_acc_dt(ctx_t * ctx, ira_dt_t * opd_dt, u_hs_t * mmbr, ira_d
 			}
 			break;
 		}
+		case IraDtArr:
+			if (mmbr == pla_ast_t_get_pds(ctx->t_ctx, PlaPdsSizeMmbr)) {
+				*out = ctx->pec->dt_spcl.arr_size;
+			}
+			else if (mmbr == pla_ast_t_get_pds(ctx->t_ctx, PlaPdsDataMmbr)) {
+				if (!ira_pec_get_dt_ptr(ctx->pec, opd_dt->arr.body, opd_dt->arr.qual, out)) {
+					pla_ast_t_report_pec_err(ctx->t_ctx);
+					return false;
+				}
+			}
+			else {
+				pla_ast_t_report(ctx->t_ctx, L"operand of [%s] data type does not support [%s] member", ira_dt_infos[opd_dt->type].type_str.str, mmbr->str);
+				return false;
+			}
+			break;
 		default:
 			u_assert_switch(opd_dt->type);
 	}
@@ -1039,6 +1039,13 @@ static bool translate_expr0_tse(ctx_t * ctx, pla_expr_t * base, expr_t ** out) {
 
 			expr->val_qdt.dt = dt_dt;
 			break;
+		case PlaExprDtStct:
+			if (!translate_expr0_dt_stct(ctx, expr)) {
+				return false;
+			}
+			break;
+		case PlaExprDtStctElem:
+			break;
 		case PlaExprDtArr:
 			if (expr->opd0.expr->val_qdt.dt != dt_dt) {
 				pla_ast_t_report(ctx->t_ctx, L"make_dt_arr requires 'dt' data type for first operand");
@@ -1046,13 +1053,6 @@ static bool translate_expr0_tse(ctx_t * ctx, pla_expr_t * base, expr_t ** out) {
 			}
 
 			expr->val_qdt.dt = dt_dt;
-			break;
-		case PlaExprDtStct:
-			if (!translate_expr0_dt_stct(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprDtStctElem:
 			break;
 		case PlaExprDtFunc:
 			if (!translate_expr0_dt_func(ctx, expr)) {
@@ -1231,19 +1231,6 @@ static bool translate_expr1_dt_ptr(ctx_t * ctx, expr_t * expr) {
 
 	return true;
 }
-static bool translate_expr1_dt_arr(ctx_t * ctx, expr_t * expr) {
-	var_t * opd_var;
-
-	if (!translate_expr1_imm_var(ctx, expr->opd0.expr, &opd_var)) {
-		return false;
-	}
-
-	ira_inst_t make_dt_arr = { .type = IraInstMakeDtArr, .opd1.hs = opd_var->inst_name, .opd2.dt_qual = ira_dt_qual_none };
-
-	push_inst_imm_var0_expr(ctx, expr, &make_dt_arr);
-
-	return true;
-}
 static bool translate_expr1_dt_stct(ctx_t * ctx, expr_t * expr) {
 	size_t elems_size = expr->dt_stct.elems_size;
 
@@ -1270,6 +1257,19 @@ static bool translate_expr1_dt_stct(ctx_t * ctx, expr_t * expr) {
 	ira_inst_t make_dt_stct = { .type = IraInstMakeDtStct, .opd1.dt_qual = ira_dt_qual_none, .opd2.size = elems_size, .opd3.hss = elems, .opd4.hss = ids };
 
 	push_inst_imm_var0_expr(ctx, expr, &make_dt_stct);
+
+	return true;
+}
+static bool translate_expr1_dt_arr(ctx_t * ctx, expr_t * expr) {
+	var_t * opd_var;
+
+	if (!translate_expr1_imm_var(ctx, expr->opd0.expr, &opd_var)) {
+		return false;
+	}
+
+	ira_inst_t make_dt_arr = { .type = IraInstMakeDtArr, .opd1.hs = opd_var->inst_name, .opd2.dt_qual = ira_dt_qual_none };
+
+	push_inst_imm_var0_expr(ctx, expr, &make_dt_arr);
 
 	return true;
 }
@@ -1698,11 +1698,6 @@ static bool translate_expr1_tse(ctx_t * ctx, expr_t * expr) {
 				return false;
 			}
 			break;
-		case PlaExprDtArr:
-			if (!translate_expr1_dt_arr(ctx, expr)) {
-				return false;
-			}
-			break;
 		case PlaExprDtStct:
 			if (!translate_expr1_dt_stct(ctx, expr)) {
 				return false;
@@ -1710,6 +1705,11 @@ static bool translate_expr1_tse(ctx_t * ctx, expr_t * expr) {
 			break;
 		case PlaExprDtStctElem:
 			return false;
+		case PlaExprDtArr:
+			if (!translate_expr1_dt_arr(ctx, expr)) {
+				return false;
+			}
+			break;
 		case PlaExprDtFunc:
 			if (!translate_expr1_dt_func(ctx, expr)) {
 				return false;
