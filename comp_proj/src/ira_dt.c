@@ -441,6 +441,11 @@ bool ira_dt_get_align(ira_dt_t * dt, size_t * out) {
 	return true;
 }
 
+ira_dt_qual_t ira_dt_apply_qual(ira_dt_qual_t first, ira_dt_qual_t second) {
+	first.const_q = first.const_q || second.const_q;
+	return first;
+}
+
 static void calc_sd_props(ira_dt_sd_t * sd) {
 	size_t size = 0, align = 1;
 

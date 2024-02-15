@@ -40,6 +40,8 @@ bool ira_pec_get_dt_stct_lo(ira_pec_t * pec, ira_lo_t * lo, ira_dt_qual_t qual, 
 bool ira_pec_get_dt_arr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual, ira_dt_t ** out);
 bool ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_dt_ndt_t * args, ira_dt_t ** out);
 
+bool ira_pec_apply_qual(ira_pec_t * pec, ira_dt_t * dt, ira_dt_qual_t qual, ira_dt_t ** out);
+
 bool ira_pec_make_val_imm_void(ira_pec_t * pec, ira_val_t ** out);
 bool ira_pec_make_val_imm_dt(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out);
 bool ira_pec_make_val_imm_bool(ira_pec_t * pec, bool bool_val, ira_val_t ** out);

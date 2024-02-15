@@ -82,6 +82,8 @@ bool ira_dt_get_qual(ira_dt_t * dt, ira_dt_qual_t * out);
 bool ira_dt_get_size(ira_dt_t * dt, size_t * out);
 bool ira_dt_get_align(ira_dt_t * dt, size_t * out);
 
+ira_dt_qual_t ira_dt_apply_qual(ira_dt_qual_t first, ira_dt_qual_t second);
+
 bool ira_dt_create_sd(size_t elems_size, ira_dt_ndt_t * elems, ira_dt_sd_t ** out);
 void ira_dt_destroy_sd(ira_dt_sd_t * sd);
 

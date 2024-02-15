@@ -370,7 +370,10 @@ static bool get_stct_mmbr(ctx_t * ctx, ira_dt_t * dt, u_hs_t * mmbr, ira_dt_t **
 
 	for (; elem != elem_end; ++elem) {
 		if (mmbr == elem->name) {
-			*dt_out = elem->dt;
+			if (!ira_pec_apply_qual(ctx->pec, elem->dt, dt->stct.qual, dt_out)) {
+				return false;
+			}
+
 			*off_out = ira_dt_get_sd_elem_off(sd, elem - sd->elems);
 
 			return true;
@@ -382,9 +385,9 @@ static bool get_stct_mmbr(ctx_t * ctx, ira_dt_t * dt, u_hs_t * mmbr, ira_dt_t **
 static bool set_mmbr_acc_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt, u_hs_t * mmbr) {
 	switch (opd_dt->type) {
 		case IraDtVoid:
+		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
-		case IraDtFunc:
 			return false;
 		case IraDtStct:
 			if (!get_stct_mmbr(ctx, opd_dt, mmbr, &inst->mmbr_acc.res_dt, &inst->mmbr_acc.off)) {
@@ -396,6 +399,8 @@ static bool set_mmbr_acc_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt, u_h
 				return false;
 			}
 			break;
+		case IraDtFunc:
+			return false;
 		default:
 			u_assert_switch(opd_dt->type);
 	}

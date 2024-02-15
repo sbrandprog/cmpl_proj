@@ -659,50 +659,49 @@ static bool process_ident_lo(ctx_t * ctx, expr_t * expr, ira_lo_t * lo) {
 
 	return true;
 }
+static bool get_stct_mmbr_dt(ctx_t * ctx, ira_dt_t * dt, u_hs_t * mmbr, ira_dt_t ** out) {
+	ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
+
+	if (sd == NULL) {
+		return false;
+	}
+
+	ira_dt_ndt_t * elem = sd->elems, * elem_end = elem + sd->elems_size;
+
+	for (; elem != elem_end; ++elem) {
+		if (mmbr == elem->name) {
+			if (!ira_pec_apply_qual(ctx->pec, elem->dt, dt->stct.qual, out)) {
+				pla_ast_t_report_pec_err(ctx->t_ctx);
+				return false;
+			}
+			break;
+		}
+	}
+
+	if (elem == elem_end) {
+		pla_ast_t_report(ctx->t_ctx, L"operand of [%s] data type does not support [%s] member", ira_dt_infos[dt->type].type_str.str, mmbr->str);
+		return false;
+	}
+
+	return true;
+}
 static bool get_mmbr_acc_dt(ctx_t * ctx, ira_dt_t * opd_dt, u_hs_t * mmbr, ira_dt_t ** out) {
 	switch (opd_dt->type) {
 		case IraDtVoid:
 		case IraDtDt:
+		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
 		case IraDtFunc:
 			pla_ast_t_report(ctx->t_ctx, L"operand of [%s] data type does not support member access", ira_dt_infos[opd_dt->type].type_str.str);
 			return false;
 		case IraDtStct:
-		{
-			ira_dt_sd_t * sd = opd_dt->stct.lo->dt_stct.sd;
-
-			if (sd == NULL) {
-				return false;
-			}
-
-			ira_dt_ndt_t * elem = sd->elems, * elem_end = elem + sd->elems_size;
-
-			for (; elem != elem_end; ++elem) {
-				if (mmbr == elem->name) {
-					*out = elem->dt;
-					break;
-				}
-			}
-
-			if (elem == elem_end) {
-				pla_ast_t_report(ctx->t_ctx, L"operand of [%s] data type does not support [%s] member", ira_dt_infos[opd_dt->type].type_str.str, mmbr->str);
+			if (!get_stct_mmbr_dt(ctx, opd_dt, mmbr, out)) {
 				return false;
 			}
 			break;
-		}
 		case IraDtArr:
-			if (mmbr == pla_ast_t_get_pds(ctx->t_ctx, PlaPdsSizeMmbr)) {
-				*out = ctx->pec->dt_spcl.arr_size;
-			}
-			else if (mmbr == pla_ast_t_get_pds(ctx->t_ctx, PlaPdsDataMmbr)) {
-				if (!ira_pec_get_dt_ptr(ctx->pec, opd_dt->arr.body, opd_dt->arr.qual, out)) {
-					pla_ast_t_report_pec_err(ctx->t_ctx);
-					return false;
-				}
-			}
-			else {
-				pla_ast_t_report(ctx->t_ctx, L"operand of [%s] data type does not support [%s] member", ira_dt_infos[opd_dt->type].type_str.str, mmbr->str);
+			if (!get_stct_mmbr_dt(ctx, opd_dt->arr.assoc_stct, mmbr, out)) {
 				return false;
 			}
 			break;

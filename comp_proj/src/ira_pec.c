@@ -296,6 +296,45 @@ bool ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_
 	return get_listed_dt(pec, &pred, &pec->dt_func, out);
 }
 
+bool ira_pec_apply_qual(ira_pec_t * pec, ira_dt_t * dt, ira_dt_qual_t qual, ira_dt_t ** out) {
+	switch (dt->type) {
+		case IraDtVoid:
+		case IraDtDt:
+		case IraDtBool:
+		case IraDtInt:
+			*out = dt;
+			break;
+		case IraDtPtr:
+			qual = ira_dt_apply_qual(dt->ptr.qual, qual);
+
+			if (!ira_pec_get_dt_ptr(pec, dt->ptr.body, qual, out)) {
+				return false;
+			}
+			break;
+		case IraDtStct:
+			qual = ira_dt_apply_qual(dt->ptr.qual, qual);
+
+			if (!ira_pec_get_dt_stct_lo(pec, dt->stct.lo, qual, out)) {
+				return false;
+			}
+			break;
+		case IraDtArr:
+			qual = ira_dt_apply_qual(dt->ptr.qual, qual);
+
+			if (!ira_pec_get_dt_arr(pec, dt->arr.body, qual, out)) {
+				return false;
+			}
+			break;
+		case IraDtFunc:
+			*out = dt;
+			break;
+		default:
+			u_assert_switch(dt->type);
+	}
+
+	return true;
+}
+
 bool ira_pec_make_val_imm_void(ira_pec_t * pec, ira_val_t ** out) {
 	*out = ira_val_create(IraValImmVoid, &pec->dt_void);
 
