@@ -18,7 +18,7 @@ typedef pla_ast_t_vse_t vse_t;
 typedef struct var var_t;
 struct var {
 	var_t * next;
-	u_hs_t * name;
+	u_hs_t * orig_name;
 	u_hs_t * inst_name;
 	ira_dt_qdt_t qdt;
 };
@@ -216,7 +216,7 @@ static var_t * create_var(ctx_t * ctx, u_hs_t * name, ira_dt_t * dt, ira_dt_qual
 
 	u_assert(new_var != NULL);
 
-	*new_var = (var_t){ .name = name, .inst_name = name, .qdt = { .dt = dt, .qual = dt_qual } };
+	*new_var = (var_t){ .orig_name = name, .inst_name = name, .qdt = { .dt = dt, .qual = dt_qual } };
 
 	if (unq_name) {
 		new_var->inst_name = get_unq_var_name(ctx, name);
@@ -230,7 +230,7 @@ static var_t * define_var(ctx_t * ctx, u_hs_t * name, ira_dt_t * dt, ira_dt_qual
 	while (*ins != NULL) {
 		var_t * var = *ins;
 
-		if (name == var->name) {
+		if (name == var->orig_name) {
 			return NULL;
 		}
 
@@ -839,7 +839,7 @@ static bool translate_expr0_ident(ctx_t * ctx, expr_t * expr) {
 	if (irid->sub_name == NULL) {
 		for (blk_t * blk = ctx->blk; blk != NULL; blk = blk->prev) {
 			for (var_t * var = blk->var; var != NULL; var = var->next) {
-				if (var->name == irid->name) {
+				if (var->orig_name == irid->name) {
 					expr->val_qdt = var->qdt;
 
 					expr->ident.type = ExprIdentVar;
