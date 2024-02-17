@@ -616,6 +616,7 @@ static ira_lo_t * find_irid_lo(ctx_t * ctx, ira_lo_t * nspc, pla_irid_t * irid) 
 				case IraLoImpt:
 				case IraLoVar:
 				case IraLoDtStct:
+				case IraLoRoVal:
 					if (irid->sub_name == NULL) {
 						return lo;
 					}
@@ -649,6 +650,9 @@ static bool process_ident_lo(ctx_t * ctx, expr_t * expr, ira_lo_t * lo) {
 			break;
 		case IraLoDtStct:
 			expr->val_qdt.dt = &ctx->pec->dt_dt;
+			break;
+		case IraLoRoVal:
+			expr->val_qdt.dt = lo->ro_val.val->dt;
 			break;
 		default:
 			u_assert_switch(lo->type);
@@ -1343,6 +1347,7 @@ static bool translate_expr1_ident(ctx_t * ctx, expr_t * expr) {
 					ira_inst_t load_val = { .type = IraInstLoadVal, .opd1.val = lo_val };
 
 					push_inst_imm_var0_expr(ctx, expr, &load_val);
+
 					break;
 				}
 				case IraLoVar:
@@ -1383,6 +1388,15 @@ static bool translate_expr1_ident(ctx_t * ctx, expr_t * expr) {
 					ira_inst_t load_val = { .type = IraInstLoadVal, .opd1.val = val_dt };
 
 					push_inst_imm_var0_expr(ctx, expr, &load_val);
+
+					break;
+				}
+				case IraLoRoVal:
+				{
+					ira_inst_t load_val = { .type = IraInstLoadVal, .opd1.val = ira_val_copy(expr->ident.lo->ro_val.val) };
+
+					push_inst_imm_var0_expr(ctx, expr, &load_val);
+
 					break;
 				}
 				default:

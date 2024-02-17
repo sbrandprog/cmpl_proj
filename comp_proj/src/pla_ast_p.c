@@ -1224,7 +1224,7 @@ static bool parse_stmt_var(ctx_t * ctx, pla_stmt_t ** out) {
 				return false;
 			}
 		}
-		else if (consume_punc_exact(ctx, PlaPuncScAsgn)) {
+		else if (consume_punc_exact(ctx, PlaPuncColonAsgn)) {
 			*out = pla_stmt_create(PlaStmtVarVal);
 
 			(*out)->var_val.name = var_name;
@@ -1243,12 +1243,11 @@ static bool parse_stmt_var(ctx_t * ctx, pla_stmt_t ** out) {
 			/* nothing */
 		}
 		else {
-			if (consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
-				break;
-			}
-			else {
+			if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
 				return false;
 			}
+
+			break;
 		}
 
 		out = &(*out)->next;
@@ -1479,7 +1478,7 @@ static bool parse_dclr_var(ctx_t * ctx, pla_dclr_t ** out) {
 				return false;
 			}
 		}
-		else if (consume_punc_exact(ctx, PlaPuncScAsgn)) {
+		else if (consume_punc_exact(ctx, PlaPuncColonAsgn)) {
 			*out = pla_dclr_create(PlaDclrVarVal);
 
 			(*out)->name = var_name;
@@ -1498,12 +1497,11 @@ static bool parse_dclr_var(ctx_t * ctx, pla_dclr_t ** out) {
 			/* nothing */
 		}
 		else {
-			if (consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
-				break;
-			}
-			else {
+			if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
 				return false;
 			}
+
+			break;
 		}
 
 		out = &(*out)->next;
@@ -1540,6 +1538,42 @@ static bool parse_dclr_stct(ctx_t * ctx, pla_dclr_t ** out) {
 
 	return true;
 }
+static bool parse_dclr_ro_val(ctx_t * ctx, pla_dclr_t ** out) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywReadonly)) {
+		return false;
+	}
+
+	while (true) {
+		*out = pla_dclr_create(PlaDclrRoVal);
+
+		if (!consume_ident_crit(ctx, &(*out)->name)) {
+			return false;
+		}
+
+		if (!consume_punc_exact_crit(ctx, PlaPuncColonAsgn)) {
+			return false;
+		}
+
+		if (!parse_expr(ctx, &(*out)->ro_val.val_expr)) {
+			return false;
+		}
+
+		if (consume_punc_exact(ctx, PlaPuncComma)) {
+			/* nothing */
+		}
+		else {
+			if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+				return false;
+			}
+
+			break;
+		}
+
+		out = &(*out)->next;
+	}
+
+	return true;
+}
 static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out) {
 	switch (ctx->tok.type) {
 		case TokNone:
@@ -1556,6 +1590,8 @@ static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out) {
 					return parse_dclr_var(ctx, out);
 				case PlaKeywStruct:
 					return parse_dclr_stct(ctx, out);
+				case PlaKeywReadonly:
+					return parse_dclr_ro_val(ctx, out);
 			}
 			break;
 	}

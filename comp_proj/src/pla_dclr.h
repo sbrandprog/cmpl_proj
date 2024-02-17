@@ -13,6 +13,7 @@ enum pla_dclr_type {
 	PlaDclrVarVal,
 	PlaDclrDtStct,
 	PlaDclrDtStctDecl,
+	PlaDclrRoVal,
 	PlaDclr_Count
 };
 struct pla_dclr {
@@ -43,6 +44,9 @@ struct pla_dclr {
 		struct {
 			pla_expr_t * dt_stct_expr;
 		} dt_stct;
+		struct {
+			pla_expr_t * val_expr;
+		} ro_val;
 	};
 };
 

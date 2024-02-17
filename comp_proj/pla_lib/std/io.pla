@@ -4,12 +4,12 @@ namespace std {
 	variable const con_handle_name := "CON"w;
 
 	variable con_in : struct {
-		handle : * void,
+		handle : w64::handle_t,
 		buf_ch : u16,
 		buf_ch_has : bool
 		};
 	variable con_out : struct {
-		handle : * void
+		handle : w64::handle_t
 		};
 
 	function init_con_io : $() -> void {

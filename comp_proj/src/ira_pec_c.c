@@ -251,6 +251,7 @@ static bool compile_lo(ctx_t * ctx, ira_lo_t * lo) {
 			}
 			break;
 		case IraLoDtStct:
+		case IraLoRoVal:
 			break;
 		default:
 			u_assert_switch(lo->type);

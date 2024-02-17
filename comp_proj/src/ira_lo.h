@@ -9,6 +9,7 @@ enum ira_lo_type {
 	IraLoImpt,
 	IraLoVar,
 	IraLoDtStct,
+	IraLoRoVal,
 	IraLo_Count
 };
 struct ira_lo {
@@ -36,6 +37,9 @@ struct ira_lo {
 		struct {
 			ira_dt_sd_t * sd;
 		} dt_stct;
+		struct {
+			ira_val_t * val;
+		} ro_val;
 	};
 };
 

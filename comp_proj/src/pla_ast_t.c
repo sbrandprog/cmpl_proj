@@ -448,8 +448,6 @@ static bool translate_dclr_func(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 
 	*out = ira_lo_create(IraLoFunc, dclr->name);
 
-	ira_lo_t * lo = *out;
-
 	ira_dt_t * func_dt = NULL;
 
 	if (!pla_ast_t_calculate_expr_dt(ctx, dclr->func.dt_expr, &func_dt)) {
@@ -461,7 +459,7 @@ static bool translate_dclr_func(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 		return false;
 	}
 
-	if (!pla_ast_t_s_translate(ctx, func_dt, dclr->func.block, &lo->func)) {
+	if (!pla_ast_t_s_translate(ctx, func_dt, dclr->func.block, &(*out)->func)) {
 		return false;
 	}
 
@@ -475,14 +473,12 @@ static bool translate_dclr_impt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 	
 	*out = ira_lo_create(IraLoImpt, dclr->name);
 
-	ira_lo_t * lo = *out;
-
-	if (!pla_ast_t_calculate_expr_dt(ctx, dclr->impt.dt_expr, &lo->impt.dt)) {
+	if (!pla_ast_t_calculate_expr_dt(ctx, dclr->impt.dt_expr, &(*out)->impt.dt)) {
 		return false;
 	}
 
-	lo->impt.lib_name = dclr->impt.lib_name;
-	lo->impt.sym_name = dclr->impt.sym_name;
+	(*out)->impt.lib_name = dclr->impt.lib_name;
+	(*out)->impt.sym_name = dclr->impt.sym_name;
 
 	return true;
 }
@@ -570,6 +566,20 @@ static bool translate_dclr_stct_decl(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t **
 
 	return true;
 }
+static bool translate_dclr_ro_val(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
+	if (*out != NULL) {
+		pla_ast_t_report(ctx, L"language object with [%s] name already exists", dclr->name->str);
+		return false;
+	}
+
+	*out = ira_lo_create(IraLoRoVal, dclr->name);
+
+	if (!pla_ast_t_calculate_expr(ctx, dclr->ro_val.val_expr, &(*out)->ro_val.val)) {
+		return false;
+	}
+
+	return true;
+}
 static bool translate_dclr_tse(ctx_t * ctx, pla_dclr_t * dclr) {
 	ira_lo_t ** ins = get_vse_lo_ins(ctx, dclr->name);
 
@@ -608,6 +618,11 @@ static bool translate_dclr_tse(ctx_t * ctx, pla_dclr_t * dclr) {
 			break;
 		case PlaDclrDtStctDecl:
 			if (!translate_dclr_stct_decl(ctx, dclr, ins)) {
+				return false;
+			}
+			break;
+		case PlaDclrRoVal:
+			if (!translate_dclr_ro_val(ctx, dclr, ins)) {
 				return false;
 			}
 			break;
