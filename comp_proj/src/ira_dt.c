@@ -10,7 +10,11 @@ bool ira_dt_is_complete(ira_dt_t * dt) {
 		case IraDtDt:
 		case IraDtBool:
 		case IraDtInt:
+			break;
 		case IraDtPtr:
+			if (!ira_dt_is_complete(dt->ptr.body)) {
+				return false;
+			}
 			break;
 		case IraDtStct:
 			if (dt->stct.lo->dt_stct.sd == NULL) {
@@ -18,7 +22,20 @@ bool ira_dt_is_complete(ira_dt_t * dt) {
 			}
 			break;
 		case IraDtArr:
+			if (!ira_dt_is_complete(dt->arr.body)) {
+				return false;
+			}
+			break;
 		case IraDtFunc:
+			if (!ira_dt_is_complete(dt->func.ret)) {
+				return false;
+			}
+
+			for (ira_dt_ndt_t * arg = dt->func.args, *arg_end = arg + dt->func.args_size; arg != arg_end; ++arg) {
+				if (!ira_dt_is_complete(arg->dt)) {
+					return false;
+				}
+			}
 			break;
 		default:
 			u_assert_switch(dt->type);
@@ -36,10 +53,6 @@ bool ira_dt_is_qual_equal(ira_dt_qual_t first, ira_dt_qual_t second) {
 }
 
 bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
-	if (!ira_dt_is_complete(first) || !ira_dt_is_complete(second)) {
-		return false;
-	}
-
 	if (first == second) {
 		return true;
 	}
@@ -85,6 +98,10 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 
 			if (first->stct.lo != second->stct.lo) {
 				ira_dt_sd_t * first_sd = first->stct.lo->dt_stct.sd, * second_sd = second->stct.lo->dt_stct.sd;
+
+				if (first_sd == NULL || second_sd == NULL) {
+					return false;
+				}
 
 				if (first_sd->elems_size != second_sd->elems_size) {
 					return false;
@@ -223,27 +240,6 @@ static bool is_castable_to_ptr(ira_dt_t * from, ira_dt_t * to) {
 
 	return true;
 }
-static bool is_castable_to_arr(ira_dt_t * from, ira_dt_t * to) {
-	switch (from->type) {
-		case IraDtVoid:
-			break;
-		case IraDtDt:
-		case IraDtBool:
-		case IraDtInt:
-		case IraDtPtr:
-		case IraDtStct:
-			return false;
-		case IraDtArr:
-			__debugbreak();
-			return false;
-		case IraDtFunc:
-			return false;
-		default:
-			u_assert_switch(from->type);
-	}
-
-	return true;
-}
 static bool is_castable_to_stct(ira_dt_t * from, ira_dt_t * to) {
 	switch (from->type) {
 		case IraDtVoid:
@@ -257,6 +253,27 @@ static bool is_castable_to_stct(ira_dt_t * from, ira_dt_t * to) {
 			__debugbreak();
 			return false;
 		case IraDtArr:
+		case IraDtFunc:
+			return false;
+		default:
+			u_assert_switch(from->type);
+	}
+
+	return true;
+}
+static bool is_castable_to_arr(ira_dt_t * from, ira_dt_t * to) {
+	switch (from->type) {
+		case IraDtVoid:
+			break;
+		case IraDtDt:
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+		case IraDtStct:
+			return false;
+		case IraDtArr:
+			__debugbreak();
+			return false;
 		case IraDtFunc:
 			return false;
 		default:
@@ -283,10 +300,6 @@ static bool is_castable_to_func(ira_dt_t * from, ira_dt_t * to) {
 	return true;
 }
 bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to) {
-	if (!ira_dt_is_complete(from) || !ira_dt_is_complete(to)) {
-		return false;
-	}
-
 	switch (to->type) {
 		case IraDtVoid:
 			if (!is_castable_to_void(from, to)) {
@@ -314,6 +327,10 @@ bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to) {
 			}
 			break;
 		case IraDtStct:
+			if (to->stct.lo->dt_stct.sd == NULL) {
+				return false;
+			}
+
 			if (!is_castable_to_stct(from, to)) {
 				return false;
 			}
@@ -474,7 +491,7 @@ static void calc_sd_props(ira_dt_sd_t * sd) {
 }
 bool ira_dt_create_sd(size_t elems_size, ira_dt_ndt_t * elems, ira_dt_sd_t ** out) {
 	for (ira_dt_ndt_t * elem = elems, *elem_end = elem + elems_size; elem != elem_end; ++elem) {
-		if (!ira_dt_is_complete(elem->dt)) {
+		if (elem->name == NULL || !ira_dt_is_complete(elem->dt)) {
 			return false;
 		}
 	}

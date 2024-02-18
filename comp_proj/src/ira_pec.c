@@ -79,34 +79,6 @@ void ira_pec_cleanup(ira_pec_t * pec) {
 	memset(pec, 0, sizeof(*pec));
 }
 
-static bool get_listed_dt_check(ira_dt_t * pred) {
-	switch (pred->type) {
-		case IraDtPtr:
-			break;
-		case IraDtStct:
-			break;
-		case IraDtArr:
-			if (!ira_dt_is_complete(pred->arr.body)) {
-				return false;
-			}
-			break;
-		case IraDtFunc:
-			if (!ira_dt_is_complete(pred->func.ret)) {
-				return false;
-			}
-
-			for (ira_dt_ndt_t * arg = pred->func.args, *arg_end = arg + pred->func.args_size; arg != arg_end; ++arg) {
-				if (arg->name == NULL || !ira_dt_is_complete(arg->dt)) {
-					return false;
-				}
-			}
-			break;
-		default:
-			u_assert_switch(pred->type);
-	}
-
-	return true;
-}
 static bool get_listed_dt_cmp(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * dt) {
 	u_assert(pred->type == dt->type);
 
@@ -221,6 +193,12 @@ static bool get_listed_dt_copy(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * out)
 		}
 		case IraDtFunc:
 		{
+			for (ira_dt_ndt_t * arg = pred->func.args, *arg_end = arg + pred->func.args_size; arg != arg_end; ++arg) {
+				if (arg->name == NULL) {
+					return false;
+				}
+			}
+
 			ira_dt_ndt_t * new_args = malloc(pred->func.args_size * sizeof(*new_args));
 
 			u_assert(new_args != NULL);
@@ -237,10 +215,6 @@ static bool get_listed_dt_copy(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * out)
 	return true;
 }
 static bool get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** ins, ira_dt_t ** out) {
-	if (!get_listed_dt_check(pred)) {
-		return false;
-	}
-	
 	while (*ins != NULL) {
 		ira_dt_t * dt = *ins;
 
@@ -256,13 +230,16 @@ static bool get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** ins, ira
 
 	u_assert(new_dt != NULL);
 
+	memset(new_dt, 0, sizeof(*new_dt));
+
+	*ins = new_dt;
+	
 	if (!get_listed_dt_copy(pec, pred, new_dt)) {
 		return false;
 	}
 
-	*ins = new_dt;
-
 	*out = new_dt;
+
 	return true;
 }
 
@@ -394,10 +371,6 @@ bool ira_pec_make_val_lo_ptr(ira_pec_t * pec, ira_lo_t * lo, ira_val_t ** out) {
 }
 
 bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
-	if (!ira_dt_is_complete(dt)) {
-		return false;
-	}
-	
 	ira_val_type_t val_type;
 	
 	switch (dt->type) {
