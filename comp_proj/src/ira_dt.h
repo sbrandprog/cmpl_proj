@@ -32,6 +32,7 @@ enum ira_dt_type {
 	IraDtDt,
 	IraDtBool,
 	IraDtInt,
+	IraDtVec,
 	IraDtPtr,
 	IraDtStct,
 	IraDtArr,
@@ -43,6 +44,11 @@ struct ira_dt {
 	ira_dt_t * next;
 	union {
 		ira_int_type_t int_type;
+		struct {
+			size_t size;
+			ira_dt_t * body;
+			ira_dt_qual_t qual;
+		} vec;
 		struct {
 			ira_dt_t * body;
 			ira_dt_qual_t qual;

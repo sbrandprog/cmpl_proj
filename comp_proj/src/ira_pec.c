@@ -10,6 +10,7 @@ static void destroy_dt_chain(ira_pec_t * pec, ira_dt_t * dt) {
 		ira_dt_t * next = dt->next;
 
 		switch (dt->type) {
+			case IraDtVec:
 			case IraDtPtr:
 			case IraDtStct:
 			case IraDtArr:
@@ -51,7 +52,6 @@ bool ira_pec_init(ira_pec_t * pec, u_hst_t * hst) {
 		}
 
 		pec->dt_spcl.size = &pec->dt_ints[IraIntU64];
-		pec->dt_spcl.arr_size = pec->dt_spcl.size;
 		
 		if (!ira_pec_get_dt_arr(pec, &pec->dt_ints[IraIntU8], ira_dt_qual_const, &pec->dt_spcl.ascii_str)) {
 			return false;
@@ -71,6 +71,7 @@ void ira_pec_cleanup(ira_pec_t * pec) {
 
 	ira_lo_destroy_chain(pec->dt_stct_lo);
 
+	destroy_dt_chain(pec, pec->dt_vec);
 	destroy_dt_chain(pec, pec->dt_ptr);
 	destroy_dt_chain(pec, pec->dt_stct);
 	destroy_dt_chain(pec, pec->dt_arr);
@@ -83,6 +84,19 @@ static bool get_listed_dt_cmp(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * dt) {
 	u_assert(pred->type == dt->type);
 
 	switch (pred->type) {
+		case IraDtVec:
+			if (dt->vec.size != pred->vec.size) {
+				return false;
+			}
+
+			if (!ira_dt_is_qual_equal(dt->vec.qual, pred->vec.qual)) {
+				return false;
+			}
+
+			if (dt->vec.body != pred->vec.body) {
+				return false;
+			}
+			break;
 		case IraDtPtr:
 			if (!ira_dt_is_qual_equal(dt->ptr.qual, pred->ptr.qual)) {
 				return false;
@@ -151,6 +165,9 @@ static bool get_listed_dt_cmp(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * dt) {
 }
 static bool get_listed_dt_copy(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * out) {
 	switch (pred->type) {
+		case IraDtVec:
+			*out = (ira_dt_t){ .type = pred->type, .vec = { .size = pred->vec.size, .body = pred->vec.body, .qual = pred->vec.qual } };
+			break;
 		case IraDtPtr:
 			*out = (ira_dt_t){ .type = pred->type, .ptr = { .body = pred->ptr.body, .qual = pred->ptr.qual } };
 			break;
@@ -178,11 +195,11 @@ static bool get_listed_dt_copy(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * out)
 			*out = (ira_dt_t){ .type = pred->type, .arr = { .body = pred->arr.body, .qual = pred->arr.qual } };
 
 			ira_dt_ndt_t elems[2] = {
-				[IRA_DT_ARR_SIZE_IND] = { .dt = pec->dt_spcl.arr_size, .name = pec->pds[IraPdsSizeMmbr] },
+				[IRA_DT_ARR_SIZE_IND] = { .dt = pec->dt_spcl.size, .name = pec->pds[IraPdsSizeMmbr] },
 				[IRA_DT_ARR_DATA_IND] = { .dt = NULL, .name = pec->pds[IraPdsDataMmbr] }
 			};
 
-			if (!ira_pec_get_dt_ptr(pec, pred->arr.body, ira_dt_qual_none, &elems[1].dt)) {
+			if (!ira_pec_get_dt_ptr(pec, pred->arr.body, ira_dt_qual_none, &elems[IRA_DT_ARR_DATA_IND].dt)) {
 				return false;
 			}
 
@@ -243,6 +260,11 @@ static bool get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** ins, ira
 	return true;
 }
 
+bool ira_pec_get_dt_vec(ira_pec_t * pec, size_t size, ira_dt_t * body, ira_dt_qual_t qual, ira_dt_t ** out) {
+	ira_dt_t pred = { .type = IraDtVec, .vec = { .size = size, .body = body, .qual = qual } };
+
+	return get_listed_dt(pec, &pred, &pec->dt_vec, out);
+}
 bool ira_pec_get_dt_ptr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual, ira_dt_t ** out) {
 	ira_dt_t pred = { .type = IraDtPtr, .ptr = { .body = body, .qual = qual } };
 
@@ -280,6 +302,13 @@ bool ira_pec_apply_qual(ira_pec_t * pec, ira_dt_t * dt, ira_dt_qual_t qual, ira_
 		case IraDtBool:
 		case IraDtInt:
 			*out = dt;
+			break;
+		case IraDtVec:
+			qual = ira_dt_apply_qual(dt->vec.qual, qual);
+
+			if (!ira_pec_get_dt_vec(pec, dt->vec.size, dt->vec.body, qual, out)) {
+				return false;
+			}
 			break;
 		case IraDtPtr:
 			qual = ira_dt_apply_qual(dt->ptr.qual, qual);
@@ -386,6 +415,9 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 		case IraDtInt:
 			val_type = IraValImmInt;
 			break;
+		case IraDtVec:
+			val_type = IraValImmVec;
+			break;
 		case IraDtPtr:
 			val_type = IraValNullPtr;
 			break;
@@ -412,6 +444,30 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 			break;
 		case IraDtInt:
 			(*out)->int_val.ui64 = 0;
+			break;
+		case IraDtVec:
+			(*out)->vec.data = malloc(dt->vec.size * sizeof(*(*out)->vec.data));
+
+			u_assert((*out)->vec.data != NULL);
+
+			memset((*out)->vec.data, 0, dt->vec.size * sizeof(*(*out)->vec.data));
+
+			if (dt->vec.size > 0) {
+				if (!ira_pec_make_val_null(pec, dt->vec.body, &(*out)->vec.data[0])) {
+					return false;
+				}
+
+				ira_val_t * ref_val = (*out)->vec.data[0];
+
+				ira_val_t ** elem = (*out)->vec.data, ** elem_end = elem + dt->vec.size;
+
+				++elem;
+
+				while (elem != elem_end) {
+					*elem++ = ira_val_copy(ref_val);
+				}
+			}
+
 			break;
 		case IraDtPtr:
 			break;

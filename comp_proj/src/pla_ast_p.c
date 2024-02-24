@@ -784,9 +784,19 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 
 				switch (info->expr_type) {
 					case PlaExprDtArr:
-						if (!consume_punc_exact_crit(ctx, PlaPuncRiBrack)) {
-							return false;
+						if (!consume_punc_exact(ctx, PlaPuncRiBrack)) {
+							if (!parse_expr(ctx, &(*out)->opd1.expr)) {
+								return false;
+							}
+
+							if (!consume_punc_exact_crit(ctx, PlaPuncRiBrack)) {
+								return false;
+							}
 						}
+						else {
+							(*out)->opd1.expr = pla_expr_create(PlaExprValVoid);
+						}
+
 						break;
 					case PlaExprCast:
 						if (!consume_punc_exact_crit(ctx, PlaPuncLeBrack)) {
@@ -1058,7 +1068,7 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 					return false;
 				}
 
-				if (consume_punc_exact_crit(ctx, PlaPuncRiBrack)) {
+				if (!consume_punc_exact_crit(ctx, PlaPuncRiBrack)) {
 					return false;
 				}
 				break;

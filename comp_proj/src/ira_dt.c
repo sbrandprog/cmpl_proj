@@ -11,6 +11,11 @@ bool ira_dt_is_complete(ira_dt_t * dt) {
 		case IraDtBool:
 		case IraDtInt:
 			break;
+		case IraDtVec:
+			if (!ira_dt_is_complete(dt->vec.body)) {
+				return false;
+			}
+			break;
 		case IraDtPtr:
 			if (!ira_dt_is_complete(dt->ptr.body)) {
 				return false;
@@ -68,6 +73,19 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 			break;
 		case IraDtInt:
 			if (first->int_type != second->int_type) {
+				return false;
+			}
+			break;
+		case IraDtVec:
+			if (first->vec.size != second->vec.size) {
+				return false;
+			}
+
+			if (!ira_dt_is_qual_equal(first->vec.qual, second->vec.qual)) {
+				return false;
+			}
+
+			if (!ira_dt_is_equivalent(first->vec.body, second->vec.body)) {
 				return false;
 			}
 			break;
@@ -151,6 +169,7 @@ static bool is_castable_to_void(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtDt:
 		case IraDtBool:
 		case IraDtInt:
+		case IraDtVec:
 		case IraDtPtr:
 		case IraDtStct:
 		case IraDtArr:
@@ -169,6 +188,7 @@ static bool is_castable_to_dt(ira_dt_t * from, ira_dt_t * to) {
 			break;
 		case IraDtBool:
 		case IraDtInt:
+		case IraDtVec:
 		case IraDtPtr:
 		case IraDtStct:
 		case IraDtArr:
@@ -188,6 +208,9 @@ static bool is_castable_to_bool(ira_dt_t * from, ira_dt_t * to) {
 			return false;
 		case IraDtBool:
 		case IraDtInt:
+			break;
+		case IraDtVec:
+			return false;
 		case IraDtPtr:
 			break;
 		case IraDtStct:
@@ -208,8 +231,33 @@ static bool is_castable_to_int(ira_dt_t * from, ira_dt_t * to) {
 			return false;
 		case IraDtBool:
 		case IraDtInt:
+			break;
+		case IraDtVec:
+			return false;
 		case IraDtPtr:
 			break;
+		case IraDtStct:
+		case IraDtArr:
+		case IraDtFunc:
+			return false;
+		default:
+			u_assert_switch(from->type);
+	}
+
+	return true;
+}
+static bool is_castable_to_vec(ira_dt_t * from, ira_dt_t * to) {
+	switch (from->type) {
+		case IraDtVoid:
+			break;
+		case IraDtDt:
+		case IraDtBool:
+		case IraDtInt:
+			return false;
+		case IraDtVec:
+			__debugbreak();
+			return false;
+		case IraDtPtr:
 		case IraDtStct:
 		case IraDtArr:
 		case IraDtFunc:
@@ -228,6 +276,9 @@ static bool is_castable_to_ptr(ira_dt_t * from, ira_dt_t * to) {
 			return false;
 		case IraDtBool:
 		case IraDtInt:
+			break;
+		case IraDtVec:
+			return false;
 		case IraDtPtr:
 			break;
 		case IraDtStct:
@@ -247,6 +298,7 @@ static bool is_castable_to_stct(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtDt:
 		case IraDtBool:
 		case IraDtInt:
+		case IraDtVec:
 		case IraDtPtr:
 			return false;
 		case IraDtStct:
@@ -268,6 +320,7 @@ static bool is_castable_to_arr(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtDt:
 		case IraDtBool:
 		case IraDtInt:
+		case IraDtVec:
 		case IraDtPtr:
 		case IraDtStct:
 			return false;
@@ -288,6 +341,7 @@ static bool is_castable_to_func(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtDt:
 		case IraDtBool:
 		case IraDtInt:
+		case IraDtVec:
 		case IraDtPtr:
 		case IraDtStct:
 		case IraDtArr:
@@ -318,6 +372,11 @@ bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to) {
 			break;
 		case IraDtInt:
 			if (!is_castable_to_int(from, to)) {
+				return false;
+			}
+			break;
+		case IraDtVec:
+			if (!is_castable_to_vec(from, to)) {
 				return false;
 			}
 			break;
@@ -360,6 +419,9 @@ bool ira_dt_get_qual(ira_dt_t * dt, ira_dt_qual_t * out) {
 		case IraDtInt:
 			*out = ira_dt_qual_none;
 			break;
+		case IraDtVec:
+			*out = dt->vec.qual;
+			break;
 		case IraDtPtr:
 			*out = dt->ptr.qual;
 			break;
@@ -390,6 +452,14 @@ bool ira_dt_get_size(ira_dt_t * dt, size_t * out) {
 			break;
 		case IraDtInt:
 			*out = ira_int_get_size(dt->int_type);
+			break;
+		case IraDtVec:
+			if (!ira_dt_get_size(dt->vec.body, out)) {
+				return false;
+			}
+
+			*out *= dt->vec.size;
+
 			break;
 		case IraDtPtr:
 			*out = 8;
@@ -428,6 +498,11 @@ bool ira_dt_get_align(ira_dt_t * dt, size_t * out) {
 			break;
 		case IraDtInt:
 			*out = ira_int_get_size(dt->int_type);
+			break;
+		case IraDtVec:
+			if (!ira_dt_get_align(dt->vec.body, out)) {
+				return false;
+			}
 			break;
 		case IraDtPtr:
 			*out = 8;
@@ -556,6 +631,7 @@ const ira_dt_info_t ira_dt_infos[IraDt_Count] = {
 	[IraDtDt] = { .type_str = U_MAKE_ROS(L"DtDt") },
 	[IraDtBool] = { .type_str = U_MAKE_ROS(L"DtBool") },
 	[IraDtInt] = { .type_str = U_MAKE_ROS(L"DtInt") },
+	[IraDtVec] = { .type_str = U_MAKE_ROS(L"DtVec") },
 	[IraDtPtr] = { .type_str = U_MAKE_ROS(L"DtPtr") },
 	[IraDtArr] = { .type_str = U_MAKE_ROS(L"DtArr") },
 	[IraDtStct] = { .type_str = U_MAKE_ROS(L"DtStct") },

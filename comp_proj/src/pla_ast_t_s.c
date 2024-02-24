@@ -15,37 +15,37 @@
 typedef pla_ast_t_tse_t tse_t;
 typedef pla_ast_t_vse_t vse_t;
 
-typedef struct var var_t;
-struct var {
+typedef struct pla_ast_t_s_var var_t;
+struct pla_ast_t_s_var {
 	var_t * next;
 	u_hs_t * orig_name;
 	u_hs_t * inst_name;
 	ira_dt_qdt_t qdt;
 };
-typedef struct blk blk_t;
-struct blk {
+typedef struct pla_ast_t_s_blk blk_t;
+struct pla_ast_t_s_blk {
 	blk_t * prev;
 	var_t * var;
 };
 
-typedef struct expr expr_t;
-typedef enum expr_val_type {
+typedef struct pla_ast_t_s_expr expr_t;
+typedef enum pla_ast_t_s_expr_val_type {
 	ExprValImmVar,
 	ExprValVar,
 	ExprValDeref,
 	ExprVal_Count
 } expr_val_type_t;
-typedef union expr_val {
+typedef union pla_ast_t_s_expr_val {
 	var_t * var;
 } expr_val_t;
-typedef union expr_opd {
+typedef union pla_ast_t_s_expr_opd {
 	bool boolean;
 	ira_int_type_t int_type;
 	u_hs_t * hs;
 	pla_irid_t * irid;
 	expr_t * expr;
 } expr_opd_t;
-struct expr {
+struct pla_ast_t_s_expr {
 	pla_expr_t * base;
 	union {
 		expr_opd_t opds[PLA_EXPR_OPDS_SIZE];
@@ -83,6 +83,9 @@ struct expr {
 		struct {
 			size_t args_size;
 		} call;
+		struct {
+			ira_dt_t * res_dt;
+		} mmbr_acc;
 		pla_ast_t_optr_t * optr;
 	};
 };
@@ -199,7 +202,10 @@ static void destroy_expr(ctx_t * ctx, expr_t * expr) {
 
 	switch (base->type) {
 		case PlaExprDtVoid:
+		case PlaExprDtBool:
 		case PlaExprDtInt:
+		case PlaExprValVoid:
+		case PlaExprValBool:
 		case PlaExprChStr:
 		case PlaExprNumStr:
 		case PlaExprNullofDt:
@@ -678,16 +684,12 @@ static bool get_stct_mmbr_dt(ctx_t * ctx, ira_dt_t * dt, u_hs_t * mmbr, ira_dt_t
 				pla_ast_t_report_pec_err(ctx->t_ctx);
 				return false;
 			}
-			break;
+			
+			return true;
 		}
 	}
 
-	if (elem == elem_end) {
-		pla_ast_t_report(ctx->t_ctx, L"operand of [%s] data type does not support [%s] member", ira_dt_infos[dt->type].type_str.str, mmbr->str);
-		return false;
-	}
-
-	return true;
+	return false;
 }
 static bool get_mmbr_acc_dt(ctx_t * ctx, ira_dt_t * opd_dt, u_hs_t * mmbr, ira_dt_t ** out) {
 	switch (opd_dt->type) {
@@ -695,9 +697,8 @@ static bool get_mmbr_acc_dt(ctx_t * ctx, ira_dt_t * opd_dt, u_hs_t * mmbr, ira_d
 		case IraDtDt:
 		case IraDtBool:
 		case IraDtInt:
+		case IraDtVec:
 		case IraDtPtr:
-		case IraDtFunc:
-			pla_ast_t_report(ctx->t_ctx, L"operand of [%s] data type does not support member access", ira_dt_infos[opd_dt->type].type_str.str);
 			return false;
 		case IraDtStct:
 			if (!get_stct_mmbr_dt(ctx, opd_dt, mmbr, out)) {
@@ -709,6 +710,8 @@ static bool get_mmbr_acc_dt(ctx_t * ctx, ira_dt_t * opd_dt, u_hs_t * mmbr, ira_d
 				return false;
 			}
 			break;
+		case IraDtFunc:
+			return false;
 		default:
 			u_assert_switch(opd_dt->type);
 	}
@@ -787,12 +790,64 @@ static bool translate_expr0_opds(ctx_t * ctx, expr_t * expr) {
 
 	return true;
 }
-static bool translate_expr0_load_val(ctx_t * ctx, expr_t * expr, val_proc_t * proc) {
-	if (!proc(ctx, expr->base, &expr->load_val.val)) {
+static bool translate_expr0_blank(ctx_t * ctx, expr_t * expr) {
+	return true;
+}
+static bool translate_expr0_invalid(ctx_t * ctx, expr_t * expr) {
+	pla_ast_t_report(ctx->t_ctx, L"this expression type is untranslatable");
+	return false;
+}
+static bool translate_expr0_load_val(ctx_t * ctx, expr_t * expr) {
+	pla_expr_t * base = expr->base;
+	
+	val_proc_t * proc;
+
+	switch (base->type) {
+		case PlaExprDtVoid:
+			proc = get_dt_void_val_proc;
+			break;
+		case PlaExprDtBool:
+			proc = get_dt_bool_val_proc;
+			break;
+		case PlaExprDtInt:
+			proc = get_dt_int_val_proc;
+			break;
+		case PlaExprValVoid:
+			proc = get_void_val_proc;
+			break;
+		case PlaExprValBool:
+			proc = get_bool_val_proc;
+			break;
+		case PlaExprChStr:
+			proc = get_cs_val_proc;
+			break;
+		case PlaExprNumStr:
+			proc = get_ns_val_proc;
+			break;
+		case PlaExprNullofDt:
+			proc = get_null_val_proc;
+			break;
+		default:
+			u_assert_switch(base->type);
+	}
+
+	if (!proc(ctx, base, &expr->load_val.val)) {
 		return false;
 	}
 
 	expr->val_qdt.dt = expr->load_val.val->dt;
+
+	return true;
+}
+static bool translate_expr0_dt_ptr(ctx_t * ctx, expr_t * expr) {
+	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
+
+	if (expr->opd0.expr->val_qdt.dt != dt_dt) {
+		pla_ast_t_report(ctx->t_ctx, L"dt_ptr requires 'dt' data type for opd[0]");
+		return false;
+	}
+
+	expr->val_qdt.dt = dt_dt;
 
 	return true;
 }
@@ -814,6 +869,25 @@ static bool translate_expr0_dt_stct(ctx_t * ctx, expr_t * expr) {
 
 	return true;
 }
+static bool translate_expr0_dt_arr(ctx_t * ctx, expr_t * expr) {
+	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
+
+	if (expr->opd0.expr->val_qdt.dt != dt_dt) {
+		pla_ast_t_report(ctx->t_ctx, L"dt_arr requires 'dt' data type for opd[0]");
+		return false;
+	}
+
+	ira_dt_t * dim_opd_dt = expr->opd1.expr->val_qdt.dt;
+
+	if (dim_opd_dt->type != IraDtVoid && dim_opd_dt->type != IraDtInt) {
+		pla_ast_t_report(ctx->t_ctx, L"dt_arr requires 'void' or 'int' data type for opd[1]");
+		return false;
+	}
+
+	expr->val_qdt.dt = dt_dt;
+
+	return true;
+}
 static bool translate_expr0_dt_func(ctx_t * ctx, expr_t * expr) {
 	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
 
@@ -830,6 +904,18 @@ static bool translate_expr0_dt_func(ctx_t * ctx, expr_t * expr) {
 
 	if (expr->opd0.expr->val_qdt.dt != dt_dt) {
 		pla_ast_t_report(ctx->t_ctx, L"dt_func requires 'dt' data type for return value");
+		return false;
+	}
+
+	expr->val_qdt.dt = dt_dt;
+
+	return true;
+}
+static bool translate_expr0_dt_const(ctx_t * ctx, expr_t * expr) {
+	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
+	
+	if (expr->opd0.expr->val_qdt.dt != dt_dt) {
+		pla_ast_t_report(ctx->t_ctx, L"make_dt_const requires 'dt' data type for first operand");
 		return false;
 	}
 
@@ -916,16 +1002,60 @@ static bool translate_expr0_call(ctx_t * ctx, expr_t * expr) {
 
 	return true;
 }
-static bool translate_expr0_mmbr_acc(ctx_t * ctx, expr_t * expr) {
-	expr_t * opd = expr->opd0.expr;
+static bool translate_expr0_subscr(ctx_t * ctx, expr_t * expr) {
+	expr_t * opd1 = expr->opd1.expr;
+	
+	if (opd1->val_qdt.dt->type != IraDtInt) {
+		pla_ast_t_report(ctx->t_ctx, L"opd[1] must have an integer data type");
+		return false;
+	}
+
+	expr_t * opd0 = expr->opd0.expr;
+	ira_dt_t * opd0_dt = opd0->val_qdt.dt;
 
 	ira_dt_t * res_dt;
+	ira_dt_qual_t res_dt_qual;
 
-	if (!get_mmbr_acc_dt(ctx, opd->val_qdt.dt, expr->opd1.hs, &res_dt)) {
+	switch (opd0_dt->type) {
+		case IraDtVec:
+			res_dt = opd0_dt->vec.body;
+			res_dt_qual = opd0_dt->vec.qual;
+			break;
+		case IraDtPtr:
+			res_dt = opd0_dt->ptr.body;
+			res_dt_qual = ira_dt_qual_none;
+			break;
+		case IraDtArr:
+			res_dt = opd0_dt->arr.body;
+			res_dt_qual = opd0_dt->arr.qual;
+			break;
+		default:
+			pla_ast_t_report(ctx->t_ctx, L"opd[0] must have a (vector | pointer | array) data type");
+			return false;
+	}
+
+	if (!ira_pec_apply_qual(ctx->pec, res_dt, res_dt_qual, &res_dt)) {
+		pla_ast_t_report_pec_err(ctx->t_ctx);
 		return false;
 	}
 
 	expr->val_qdt.dt = res_dt;
+	expr->val_qdt.qual = opd0->val_qdt.qual;
+
+	return true;
+}
+static bool translate_expr0_mmbr_acc(ctx_t * ctx, expr_t * expr) {
+	expr_t * opd = expr->opd0.expr;
+
+	ira_dt_t * opd_dt = opd->val_qdt.dt;
+	u_hs_t * mmbr = expr->opd1.hs;
+
+	if (!get_mmbr_acc_dt(ctx, opd_dt, mmbr, &expr->mmbr_acc.res_dt)) {
+		pla_ast_t_report(ctx->t_ctx, L"operand of [%s] data type does not support member access or [%s] member", ira_dt_infos[opd_dt->type].type_str.str, mmbr->str);
+		return false;
+	}
+
+	expr->val_qdt.dt = expr->mmbr_acc.res_dt;
 	expr->val_qdt.qual = opd->val_qdt.qual;
 
 	return true;
@@ -1013,163 +1143,61 @@ static bool translate_expr0_tse(ctx_t * ctx, pla_expr_t * base, expr_t ** out) {
 		return false;
 	}
 
-	ira_pec_t * pec = ctx->pec;
-	ira_dt_t * dt_dt = &pec->dt_dt;
+	typedef bool translate_expr0_proc_t(ctx_t * ctx, expr_t * expr);
 
-	switch (base->type) {
-		case PlaExprNone:
-			return false;
-		case PlaExprDtVoid:
-			if (!translate_expr0_load_val(ctx, expr, get_dt_void_val_proc)) {
-				return false;
-			}
-			break;
-		case PlaExprDtBool:
-			if (!translate_expr0_load_val(ctx, expr, get_dt_bool_val_proc)) {
-				return false;
-			}
-			break;
-		case PlaExprDtInt:
-			if (!translate_expr0_load_val(ctx, expr, get_dt_int_val_proc)) {
-				return false;
-			}
-			break;
-		case PlaExprDtPtr:
-			if (expr->opd0.expr->val_qdt.dt != dt_dt) {
-				pla_ast_t_report(ctx->t_ctx, L"make_dt_ptr requires 'dt' data type for first operand");
-				return false;
-			}
+	static translate_expr0_proc_t * const translate_expr0_procs[PlaExpr_Count] = {
+		[PlaExprNone] = translate_expr0_invalid,
+		[PlaExprDtVoid] = translate_expr0_load_val,
+		[PlaExprDtBool] = translate_expr0_load_val,
+		[PlaExprDtInt] = translate_expr0_load_val,
+		[PlaExprDtPtr] = translate_expr0_dt_ptr,
+		[PlaExprDtStct] = translate_expr0_dt_stct,
+		[PlaExprDtStctElem] = translate_expr0_blank,
+		[PlaExprDtArr] = translate_expr0_dt_arr,
+		[PlaExprDtFunc] = translate_expr0_dt_func,
+		[PlaExprDtFuncArg] = translate_expr0_blank,
+		[PlaExprDtConst] = translate_expr0_dt_const,
+		[PlaExprValVoid] = translate_expr0_load_val,
+		[PlaExprValBool] = translate_expr0_load_val,
+		[PlaExprChStr] = translate_expr0_load_val,
+		[PlaExprNumStr] = translate_expr0_load_val,
+		[PlaExprNullofDt] = translate_expr0_load_val,
+		[PlaExprIdent] = translate_expr0_ident,
+		[PlaExprCall] = translate_expr0_call,
+		[PlaExprCallArg] = translate_expr0_blank,
+		[PlaExprSubscr] = translate_expr0_subscr,
+		[PlaExprMmbrAcc] = translate_expr0_mmbr_acc,
+		[PlaExprDeref] = translate_expr0_deref,
+		[PlaExprAddrOf] = translate_expr0_addr_of,
+		[PlaExprCast] = translate_expr0_cast,
+		[PlaExprLogicNeg] = translate_expr0_unr,
+		[PlaExprBitNeg] = translate_expr0_unr,
+		[PlaExprArithNeg] = translate_expr0_unr,
+		[PlaExprMul] = translate_expr0_bin,
+		[PlaExprDiv] = translate_expr0_bin,
+		[PlaExprMod] = translate_expr0_bin,
+		[PlaExprAdd] = translate_expr0_bin,
+		[PlaExprSub] = translate_expr0_bin,
+		[PlaExprLeShift] = translate_expr0_bin,
+		[PlaExprRiShift] = translate_expr0_bin,
+		[PlaExprLess] = translate_expr0_bin,
+		[PlaExprLessEq] = translate_expr0_bin,
+		[PlaExprGrtr] = translate_expr0_bin,
+		[PlaExprGrtrEq] = translate_expr0_bin,
+		[PlaExprEq] = translate_expr0_bin,
+		[PlaExprNeq] = translate_expr0_bin,
+		[PlaExprBitAnd] = translate_expr0_bin,
+		[PlaExprBitXor] = translate_expr0_bin,
+		[PlaExprBitOr] = translate_expr0_bin,
+		[PlaExprAsgn] = translate_expr0_asgn,
+	};
 
-			expr->val_qdt.dt = dt_dt;
-			break;
-		case PlaExprDtStct:
-			if (!translate_expr0_dt_stct(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprDtStctElem:
-			break;
-		case PlaExprDtArr:
-			if (expr->opd0.expr->val_qdt.dt != dt_dt) {
-				pla_ast_t_report(ctx->t_ctx, L"make_dt_arr requires 'dt' data type for first operand");
-				return false;
-			}
+	translate_expr0_proc_t * proc = translate_expr0_procs[base->type];
 
-			expr->val_qdt.dt = dt_dt;
-			break;
-		case PlaExprDtFunc:
-			if (!translate_expr0_dt_func(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprDtFuncArg:
-			break;
-		case PlaExprDtConst:
-			if (expr->opd0.expr->val_qdt.dt != dt_dt) {
-				pla_ast_t_report(ctx->t_ctx, L"make_dt_const requires 'dt' data type for first operand");
-				return false;
-			}
+	u_assert(proc != NULL);
 
-			expr->val_qdt.dt = dt_dt;
-			break;
-		case PlaExprValVoid:
-			if (!translate_expr0_load_val(ctx, expr, get_void_val_proc)) {
-				return false;
-			}
-			break;
-		case PlaExprValBool:
-			if (!translate_expr0_load_val(ctx, expr, get_bool_val_proc)) {
-				return false;
-			}
-			break;
-		case PlaExprChStr:
-			if (!translate_expr0_load_val(ctx, expr, get_cs_val_proc)) {
-				return false;
-			}
-			break;
-		case PlaExprNumStr:
-			if (!translate_expr0_load_val(ctx, expr, get_ns_val_proc)) {
-				return false;
-			}
-			break;
-		case PlaExprNullofDt:
-			if (!translate_expr0_load_val(ctx, expr, get_null_val_proc)) {
-				return false;
-			}
-			break;
-		case PlaExprIdent:
-			if (!translate_expr0_ident(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprCall:
-			if (!translate_expr0_call(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprCallArg:
-			break;
-			//case PlaExprSubscr:
-		case PlaExprMmbrAcc:
-			if (!translate_expr0_mmbr_acc(ctx, expr)) {
-				return false;
-			}
-			break;
-			//case PlaExprPostInc:
-			//case PlaExprPostDec:
-		case PlaExprDeref:
-			if (!translate_expr0_deref(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprAddrOf:
-			if (!translate_expr0_addr_of(ctx, expr)) {
-				return false;
-			}
-			break;
-			//case PlaExprPreInc:
-			//case PlaExprPreDec:
-		case PlaExprCast:
-			if (!translate_expr0_cast(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprLogicNeg:
-		case PlaExprBitNeg:
-		case PlaExprArithNeg:
-			if (!translate_expr0_unr(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprMul:
-		case PlaExprDiv:
-		case PlaExprMod:
-		case PlaExprAdd:
-		case PlaExprSub:
-		case PlaExprLeShift:
-		case PlaExprRiShift:
-		case PlaExprLess:
-		case PlaExprLessEq:
-		case PlaExprGrtr:
-		case PlaExprGrtrEq:
-		case PlaExprEq:
-		case PlaExprNeq:
-		case PlaExprBitAnd:
-		case PlaExprBitXor:
-		case PlaExprBitOr:
-			if (!translate_expr0_bin(ctx, expr)) {
-				return false;
-			}
-			break;
-			//case PlaExprLogicAnd:
-			//case PlaExprLogicOr:
-		case PlaExprAsgn:
-			if (!translate_expr0_asgn(ctx, expr)) {
-				return false;
-			}
-			break;
-		default:
-			u_assert_switch(base->type);
+	if (!proc(ctx, expr)) {
+		return false;
 	}
 
 	return true;
@@ -1210,6 +1238,57 @@ static bool translate_expr1_imm_var(ctx_t * ctx, expr_t * expr, var_t ** out) {
 	}
 
 	return true;
+}
+static bool translate_expr1_var_ptr(ctx_t * ctx, expr_t * expr, var_t ** out) {
+	if (!translate_expr1(ctx, expr)) {
+		return false;
+	}
+
+	switch (expr->val_type) {
+		case ExprValImmVar:
+		case ExprValVar:
+		{
+			ira_dt_t * ptr_dt;
+
+			if (!ira_pec_get_dt_ptr(ctx->pec, expr->val.var->qdt.dt, expr->val.var->qdt.qual, &ptr_dt)) {
+				pla_ast_t_report_pec_err(ctx->t_ctx);
+				return false;
+			}
+
+			ira_inst_t addr_of = { .type = IraInstAddrOf, .opd1.hs = expr->val.var->inst_name };
+
+			push_inst_imm_var0(ctx, &addr_of, ptr_dt, out);
+
+			break;
+		}
+		case ExprValDeref:
+			*out = expr->val.var;
+			break;
+		default:
+			u_assert_switch(expr->val_type);
+	}
+
+	return true;
+}
+
+static void set_expr_ptr_val(ctx_t * ctx, expr_t * expr, expr_val_type_t val_type, var_t * ptr_var) {
+	switch (val_type) {
+		case ExprValImmVar:
+		{
+			ira_inst_t read_ptr = { .type = IraInstReadPtr, .opd1.hs = ptr_var->inst_name };
+
+			push_inst_imm_var0_expr(ctx, expr, &read_ptr);
+
+			break;
+		}
+		case ExprValVar:
+		case ExprValDeref:
+			expr->val_type = ExprValDeref;
+			expr->val.var = ptr_var;
+			break;
+		default:
+			u_assert_switch(val_type);
+	}
 }
 
 static bool translate_expr1_load_val(ctx_t * ctx, expr_t * expr) {
@@ -1270,9 +1349,24 @@ static bool translate_expr1_dt_arr(ctx_t * ctx, expr_t * expr) {
 		return false;
 	}
 
-	ira_inst_t make_dt_arr = { .type = IraInstMakeDtArr, .opd1.hs = opd_var->inst_name, .opd2.dt_qual = ira_dt_qual_none };
+	ira_dt_t * dim_opd_dt = expr->opd1.expr->val_qdt.dt;
 
-	push_inst_imm_var0_expr(ctx, expr, &make_dt_arr);
+	if (dim_opd_dt->type == IraDtVoid) {
+		ira_inst_t make_dt_arr = { .type = IraInstMakeDtArr, .opd1.hs = opd_var->inst_name, .opd2.dt_qual = ira_dt_qual_none };
+
+		push_inst_imm_var0_expr(ctx, expr, &make_dt_arr);
+	}
+	else {
+		var_t * dim_var;
+		
+		if (!translate_expr1_imm_var(ctx, expr->opd1.expr, &dim_var)) {
+			return false;
+		}
+
+		ira_inst_t make_dt_vec = { .type = IraInstMakeDtVec, .opd1.hs = opd_var->inst_name, .opd2.hs = dim_var->inst_name, .opd3.dt_qual = ira_dt_qual_none };
+
+		push_inst_imm_var0_expr(ctx, expr, &make_dt_vec);
+	}
 
 	return true;
 }
@@ -1457,43 +1551,113 @@ static bool translate_expr1_call(ctx_t * ctx, expr_t * expr) {
 
 	return true;
 }
-static bool translate_expr1_mmbr_acc(ctx_t * ctx, expr_t * expr) {
-	expr_t * opd = expr->opd0.expr;
-
-	if (!translate_expr1(ctx, opd)) {
-		return false;
-	}
-
+static bool translate_expr1_subscr(ctx_t * ctx, expr_t * expr) {
+	expr_t * opd0 = expr->opd0.expr;
+	ira_dt_t * opd0_dt = opd0->val_qdt.dt;
+	
 	var_t * ptr_var;
 
-	switch (opd->val_type) {
-		case ExprValImmVar:
-		case ExprValVar:
+	switch (opd0_dt->type) {
+		case IraDtVec:
 		{
-			ira_dt_t * ptr_dt;
+			var_t * opd0_ptr;
 
-			if (!ira_pec_get_dt_ptr(ctx->pec, opd->val.var->qdt.dt, opd->val.var->qdt.qual, &ptr_dt)) {
+			if (!translate_expr1_var_ptr(ctx, opd0, &opd0_ptr)) {
 				return false;
 			}
 
-			ira_inst_t addr_of = { .type = IraInstAddrOf, .opd1.hs = opd->val.var->inst_name };
+			ira_dt_t * elem_dt;
 
-			push_inst_imm_var0(ctx, &addr_of, ptr_dt, &ptr_var);
+			if (!ira_pec_apply_qual(ctx->pec, opd0_dt->vec.body, opd0_dt->vec.qual, &elem_dt)) {
+				pla_ast_t_report_pec_err(ctx->t_ctx);
+				return false;
+			}
+
+			ira_dt_t * ptr_var_dt;
+
+			if (!ira_pec_get_dt_ptr(ctx->pec, elem_dt, opd0_ptr->qdt.dt->ptr.qual, &ptr_var_dt)) {
+				pla_ast_t_report_pec_err(ctx->t_ctx);
+				return false;
+			}
+
+			ira_inst_t cast = { .type = IraInstCast, .opd1.hs = opd0_ptr->inst_name, .opd2.dt = ptr_var_dt };
+
+			push_inst_imm_var0(ctx, &cast, ptr_var_dt, &ptr_var);
 
 			break;
 		}
-		case ExprValDeref:
+		case IraDtPtr:
+			if (!translate_expr1_imm_var(ctx, opd0, &ptr_var)) {
+				return false;
+			}
+			break;
+		case IraDtArr:
 		{
-			ptr_var = opd->val.var;
+			var_t * opd0_ptr;
+
+			if (!translate_expr1_var_ptr(ctx, opd0, &opd0_ptr)) {
+				return false;
+			}
+
+			u_hs_t * mmbr = ctx->pec->pds[IraPdsDataMmbr];
+			ira_dt_t * mmbr_dt;
+
+			bool res = get_mmbr_acc_dt(ctx, opd0->val_qdt.dt, mmbr, &mmbr_dt);
+			u_assert(res);
+
+			ira_dt_t * ptr_var_dt;
+
+			if (!ira_pec_get_dt_ptr(ctx->pec, mmbr_dt, opd0_ptr->qdt.dt->ptr.qual, &ptr_var_dt)) {
+				pla_ast_t_report_pec_err(ctx->t_ctx);
+				return false;
+			}
+
+			var_t * mmbr_ptr;
+
+			ira_inst_t mmbr_acc_ptr = { .type = IraInstMmbrAccPtr, .opd1.hs = opd0_ptr->inst_name, .opd2.hs = mmbr };
+
+			push_inst_imm_var0(ctx, &mmbr_acc_ptr, ptr_var_dt, &mmbr_ptr);
+
+			ira_inst_t read_ptr = { .type = IraInstReadPtr, .opd1.hs = mmbr_ptr->inst_name };
+
+			push_inst_imm_var0(ctx, &read_ptr, mmbr_ptr->qdt.dt->ptr.body, &ptr_var);
+
 			break;
 		}
 		default:
-			u_assert_switch(opd->val_type);
+			u_assert_switch(opd0_dt->type);
+	}
+
+	var_t * opd1;
+
+	if (!translate_expr1_imm_var(ctx, expr->opd1.expr, &opd1)) {
+		return false;
+	}
+
+	var_t * res_var;
+
+	ira_inst_t shift_ptr = { .type = IraInstShiftPtr, .opd1.hs = ptr_var->inst_name, .opd2.hs = opd1->inst_name };
+
+	push_inst_imm_var0(ctx, &shift_ptr, ptr_var->qdt.dt, &res_var);
+
+	expr->val_type = ExprValDeref;
+	expr->val.var = res_var;
+
+	return true;
+}
+static bool translate_expr1_mmbr_acc(ctx_t * ctx, expr_t * expr) {
+	expr_t * opd = expr->opd0.expr;
+
+	var_t * ptr_var;
+
+	if (!translate_expr1_var_ptr(ctx, opd, &ptr_var)) {
+		return false;
 	}
 
 	ira_dt_t * ptr_mmbr_dt;
 
-	if (!ira_pec_get_dt_ptr(ctx->pec, expr->val_qdt.dt, ptr_var->qdt.dt->ptr.qual, &ptr_mmbr_dt)) {
+	if (!ira_pec_get_dt_ptr(ctx->pec, expr->mmbr_acc.res_dt, ptr_var->qdt.dt->ptr.qual, &ptr_mmbr_dt)) {
+		pla_ast_t_report_pec_err(ctx->t_ctx);
 		return false;
 	}
 
@@ -1503,23 +1667,8 @@ static bool translate_expr1_mmbr_acc(ctx_t * ctx, expr_t * expr) {
 
 	push_inst_imm_var0(ctx, &mmbr_acc_ptr, ptr_mmbr_dt, &ptr_mmbr_var);
 
-	switch (opd->val_type) {
-		case ExprValImmVar:
-		{
-			ira_inst_t read_ptr = { .type = IraInstReadPtr, .opd1.hs = ptr_mmbr_var->inst_name };
+	set_expr_ptr_val(ctx, expr, opd->val_type, ptr_mmbr_var);
 
-			push_inst_imm_var0_expr(ctx, expr, &read_ptr);
-
-			break;
-		}
-		case ExprValVar:
-		case ExprValDeref:
-			expr->val_type = ExprValDeref;
-			expr->val.var = ptr_mmbr_var;
-			break;
-		default:
-			u_assert_switch(opd->val_type);
-	}
 	return true;
 }
 static bool translate_expr1_deref(ctx_t * ctx, expr_t * expr) {
@@ -1696,127 +1845,57 @@ static bool translate_expr1_asgn(ctx_t * ctx, expr_t * expr) {
 	return true;
 }
 static bool translate_expr1_tse(ctx_t * ctx, expr_t * expr) {
-	switch (expr->base->type) {
-		case PlaExprNone:
-			return false;
-		case PlaExprDtVoid:
-		case PlaExprDtBool:
-		case PlaExprDtInt:
-			if (!translate_expr1_load_val(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprDtPtr:
-			if (!translate_expr1_dt_ptr(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprDtStct:
-			if (!translate_expr1_dt_stct(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprDtStctElem:
-			return false;
-		case PlaExprDtArr:
-			if (!translate_expr1_dt_arr(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprDtFunc:
-			if (!translate_expr1_dt_func(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprDtFuncArg:
-			return false;
-		case PlaExprDtConst:
-			if (!translate_expr1_dt_const(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprValVoid:
-		case PlaExprValBool:
-		case PlaExprChStr:
-		case PlaExprNumStr:
-		case PlaExprNullofDt:
-			if (!translate_expr1_load_val(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprIdent:
-			if (!translate_expr1_ident(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprCall:
-			if (!translate_expr1_call(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprCallArg:
-			return false;
-			//case PlaExprSubscr:
-		case PlaExprMmbrAcc:
-			if (!translate_expr1_mmbr_acc(ctx, expr)) {
-				return false;
-			}
-			break;
-			//case PlaExprPostInc:
-			//case PlaExprPostDec:
-		case PlaExprDeref:
-			if (!translate_expr1_deref(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprAddrOf:
-			if (!translate_expr1_addr_of(ctx, expr)) {
-				return false;
-			}
-			break;
-			//case PlaExprPreInc:
-			//case PlaExprPreDec:
-		case PlaExprCast:
-			if (!translate_expr1_cast(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprLogicNeg:
-		case PlaExprBitNeg:
-		case PlaExprArithNeg:
-			if (!translate_expr1_unr(ctx, expr)) {
-				return false;
-			}
-			break;
-		case PlaExprMul:
-		case PlaExprDiv:
-		case PlaExprMod:
-		case PlaExprAdd:
-		case PlaExprSub:
-		case PlaExprLeShift:
-		case PlaExprRiShift:
-		case PlaExprLess:
-		case PlaExprLessEq:
-		case PlaExprGrtr:
-		case PlaExprGrtrEq:
-		case PlaExprEq:
-		case PlaExprNeq:
-		case PlaExprBitAnd:
-		case PlaExprBitXor:
-		case PlaExprBitOr:
-			if (!translate_expr1_bin(ctx, expr)) {
-				return false;
-			}
-			break;
-			//case PlaExprLogicAnd:
-			//case PlaExprLogicOr:
-		case PlaExprAsgn:
-			if (!translate_expr1_asgn(ctx, expr)) {
-				return false;
-			}
-			break;
-		default:
-			u_assert_switch(expr->base->type);
+	typedef bool translate_expr1_proc_t(ctx_t * ctx, expr_t * expr);
+
+	static translate_expr1_proc_t * const translate_expr1_procs[PlaExpr_Count] = {
+		[PlaExprDtVoid] = translate_expr1_load_val,
+		[PlaExprDtBool] = translate_expr1_load_val,
+		[PlaExprDtInt] = translate_expr1_load_val,
+		[PlaExprDtPtr] = translate_expr1_dt_ptr,
+		[PlaExprDtStct] = translate_expr1_dt_stct,
+		[PlaExprDtArr] = translate_expr1_dt_arr,
+		[PlaExprDtFunc] = translate_expr1_dt_func,
+		[PlaExprDtConst] = translate_expr1_dt_const,
+		[PlaExprValVoid] = translate_expr1_load_val,
+		[PlaExprValBool] = translate_expr1_load_val,
+		[PlaExprChStr] = translate_expr1_load_val,
+		[PlaExprNumStr] = translate_expr1_load_val,
+		[PlaExprNullofDt] = translate_expr1_load_val,
+		[PlaExprIdent] = translate_expr1_ident,
+		[PlaExprCall] = translate_expr1_call,
+		[PlaExprSubscr] = translate_expr1_subscr,
+		[PlaExprMmbrAcc] = translate_expr1_mmbr_acc,
+		[PlaExprDeref] = translate_expr1_deref,
+		[PlaExprAddrOf] = translate_expr1_addr_of,
+		[PlaExprCast] = translate_expr1_cast,
+		[PlaExprLogicNeg] = translate_expr1_unr,
+		[PlaExprBitNeg] = translate_expr1_unr,
+		[PlaExprArithNeg] = translate_expr1_unr,
+		[PlaExprMul] = translate_expr1_bin,
+		[PlaExprDiv] = translate_expr1_bin,
+		[PlaExprMod] = translate_expr1_bin,
+		[PlaExprAdd] = translate_expr1_bin,
+		[PlaExprSub] = translate_expr1_bin,
+		[PlaExprLeShift] = translate_expr1_bin,
+		[PlaExprRiShift] = translate_expr1_bin,
+		[PlaExprLess] = translate_expr1_bin,
+		[PlaExprLessEq] = translate_expr1_bin,
+		[PlaExprGrtr] = translate_expr1_bin,
+		[PlaExprGrtrEq] = translate_expr1_bin,
+		[PlaExprEq] = translate_expr1_bin,
+		[PlaExprNeq] = translate_expr1_bin,
+		[PlaExprBitAnd] = translate_expr1_bin,
+		[PlaExprBitXor] = translate_expr1_bin,
+		[PlaExprBitOr] = translate_expr1_bin,
+		[PlaExprAsgn] = translate_expr1_asgn,
+	};
+
+	translate_expr1_proc_t * proc = translate_expr1_procs[expr->base->type];
+
+	u_assert(proc != NULL);
+
+	if (!proc(ctx, expr)) {
+		return false;
 	}
 
 	return true;

@@ -43,16 +43,20 @@ void ira_val_destroy(ira_val_t * val) {
 		case IraValImmBool:
 		case IraValImmInt:
 			break;
-		case IraValLoPtr:
-		case IraValNullPtr:
+		case IraValImmVec:
+			destroy_val_arr(val->dt->vec.size, val->vec.data);
+			free(val->vec.data);
 			break;
-		case IraValImmArr:
-			destroy_val_arr(val->arr.size, val->arr.data);
-			free(val->arr.data);
+		case IraValNullPtr:
+		case IraValLoPtr:
 			break;
 		case IraValImmStct:
 			destroy_val_arr(val->stct.size, val->stct.elems);
 			free(val->stct.elems);
+			break;
+		case IraValImmArr:
+			destroy_val_arr(val->arr.size, val->arr.data);
+			free(val->arr.data);
 			break;
 		default:
 			u_assert_switch(val->type);
@@ -78,20 +82,23 @@ ira_val_t * ira_val_copy(ira_val_t * val) {
 		case IraValImmInt:
 			new_val->int_val = val->int_val;
 			break;
-		case IraValLoPtr:
-			new_val->lo_val = val->lo_val;
+		case IraValImmVec:
+			new_val->vec.data = copy_val_arr(val->dt->vec.size, val->vec.data);
 			break;
 		case IraValNullPtr:
 			break;
-		case IraValImmArr:
-			new_val->arr.size = val->arr.size;
-
-			new_val->arr.data = copy_val_arr(val->arr.size, val->arr.data);
+		case IraValLoPtr:
+			new_val->lo_val = val->lo_val;
 			break;
 		case IraValImmStct:
 			new_val->stct.size = val->stct.size;
 
 			new_val->stct.elems = copy_val_arr(val->stct.size, val->stct.elems);
+			break;
+		case IraValImmArr:
+			new_val->arr.size = val->arr.size;
+
+			new_val->arr.data = copy_val_arr(val->arr.size, val->arr.data);
 			break;
 		default:
 			u_assert_switch(val->type);

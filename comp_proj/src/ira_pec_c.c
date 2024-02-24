@@ -35,15 +35,8 @@ bool ira_pec_c_is_val_compilable(ira_val_t * val) {
 			return false;
 		case IraValImmBool:
 		case IraValImmInt:
-		case IraValLoPtr:
 		case IraValNullPtr:
-			break;
-		case IraValImmArr:
-			for (ira_val_t ** elem = val->arr.data, **elem_end = elem + val->arr.size; elem != elem_end; ++elem) {
-				if (!ira_pec_c_is_val_compilable(*elem)) {
-					return false;
-				}
-			}
+		case IraValLoPtr:
 			break;
 		case IraValImmStct:
 		{
@@ -60,6 +53,13 @@ bool ira_pec_c_is_val_compilable(ira_val_t * val) {
 			}
 			break;
 		}
+		case IraValImmArr:
+			for (ira_val_t ** elem = val->arr.data, **elem_end = elem + val->arr.size; elem != elem_end; ++elem) {
+				if (!ira_pec_c_is_val_compilable(*elem)) {
+					return false;
+				}
+			}
+			break;
 		default:
 			u_assert_switch(val->type);
 	}
@@ -98,24 +98,17 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 			
 			asm_frag_push_inst(frag, &data);
 			break;
-		case IraValLoPtr:
-			data.imm0_type = AsmInstImmLabelVa64;
-			data.imm0_label = val->lo_val->full_name;
-			
-			asm_frag_push_inst(frag, &data);
-			break;
 		case IraValNullPtr:
 			data.imm0_type = AsmInstImm64;
 			data.imm0 = 0;
 			
 			asm_frag_push_inst(frag, &data);
 			break;
-		case IraValImmArr:
-			for (ira_val_t ** elem = val->arr.data, **elem_end = elem + val->arr.size; elem != elem_end; ++elem) {
-				if (!compile_val(ctx, frag, *elem)) {
-					return false;
-				}
-			}
+		case IraValLoPtr:
+			data.imm0_type = AsmInstImmLabelVa64;
+			data.imm0_label = val->lo_val->full_name;
+			
+			asm_frag_push_inst(frag, &data);
 			break;
 		case IraValImmStct:
 		{
@@ -132,6 +125,13 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 			}
 			break;
 		}
+		case IraValImmArr:
+			for (ira_val_t ** elem = val->arr.data, **elem_end = elem + val->arr.size; elem != elem_end; ++elem) {
+				if (!compile_val(ctx, frag, *elem)) {
+					return false;
+				}
+			}
+			break;
 		default:
 			u_assert_switch(val->type);
 	}
@@ -193,8 +193,8 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 		case IraValImmVoid:
 		case IraValImmBool:
 		case IraValImmInt:
-		case IraValLoPtr:
 		case IraValNullPtr:
+		case IraValLoPtr:
 		case IraValImmStct:
 			if (!compile_val(ctx, frag, lo->var.val)) {
 				return false;
