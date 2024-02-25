@@ -4,6 +4,7 @@
 
 enum pla_ast_t_optr_type {
 	PlaAstTOptrNone,
+	PlaAstTOptrUnrInstBool,
 	PlaAstTOptrUnrInstInt,
 	PlaAstTOptrBinInstInt,
 	PlaAstTOptrBinInstIntBool,
@@ -15,6 +16,9 @@ struct pla_ast_t_optr {
 	pla_ast_t_optr_t * next;
 
 	union {
+		struct {
+			ira_inst_type_t inst_type;
+		} unr_inst_bool;
 		struct {
 			ira_inst_type_t inst_type;
 		} unr_inst_int;

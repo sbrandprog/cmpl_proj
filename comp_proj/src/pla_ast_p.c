@@ -1541,6 +1541,11 @@ static bool parse_dclr_stct(ctx_t * ctx, pla_dclr_t ** out) {
 			return false;
 		}
 	}
+	else {
+		*out = pla_dclr_create(PlaDclrDtStctDecl);
+
+		(*out)->name = name;
+	}
 
 	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
 		return false;

@@ -1741,6 +1741,14 @@ static bool translate_expr1_unr(ctx_t * ctx, expr_t * expr) {
 	pla_ast_t_optr_t * optr = expr->optr;
 
 	switch (optr->type) {
+		case PlaAstTOptrUnrInstBool:
+		{
+			ira_inst_t unr_op = { .type = optr->unr_inst_int.inst_type, .opd1.hs = opd_var->inst_name };
+
+			push_inst_imm_var0_expr(ctx, expr, &unr_op);
+
+			break;
+		}
 		case PlaAstTOptrUnrInstInt:
 		{
 			ira_inst_t unr_op = { .type = optr->unr_inst_int.inst_type, .opd1.hs = opd_var->inst_name };

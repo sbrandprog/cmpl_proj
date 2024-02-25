@@ -52,6 +52,7 @@ static void destroy_optr(optr_t * optr) {
 
 	switch (optr->type) {
 		case PlaAstTOptrNone:
+		case PlaAstTOptrUnrInstBool:
 		case PlaAstTOptrUnrInstInt:
 		case PlaAstTOptrBinInstInt:
 		case PlaAstTOptrBinInstIntBool:
@@ -80,6 +81,12 @@ static bool is_optrs_equivalent(optr_t * first, optr_t * second) {
 
 	switch (first->type) {
 		case PlaAstTOptrNone:
+			break;
+		case PlaAstTOptrUnrInstBool:
+			switch (second->type) {
+				case PlaAstTOptrUnrInstBool:
+					return true;
+			}
 			break;
 		case PlaAstTOptrUnrInstInt:
 			switch (second->type) {
@@ -140,6 +147,13 @@ pla_ast_t_optr_t * pla_ast_t_get_optr_chain(pla_ast_t_ctx_t * ctx, pla_expr_type
 }
 bool pla_ast_t_get_optr_dt(pla_ast_t_ctx_t * ctx, pla_ast_t_optr_t * optr, ira_dt_t * first, ira_dt_t * second, ira_dt_t ** out) {
 	switch (optr->type) {
+		case PlaAstTOptrUnrInstBool:
+			if (first->type != IraDtBool) {
+				return false;
+			}
+
+			*out = first;
+			break;
 		case PlaAstTOptrUnrInstInt:
 			if (first->type != IraDtInt) {
 				return false;
@@ -332,6 +346,19 @@ static optr_t ** get_optr_ins(ctx_t * ctx, pla_expr_type_t expr_type, optr_t * p
 
 	return ins;
 }
+static void register_bltn_optrs_unr_bool(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type) {
+	optr_t pred = { .type = PlaAstTOptrUnrInstBool, .unr_inst_int.inst_type = inst_type };
+
+	optr_t ** ins = get_optr_ins(ctx, expr_type, &pred);
+
+	u_assert(*ins == NULL);
+
+	*ins = create_optr(PlaAstTOptrUnrInstBool);
+
+	optr_t * optr = *ins;
+
+	optr->bin_inst_int.inst_type = inst_type;
+}
 static void register_bltn_optrs_unr_int(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type) {
 	optr_t pred = { .type = PlaAstTOptrUnrInstInt, .unr_inst_int.inst_type = inst_type };
 
@@ -387,6 +414,7 @@ static void register_bltn_optrs_bin_ptr_bool(ctx_t * ctx, pla_expr_type_t expr_t
 	optr->bin_inst_ptr_bool.int_cmp = int_cmp;
 }
 static void register_bltn_optrs(ctx_t * ctx) {
+	register_bltn_optrs_unr_bool(ctx, PlaExprLogicNeg, IraInstNegBool);
 	register_bltn_optrs_unr_int(ctx, PlaExprArithNeg, IraInstNegInt);
 
 	register_bltn_optrs_bin_int(ctx, PlaExprAdd, IraInstAddInt);

@@ -17,9 +17,6 @@ bool ira_dt_is_complete(ira_dt_t * dt) {
 			}
 			break;
 		case IraDtPtr:
-			if (!ira_dt_is_complete(dt->ptr.body)) {
-				return false;
-			}
 			break;
 		case IraDtStct:
 			if (dt->stct.lo->dt_stct.sd == NULL) {

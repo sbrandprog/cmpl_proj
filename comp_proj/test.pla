@@ -1,35 +1,27 @@
 include "pla_lib/std/io.pla"a;
 
+function buf_io_test : $() -> void {
+	variable ch : u16;
+
+	while true {
+		ch = 0'u16;
+
+		while ch != 10'u16 {
+			ch = std::read_con_ch();
+			
+			std::write_con_ch(ch);
+		}
+	}
+}
+
 function main : $() -> s32 {
 	std::init_con_io();
 
-	variable ch : u16, buf : [256'u64]u16, i := 0'u64;
+	variable int_val : s32;
 
-	variable buf_arr : []u16;
-
-	buf_arr.data = &buf[0'u64];
-
-	while ch != 10'u16 {
-		ch = std::read_con_ch();
-		
-		buf_arr[i] = ch;
-
-		std::write_con_ch(ch);
-		
-		i = i + 1'u64;
+	if !std::read_con_dec(4'u8, true, &int_val) {
+		return 0's32;
 	}
 
-	variable buf_size := i;
-
-	i = 0'u64;
-
-	while i < buf_size {
-		ch = buf_arr[i];
-
-		std::write_con_ch(ch);
-		
-		i = i + 1'u64;
-	}
-
-	return %[s32]ch;
+	return int_val;
 }

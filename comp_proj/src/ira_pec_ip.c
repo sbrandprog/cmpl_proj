@@ -804,6 +804,25 @@ static bool prepare_make_dt_const(ctx_t * ctx, inst_t * inst, const ira_inst_inf
 
 	return true;
 }
+static bool prepare_unr_bool(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_dt_t * dt = inst->opd1.var->qdt.dt;
+
+	if (dt->type != IraDtBool) {
+		report(ctx, L"[%s]: opd[1] must have an boolean data type", info->type_str.str);
+		return false;
+	}
+
+	if (inst->opd0.var->qdt.dt != dt) {
+		report_opds_not_equ(ctx, inst, 1, 0);
+		return false;
+	}
+
+	if (check_var_for_not_const_q(ctx, inst, 0)) {
+		return false;
+	}
+
+	return true;
+}
 static bool prepare_unr_int(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
 	ira_dt_t * dt = inst->opd1.var->qdt.dt;
 
@@ -1062,6 +1081,7 @@ static bool prepare_insts(ctx_t * ctx) {
 			[IraInstMakeDtArr] = prepare_make_dt_arr,
 			[IraInstMakeDtFunc] = prepare_make_dt_func,
 			[IraInstMakeDtConst] = prepare_make_dt_const,
+			[IraInstNegBool] = prepare_unr_bool,
 			[IraInstNegInt] = prepare_unr_int,
 			[IraInstAddInt] = prepare_bin_int,
 			[IraInstSubInt] = prepare_bin_int,
@@ -1701,13 +1721,9 @@ static void compile_int_like_cmp(ctx_t * ctx, var_t * dst, var_t * src0, var_t *
 	save_stack_var(ctx, dst, AsmRegAl);
 }
 static void compile_int_like_cast(ctx_t * ctx, var_t * dst, var_t * src, ira_int_type_t from, ira_int_type_t to) {
-	asm_reg_t opd_reg = int_type_to_cx[from];
-	
 	const int_cast_info_t * info = &int_cast_from_to[from][to];
 
-	u_assert(opd_reg == info->from);
-
-	load_stack_var(ctx, opd_reg, src);
+	load_stack_var(ctx, info->from, src);
 
 	asm_inst_t cast = { .type = info->inst_type, .opds = AsmInstOpds_Reg_Reg, .reg0 = info->to, .reg1 = info->from };
 
@@ -1806,6 +1822,19 @@ static void compile_shift_ptr(ctx_t * ctx, inst_t * inst) {
 	asm_frag_push_inst(ctx->frag, &add);
 
 	save_stack_var(ctx, inst->opd0.var, AsmRegRax);
+}
+static void compile_neg_bool(ctx_t * ctx, inst_t * inst) {
+	load_stack_var(ctx, AsmRegAl, inst->opd1.var);
+	
+	asm_inst_t test = { .type = AsmInstTest, .opds = AsmInstOpds_Reg_Reg, .reg0 = AsmRegAl, .reg1 = AsmRegAl };
+
+	asm_frag_push_inst(ctx->frag, &test);
+
+	asm_inst_t set = { .type = AsmInstSetz, .opds = AsmInstOpds_Reg, .reg0 = AsmRegAl };
+
+	asm_frag_push_inst(ctx->frag, &set);
+
+	save_stack_var(ctx, inst->opd0.var, AsmRegAl);
 }
 static void compile_unr_int(ctx_t * ctx, inst_t * inst) {
 	asm_inst_type_t inst_type;
@@ -1987,6 +2016,7 @@ static void compile_insts(ctx_t * ctx) {
 			[IraInstReadPtr] = compile_read_ptr,
 			[IraInstWritePtr] = compile_write_ptr,
 			[IraInstShiftPtr] = compile_shift_ptr,
+			[IraInstNegBool] = compile_neg_bool,
 			[IraInstNegInt] = compile_unr_int,
 			[IraInstAddInt] = compile_bin_int,
 			[IraInstSubInt] = compile_bin_int,

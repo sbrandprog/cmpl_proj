@@ -98,6 +98,13 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 			
 			asm_frag_push_inst(frag, &data);
 			break;
+		case IraValImmVec:
+			for (ira_val_t ** elem = val->vec.data, **elem_end = elem + val->dt->vec.size; elem != elem_end; ++elem) {
+				if (!compile_val(ctx, frag, *elem)) {
+					return false;
+				}
+			}
+			break;
 		case IraValNullPtr:
 			data.imm0_type = AsmInstImm64;
 			data.imm0 = 0;
