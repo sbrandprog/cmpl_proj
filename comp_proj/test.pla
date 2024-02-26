@@ -19,9 +19,17 @@ function main : $() -> s32 {
 
 	variable int_val : s32;
 
-	if !std::read_con_dec(4'u8, true, &int_val) {
-		return 0's32;
+	while true {
+		if !std::read_con_dec(4'u8, true, &int_val) {
+			return -1's32;
+		}
+
+		if !std::write_con_dec(&int_val, 4'u8, true) {
+			return -1's32;
+		}
+
+		std::write_con_ch(10'u16);
 	}
 
-	return int_val;
+	return 0's32;
 }

@@ -594,14 +594,14 @@ static bool prepare_def_var_copy(ctx_t * ctx, inst_t * inst, const ira_inst_info
 	inst->def_var_copy.var = find_var(ctx, inst->opd0.hs);
 
 	u_assert(inst->def_var_copy.var != NULL);
-	
+
 	return true;
 }
 static bool prepare_addr_of(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
 	if (check_var_for_not_const_q(ctx, inst, 0)) {
 		return false;
 	}
-	
+
 	ira_dt_t * ptr_dt = inst->opd0.var->qdt.dt;
 
 	if (ptr_dt->type != IraDtPtr) {
@@ -747,7 +747,7 @@ static bool prepare_make_dt_arr(ctx_t * ctx, inst_t * inst, const ira_inst_info_
 }
 static bool prepare_make_dt_stct(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
 	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
-	
+
 	for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var) {
 		if ((*var)->qdt.dt != dt_dt) {
 			report(ctx, L"[%s]: elements in opd[3] must have an 'data type' data type", info->type_str.str);
@@ -979,7 +979,7 @@ static bool prepare_mmbr_acc_ptr(ctx_t * ctx, inst_t * inst, const ira_inst_info
 	}
 
 	ira_dt_t * res_ptr_dt;
-	
+
 	if (!ira_pec_get_dt_ptr(ctx->pec, inst->mmbr_acc.res_dt, opd_ptr_dt->ptr.qual, &res_ptr_dt)) {
 		report(ctx, L"[%s]: get_dt function error", info->type_str.str);
 		return false;
@@ -1009,7 +1009,7 @@ static bool prepare_ret(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info
 		report_opd_not_equ_dt(ctx, inst, 0);
 		return false;
 	}
-	
+
 	return true;
 }
 static bool prepare_insts(ctx_t * ctx) {
@@ -1280,7 +1280,7 @@ static asm_reg_t get_cx_reg_dt(ira_dt_t * dt) {
 
 static asm_reg_t w64_get_arg_reg(ira_dt_t * dt, size_t arg) {
 	u_assert(arg < 4);
-	
+
 	asm_reg_t reg;
 
 	switch (dt->type) {
@@ -1299,12 +1299,9 @@ static asm_reg_t w64_get_arg_reg(ira_dt_t * dt, size_t arg) {
 
 	return reg;
 }
-static int32_t w64_get_stack_arg_offset(ctx_t * ctx, size_t arg) {
-	return (int32_t)((arg) * STACK_UNIT);
-}
 static bool w64_load_callee_ret_link(ctx_t * ctx, var_t * var) {
 	ira_dt_t * var_dt = var->qdt.dt;
-	
+
 	switch (var_dt->type) {
 		case IraDtVoid:
 		case IraDtBool:
@@ -1320,7 +1317,7 @@ static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg) {
 
 	asm_reg_t reg;
 
-	int32_t arg_offset = w64_get_stack_arg_offset(ctx, arg);
+	int32_t arg_offset = (int32_t)(arg * STACK_UNIT);
 
 	switch (var_dt->type) {
 		case IraDtVoid:
@@ -1387,6 +1384,8 @@ static void w64_save_caller_arg(ctx_t * ctx, u_hs_t * arg_name, size_t arg) {
 
 	asm_reg_t reg;
 
+	int32_t arg_offset = (int32_t)(ctx->stack_size + STACK_UNIT + arg * STACK_UNIT);
+
 	switch (var_dt->type) {
 		case IraDtVoid:
 			break;
@@ -1403,7 +1402,7 @@ static void w64_save_caller_arg(ctx_t * ctx, u_hs_t * arg_name, size_t arg) {
 					break;
 				default:
 					reg = get_ax_reg_dt(var_dt);
-					load_stack_gpr(ctx, reg, w64_get_stack_arg_offset(ctx, arg));
+					load_stack_gpr(ctx, reg, arg_offset);
 					save_stack_var(ctx, var, reg);
 					break;
 			}
@@ -1484,7 +1483,7 @@ static void get_ptr_copy_data(var_t * var, asm_reg_t * reg_out, size_t * off_ste
 }
 static void div_int(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_out, var_t * mod_out) {
 	ira_int_type_t int_type = opd0->qdt.dt->int_type;
-	
+
 	asm_inst_type_t dx_inst_type = AsmInstXor;
 	asm_reg_t reg0 = int_type_to_ax[int_type], reg1 = int_type_to_cx[int_type], reg2;
 
@@ -1542,7 +1541,7 @@ static void div_int(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_out, va
 }
 static bool get_int_type_sign(ira_int_type_t int_type) {
 	bool sign = false;
-	
+
 	switch (int_type) {
 		case IraIntU8:
 		case IraIntU16:
@@ -1721,15 +1720,18 @@ static void compile_int_like_cmp(ctx_t * ctx, var_t * dst, var_t * src0, var_t *
 	save_stack_var(ctx, dst, AsmRegAl);
 }
 static void compile_int_like_cast(ctx_t * ctx, var_t * dst, var_t * src, ira_int_type_t from, ira_int_type_t to) {
+	asm_reg_t from_reg = int_type_to_cx[from];
+	asm_reg_t to_reg = int_type_to_ax[to];
+	
 	const int_cast_info_t * info = &int_cast_from_to[from][to];
 
-	load_stack_var(ctx, info->from, src);
+	load_stack_var(ctx, from_reg, src);
 
 	asm_inst_t cast = { .type = info->inst_type, .opds = AsmInstOpds_Reg_Reg, .reg0 = info->to, .reg1 = info->from };
 
 	asm_frag_push_inst(ctx->frag, &cast);
 
-	save_stack_var(ctx, dst, info->to);
+	save_stack_var(ctx, dst, to_reg);
 }
 
 static void compile_blank(ctx_t * ctx, inst_t * inst) {
@@ -1788,12 +1790,12 @@ static void compile_write_ptr(ctx_t * ctx, inst_t * inst) {
 static void compile_shift_ptr(ctx_t * ctx, inst_t * inst) {
 	var_t * index_var = inst->opd2.var;
 	ira_dt_t * index_dt = index_var->qdt.dt;
-	
+
 	ira_int_type_t index_int_type;
 
 	{
 		ira_int_type_t index_type_from = index_dt->int_type;
-		
+
 		index_int_type = get_int_type_sign(index_dt->int_type) ? IraIntS64 : IraIntU64;
 
 		const int_cast_info_t * info = &int_cast_from_to[index_type_from][index_int_type];
@@ -1825,7 +1827,7 @@ static void compile_shift_ptr(ctx_t * ctx, inst_t * inst) {
 }
 static void compile_neg_bool(ctx_t * ctx, inst_t * inst) {
 	load_stack_var(ctx, AsmRegAl, inst->opd1.var);
-	
+
 	asm_inst_t test = { .type = AsmInstTest, .opds = AsmInstOpds_Reg_Reg, .reg0 = AsmRegAl, .reg1 = AsmRegAl };
 
 	asm_frag_push_inst(ctx->frag, &test);
@@ -1877,7 +1879,7 @@ static void compile_bin_int(ctx_t * ctx, inst_t * inst) {
 	}
 
 	ira_int_type_t int_type = inst->opd0.var->qdt.dt->int_type;
-	
+
 	asm_reg_t reg0 = int_type_to_ax[int_type], reg1 = int_type_to_cx[int_type];
 
 	load_stack_var(ctx, reg0, inst->opd1.var);
@@ -1888,7 +1890,7 @@ static void compile_bin_int(ctx_t * ctx, inst_t * inst) {
 	asm_frag_push_inst(ctx->frag, &bin_opr);
 
 	save_stack_var(ctx, inst->opd0.var, reg0);
-} 
+}
 static void compile_div_int(ctx_t * ctx, inst_t * inst) {
 	div_int(ctx, inst->opd1.var, inst->opd2.var, inst->opd0.var, NULL);
 }
@@ -1907,7 +1909,7 @@ static void compile_mmbr_acc_ptr(ctx_t * ctx, inst_t * inst) {
 	var_t * opd_var = inst->opd1.var;
 
 	load_stack_var(ctx, AsmRegRax, opd_var);
-	
+
 	asm_inst_t lea = { .type = AsmInstLea, .opds = AsmInstOpds_Reg_Mem, .reg0 = AsmRegRax, .mem_base = AsmRegRax, .mem_disp_type = AsmInstDispAuto, .mem_disp = (int32_t)inst->mmbr_acc.off };
 
 	asm_frag_push_inst(ctx->frag, &lea);
@@ -1986,7 +1988,7 @@ static void compile_brf(ctx_t * ctx, inst_t * inst) {
 	asm_frag_push_inst(ctx->frag, &test);
 
 	asm_inst_t jz = { .type = AsmInstJz, .opds = AsmInstOpds_Imm, .imm0_type = AsmInstImmLabelRel32, .imm0_label = inst->opd0.label->global_name };
-	
+
 	asm_frag_push_inst(ctx->frag, &jz);
 }
 static void compile_ret(ctx_t * ctx, inst_t * inst) {

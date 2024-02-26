@@ -393,7 +393,7 @@ static bool is_int_ns(ctx_t * ctx, u_hs_t * tag, ira_int_type_t * out) {
 		*out = IraIntU16;
 	}
 	else if (tag == pla_ast_t_get_pds(ctx->t_ctx, PlaPdsS16)) {
-		*out = IraIntU16;
+		*out = IraIntS16;
 	}
 	else if (tag == pla_ast_t_get_pds(ctx->t_ctx, PlaPdsU32)) {
 		*out = IraIntU32;

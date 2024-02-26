@@ -3,7 +3,7 @@ include "pla_lib/w64/kernel32.pla"a;
 namespace std {
 	variable const con_handle_name := "CON"w;
 
-	readonly con_in_buf_size := 16'u64;
+	readonly con_in_buf_size := 256'u64;
 	struct con_in_buf_t;
 	readonly con_in_buf_hdr_t := struct {
 		next : * con_in_buf_t
@@ -115,6 +115,14 @@ namespace std {
 		}
 
 		return ch;
+	}
+	function unget_con_ch : $(ch : u16) -> void {
+		if con_in.ug_buf_size < con_in_buf_size {
+			con_in.ug_buf!data[con_in.ug_buf_size] = ch;
+			con_in.ug_buf_size = con_in.ug_buf_size + 1'u64;
+		}
+
+		return;
 	}
 
 	function is_ws_ch : $(ch : u16) -> bool {
@@ -238,10 +246,12 @@ namespace std {
 				variable digit := %[u64](ch - 48'u16);
 
 				if val > pre_ovf_val {
+					unget_con_ch(ch);
 					return false;
 				}
 				else if val == pre_ovf_val {
 					if digit > pre_ovf_digit {
+						unget_con_ch(ch);
 						return false;
 					}
 				}
@@ -253,6 +263,8 @@ namespace std {
 				digits_read = digits_read + 1'u64;
 			}
 		}
+
+		unget_con_ch(ch);
 
 		if digits_read == 0'u64 {
 			return false;
@@ -285,5 +297,118 @@ namespace std {
 		w64::write_console_w(con_out.handle, %[const * void]&ch, 1'u32, &written, nullof[* void]);
 
 		return;
+	}
+
+	function get_dec_val : $(val_ptr : * void, size_bytes : u8, sign : bool, out_val : * u64, out_neg : * bool) -> bool {
+		if size_bytes == 1'u8 {
+			if sign {
+				variable val := (%[* s8]val_ptr)!;
+
+				if val < 0's8 {
+					out_val! = %[u64]-val;
+					out_neg! = true;
+				}
+				else {
+					out_val! = %[u64]val;
+					out_neg! = false;
+				}
+			}
+			else {
+				out_val! = %[u64](%[* u8]val_ptr)!;
+				out_neg! = false;
+			}
+		}
+		else if size_bytes == 2'u8 {
+			if sign {
+				variable val := (%[* s16]val_ptr)!;
+
+				if val < 0's16 {
+					out_val! = %[u64]-val;
+					out_neg! = true;
+				}
+				else {
+					out_val! = %[u64]val;
+					out_neg! = false;
+				}
+			}
+			else {
+				out_val! = %[u64](%[* u16]val_ptr)!;
+				out_neg! = false;
+			}
+		}
+		else if size_bytes == 4'u8 {
+			if sign {
+				variable val := (%[* s32]val_ptr)!;
+
+				if val < 0's32 {
+					out_val! = %[u64]-val;
+					out_neg! = true;
+				}
+				else {
+					out_val! = %[u64]val;
+					out_neg! = false;
+				}
+			}
+			else {
+				out_val! = %[u64](%[* u32]val_ptr)!;
+				out_neg! = false;
+			}
+		}
+		else if size_bytes == 8'u8 {
+			if sign {
+				variable val := (%[* s64]val_ptr)!;
+
+				if val < 0's64 {
+					out_val! = %[u64]-val;
+					out_neg! = true;
+				}
+				else {
+					out_val! = %[u64]val;
+					out_neg! = false;
+				}
+			}
+			else {
+				out_val! = %[u64](%[* u64]val_ptr)!;
+				out_neg! = false;
+			}
+		}
+		else {
+			return false;
+		}
+
+		return true;
+	}
+	function write_con_dec : $(val_ptr : * void, size_bytes : u8, sign : bool) -> bool {
+		variable val : u64, neg : bool;
+
+		if !get_dec_val(val_ptr, size_bytes, sign, &val, &neg) {
+			return false;
+		}
+
+		variable buf : [32'u64]u16, i := 0'u64;
+
+		if val == 0'u64 {
+			buf[i] = 48'u16;
+			i = i + 1'u64;
+		}
+		else {
+			while val > 0'u64 {
+				buf[i] = %[u16](val % 10'u64) + 48'u16;
+				i = i + 1'u64;
+				val = val / 10'u64;
+			}
+		}
+
+		if neg {
+			buf[i] = 45'u16;
+			i = i + 1'u64;
+		}
+
+		while i > 0'u64 {
+			i = i - 1'u64;
+			write_con_ch(buf[i]);
+		}
+
+		return true;
 	}
 }
