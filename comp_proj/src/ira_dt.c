@@ -448,7 +448,7 @@ bool ira_dt_get_size(ira_dt_t * dt, size_t * out) {
 			*out = 1;
 			break;
 		case IraDtInt:
-			*out = ira_int_get_size(dt->int_type);
+			*out = ira_int_infos[dt->int_type].size;
 			break;
 		case IraDtVec:
 			if (!ira_dt_get_size(dt->vec.body, out)) {
@@ -494,7 +494,7 @@ bool ira_dt_get_align(ira_dt_t * dt, size_t * out) {
 			*out = 1;
 			break;
 		case IraDtInt:
-			*out = ira_int_get_size(dt->int_type);
+			*out = ira_int_infos[dt->int_type].size;
 			break;
 		case IraDtVec:
 			if (!ira_dt_get_align(dt->vec.body, out)) {

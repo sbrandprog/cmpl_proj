@@ -91,7 +91,7 @@ const asm_reg_info_t asm_reg_infos[AsmReg_Count] = {
 	reg(AsmRegRip, 0, reg_g(g_ip, g_s_64)),
 
 	q_gpr_first4(a, A, 0b000, 0b100, g_gpr_ax),
-	q_gpr_first4(c, C, 0b001, 0b101, g_gpr_dx),
+	q_gpr_first4(c, C, 0b001, 0b101, g_gpr_cx),
 	q_gpr_first4(d, D, 0b010, 0b110, g_gpr_dx),
 	q_gpr_first4(b, B, 0b011, 0b111, g_empty),
 	q_gpr_second4(sp, Sp, 0b100),

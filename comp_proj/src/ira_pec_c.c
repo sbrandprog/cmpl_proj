@@ -93,7 +93,7 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 			asm_frag_push_inst(frag, &data);
 			break;
 		case IraValImmInt:
-			data.imm0_type = ira_int_type_to_imm_type[val->dt->int_type];
+			data.imm0_type = ira_int_infos[val->dt->int_type].imm_type;
 			data.imm0 = val->int_val.si64;
 			
 			asm_frag_push_inst(frag, &data);

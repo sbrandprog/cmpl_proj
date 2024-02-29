@@ -489,7 +489,7 @@ static bool get_ns_int(ctx_t * ctx, u_hs_t * str, ira_int_type_t int_type, ira_v
 		++cur;
 	}
 
-	uint64_t lim = ira_int_get_max_pos(int_type);
+	uint64_t lim = ira_int_infos[int_type].max;
 
 	if (var > lim) {
 		pla_ast_t_report(ctx->t_ctx, L"integer string is exceeding precision limit of data type [%i]:\n%s", int_type, str->str);

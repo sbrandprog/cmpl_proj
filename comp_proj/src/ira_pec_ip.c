@@ -1088,7 +1088,12 @@ static bool prepare_insts(ctx_t * ctx) {
 			[IraInstMulInt] = prepare_bin_int,
 			[IraInstDivInt] = prepare_bin_int,
 			[IraInstModInt] = prepare_bin_int,
+			[IraInstLeShiftInt] = prepare_bin_int,
+			[IraInstRiShiftInt] = prepare_bin_int,
 			[IraInstCmpInt] = prepare_cmp_int,
+			[IraInstAndInt] = prepare_bin_int,
+			[IraInstXorInt] = prepare_bin_int,
+			[IraInstOrInt] = prepare_bin_int,
 			[IraInstCmpPtr] = prepare_cmp_ptr,
 			[IraInstMmbrAccPtr] = prepare_mmbr_acc_ptr,
 			[IraInstCast] = prepare_cast,
@@ -1539,27 +1544,6 @@ static void div_int(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_out, va
 		save_stack_var(ctx, mod_out, reg2);
 	}
 }
-static bool get_int_type_sign(ira_int_type_t int_type) {
-	bool sign = false;
-
-	switch (int_type) {
-		case IraIntU8:
-		case IraIntU16:
-		case IraIntU32:
-		case IraIntU64:
-			break;
-		case IraIntS8:
-		case IraIntS16:
-		case IraIntS32:
-		case IraIntS64:
-			sign = true;
-			break;
-		default:
-			u_assert_switch(int_type);
-	}
-
-	return sign;
-}
 static asm_inst_type_t get_set_inst_type(bool sign, ira_int_cmp_t int_cmp) {
 	if (sign) {
 		switch (int_cmp) {
@@ -1611,7 +1595,7 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 		case IraValImmInt:
 		{
 			asm_reg_t reg = int_type_to_ax[val->dt->int_type];
-			asm_inst_imm_type_t imm_type = ira_int_type_to_imm_type[val->dt->int_type];
+			asm_inst_imm_type_t imm_type = ira_int_infos[val->dt->int_type].imm_type;
 
 			load_int(ctx, reg, imm_type, val->int_val.si64);
 			save_stack_var(ctx, var, reg);
@@ -1796,7 +1780,7 @@ static void compile_shift_ptr(ctx_t * ctx, inst_t * inst) {
 	{
 		ira_int_type_t index_type_from = index_dt->int_type;
 
-		index_int_type = get_int_type_sign(index_dt->int_type) ? IraIntS64 : IraIntU64;
+		index_int_type = ira_int_infos[index_dt->int_type].sign ? IraIntS64 : IraIntU64;
 
 		const int_cast_info_t * info = &int_cast_from_to[index_type_from][index_int_type];
 
@@ -1862,6 +1846,8 @@ static void compile_unr_int(ctx_t * ctx, inst_t * inst) {
 	save_stack_var(ctx, inst->opd0.var, reg);
 }
 static void compile_bin_int(ctx_t * ctx, inst_t * inst) {
+	ira_int_type_t int_type = inst->opd0.var->qdt.dt->int_type;
+
 	asm_inst_type_t inst_type;
 
 	switch (inst->base->type) {
@@ -1874,11 +1860,18 @@ static void compile_bin_int(ctx_t * ctx, inst_t * inst) {
 		case IraInstMulInt:
 			inst_type = AsmInstImul;
 			break;
+		case IraInstAndInt:
+			inst_type = AsmInstAnd;
+			break;
+		case IraInstXorInt:
+			inst_type = AsmInstXor;
+			break;
+		case IraInstOrInt:
+			inst_type = AsmInstOr;
+			break;
 		default:
 			u_assert_switch(inst->base->type);
 	}
-
-	ira_int_type_t int_type = inst->opd0.var->qdt.dt->int_type;
 
 	asm_reg_t reg0 = int_type_to_ax[int_type], reg1 = int_type_to_cx[int_type];
 
@@ -1897,10 +1890,60 @@ static void compile_div_int(ctx_t * ctx, inst_t * inst) {
 static void compile_mod_int(ctx_t * ctx, inst_t * inst) {
 	div_int(ctx, inst->opd1.var, inst->opd2.var, NULL, inst->opd0.var);
 }
+static void compile_shift_int(ctx_t * ctx, inst_t * inst) {
+	ira_int_type_t int_type = inst->opd0.var->qdt.dt->int_type;
+
+	asm_inst_type_t inst_type;
+
+	switch (inst->base->type) {
+		case IraInstLeShiftInt:
+			if (ira_int_infos[int_type].sign) {
+				inst_type = AsmInstSal;
+			}
+			else {
+				inst_type = AsmInstShl;
+			}
+			break;
+		case IraInstRiShiftInt:
+			if (ira_int_infos[int_type].sign) {
+				inst_type = AsmInstSar;
+			}
+			else {
+				inst_type = AsmInstShr;
+			}
+			break;
+		default:
+			u_assert_switch(inst->base->type);
+	}
+
+	ira_int_type_t int_type_to = ira_int_infos[int_type].sign ? IraIntS8 : IraIntU8;
+
+	const int_cast_info_t * info = &int_cast_from_to[int_type][int_type_to];
+
+	load_stack_var(ctx, int_type_to_cx[int_type], inst->opd2.var);
+
+	asm_inst_t cast = { .type = info->inst_type, .opds = AsmInstOpds_Reg_Reg, .reg0 = info->to, .reg1 = info->from };
+
+	asm_frag_push_inst(ctx->frag, &cast);
+
+	asm_inst_t mov = { .type = AsmInstMov, .opds = AsmInstOpds_Reg_Reg, .reg0 = AsmRegCl, .reg1 = AsmRegAl };
+
+	asm_frag_push_inst(ctx->frag, &mov);
+
+	asm_reg_t shift_reg = int_type_to_ax[int_type];
+
+	load_stack_var(ctx, shift_reg, inst->opd1.var);
+
+	asm_inst_t shift = { .type = inst_type, .opds = AsmInstOpds_Reg_Reg, .reg0 = shift_reg, .reg1 = AsmRegCl };
+
+	asm_frag_push_inst(ctx->frag, &shift);
+
+	save_stack_var(ctx, inst->opd0.var, shift_reg);
+}
 static void compile_cmp_int(ctx_t * ctx, inst_t * inst) {
 	ira_int_type_t int_type = inst->opd1.var->qdt.dt->int_type;
 
-	compile_int_like_cmp(ctx, inst->opd0.var, inst->opd1.var, inst->opd2.var, inst->opd3.int_cmp, get_int_type_sign(int_type));
+	compile_int_like_cmp(ctx, inst->opd0.var, inst->opd1.var, inst->opd2.var, inst->opd3.int_cmp, ira_int_infos[int_type].sign);
 }
 static void compile_cmp_ptr(ctx_t * ctx, inst_t * inst) {
 	compile_int_like_cmp(ctx, inst->opd0.var, inst->opd1.var, inst->opd2.var, inst->opd3.int_cmp, false);
@@ -2025,6 +2068,11 @@ static void compile_insts(ctx_t * ctx) {
 			[IraInstMulInt] = compile_bin_int,
 			[IraInstDivInt] = compile_div_int,
 			[IraInstModInt] = compile_mod_int,
+			[IraInstLeShiftInt] = compile_shift_int,
+			[IraInstRiShiftInt] = compile_shift_int,
+			[IraInstAndInt] = compile_bin_int,
+			[IraInstXorInt] = compile_bin_int,
+			[IraInstOrInt] = compile_bin_int,
 			[IraInstCmpInt] = compile_cmp_int,
 			[IraInstCmpPtr] = compile_cmp_ptr,
 			[IraInstMmbrAccPtr] = compile_mmbr_acc_ptr,

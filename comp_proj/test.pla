@@ -17,14 +17,92 @@ function buf_io_test : $() -> void {
 function main : $() -> s32 {
 	std::init_con_io();
 
-	variable int_val : s32;
+	variable a : s32, b : s32;
 
 	while true {
-		if !std::read_con_dec(4'u8, true, &int_val) {
+		if !std::read_con_dec(4'u8, true, &a) {
 			return -1's32;
 		}
 
-		if !std::write_con_dec(&int_val, 4'u8, true) {
+		if !std::read_con_dec(4'u8, true, &b) {
+			return -1's32;
+		}
+
+		variable res := a + b;
+
+		if !std::write_con_dec(&res, 4'u8, true) {
+			return -1's32;
+		}
+
+		std::write_con_ch(32'u16);
+
+		res = a - b;
+
+		if !std::write_con_dec(&res, 4'u8, true) {
+			return -1's32;
+		}
+
+		std::write_con_ch(32'u16);
+
+		res = a * b;
+
+		if !std::write_con_dec(&res, 4'u8, true) {
+			return -1's32;
+		}
+
+		std::write_con_ch(32'u16);
+
+		res = a / b;
+
+		if !std::write_con_dec(&res, 4'u8, true) {
+			return -1's32;
+		}
+
+		std::write_con_ch(32'u16);
+
+		res = a % b;
+
+		if !std::write_con_dec(&res, 4'u8, true) {
+			return -1's32;
+		}
+
+		std::write_con_ch(32'u16);
+
+		res = a << b;
+
+		if !std::write_con_dec(&res, 4'u8, true) {
+			return -1's32;
+		}
+
+		std::write_con_ch(32'u16);
+
+		res = a >> b;
+
+		if !std::write_con_dec(&res, 4'u8, true) {
+			return -1's32;
+		}
+
+		std::write_con_ch(32'u16);
+
+		res = a & b;
+
+		if !std::write_con_dec(&res, 4'u8, true) {
+			return -1's32;
+		}
+
+		std::write_con_ch(32'u16);
+
+		res = a ^ b;
+
+		if !std::write_con_dec(&res, 4'u8, true) {
+			return -1's32;
+		}
+
+		std::write_con_ch(32'u16);
+
+		res = a | b;
+
+		if !std::write_con_dec(&res, 4'u8, true) {
 			return -1's32;
 		}
 

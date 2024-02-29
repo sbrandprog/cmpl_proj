@@ -25,6 +25,13 @@ enum ira_int_cmp {
 	IraIntCmp_Count,
 };
 
+struct ira_int_info {
+	bool sign;
+	asm_inst_imm_type_t imm_type;
+	size_t size;
+	uint64_t max;
+};
+
 union ira_int {
 	uint8_t ui8;
 	uint16_t ui16;
@@ -36,8 +43,4 @@ union ira_int {
 	int64_t si64;
 };
 
-size_t ira_int_get_size(ira_int_type_t type);
-
-uint64_t ira_int_get_max_pos(ira_int_type_t type);
-
-const asm_inst_imm_type_t ira_int_type_to_imm_type[IraInt_Count];
+extern const ira_int_info_t ira_int_infos[IraInt_Count];

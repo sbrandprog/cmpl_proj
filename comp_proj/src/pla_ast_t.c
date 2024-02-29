@@ -74,6 +74,36 @@ static void destroy_optr_chain(optr_t * chain) {
 	}
 }
 
+static optr_t * copy_optr(ctx_t * ctx, optr_t * src) {
+	optr_t * optr = create_optr(src->type);
+
+	switch (optr->type) {
+		case PlaAstTOptrNone:
+			break;
+		case PlaAstTOptrUnrInstBool:
+			optr->unr_inst_bool.inst_type = src->unr_inst_bool.inst_type;
+			break;
+		case PlaAstTOptrUnrInstInt:
+			optr->unr_inst_int.inst_type = src->unr_inst_int.inst_type;
+			break;
+		case PlaAstTOptrBinInstInt:
+			optr->bin_inst_int.inst_type = src->bin_inst_int.inst_type;
+			break;
+		case PlaAstTOptrBinInstIntBool:
+			optr->bin_inst_int_bool.inst_type = src->bin_inst_int_bool.inst_type;
+			optr->bin_inst_int_bool.int_cmp = src->bin_inst_int_bool.int_cmp;
+			break;
+		case PlaAstTOptrBinInstPtrBool:
+			optr->bin_inst_ptr_bool.inst_type = src->bin_inst_ptr_bool.inst_type;
+			optr->bin_inst_ptr_bool.int_cmp = src->bin_inst_ptr_bool.int_cmp;
+			break;
+		default:
+			u_assert_switch(optr->type);
+	}
+
+	return optr;
+}
+
 static bool is_optrs_equivalent(optr_t * first, optr_t * second) {
 	if (first == second) {
 		return true;
@@ -346,72 +376,37 @@ static optr_t ** get_optr_ins(ctx_t * ctx, pla_expr_type_t expr_type, optr_t * p
 
 	return ins;
 }
-static void register_bltn_optrs_unr_bool(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type) {
-	optr_t pred = { .type = PlaAstTOptrUnrInstBool, .unr_inst_int.inst_type = inst_type };
-
-	optr_t ** ins = get_optr_ins(ctx, expr_type, &pred);
+static void register_bltn_optr_pred(ctx_t * ctx, pla_expr_type_t expr_type, optr_t * pred) {
+	optr_t ** ins = get_optr_ins(ctx, expr_type, pred);
 
 	u_assert(*ins == NULL);
 
-	*ins = create_optr(PlaAstTOptrUnrInstBool);
+	*ins = copy_optr(ctx, pred);
+}
+static void register_bltn_optrs_unr_bool(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type) {
+	optr_t pred = { .type = PlaAstTOptrUnrInstBool, .unr_inst_int.inst_type = inst_type };
 
-	optr_t * optr = *ins;
-
-	optr->bin_inst_int.inst_type = inst_type;
+	register_bltn_optr_pred(ctx, expr_type, &pred);
 }
 static void register_bltn_optrs_unr_int(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type) {
 	optr_t pred = { .type = PlaAstTOptrUnrInstInt, .unr_inst_int.inst_type = inst_type };
 
-	optr_t ** ins = get_optr_ins(ctx, expr_type, &pred);
-
-	u_assert(*ins == NULL);
-
-	*ins = create_optr(PlaAstTOptrUnrInstInt);
-
-	optr_t * optr = *ins;
-
-	optr->bin_inst_int.inst_type = inst_type;
+	register_bltn_optr_pred(ctx, expr_type, &pred);
 }
 static void register_bltn_optrs_bin_int(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type) {
 	optr_t pred = { .type = PlaAstTOptrBinInstInt, .bin_inst_int.inst_type = inst_type };
 
-	optr_t ** ins = get_optr_ins(ctx, expr_type, &pred);
-
-	u_assert(*ins == NULL);
-
-	*ins = create_optr(PlaAstTOptrBinInstInt);
-
-	optr_t * optr = *ins;
-
-	optr->bin_inst_int.inst_type = inst_type;
+	register_bltn_optr_pred(ctx, expr_type, &pred);
 }
 static void register_bltn_optrs_bin_int_bool(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type, ira_int_cmp_t int_cmp) {
 	optr_t pred = { .type = PlaAstTOptrBinInstIntBool, .bin_inst_int_bool = { .inst_type = inst_type, .int_cmp = int_cmp } };
 
-	optr_t ** ins = get_optr_ins(ctx, expr_type, &pred);
-
-	u_assert(*ins == NULL);
-
-	*ins = create_optr(PlaAstTOptrBinInstIntBool);
-
-	optr_t * optr = *ins;
-
-	optr->bin_inst_int_bool.inst_type = inst_type;
-	optr->bin_inst_int_bool.int_cmp = int_cmp;
+	register_bltn_optr_pred(ctx, expr_type, &pred);
 }
 static void register_bltn_optrs_bin_ptr_bool(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type, ira_int_cmp_t int_cmp) {
 	optr_t pred = { .type = PlaAstTOptrBinInstPtrBool, .bin_inst_ptr_bool = { .inst_type = inst_type, .int_cmp = int_cmp } };
 
-	optr_t ** ins = get_optr_ins(ctx, expr_type, &pred);
-
-	u_assert(*ins == NULL);
-
-	*ins = create_optr(PlaAstTOptrBinInstPtrBool);
-
-	optr_t * optr = *ins;
-
-	optr->bin_inst_ptr_bool.inst_type = inst_type;
-	optr->bin_inst_ptr_bool.int_cmp = int_cmp;
+	register_bltn_optr_pred(ctx, expr_type, &pred);
 }
 static void register_bltn_optrs(ctx_t * ctx) {
 	register_bltn_optrs_unr_bool(ctx, PlaExprLogicNeg, IraInstNegBool);
@@ -422,6 +417,11 @@ static void register_bltn_optrs(ctx_t * ctx) {
 	register_bltn_optrs_bin_int(ctx, PlaExprMul, IraInstMulInt);
 	register_bltn_optrs_bin_int(ctx, PlaExprDiv, IraInstDivInt);
 	register_bltn_optrs_bin_int(ctx, PlaExprMod, IraInstModInt);
+	register_bltn_optrs_bin_int(ctx, PlaExprLeShift, IraInstLeShiftInt);
+	register_bltn_optrs_bin_int(ctx, PlaExprRiShift, IraInstRiShiftInt);
+	register_bltn_optrs_bin_int(ctx, PlaExprBitAnd, IraInstAndInt);
+	register_bltn_optrs_bin_int(ctx, PlaExprBitXor, IraInstXorInt);
+	register_bltn_optrs_bin_int(ctx, PlaExprBitOr, IraInstOrInt);
 
 	register_bltn_optrs_bin_int_bool(ctx, PlaExprLess, IraInstCmpInt, IraIntCmpLess);
 	register_bltn_optrs_bin_int_bool(ctx, PlaExprLessEq, IraInstCmpInt, IraIntCmpLessEq);

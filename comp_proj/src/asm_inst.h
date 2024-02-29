@@ -2,6 +2,7 @@
 #include "asm.h"
 #include "u_hs.h"
 
+#define ASM_INST_OPDS_SIZE 3
 #define ASM_INST_BS_SIZE 15
 
 enum asm_inst_type {
@@ -67,7 +68,22 @@ enum asm_inst_type {
 	AsmInstSetnl, AsmInstSetge = AsmInstSetnl,
 	AsmInstSetle, AsmInstSetng = AsmInstSetle,
 	AsmInstSetnle, AsmInstSetg = AsmInstSetnle,
+	AsmInstRol,
+	AsmInstRor,
+	AsmInstRcl,
+	AsmInstRcr,
+	AsmInstShl, AsmInstSal = AsmInstShl,
+	AsmInstShr,
+	AsmInstSar,
 	AsmInst_Count
+};
+enum asm_inst_opd {
+	AsmInstOpdNone,
+	AsmInstOpdLabel,
+	AsmInstOpdImm,
+	AsmInstOpdReg,
+	AsmInstOpdMem,
+	AsmInstOpd_Count
 };
 enum asm_inst_opds {
 	AsmInstOpds_None,
@@ -149,5 +165,6 @@ typedef uint8_t asm_inst_bs_t[ASM_INST_BS_SIZE];
 
 bool asm_inst_build(asm_inst_t * inst, size_t * inst_size, asm_inst_bs_t out, asm_inst_offs_t * offs_out);
 
-const asm_size_t asm_inst_imm_type_to_size[AsmInstImm_Count];
-const asm_size_t asm_inst_disp_type_to_size[AsmInstDisp_Count];
+extern const asm_inst_opd_t asm_inst_opds_to_opd[AsmInstOpds__Count][ASM_INST_OPDS_SIZE];
+extern const asm_size_t asm_inst_imm_type_to_size[AsmInstImm_Count];
+extern const asm_size_t asm_inst_disp_type_to_size[AsmInstDisp_Count];

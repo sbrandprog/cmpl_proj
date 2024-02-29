@@ -17,6 +17,7 @@
 #define REX_R 0x04
 #define REX_W 0x08
 
+
 enum inst_rec_opds_enc {
 	InstRecOpds_None,
 	InstRecOpds_Label,
@@ -27,6 +28,10 @@ enum inst_rec_opds_enc {
 	InstRecOpds_OpcReg_Imm,
 	InstRecOpds_RmReg_Imm,
 	InstRecOpds_RmMem_Imm,
+	InstRecOpds_RmReg_Imm1,
+	InstRecOpds_RmMem_Imm1,
+	InstRecOpds_RmReg_ImplReg,
+	InstRecOpds_RmMem_ImplReg,
 	InstRecOpds_RmReg_RegReg,
 	InstRecOpds_RegReg_RmReg,
 	InstRecOpds_RmMem_RegReg,
@@ -37,19 +42,53 @@ enum inst_rec_opds_enc {
 };
 typedef uint8_t inst_rec_opds_enc_t;
 
+enum inst_rec_imm_type {
+	InstRecImm8,
+	InstRecImm16,
+	InstRecImm32,
+	InstRecImm64,
+	InstRecImm8_1,
+	InstRecImm_Count
+};
+typedef uint8_t inst_rec_imm_type_t;
+enum inst_rec_reg_type {
+	InstRecRegGprOpc8,
+	InstRecRegGprOpc16,
+	InstRecRegGprOpc32,
+	InstRecRegGprOpc64,
+	InstRecRegGprReg8,
+	InstRecRegGprReg16,
+	InstRecRegGprReg32,
+	InstRecRegGprReg64,
+	InstRecRegGprRm8,
+	InstRecRegGprRm16,
+	InstRecRegGprRm32,
+	InstRecRegGprRm64,
+	InstRecRegAx8,
+	InstRecRegAx16,
+	InstRecRegAx32,
+	InstRecRegAx64,
+	InstRecRegCx8,
+	InstRecRegCx16,
+	InstRecRegCx32,
+	InstRecRegCx64,
+	InstRecReg_Count
+};
+typedef uint8_t inst_rec_reg_type_t;
+
 typedef struct inst_rec {
 	asm_inst_type_t type;
 	uint8_t opc;
-	inst_rec_opds_enc_t opds_enc;
-	asm_reg_grps_t reg0_grps, reg1_grps;
-	asm_size_t imm0_size, mem_size;
+	asm_inst_opds_t opds;
+	inst_rec_reg_type_t reg0_type, reg1_type;
+	inst_rec_imm_type_t imm0_type;
+	asm_size_t mem0_size;
 	uint8_t modrm_reg_digit : 3;
 	uint8_t allow_lock : 1;
 	uint8_t use_osize : 1;
 	uint8_t use_0f : 1;
 	uint8_t ext_w : 1;
 	uint8_t no_opc : 1;
-	uint8_t skip_inst : 1;
 } inst_rec_t;
 
 typedef struct inst_desc {
@@ -74,7 +113,35 @@ typedef struct inst_desc {
 	int64_t imm0;
 } inst_desc_t;
 
-static const inst_rec_opds_enc_t inst_to_rec_opds[InstRecOpds__Count];
+const asm_size_t imm_type_to_size[InstRecImm_Count] = {
+	[InstRecImm8] = AsmSize8,
+	[InstRecImm16] = AsmSize16,
+	[InstRecImm32] = AsmSize32,
+	[InstRecImm64] = AsmSize64,
+	[InstRecImm8_1] = AsmSizeNone,
+};
+const asm_reg_grps_t reg_type_to_grps[InstRecReg_Count] = {
+	[InstRecRegGprOpc8] = { .s_8 = 1, .gpr = 1 },
+	[InstRecRegGprOpc16] = { .s_16 = 1, .gpr = 1 },
+	[InstRecRegGprOpc32] = { .s_32 = 1, .gpr = 1 },
+	[InstRecRegGprOpc64] = { .s_64 = 1, .gpr = 1 },
+	[InstRecRegGprReg8] = { .s_8 = 1, .gpr = 1 },
+	[InstRecRegGprReg16] = { .s_16 = 1, .gpr = 1 },
+	[InstRecRegGprReg32] = { .s_32 = 1, .gpr = 1 },
+	[InstRecRegGprReg64] = { .s_64 = 1, .gpr = 1 },
+	[InstRecRegGprRm8] = { .s_8 = 1, .gpr = 1 },
+	[InstRecRegGprRm16] = { .s_16 = 1, .gpr = 1 },
+	[InstRecRegGprRm32] = { .s_32 = 1, .gpr = 1 },
+	[InstRecRegGprRm64] = { .s_64 = 1, .gpr = 1 },
+	[InstRecRegAx8] = { .s_8 = 1, .gpr = 1, .gpr_ax = 1 },
+	[InstRecRegAx16] = { .s_16 = 1, .gpr = 1, .gpr_ax = 1 },
+	[InstRecRegAx32] = { .s_32 = 1, .gpr = 1, .gpr_ax = 1 },
+	[InstRecRegAx64] = { .s_64 = 1, .gpr = 1, .gpr_ax = 1 },
+	[InstRecRegCx8] = { .s_8 = 1, .gpr = 1, .gpr_cx = 1 },
+	[InstRecRegCx16] = { .s_16 = 1, .gpr = 1, .gpr_cx = 1 },
+	[InstRecRegCx32] = { .s_32 = 1, .gpr = 1, .gpr_cx = 1 },
+	[InstRecRegCx64] = { .s_64 = 1, .gpr = 1, .gpr_cx = 1 },
+};
 
 const inst_rec_t inst_recs[];
 static const size_t inst_recs_size;
@@ -296,99 +363,99 @@ static bool validate_inst(asm_inst_t * inst) {
 	return true;
 }
 
-static bool is_imm0_match(asm_inst_t * inst, const inst_rec_t * rec) {
-	if (asm_inst_imm_type_to_size[inst->imm0_type] != rec->imm0_size) {
+static bool is_imm_match(asm_inst_t * inst, const inst_rec_t * rec, size_t imm_i) {
+	u_assert(imm_i == 0);
+
+	switch (rec->imm0_type) {
+		case InstRecImm8:
+		case InstRecImm16:
+		case InstRecImm32:
+		case InstRecImm64:
+			if (asm_inst_imm_type_to_size[inst->imm0_type] != imm_type_to_size[rec->imm0_type]) {
+				return false;
+			}
+			break;
+		case InstRecImm8_1:
+			if (inst->imm0_type != AsmInstImm8 || inst->imm0 != 1) {
+				return false;
+			}
+			break;
+		default:
+			u_assert_switch(rec->imm0_type);
+	}
+
+	return true;
+}
+static bool is_reg_match(asm_inst_t * inst, const inst_rec_t * rec, size_t reg_i) {
+	asm_reg_t reg;
+	inst_rec_reg_type_t reg_type;
+
+	switch (reg_i) {
+		case 0:
+			reg = inst->reg0;
+			reg_type = rec->reg0_type;
+			break;
+		case 1:
+			reg = inst->reg1;
+			reg_type = rec->reg1_type;
+			break;
+		default:
+			u_assert_switch(reg_i);
+	}
+
+	const asm_reg_grps_t * reg_grps = &reg_type_to_grps[reg_type];
+
+	if (!asm_reg_check_grps(&asm_reg_infos[reg].grps, reg_grps)) {
 		return false;
 	}
 
 	return true;
 }
-static bool is_reg_match(asm_reg_t reg, const asm_reg_grps_t * rec) {
-	if (!asm_reg_check_grps(&asm_reg_infos[reg].grps, rec)) {
-		return false;
-	}
+static bool is_mem_match(asm_inst_t * inst, const inst_rec_t * rec, size_t mem_i) {
+	u_assert(mem_i == 0);
 
-	return true;
-}
-static bool is_mem_match(asm_inst_t * inst, const inst_rec_t * rec) {
-	if (rec->mem_size == AsmSizeNone) {
+	if (rec->mem0_size == AsmSizeNone) {
 		return true;
 	}
 
-	if (inst->mem_size != rec->mem_size) {
+	if (inst->mem_size != rec->mem0_size) {
 		return false;
 	}
 
 	return true;
 }
 static bool is_opds_match(asm_inst_t * inst, const inst_rec_t * rec) {
-	if (inst->opds != inst_to_rec_opds[rec->opds_enc]) {
+	if (inst->opds != rec->opds) {
 		return false;
 	}
 
-	switch (rec->opds_enc) {
-		case InstRecOpds_None:
-		case InstRecOpds_Label:
-			break;
-		case InstRecOpds_Imm:
-			if (!is_imm0_match(inst, rec)) {
-				return false;
-			}
-			break;
-		case InstRecOpds_RmReg:
-			if (!is_reg_match(inst->reg0, &rec->reg0_grps)) {
-				return false;
-			}
-			break;
-		case InstRecOpds_RmMem:
-			if (!is_mem_match(inst, rec)) {
-				return false;
-			}
-			break;
-		case InstRecOpds_ImplReg_Imm:
-		case InstRecOpds_OpcReg_Imm:
-		case InstRecOpds_RmReg_Imm:
-			if (!is_reg_match(inst->reg0, &rec->reg0_grps)
-				|| !is_imm0_match(inst, rec)) {
-				return false;
-			}
-			break;
-		case InstRecOpds_RmMem_Imm:
-			if (!is_mem_match(inst, rec)
-				|| !is_imm0_match(inst, rec)) {
-				return false;
-			}
-			break;
-		case InstRecOpds_RmReg_RegReg:
-		case InstRecOpds_RegReg_RmReg:
-			if (!is_reg_match(inst->reg0, &rec->reg0_grps)
-				|| !is_reg_match(inst->reg1, &rec->reg1_grps)) {
-				return false;
-			}
-			break;
-		case InstRecOpds_RmMem_RegReg:
-		case InstRecOpds_RegReg_RmMem:
-			if (!is_reg_match(inst->reg0, &rec->reg0_grps)
-				|| !is_mem_match(inst, rec)) {
-				return false;
-			}
-			break;
-		case InstRecOpds_RegReg_RmReg_Imm:
-			if (!is_reg_match(inst->reg0, &rec->reg0_grps)
-				|| !is_reg_match(inst->reg1, &rec->reg1_grps)
-				|| !is_imm0_match(inst, rec)) {
-				return false;
-			}
-			break;
-		case InstRecOpds_RegReg_RmMem_Imm:
-			if (!is_reg_match(inst->reg0, &rec->reg0_grps)
-				|| !is_mem_match(inst, rec)
-				|| !is_imm0_match(inst, rec)) {
-				return false;
-			}
-			break;
-		default:
-			u_assert_switch(rec->opds_enc);
+	size_t imm_i = 0, reg_i = 0, mem_i = 0;
+
+	for (size_t opd = 0; opd < ASM_INST_OPDS_SIZE; ++opd) {
+		asm_inst_opd_t opd_type = asm_inst_opds_to_opd[rec->opds][opd];
+
+		switch (opd_type) {
+			case AsmInstOpdNone:
+			case AsmInstOpdLabel:
+				break;
+			case AsmInstOpdImm:
+				if (!is_imm_match(inst, rec, imm_i++)) {
+					return false;
+				}
+				break;
+			case AsmInstOpdReg:
+				if (!is_reg_match(inst, rec, reg_i++)) {
+					return false;
+				}
+				break;
+			case AsmInstOpdMem:
+				if (!is_mem_match(inst, rec, mem_i++)) {
+					return false;
+				}
+				break;
+			default:
+				u_assert_switch(opd_type);
+		}
 	}
 
 	return true;
@@ -409,47 +476,96 @@ static const inst_rec_t * find_rec(asm_inst_t * inst) {
 	return NULL;
 }
 
-static void make_desc_imm0(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_t * rec) {
-	desc->imm0_size = rec->imm0_size;
+static void make_desc_imm(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_t * rec, size_t imm_i) {
+	u_assert(imm_i == 0);
 
-	if (is_imm_value(inst->imm0_type)) {
-		desc->imm0 = inst->imm0;
+	desc->imm0_size = imm_type_to_size[rec->imm0_type];
+
+	switch (rec->imm0_type) {
+		case InstRecImm8:
+		case InstRecImm16:
+		case InstRecImm32:
+		case InstRecImm64:
+			if (is_imm_value(inst->imm0_type)) {
+				desc->imm0 = inst->imm0;
+			}
+			else {
+				desc->imm0 = 0;
+			}
+			break;
+		case InstRecImm8_1:
+			break;
+		default:
+			u_assert_switch(rec->imm0_type);
 	}
-	else {
-		desc->imm0 = 0;
+}
+static void make_desc_reg(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_t * rec, size_t reg_i) {
+	asm_reg_t reg;
+	inst_rec_reg_type_t reg_type;
+
+	switch (reg_i) {
+		case 0:
+			reg = inst->reg0;
+			reg_type = rec->reg0_type;
+			break;
+		case 1:
+			reg = inst->reg1;
+			reg_type = rec->reg1_type;
+			break;
+		default:
+			u_assert_switch(reg_i);
 	}
-}
-static void make_desc_opc_reg(inst_desc_t * desc, asm_reg_t reg) {
+
 	const asm_reg_info_t * info = &asm_reg_infos[reg];
 
-	desc->opc_reg = info->enc;
-	desc->ext_b = info->ext;
+	switch (reg_type) {
+		case InstRecRegGprOpc8:
+		case InstRecRegGprOpc16:
+		case InstRecRegGprOpc32:
+		case InstRecRegGprOpc64:
+			desc->opc_reg = info->enc;
+			desc->ext_b = info->ext;
 
-	desc->req_rex = desc->req_rex || info->grps.req_rex;
-	desc->no_rex = desc->no_rex || info->grps.no_rex;
-}
-static void make_desc_modrm_rm_reg(inst_desc_t * desc, asm_reg_t reg) {
-	const asm_reg_info_t * info = &asm_reg_infos[reg];
+			desc->req_rex = desc->req_rex || info->grps.req_rex;
+			desc->no_rex = desc->no_rex || info->grps.no_rex;
+			break;
+		case InstRecRegGprReg8:
+		case InstRecRegGprReg16:
+		case InstRecRegGprReg32:
+		case InstRecRegGprReg64:
+			desc->use_modrm = true;
 
-	desc->use_modrm = true;
+			desc->modrm_reg = info->enc;
+			desc->ext_r = info->ext;
 
-	desc->modrm_mod = 0b11;
-	desc->modrm_rm = info->enc;
-	desc->ext_b = info->ext;
+			desc->req_rex = desc->req_rex || info->grps.req_rex;
+			desc->no_rex = desc->no_rex || info->grps.no_rex;
+			break;
+		case InstRecRegGprRm8:
+		case InstRecRegGprRm16:
+		case InstRecRegGprRm32:
+		case InstRecRegGprRm64:
+			desc->use_modrm = true;
 
-	desc->req_rex = desc->req_rex || info->grps.req_rex;
-	desc->no_rex = desc->no_rex || info->grps.no_rex;
-}
-static void make_desc_modrm_reg_reg(inst_desc_t * desc, asm_reg_t reg) {
-	const asm_reg_info_t * info = &asm_reg_infos[reg];
+			desc->modrm_mod = 0b11;
+			desc->modrm_rm = info->enc;
+			desc->ext_b = info->ext;
 
-	desc->use_modrm = true;
-
-	desc->modrm_reg = info->enc;
-	desc->ext_r = info->ext;
-
-	desc->req_rex = desc->req_rex || info->grps.req_rex;
-	desc->no_rex = desc->no_rex || info->grps.no_rex;
+			desc->req_rex = desc->req_rex || info->grps.req_rex;
+			desc->no_rex = desc->no_rex || info->grps.no_rex;
+			break;
+		case InstRecRegAx8:
+		case InstRecRegAx16:
+		case InstRecRegAx32:
+		case InstRecRegAx64:
+		case InstRecRegCx8:
+		case InstRecRegCx16:
+		case InstRecRegCx32:
+		case InstRecRegCx64:
+			break;
+		default:
+			u_assert_switch(reg_type);
+	}
 }
 static void make_desc_disp_size(inst_desc_t * desc, asm_inst_t * inst, const asm_reg_info_t * base_info) {
 	if (inst->mem_disp_type == AsmInstDispAuto) {
@@ -501,7 +617,9 @@ static void make_desc_sib_scale(inst_desc_t * desc, asm_size_t scale) {
 			u_assert_switch(scale);
 	}
 }
-static void make_desc_modrm_rm_mem(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_t * rec) {
+static void make_desc_mem(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_t * rec, size_t mem_i) {
+	u_assert(mem_i == 0);
+
 	const asm_reg_info_t * base = &asm_reg_infos[inst->mem_base],
 		* index = &asm_reg_infos[inst->mem_index];
 
@@ -596,62 +714,27 @@ static void make_desc(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_t * 
 
 	desc->modrm_reg = rec->modrm_reg_digit;
 
-	switch (rec->opds_enc) {
-		case InstRecOpds_None:
-		case InstRecOpds_Label:
-			break;
-		case InstRecOpds_Imm:
-			make_desc_imm0(desc, inst, rec);
-			break;
-		case InstRecOpds_RmReg:
-			make_desc_modrm_rm_reg(desc, inst->reg0);
-			break;
-		case InstRecOpds_RmMem:
-			make_desc_modrm_rm_mem(desc, inst, rec);
-			break;
-		case InstRecOpds_ImplReg_Imm:
-			make_desc_imm0(desc, inst, rec);
-			break;
-		case InstRecOpds_OpcReg_Imm:
-			make_desc_opc_reg(desc, inst->reg0);
-			make_desc_imm0(desc, inst, rec);
-			break;
-		case InstRecOpds_RmReg_Imm:
-			make_desc_modrm_rm_reg(desc, inst->reg0);
-			make_desc_imm0(desc, inst, rec);
-			break;
-		case InstRecOpds_RmMem_Imm:
-			make_desc_modrm_rm_mem(desc, inst, rec);
-			make_desc_imm0(desc, inst, rec);
-			break;
-		case InstRecOpds_RmReg_RegReg:
-			make_desc_modrm_rm_reg(desc, inst->reg0);
-			make_desc_modrm_reg_reg(desc, inst->reg1);
-			break;
-		case InstRecOpds_RegReg_RmReg:
-			make_desc_modrm_reg_reg(desc, inst->reg0);
-			make_desc_modrm_rm_reg(desc, inst->reg1);
-			break;
-		case InstRecOpds_RmMem_RegReg:
-			make_desc_modrm_rm_mem(desc, inst, rec);
-			make_desc_modrm_reg_reg(desc, inst->reg0);
-			break;
-		case InstRecOpds_RegReg_RmMem:
-			make_desc_modrm_reg_reg(desc, inst->reg0);
-			make_desc_modrm_rm_mem(desc, inst, rec);
-			break;
-		case InstRecOpds_RegReg_RmReg_Imm:
-			make_desc_modrm_reg_reg(desc, inst->reg0);
-			make_desc_modrm_rm_reg(desc, inst->reg1);
-			make_desc_imm0(desc, inst, rec);
-			break;
-		case InstRecOpds_RegReg_RmMem_Imm:
-			make_desc_modrm_reg_reg(desc, inst->reg0);
-			make_desc_modrm_rm_mem(desc, inst, rec);
-			make_desc_imm0(desc, inst, rec);
-			break;
-		default:
-			u_assert_switch(inst->opds);
+	size_t imm_i = 0, reg_i = 0, mem_i = 0;
+
+	for (size_t opd = 0; opd < ASM_INST_OPDS_SIZE; ++opd) {
+		asm_inst_opd_t opd_type = asm_inst_opds_to_opd[rec->opds][opd];
+
+		switch (opd_type) {
+			case AsmInstOpdNone:
+			case AsmInstOpdLabel:
+				break;
+			case AsmInstOpdImm:
+				make_desc_imm(desc, inst, rec, imm_i++);
+				break;
+			case AsmInstOpdReg:
+				make_desc_reg(desc, inst, rec, reg_i++);
+				break;
+			case AsmInstOpdMem:
+				make_desc_mem(desc, inst, rec, mem_i++);
+				break;
+			default:
+				u_assert_switch(opd_type);
+		}
 	}
 
 	if (desc->ext_b || desc->ext_x || desc->ext_r || desc->ext_w || desc->req_rex) {
@@ -810,22 +893,19 @@ bool asm_inst_build(asm_inst_t * inst, size_t * inst_size, asm_inst_bs_t bs_out,
 	return true;
 }
 
-static const inst_rec_opds_enc_t inst_to_rec_opds[InstRecOpds__Count] = {
-	[InstRecOpds_None] = AsmInstOpds_None,
-	[InstRecOpds_Label] = AsmInstOpds_Label,
-	[InstRecOpds_Imm] = AsmInstOpds_Imm,
-	[InstRecOpds_RmReg] = AsmInstOpds_Reg,
-	[InstRecOpds_RmMem] = AsmInstOpds_Mem,
-	[InstRecOpds_ImplReg_Imm] = AsmInstOpds_Reg_Imm,
-	[InstRecOpds_OpcReg_Imm] = AsmInstOpds_Reg_Imm,
-	[InstRecOpds_RmReg_Imm] = AsmInstOpds_Reg_Imm,
-	[InstRecOpds_RmMem_Imm] = AsmInstOpds_Mem_Imm,
-	[InstRecOpds_RmReg_RegReg] = AsmInstOpds_Reg_Reg,
-	[InstRecOpds_RegReg_RmReg] = AsmInstOpds_Reg_Reg,
-	[InstRecOpds_RmMem_RegReg] = AsmInstOpds_Mem_Reg,
-	[InstRecOpds_RegReg_RmMem] = AsmInstOpds_Reg_Mem,
-	[InstRecOpds_RegReg_RmReg_Imm] = AsmInstOpds_Reg_Reg_Imm,
-	[InstRecOpds_RegReg_RmMem_Imm] = AsmInstOpds_Reg_Mem_Imm
+const asm_inst_opd_t asm_inst_opds_to_opd[AsmInstOpds__Count][ASM_INST_OPDS_SIZE] = {
+	[AsmInstOpds_None] = { AsmInstOpdNone, AsmInstOpdNone, AsmInstOpdNone },
+	[AsmInstOpds_Label] = { AsmInstOpdLabel, AsmInstOpdNone, AsmInstOpdNone },
+	[AsmInstOpds_Imm] = { AsmInstOpdImm, AsmInstOpdNone, AsmInstOpdNone },
+	[AsmInstOpds_Reg] = { AsmInstOpdReg, AsmInstOpdNone, AsmInstOpdNone },
+	[AsmInstOpds_Mem] = { AsmInstOpdMem, AsmInstOpdNone, AsmInstOpdNone },
+	[AsmInstOpds_Reg_Imm] = { AsmInstOpdReg, AsmInstOpdImm, AsmInstOpdNone },
+	[AsmInstOpds_Mem_Imm] = { AsmInstOpdMem, AsmInstOpdImm, AsmInstOpdNone },
+	[AsmInstOpds_Reg_Reg] = { AsmInstOpdReg, AsmInstOpdReg, AsmInstOpdNone },
+	[AsmInstOpds_Reg_Mem] = { AsmInstOpdReg, AsmInstOpdMem, AsmInstOpdNone },
+	[AsmInstOpds_Mem_Reg] = { AsmInstOpdMem, AsmInstOpdReg, AsmInstOpdNone },
+	[AsmInstOpds_Reg_Reg_Imm] = { AsmInstOpdReg, AsmInstOpdReg, AsmInstOpdImm },
+	[AsmInstOpds_Reg_Mem_Imm] = { AsmInstOpdReg, AsmInstOpdMem, AsmInstOpdImm },
 };
 const asm_size_t asm_inst_imm_type_to_size[AsmInstImm_Count] = {
 	[AsmInstImmNone] = AsmSizeNone,
@@ -848,121 +928,107 @@ const asm_size_t asm_inst_disp_type_to_size[AsmInstDisp_Count] = {
 	[AsmInstDispLabelRva32] = AsmSize32
 };
 
-enum {
-	asm_size_n = AsmSizeNone,
-	asm_size_8 = AsmSize8,
-	asm_size_16 = AsmSize16,
-	asm_size_32 = AsmSize32,
-	asm_size_64 = AsmSize64
-};
-
 //base
-#define inst(type_, opc_, opds_enc_, ...) { .type = AsmInst##type_, .opc = opc_, .opds_enc = InstRecOpds_##opds_enc_, __VA_ARGS__ }
+#define inst(type_, opc_, opds_, ...) { .type = AsmInst##type_, .opc = opc_, .opds = AsmInstOpds_##opds_, __VA_ARGS__ }
 
 //data
-#define d_reg(i, ...) .reg##i##_grps = { __VA_ARGS__ }
-#define d_imm(i, size) .imm##i##_size = asm_size_##size
-#define d_mem(size) .mem_size = asm_size_##size
+#define d_reg(i, rt) .reg##i##_type = InstRecReg##rt
+#define d_imm(i, it) .imm##i##_type = InstRec##it
+#define d_mem(i, ms) .mem##i##_size = Asm##ms
 #define d_modrm_reg(digit) .modrm_reg_digit = digit
 #define d_allow_lock .allow_lock = 1
 #define d_use_osize .use_osize = 1
 #define d_use_0f .use_0f = 1
 #define d_ext_w .ext_w = 1
 #define d_no_opc .no_opc = 1
-#define d_skip_inst .skip_inst = 1
-
-//reg groups
-#define rg_gpr(size) .gpr = 1, .s_##size = 1
-#define rg_ax(size) rg_gpr(size), .gpr_ax = 1
 
 //quick inst
-#define q_none(type_, opc_, ...)						inst(type_, opc_, None, __VA_ARGS__)
-#define q_label(type_, opc_, ...)						inst(type_, opc_, Label, __VA_ARGS__)
-#define q_imm(type_, opc_, i, ...)						inst(type_, opc_, Imm, d_imm(0, i), __VA_ARGS__)
-#define q_rmreg(type_, opc_, r, ...)					inst(type_, opc_, RmReg, d_reg(0, r), __VA_ARGS__)
-#define q_rmmem(type_, opc_, m, ...)					inst(type_, opc_, RmMem, d_mem(m), __VA_ARGS__)
-#define q_implreg_imm(type_, opc_, r, i, ...)			inst(type_, opc_, ImplReg_Imm, d_reg(0, r), d_imm(0, i), __VA_ARGS__)
-#define q_opcreg_imm(type_, opc_, r, i, ...)			inst(type_, opc_, OpcReg_Imm, d_reg(0, r), d_imm(0, i), __VA_ARGS__)
-#define q_rmreg_imm(type_, opc_, r, i, ...)				inst(type_, opc_, RmReg_Imm, d_reg(0, r), d_imm(0, i), __VA_ARGS__)
-#define q_rmmem_imm(type_, opc_, m, i, ...)				inst(type_, opc_, RmMem_Imm, d_mem(m), d_imm(0, i), __VA_ARGS__)
-#define q_rmreg_regreg(type_, opc_, r0, r1, ...)		inst(type_, opc_, RmReg_RegReg, d_reg(0, r0), d_reg(1, r1), __VA_ARGS__)
-#define q_rmmem_regreg(type_, opc_, m, r, ...)			inst(type_, opc_, RmMem_RegReg, d_mem(m), d_reg(0, r), __VA_ARGS__)
-#define q_regreg_rmreg(type_, opc_, r0, r1, ...)		inst(type_, opc_, RegReg_RmReg, d_reg(0, r0), d_reg(1, r1), __VA_ARGS__)
-#define q_regreg_rmmem(type_, opc_, r, m, ...)			inst(type_, opc_, RegReg_RmMem, d_reg(0, r), d_mem(m), __VA_ARGS__)
-#define q_regreg_rmreg_imm(type_, opc_, r0, r1, i, ...)	inst(type_, opc_, RegReg_RmReg_Imm, d_reg(0, r0), d_reg(1, r1), d_imm(0, i), __VA_ARGS__)
-#define q_regreg_rmmem_imm(type_, opc_, r, m, i, ...)	inst(type_, opc_, RegReg_RmReg_Imm, d_reg(0, r), d_mem(m), d_imm(0, i), __VA_ARGS__)
+#define q_none(type_, opc_, ...)							inst(type_, opc_, None, __VA_ARGS__)
+#define q_label(type_, opc_, ...)							inst(type_, opc_, Label, __VA_ARGS__)
+#define q_imm(type_, opc_, it0, ...)						inst(type_, opc_, Imm, d_imm(0, it0), __VA_ARGS__)
+#define q_reg(type_, opc_, rt0, ...)						inst(type_, opc_, Reg, d_reg(0, rt0), __VA_ARGS__)
+#define q_mem(type_, opc_, ms0, ...)						inst(type_, opc_, Mem, d_mem(0, ms0), __VA_ARGS__)
+#define q_reg_imm(type_, opc_, rt0, it0, ...)				inst(type_, opc_, Reg_Imm, d_reg(0, rt0), d_imm(0, it0), __VA_ARGS__)
+#define q_mem_imm(type_, opc_, ms0, it0, ...)				inst(type_, opc_, Mem_Imm, d_mem(0, ms0), d_imm(0, it0), __VA_ARGS__)
+#define q_reg_reg(type_, opc_, rt0, rt1, ...)				inst(type_, opc_, Reg_Reg, d_reg(0, rt0), d_reg(1, rt1), __VA_ARGS__)
+#define q_reg_mem(type_, opc_, rt0, ms0, ...)				inst(type_, opc_, Reg_Mem, d_reg(0, rt0), d_mem(0, ms0), __VA_ARGS__)
+#define q_mem_reg(type_, opc_, ms0, rt0, ...)				inst(type_, opc_, Mem_Reg, d_mem(0, ms0), d_reg(0, rt0), __VA_ARGS__)
+#define q_reg_reg_imm(type_, opc_, rt0, rt1, it0, ...)		inst(type_, opc_, Reg_Reg, d_reg(0, rt0), d_reg(1, rt1), d_imm(0, it0), __VA_ARGS__)
+#define q_reg_mem_imm(type_, opc_, rt0, ms0, it0, ...)		inst(type_, opc_, Reg_Mem_Imm, d_reg(0, rt0), d_mem(0, ms0), d_imm(0, it0), __VA_ARGS__)
 
-#define q_gpr_rmreg(type_, opc_, r, ...)						q_rmreg(type_, opc_, rg_gpr(r), __VA_ARGS__)
-#define q_gpr_ax_imm(type_, opc_, r, i, ...)					q_implreg_imm(type_, opc_, rg_ax(r), i, __VA_ARGS__)
-#define q_gpr_opcreg_imm(type_, opc_, r, i, ...)				q_opcreg_imm(type_, opc_, rg_gpr(r), i, __VA_ARGS__)
-#define q_gpr_rmreg_imm(type_, opc_, r, i, ...)					q_rmreg_imm(type_, opc_, rg_gpr(r), i, __VA_ARGS__)
-#define q_gpr_rmreg_gpr_regreg(type_, opc_, r0, r1, ...)		q_rmreg_regreg(type_, opc_, rg_gpr(r0), rg_gpr(r1), __VA_ARGS__)
-#define q_rmmem_gpr_regreg(type_, opc_, m, r, ...)				q_rmmem_regreg(type_, opc_, m, rg_gpr(r), __VA_ARGS__)
-#define q_gpr_regreg_gpr_rmreg(type_, opc_, r0, r1, ...)		q_regreg_rmreg(type_, opc_, rg_gpr(r0), rg_gpr(r1), __VA_ARGS__)
-#define q_gpr_regreg_rmmem(type_, opc_, r, m, ...)				q_regreg_rmmem(type_, opc_, rg_gpr(r), m, __VA_ARGS__)
-#define q_gpr_regreg_gpr_rmreg_imm(type_, opc_, r0, r1, i, ...)	q_regreg_rmreg_imm(type_, opc_, rg_gpr(r0), rg_gpr(r1), i, __VA_ARGS__)
-#define q_gpr_regreg_rmmem_imm(type_, opc_, r, m, i, ...)		q_regreg_rmmem_imm(type_, opc_, rg_gpr(r), m, i, __VA_ARGS__)
-
-#define q_func_wdq(func, type_, opc_, ...)\
-	func(type_, opc_, 16, d_use_osize, __VA_ARGS__),\
-	func(type_, opc_, 32, __VA_ARGS__),\
-	func(type_, opc_, 64, d_ext_w, __VA_ARGS__)
-#define q_func_bwdq(func, type_, opc_0, opc_1, ...)\
-	func(type_, opc_0, 8, __VA_ARGS__),\
-	q_func_wdq(func, type_, opc_1, __VA_ARGS__)
-#define q_func_wdq_wdq(func, type_, opc_, ...)\
-	func(type_, opc_, 16, 16, d_use_osize, __VA_ARGS__),\
-	func(type_, opc_, 32, 32, __VA_ARGS__),\
-	func(type_, opc_, 64, 64, d_ext_w, __VA_ARGS__)
-#define q_func_bwdq_bwdq(func, type_, opc_0, opc_1, ...)\
-	func(type_, opc_0, 8, 8, __VA_ARGS__),\
-	q_func_wdq_wdq(func, type_, opc_1, __VA_ARGS__)
-#define q_func_wdq_wdd(func, type_, opc_, ...)\
-	func(type_, opc_, 16, 16, d_use_osize, __VA_ARGS__),\
-	func(type_, opc_, 32, 32, __VA_ARGS__),\
-	func(type_, opc_, 64, 32, d_ext_w, __VA_ARGS__)
-#define q_func_bwdq_bwdd(func, type_, opc_0, opc_1, ...)\
-	func(type_, opc_0, 8, 8, __VA_ARGS__), \
-	q_func_wdq_wdd(func, type_, opc_1, __VA_ARGS__)
-#define q_func_wdq_bbb(func, type_, opc_, ...)\
-	func(type_, opc_, 16, 8, d_use_osize, __VA_ARGS__),\
-	func(type_, opc_, 32, 8, __VA_ARGS__),\
-	func(type_, opc_, 64, 8, d_ext_w, __VA_ARGS__)
-#define q_func_wdq_wdq_bbb(func, type_, opc_, ...)\
-	func(type_, opc_, 16, 16, 8, d_use_osize, __VA_ARGS__),\
-	func(type_, opc_, 32, 32, 8, __VA_ARGS__),\
-	func(type_, opc_, 64, 64, 8, d_ext_w, __VA_ARGS__)
-#define q_func_wdq_wdq_wdd(func, type_, opc_, ...)\
-	func(type_, opc_, 16, 16, 16, d_use_osize, __VA_ARGS__),\
-	func(type_, opc_, 32, 32, 32, __VA_ARGS__),\
-	func(type_, opc_, 64, 64, 32, d_ext_w, __VA_ARGS__)
+#define q_func_wdq(func, type_, opc0, o0, ...)\
+	func(type_, opc0, o0##16, d_use_osize, __VA_ARGS__),\
+	func(type_, opc0, o0##32, __VA_ARGS__),\
+	func(type_, opc0, o0##64, d_ext_w, __VA_ARGS__)
+#define q_func_bwdq(func, type_, opc0, opc1, o0, ...)\
+	func(type_, opc0, o0##8, __VA_ARGS__),\
+	q_func_wdq(func, type_, opc1, o0, __VA_ARGS__)
+#define q_func_wdq_ccc(func, type_, opc0, o0, o1, ...)\
+	func(type_, opc0, o0##16, o1, d_use_osize, __VA_ARGS__),\
+	func(type_, opc0, o0##32, o1, __VA_ARGS__),\
+	func(type_, opc0, o0##64, o1, d_ext_w, __VA_ARGS__)
+#define q_func_bwdq_cccc(func, type_, opc0, opc1, o0, o1, ...)\
+	func(type_, opc0, o0##8, o1, __VA_ARGS__),\
+	q_func_wdq_ccc(func, type_, opc1, o0, o1, __VA_ARGS__)
+#define q_func_wdq_wdq(func, type_, opc0, o0, o1, ...)\
+	func(type_, opc0, o0##16, o1##16, d_use_osize, __VA_ARGS__),\
+	func(type_, opc0, o0##32, o1##32, __VA_ARGS__),\
+	func(type_, opc0, o0##64, o1##64, d_ext_w, __VA_ARGS__)
+#define q_func_bwdq_bwdq(func, type_, opc0, opc1, o0, o1, ...)\
+	func(type_, opc0, o0##8, o1##8, __VA_ARGS__),\
+	q_func_wdq_wdq(func, type_, opc1, o0, o1, __VA_ARGS__)
+#define q_func_wdq_wdd(func, type_, opc0, o0, o1, ...)\
+	func(type_, opc0, o0##16, o1##16, d_use_osize, __VA_ARGS__),\
+	func(type_, opc0, o0##32, o1##32, __VA_ARGS__),\
+	func(type_, opc0, o0##64, o1##32, d_ext_w, __VA_ARGS__)
+#define q_func_bwdq_bwdd(func, type_, opc0, opc1, o0, o1, ...)\
+	func(type_, opc0, o0##8, o1##8, __VA_ARGS__), \
+	q_func_wdq_wdd(func, type_, opc1, o0, o1, __VA_ARGS__)
+#define q_func_wdq_bbb(func, type_, opc0, o0, o1, ...)\
+	func(type_, opc0, o0##16, o1##8, d_use_osize, __VA_ARGS__),\
+	func(type_, opc0, o0##32, o1##8, __VA_ARGS__),\
+	func(type_, opc0, o0##64, o1##8, d_ext_w, __VA_ARGS__)
+#define q_func_bwdq_bbbb(func, type_, opc0, opc1, o0, o1, ...)\
+	func(type_, opc0, o0##8, o1##8, __VA_ARGS__), \
+	q_func_wdq_bbb(func, type_, opc1, o0, o1, __VA_ARGS__)
+#define q_func_wdq_wdq_bbb(func, type_, opc0, o0, o1, o2, ...)\
+	func(type_, opc0, o0##16, o1##16, o2##8, d_use_osize, __VA_ARGS__),\
+	func(type_, opc0, o0##32, o1##32, o2##8, __VA_ARGS__),\
+	func(type_, opc0, o0##64, o1##64, o2##8, d_ext_w, __VA_ARGS__)
+#define q_func_wdq_wdq_wdd(func, type_, opc0, o0, o1, o2, ...)\
+	func(type_, opc0, o0##16, o1##16, o2##16, d_use_osize, __VA_ARGS__),\
+	func(type_, opc0, o0##32, o1##32, o2##32, __VA_ARGS__),\
+	func(type_, opc0, o0##64, o1##64, o2##32, d_ext_w, __VA_ARGS__)
 
 #define q_g0(name, i)\
-	q_func_bwdq_bwdq(q_gpr_rmreg_gpr_regreg, name, 0x00 + (0x08 * i), 0x01 + (0x08 * i)),\
-	q_func_bwdq_bwdq(q_rmmem_gpr_regreg, name, 0x00 + (0x08 * i), 0x01 + (0x08 * i), d_allow_lock),\
-	q_func_bwdq_bwdq(q_gpr_regreg_gpr_rmreg, name, 0x02 + (0x08 * i), 0x03 + (0x08 * i)),\
-	q_func_bwdq_bwdq(q_gpr_regreg_rmmem, name, 0x02 + (0x08 * i), 0x03 + (0x08 * i)),\
-	q_func_bwdq_bwdd(q_gpr_ax_imm, name, 0x04 + (0x08 * i), 0x05 + (0x08 * i)),\
-	q_func_bwdq_bwdd(q_gpr_rmreg_imm, name, 0x80, 0x81, d_modrm_reg(i)),\
-	q_func_bwdq_bwdd(q_rmmem_imm, name, 0x80, 0x81, d_modrm_reg(i)),\
-	q_func_wdq_bbb(q_gpr_rmreg_imm, name, 0x83, d_modrm_reg(i)),\
-	q_func_wdq_bbb(q_rmmem_imm, name, 0x83, d_modrm_reg(i))
+	q_func_bwdq_bwdq(q_reg_reg, name, 0x00 + (0x08 * i), 0x01 + (0x08 * i), GprRm, GprReg),\
+	q_func_bwdq_bwdq(q_mem_reg, name, 0x00 + (0x08 * i), 0x01 + (0x08 * i), Size, GprReg, d_allow_lock),\
+	q_func_bwdq_bwdq(q_reg_reg, name, 0x02 + (0x08 * i), 0x03 + (0x08 * i), GprReg, GprRm),\
+	q_func_bwdq_bwdq(q_reg_mem, name, 0x02 + (0x08 * i), 0x03 + (0x08 * i), GprReg, Size),\
+	q_func_bwdq_bwdd(q_reg_imm, name, 0x04 + (0x08 * i), 0x05 + (0x08 * i), Ax, Imm),\
+	q_func_bwdq_bwdd(q_reg_imm, name, 0x80, 0x81, GprRm, Imm, d_modrm_reg(i)),\
+	q_func_bwdq_bwdd(q_mem_imm, name, 0x80, 0x81, Size, Imm, d_modrm_reg(i)),\
+	q_func_wdq_bbb(q_reg_imm, name, 0x83, GprRm, Imm, d_modrm_reg(i)),\
+	q_func_wdq_bbb(q_mem_imm, name, 0x83, Size, Imm, d_modrm_reg(i))
 #define q_g1(name, i)\
-	q_imm(name, 0x70 + i, 8),\
-	q_imm(name, 0x80 + i, 32, d_use_0f)
+	q_imm(name, 0x70 + i, Imm8),\
+	q_imm(name, 0x80 + i, Imm32, d_use_0f)
 #define q_g2(name, i)\
-	q_rmmem(name, 0x90 + i, 8, d_modrm_reg(0), d_use_0f),\
-	q_gpr_rmreg(name, 0x90 + i, 8, d_modrm_reg(0), d_use_0f)
+	q_mem(name, 0x90 + i, Size8, d_modrm_reg(0), d_use_0f),\
+	q_reg(name, 0x90 + i, GprRm8, d_modrm_reg(0), d_use_0f)
+#define q_g3(name, i)\
+	q_func_bwdq_cccc(q_reg_imm, name, 0xD0, 0xD1, GprRm, Imm8_1, d_modrm_reg(i)),\
+	q_func_bwdq_cccc(q_mem_imm, name, 0xD0, 0xD1, Size, Imm8_1, d_modrm_reg(i)),\
+	q_func_bwdq_cccc(q_reg_reg, name, 0xD2, 0xD3, GprRm, Cx8, d_modrm_reg(i)),\
+	q_func_bwdq_cccc(q_mem_reg, name, 0xD2, 0xD3, Size, Cx8, d_modrm_reg(i)),\
+	q_func_bwdq_bbbb(q_reg_imm, name, 0xC0, 0xC1, GprRm, Imm, d_modrm_reg(i)),\
+	q_func_bwdq_bbbb(q_mem_imm, name, 0xC0, 0xC1, Size, Imm, d_modrm_reg(i))
 
 static const inst_rec_t inst_recs[] = {
-	q_label(Label, 0x00, d_no_opc, d_skip_inst),
-
-	q_imm(Data, 0x00, 8, d_no_opc),
-	q_imm(Data, 0x00, 16, d_no_opc),
-	q_imm(Data, 0x00, 32, d_no_opc),
-	q_imm(Data, 0x00, 64, d_no_opc),
-
-	q_imm(Align, 0x00, 64, d_no_opc, d_skip_inst),
+	q_imm(Data, 0x00, Imm8, d_no_opc),
+	q_imm(Data, 0x00, Imm16, d_no_opc),
+	q_imm(Data, 0x00, Imm32, d_no_opc),
+	q_imm(Data, 0x00, Imm64, d_no_opc),
 
 	q_g0(Add, 0),
 	q_g0(Or, 1),
@@ -973,47 +1039,48 @@ static const inst_rec_t inst_recs[] = {
 	q_g0(Xor, 6),
 	q_g0(Cmp, 7),
 
-	q_func_bwdq_bwdq(q_gpr_rmreg_gpr_regreg, Mov, 0x88, 0x89),
-	q_func_bwdq_bwdq(q_rmmem_gpr_regreg, Mov, 0x88, 0x89),
-	q_func_bwdq_bwdq(q_gpr_regreg_gpr_rmreg, Mov, 0x8A, 0x8B),
-	q_func_bwdq_bwdq(q_gpr_regreg_rmmem, Mov, 0x8A, 0x8B),
-	q_func_bwdq_bwdq(q_gpr_opcreg_imm, Mov, 0xB0, 0xB8),
-	q_func_bwdq_bwdd(q_gpr_rmreg_imm, Mov, 0xC6, 0xC7, d_modrm_reg(0)),
-	q_func_bwdq_bwdd(q_rmmem_imm, Mov, 0xC6, 0xC7, d_modrm_reg(0)),
+	q_func_bwdq_bwdq(q_reg_reg, Mov, 0x88, 0x89, GprRm, GprReg),
+	q_func_bwdq_bwdq(q_mem_reg, Mov, 0x88, 0x89, Size, GprReg),
+	q_func_bwdq_bwdq(q_reg_reg, Mov, 0x8A, 0x8B, GprReg, GprRm),
+	q_func_bwdq_bwdq(q_reg_mem, Mov, 0x8A, 0x8B, GprReg, Size),
+	q_func_bwdq_bwdq(q_reg_imm, Mov, 0xB0, 0xB8, GprOpc, Imm),
+	q_func_bwdq_bwdd(q_reg_imm, Mov, 0xC6, 0xC7, GprRm, Imm, d_modrm_reg(0)),
+	q_func_bwdq_bwdd(q_mem_imm, Mov, 0xC6, 0xC7, Size, Imm, d_modrm_reg(0)),
 
-	q_func_wdq_bbb(q_gpr_regreg_gpr_rmreg, Movsx, 0xBE, d_use_0f),
-	q_func_wdq_bbb(q_gpr_regreg_rmmem, Movsx, 0xBE, d_use_0f),
-	q_gpr_regreg_gpr_rmreg(Movsx, 0xBF, 32, 16, d_use_0f),
-	q_gpr_regreg_rmmem(Movsx, 0xBF, 32, 16, d_use_0f),
-	q_gpr_regreg_gpr_rmreg(Movsx, 0xBF, 64, 16, d_ext_w, d_use_0f),
-	q_gpr_regreg_rmmem(Movsx, 0xBF, 64, 16, d_ext_w, d_use_0f),
+	q_func_wdq_bbb(q_reg_reg, Movsx, 0xBE, GprReg, GprRm, d_use_0f),
+	q_func_wdq_bbb(q_reg_mem, Movsx, 0xBE, GprReg, Size, d_use_0f),
+	q_reg_reg(Movsx, 0xBF, GprReg32, GprRm16, d_use_0f),
+	q_reg_mem(Movsx, 0xBF, GprReg32, Size16, d_use_0f),
+	q_reg_reg(Movsx, 0xBF, GprReg64, GprRm16, d_ext_w, d_use_0f),
+	q_reg_mem(Movsx, 0xBF, GprReg64, Size16, d_ext_w, d_use_0f),
 
-	q_gpr_regreg_gpr_rmreg(Movsxd, 0x63, 64, 32, 0x63, d_ext_w),
+	q_reg_reg(Movsxd, 0x63, GprReg64, GprRm32, d_ext_w),
+	q_reg_mem(Movsxd, 0x63, GprReg64, Size32, d_ext_w),
 
-	q_func_wdq_bbb(q_gpr_regreg_gpr_rmreg, Movzx, 0xB6, d_use_0f),
-	q_func_wdq_bbb(q_gpr_regreg_rmmem, Movzx, 0xB6, d_use_0f),
-	q_gpr_regreg_gpr_rmreg(Movzx, 0xB7, 32, 16, d_use_0f),
-	q_gpr_regreg_rmmem(Movzx, 0xB7, 32, 16, d_use_0f),
-	q_gpr_regreg_gpr_rmreg(Movzx, 0xB7, 64, 16, d_ext_w, d_use_0f),
-	q_gpr_regreg_rmmem(Movzx, 0xB7, 64, 16, d_ext_w, d_use_0f),
+	q_func_wdq_bbb(q_reg_reg, Movzx, 0xB6, GprReg, GprRm, d_use_0f),
+	q_func_wdq_bbb(q_reg_mem, Movzx, 0xB6, GprReg, Size, d_use_0f),
+	q_reg_reg(Movzx, 0xB7, GprReg32, GprRm16, d_use_0f),
+	q_reg_mem(Movzx, 0xB7, GprReg32, Size16, d_use_0f),
+	q_reg_reg(Movzx, 0xB7, GprReg64, GprRm16, d_ext_w, d_use_0f),
+	q_reg_mem(Movzx, 0xB7, GprReg64, Size16, d_ext_w, d_use_0f),
 
-	q_gpr_regreg_rmmem(Lea, 0x8D, 16, n, d_use_osize),
-	q_gpr_regreg_rmmem(Lea, 0x8D, 32, n),
-	q_gpr_regreg_rmmem(Lea, 0x8D, 64, n, d_ext_w),
+	q_reg_mem(Lea, 0x8D, GprReg16, SizeNone, d_use_osize),
+	q_reg_mem(Lea, 0x8D, GprReg32, SizeNone),
+	q_reg_mem(Lea, 0x8D, GprReg64, SizeNone, d_ext_w),
 
-	q_imm(Call, 0xE8, 32),
-	q_rmmem(Call, 0xFF, n, d_modrm_reg(2)),
-	q_gpr_rmreg(Call, 0xFF, 64, d_modrm_reg(2)),
+	q_imm(Call, 0xE8, Imm32),
+	q_mem(Call, 0xFF, SizeNone, d_modrm_reg(2)),
+	q_reg(Call, 0xFF, GprRm64, d_modrm_reg(2)),
 
 	q_none(Ret, 0xC3),
-	q_imm(Ret, 0xC2, 16),
+	q_imm(Ret, 0xC2, Imm16),
 
 	q_none(Int3, 0xCC),
 
-	q_imm(Jmp, 0xEB, 8),
-	q_imm(Jmp, 0xE9, 32),
-	q_rmmem(Jmp, 0xFF, n, d_modrm_reg(4)),
-	q_gpr_rmreg(Jmp, 0xFF, 64, d_modrm_reg(4)),
+	q_imm(Jmp, 0xEB, Imm8),
+	q_imm(Jmp, 0xE9, Imm32),
+	q_mem(Jmp, 0xFF, SizeNone, d_modrm_reg(4)),
+	q_reg(Jmp, 0xFF, GprRm64, d_modrm_reg(4)),
 
 	q_g1(Jo, 0),
 	q_g1(Jno, 1),
@@ -1032,35 +1099,35 @@ static const inst_rec_t inst_recs[] = {
 	q_g1(Jle, 14),
 	q_g1(Jnle, 15),
 
-	q_func_bwdq_bwdd(q_gpr_ax_imm, Test, 0xA8, 0xA9),
-	q_func_bwdq_bwdd(q_gpr_rmreg_imm, Test, 0xF6, 0xF7, d_modrm_reg(0)),
-	q_func_bwdq_bwdd(q_rmmem_imm, Test, 0xF6, 0xF7, d_modrm_reg(0)),
-	q_func_bwdq_bwdq(q_gpr_rmreg_gpr_regreg, Test, 0x84, 0x85),
-	q_func_bwdq_bwdq(q_rmmem_gpr_regreg, Test, 0x84, 0x85),
+	q_func_bwdq_bwdd(q_reg_imm, Test, 0xA8, 0xA9, Ax, Imm),
+	q_func_bwdq_bwdd(q_reg_imm, Test, 0xF6, 0xF7, GprRm, Imm, d_modrm_reg(0)),
+	q_func_bwdq_bwdd(q_mem_imm, Test, 0xF6, 0xF7, Size, Imm, d_modrm_reg(0)),
+	q_func_bwdq_bwdq(q_reg_reg, Test, 0x84, 0x85, GprRm, GprReg),
+	q_func_bwdq_bwdq(q_mem_reg, Test, 0x84, 0x85, Size, GprReg),
 
-	q_func_bwdq(q_gpr_rmreg, Not, 0xF6, 0xF7, d_modrm_reg(2)),
-	q_func_bwdq(q_rmmem, Not, 0xF6, 0xF7, d_modrm_reg(2), d_allow_lock),
+	q_func_bwdq(q_reg, Not, 0xF6, 0xF7, GprRm, d_modrm_reg(2)),
+	q_func_bwdq(q_mem, Not, 0xF6, 0xF7, Size, d_modrm_reg(2), d_allow_lock),
 
-	q_func_bwdq(q_gpr_rmreg, Neg, 0xF6, 0xF7, d_modrm_reg(3)),
-	q_func_bwdq(q_rmmem, Neg, 0xF6, 0xF7, d_modrm_reg(3), d_allow_lock),
+	q_func_bwdq(q_reg, Neg, 0xF6, 0xF7, GprRm, d_modrm_reg(3)),
+	q_func_bwdq(q_mem, Neg, 0xF6, 0xF7, Size, d_modrm_reg(3), d_allow_lock),
 
-	q_func_bwdq(q_gpr_rmreg, Mul, 0xF6, 0xF7, d_modrm_reg(4)),
-	q_func_bwdq(q_rmmem, Mul, 0xF6, 0xF7, d_modrm_reg(4)),
+	q_func_bwdq(q_reg, Mul, 0xF6, 0xF7, GprRm, d_modrm_reg(4)),
+	q_func_bwdq(q_mem, Mul, 0xF6, 0xF7, Size, d_modrm_reg(4)),
 
-	q_func_bwdq(q_gpr_rmreg, Imul, 0xF6, 0xF7, d_modrm_reg(5)),
-	q_func_bwdq(q_rmmem, Imul, 0xF6, 0xF7, d_modrm_reg(5)),
-	q_func_wdq_wdq(q_gpr_regreg_gpr_rmreg, Imul, 0xAF, d_use_0f),
-	q_func_wdq_wdq(q_gpr_regreg_rmmem, Imul, 0xAF, d_use_0f),
-	q_func_wdq_wdq_bbb(q_gpr_regreg_gpr_rmreg_imm, Imul, 0x6B),
-	q_func_wdq_wdq_bbb(q_gpr_regreg_rmmem_imm, Imul, 0x6B),
-	q_func_wdq_wdq_wdd(q_gpr_regreg_gpr_rmreg_imm, Imul, 0x69),
-	q_func_wdq_wdq_wdd(q_gpr_regreg_rmmem_imm, Imul, 0x69),
+	q_func_bwdq(q_reg, Imul, 0xF6, 0xF7, GprRm, d_modrm_reg(5)),
+	q_func_bwdq(q_mem, Imul, 0xF6, 0xF7, Size, d_modrm_reg(5)),
+	q_func_wdq_wdq(q_reg_reg, Imul, 0xAF, GprReg, GprRm, d_use_0f),
+	q_func_wdq_wdq(q_reg_mem, Imul, 0xAF, GprReg, Size, d_use_0f),
+	q_func_wdq_wdq_bbb(q_reg_reg_imm, Imul, 0x6B, GprReg, GprRm, Imm),
+	q_func_wdq_wdq_bbb(q_reg_mem_imm, Imul, 0x6B, GprReg, Size, Imm),
+	q_func_wdq_wdq_wdd(q_reg_reg_imm, Imul, 0x69, GprReg, GprRm, Imm),
+	q_func_wdq_wdq_wdd(q_reg_mem_imm, Imul, 0x69, GprReg, Size, Imm),
 
-	q_func_bwdq(q_gpr_rmreg, Div, 0xF6, 0xF7, d_modrm_reg(6)),
-	q_func_bwdq(q_rmmem, Div, 0xF6, 0xF7, d_modrm_reg(6)),
+	q_func_bwdq(q_reg, Div, 0xF6, 0xF7, GprRm, d_modrm_reg(6)),
+	q_func_bwdq(q_mem, Div, 0xF6, 0xF7, Size, d_modrm_reg(6)),
 
-	q_func_bwdq(q_gpr_rmreg, Idiv, 0xF6, 0xF7, d_modrm_reg(7)),
-	q_func_bwdq(q_rmmem, Idiv, 0xF6, 0xF7, d_modrm_reg(7)),
+	q_func_bwdq(q_reg, Idiv, 0xF6, 0xF7, GprRm, d_modrm_reg(7)),
+	q_func_bwdq(q_mem, Idiv, 0xF6, 0xF7, Size, d_modrm_reg(7)),
 
 	q_none(Cbw, 0x98, d_use_osize),
 	q_none(Cwde, 0x98),
@@ -1086,5 +1153,13 @@ static const inst_rec_t inst_recs[] = {
 	q_g2(Setnl, 13),
 	q_g2(Setle, 14),
 	q_g2(Setnle, 15),
+
+	q_g3(Rol, 0),
+	q_g3(Ror, 1),
+	q_g3(Rcl, 2),
+	q_g3(Rcr, 3),
+	q_g3(Shl, 4),
+	q_g3(Shr, 5),
+	q_g3(Sar, 7),
 };
 static const size_t inst_recs_size = _countof(inst_recs);

@@ -4,6 +4,7 @@ typedef enum ira_pds ira_pds_t;
 
 typedef enum ira_int_type ira_int_type_t;
 typedef enum ira_int_cmp ira_int_cmp_t;
+typedef struct ira_int_info ira_int_info_t;
 typedef union ira_int ira_int_t;
 
 typedef struct ira_dt_qual ira_dt_qual_t;

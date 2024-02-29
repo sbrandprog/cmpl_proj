@@ -36,7 +36,7 @@ struct asm_reg_info {
 	asm_reg_grps_t grps;
 };
 
-const asm_reg_info_t asm_reg_infos[AsmReg_Count];
+extern const asm_reg_info_t asm_reg_infos[AsmReg_Count];
 
 asm_size_t asm_reg_get_size(asm_reg_t reg);
 
