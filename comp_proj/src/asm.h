@@ -5,6 +5,7 @@ typedef uint8_t asm_size_t;
 typedef uint8_t asm_reg_t;
 typedef union asm_reg_grps asm_reg_grps_t;
 typedef struct asm_reg_info asm_reg_info_t;
+typedef uint8_t asm_reg_gpr_t;
 
 typedef uint16_t asm_inst_type_t;
 typedef uint8_t asm_inst_opd_t;

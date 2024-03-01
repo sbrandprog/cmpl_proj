@@ -1,5 +1,5 @@
 #pragma once
-#include "asm.h"
+#include "asm_size.h"
 
 enum asm_reg {
 	AsmRegNone,
@@ -35,8 +35,28 @@ struct asm_reg_info {
 	uint8_t enc : 3, ext : 1;
 	asm_reg_grps_t grps;
 };
+enum asm_reg_gpr {
+	AsmRegGprAx,
+	AsmRegGprCx,
+	AsmRegGprDx,
+	AsmRegGprBx,
+	AsmRegGprSp,
+	AsmRegGprBp,
+	AsmRegGprSi,
+	AsmRegGprDi,
+	AsmRegGprR8,
+	AsmRegGprR9,
+	AsmRegGprR10,
+	AsmRegGprR11,
+	AsmRegGprR12,
+	AsmRegGprR13,
+	AsmRegGprR14,
+	AsmRegGprR15,
+	AsmRegGpr_Count,
+};
 
 extern const asm_reg_info_t asm_reg_infos[AsmReg_Count];
+extern const asm_reg_t asm_reg_gprs[AsmRegGpr_Count][AsmSize_Count];
 
 asm_size_t asm_reg_get_size(asm_reg_t reg);
 

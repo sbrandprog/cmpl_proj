@@ -298,15 +298,15 @@ static bool get_cs_ascii(ctx_t * ctx, u_hs_t * str, ira_val_t ** out) {
 
 	u_assert(elem_type == IraIntU8);
 
-	val->arr.size = str->size + 1;
+	val->arr_val.size = str->size + 1;
 
-	val->arr.data = malloc(val->arr.size * sizeof(*val->arr.data));
+	val->arr_val.data = malloc(val->arr_val.size * sizeof(*val->arr_val.data));
 
-	u_assert(val->arr.data != NULL);
+	u_assert(val->arr_val.data != NULL);
 
-	memset(val->arr.data, 0, val->arr.size * sizeof(*val->arr.data));
+	memset(val->arr_val.data, 0, val->arr_val.size * sizeof(*val->arr_val.data));
 
-	ira_val_t ** ins = val->arr.data;
+	ira_val_t ** ins = val->arr_val.data;
 	for (wchar_t * ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch) {
 		if ((*ch & ~0x7F) != 0) {
 			pla_ast_t_report(ctx->t_ctx, L"non-ascii character [%c] in ascii string:\n%s", *ch, str->str);
@@ -329,11 +329,11 @@ static bool get_cs_ascii(ctx_t * ctx, u_hs_t * str, ira_val_t ** out) {
 		return false;
 	}
 
-	size_t final_size = ins - val->arr.data;
+	size_t final_size = ins - val->arr_val.data;
 
-	u_assert(final_size <= val->arr.size);
+	u_assert(final_size <= val->arr_val.size);
 
-	val->arr.size = final_size;
+	val->arr_val.size = final_size;
 
 	*out = val;
 
@@ -346,15 +346,15 @@ static bool get_cs_wide(ctx_t * ctx, u_hs_t * str, ira_val_t ** out) {
 
 	u_assert(elem_type == IraIntU16);
 
-	val->arr.size = str->size + 1;
+	val->arr_val.size = str->size + 1;
 
-	val->arr.data = malloc(val->arr.size * sizeof(*val->arr.data));
+	val->arr_val.data = malloc(val->arr_val.size * sizeof(*val->arr_val.data));
 
-	u_assert(val->arr.data != NULL);
+	u_assert(val->arr_val.data != NULL);
 
-	memset(val->arr.data, 0, val->arr.size * sizeof(*val->arr.data));
+	memset(val->arr_val.data, 0, val->arr_val.size * sizeof(*val->arr_val.data));
 
-	ira_val_t ** ins = val->arr.data;
+	ira_val_t ** ins = val->arr_val.data;
 	for (wchar_t * ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch) {
 		if (!ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t) {
 			.ui16 = (uint16_t)*ch
@@ -371,11 +371,11 @@ static bool get_cs_wide(ctx_t * ctx, u_hs_t * str, ira_val_t ** out) {
 		return false;
 	}
 
-	size_t final_size = ins - val->arr.data;
+	size_t final_size = ins - val->arr_val.data;
 
-	u_assert(final_size <= val->arr.size);
+	u_assert(final_size <= val->arr_val.size);
 
-	val->arr.size = final_size;
+	val->arr_val.size = final_size;
 
 	*out = val;
 

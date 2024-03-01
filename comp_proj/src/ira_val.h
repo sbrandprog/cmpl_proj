@@ -7,7 +7,7 @@ enum ira_val_type {
 	IraValImmBool,
 	IraValImmInt,
 	IraValImmVec,
-	IraValNullPtr,
+	IraValImmPtr,
 	IraValLoPtr,
 	IraValImmStct,
 	IraValImmArr,
@@ -22,16 +22,9 @@ struct ira_val {
 		ira_int_t int_val;
 		ira_lo_t * lo_val;
 		struct {
-			ira_val_t ** data;
-		} vec;
-		struct {
 			size_t size;
 			ira_val_t ** data;
-		} arr;
-		struct {
-			size_t size;
-			ira_val_t ** elems;
-		} stct;
+		} arr_val;
 	};
 };
 

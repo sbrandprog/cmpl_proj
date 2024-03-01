@@ -94,8 +94,8 @@ struct inst {
 
 typedef struct int_cast_info {
 	asm_inst_type_t inst_type;
-	asm_reg_t to;
-	asm_reg_t from;
+	asm_size_t from;
+	asm_size_t to;
 } int_cast_info_t;
 
 typedef struct ira_pec_ip_ctx {
@@ -136,13 +136,6 @@ static const wchar_t * trg_to_str[Trg_Count] = {
 	[TrgIntrp] = L"interpreter",
 };
 
-static const asm_reg_t int_type_to_ax[IraInt_Count] = {
-	AsmRegAl, AsmRegAx, AsmRegEax, AsmRegRax, AsmRegAl, AsmRegAx, AsmRegEax, AsmRegRax
-};
-static const asm_reg_t int_type_to_cx[IraInt_Count] = {
-	AsmRegCl, AsmRegCx, AsmRegEcx, AsmRegRcx, AsmRegCl, AsmRegCx, AsmRegEcx, AsmRegRcx
-};
-
 static const asm_reg_t w64_int_arg_to_reg[4][IraInt_Count] = {
 	[0] = { AsmRegCl, AsmRegCx, AsmRegEcx, AsmRegRcx, AsmRegCl, AsmRegCx, AsmRegEcx, AsmRegRcx },
 	[1] = { AsmRegDl, AsmRegDx, AsmRegEdx, AsmRegRdx, AsmRegDl, AsmRegDx, AsmRegEdx, AsmRegRdx },
@@ -156,16 +149,96 @@ static const asm_reg_t w64_ptr_arg_to_reg[4] = {
 	[3] = { AsmRegR9 }
 };
 
-static const int_cast_info_t int_cast_from_to[IraInt_Count][IraInt_Count] = {
-	{ { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMovzx, AsmRegAx, AsmRegCl }, { AsmInstMovzx, AsmRegEax, AsmRegCl }, { AsmInstMovzx, AsmRegRax, AsmRegCl }, { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMovzx, AsmRegAx, AsmRegCl }, { AsmInstMovzx, AsmRegEax, AsmRegCl }, { AsmInstMovzx, AsmRegRax, AsmRegCl } },
-	{ { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMovzx, AsmRegEax, AsmRegCx }, { AsmInstMovzx, AsmRegRax, AsmRegCx }, { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMovzx, AsmRegEax, AsmRegCx }, { AsmInstMovzx, AsmRegRax, AsmRegCx } },
-	{ { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMov, AsmRegEax, AsmRegEcx } },
-	{ { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMov, AsmRegRax, AsmRegRcx }, { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMov, AsmRegRax, AsmRegRcx } },
+static const int_cast_info_t int_cast_infos[IraInt_Count][IraInt_Count] = {
+	[IraIntU8] = {
+		[IraIntU8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntU16] = { .inst_type = AsmInstMovzx, .from = AsmSize8, .to = AsmSize16 },
+		[IraIntU32] = { .inst_type = AsmInstMovzx, .from = AsmSize8, .to = AsmSize32 },
+		[IraIntU64] = { .inst_type = AsmInstMovzx, .from = AsmSize8, .to = AsmSize64 },
 
-	{ { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMovzx, AsmRegAx, AsmRegCl }, { AsmInstMovzx, AsmRegEax, AsmRegCl }, { AsmInstMovzx, AsmRegRax, AsmRegCl }, { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMovsx, AsmRegAx, AsmRegCl }, { AsmInstMovsx, AsmRegEax, AsmRegCl }, { AsmInstMovsx, AsmRegRax, AsmRegCl } },
-	{ { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMovzx, AsmRegEax, AsmRegCx }, { AsmInstMovzx, AsmRegRax, AsmRegCx }, { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMovsx, AsmRegEax, AsmRegCx }, { AsmInstMovsx, AsmRegRax, AsmRegCx } },
-	{ { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMovsxd, AsmRegRax, AsmRegEcx } },
-	{ { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMov, AsmRegRax, AsmRegRcx }, { AsmInstMov, AsmRegAl, AsmRegCl }, { AsmInstMov, AsmRegAx, AsmRegCx }, { AsmInstMov, AsmRegEax, AsmRegEcx }, { AsmInstMov, AsmRegRax, AsmRegRcx } },
+		[IraIntS8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntS16] = { .inst_type = AsmInstMovzx, .from = AsmSize8, .to = AsmSize16 },
+		[IraIntS32] = { .inst_type = AsmInstMovzx, .from = AsmSize8, .to = AsmSize32 },
+		[IraIntS64] = { .inst_type = AsmInstMovzx, .from = AsmSize8, .to = AsmSize64 },
+	},
+	[IraIntU16] = {
+		[IraIntU8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntU16] = { .inst_type = AsmInstMov, .from = AsmSize16, .to = AsmSize16 },
+		[IraIntU32] = { .inst_type = AsmInstMovzx, .from = AsmSize16, .to = AsmSize32 },
+		[IraIntU64] = { .inst_type = AsmInstMovzx, .from = AsmSize16, .to = AsmSize64 },
+
+		[IraIntS8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntS16] = { .inst_type = AsmInstMov, .from = AsmSize16, .to = AsmSize16 },
+		[IraIntS32] = { .inst_type = AsmInstMovzx, .from = AsmSize16, .to = AsmSize32 },
+		[IraIntS64] = { .inst_type = AsmInstMovzx, .from = AsmSize16, .to = AsmSize64 },
+	},
+	[IraIntU32] = {
+		[IraIntU8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntU16] = { .inst_type = AsmInstMov, .from = AsmSize16, .to = AsmSize16 },
+		[IraIntU32] = { .inst_type = AsmInstMov, .from = AsmSize32, .to = AsmSize32 },
+		[IraIntU64] = { .inst_type = AsmInstMov, .from = AsmSize32, .to = AsmSize32 },
+
+		[IraIntS8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntS16] = { .inst_type = AsmInstMov, .from = AsmSize16, .to = AsmSize16 },
+		[IraIntS32] = { .inst_type = AsmInstMov, .from = AsmSize32, .to = AsmSize32 },
+		[IraIntS64] = { .inst_type = AsmInstMov, .from = AsmSize32, .to = AsmSize32 },
+	},
+	[IraIntU64] = {
+		[IraIntU8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntU16] = { .inst_type = AsmInstMov, .from = AsmSize16, .to = AsmSize16 },
+		[IraIntU32] = { .inst_type = AsmInstMov, .from = AsmSize32, .to = AsmSize32 },
+		[IraIntU64] = { .inst_type = AsmInstMov, .from = AsmSize64, .to = AsmSize64 },
+
+		[IraIntS8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntS16] = { .inst_type = AsmInstMov, .from = AsmSize16, .to = AsmSize16 },
+		[IraIntS32] = { .inst_type = AsmInstMov, .from = AsmSize32, .to = AsmSize32 },
+		[IraIntS64] = { .inst_type = AsmInstMov, .from = AsmSize64, .to = AsmSize64 },
+	},
+
+	[IraIntS8] = {
+		[IraIntU8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntU16] = { .inst_type = AsmInstMovzx, .from = AsmSize8, .to = AsmSize16 },
+		[IraIntU32] = { .inst_type = AsmInstMovzx, .from = AsmSize8, .to = AsmSize32 },
+		[IraIntU64] = { .inst_type = AsmInstMovzx, .from = AsmSize8, .to = AsmSize64 },
+
+		[IraIntS8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntS16] = { .inst_type = AsmInstMovsx, .from = AsmSize8, .to = AsmSize16 },
+		[IraIntS32] = { .inst_type = AsmInstMovsx, .from = AsmSize8, .to = AsmSize32 },
+		[IraIntS64] = { .inst_type = AsmInstMovsx, .from = AsmSize8, .to = AsmSize64 },
+	},
+	[IraIntS16] = {
+		[IraIntU8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntU16] = { .inst_type = AsmInstMov, .from = AsmSize16, .to = AsmSize16 },
+		[IraIntU32] = { .inst_type = AsmInstMovzx, .from = AsmSize16, .to = AsmSize32 },
+		[IraIntU64] = { .inst_type = AsmInstMovzx, .from = AsmSize16, .to = AsmSize64 },
+
+		[IraIntS8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntS16] = { .inst_type = AsmInstMov, .from = AsmSize16, .to = AsmSize16 },
+		[IraIntS32] = { .inst_type = AsmInstMovsx, .from = AsmSize16, .to = AsmSize32 },
+		[IraIntS64] = { .inst_type = AsmInstMovsx, .from = AsmSize16, .to = AsmSize64 },
+	},
+	[IraIntS32] = {
+		[IraIntU8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntU16] = { .inst_type = AsmInstMov, .from = AsmSize16, .to = AsmSize16 },
+		[IraIntU32] = { .inst_type = AsmInstMov, .from = AsmSize32, .to = AsmSize32 },
+		[IraIntU64] = { .inst_type = AsmInstMov, .from = AsmSize32, .to = AsmSize32 },
+
+		[IraIntS8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntS16] = { .inst_type = AsmInstMov, .from = AsmSize16, .to = AsmSize16 },
+		[IraIntS32] = { .inst_type = AsmInstMov, .from = AsmSize32, .to = AsmSize32 },
+		[IraIntS64] = { .inst_type = AsmInstMovsxd, .from = AsmSize32, .to = AsmSize64 },
+	},
+	[IraIntS64] = {
+		[IraIntU8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntU16] = { .inst_type = AsmInstMov, .from = AsmSize16, .to = AsmSize16 },
+		[IraIntU32] = { .inst_type = AsmInstMov, .from = AsmSize32, .to = AsmSize32 },
+		[IraIntU64] = { .inst_type = AsmInstMov, .from = AsmSize64, .to = AsmSize64 },
+
+		[IraIntS8] = { .inst_type = AsmInstMov, .from = AsmSize8, .to = AsmSize8 },
+		[IraIntS16] = { .inst_type = AsmInstMov, .from = AsmSize16, .to = AsmSize16 },
+		[IraIntS32] = { .inst_type = AsmInstMov, .from = AsmSize32, .to = AsmSize32 },
+		[IraIntS64] = { .inst_type = AsmInstMov, .from = AsmSize64, .to = AsmSize64 },
+	},
 };
 
 static void report(ctx_t * ctx, const wchar_t * format, ...) {
@@ -1244,41 +1317,35 @@ static void write_ptr_off(ctx_t * ctx, asm_reg_t ptr, asm_reg_t reg, size_t offs
 	asm_frag_push_inst(ctx->frag, &mov);
 }
 
-static asm_reg_t get_ax_reg_dt(ira_dt_t * dt) {
-	asm_reg_t reg;
+static asm_reg_t get_gpr_reg_int(asm_reg_gpr_t gpr, ira_int_type_t int_type) {
+	asm_size_t reg_size = ira_int_infos[int_type].asm_size;
 
-	switch (dt->type) {
-		case IraDtBool:
-			reg = AsmRegAl;
-			break;
-		case IraDtInt:
-			reg = int_type_to_ax[dt->int_type];
-			break;
-		case IraDtPtr:
-			reg = AsmRegRax;
-			break;
-		default:
-			u_assert_switch(dt->type);
-	}
+	asm_reg_t reg = asm_reg_gprs[gpr][reg_size];
+
+	u_assert(reg != AsmRegNone);
 
 	return reg;
 }
-static asm_reg_t get_cx_reg_dt(ira_dt_t * dt) {
-	asm_reg_t reg;
+static asm_reg_t get_gpr_reg_dt(asm_reg_gpr_t gpr, ira_dt_t * dt) {
+	asm_size_t reg_size;
 
 	switch (dt->type) {
 		case IraDtBool:
-			reg = AsmRegCl;
+			reg_size = AsmSize8;
 			break;
 		case IraDtInt:
-			reg = int_type_to_cx[dt->int_type];
+			reg_size = ira_int_infos[dt->int_type].asm_size;
 			break;
 		case IraDtPtr:
-			reg = AsmRegRcx;
+			reg_size = AsmSize64;
 			break;
 		default:
 			u_assert_switch(dt->type);
 	}
+
+	asm_reg_t reg = asm_reg_gprs[gpr][reg_size];
+
+	u_assert(reg != AsmRegNone);
 
 	return reg;
 }
@@ -1339,7 +1406,7 @@ static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg) {
 					load_stack_var(ctx, reg, var);
 					break;
 				default:
-					reg = get_ax_reg_dt(var_dt);
+					reg = get_gpr_reg_dt(AsmRegGprAx, var_dt);
 					load_stack_var(ctx, reg, var);
 					save_stack_gpr(ctx, arg_offset, reg);
 					break;
@@ -1360,7 +1427,7 @@ static void w64_save_callee_ret(ctx_t * ctx, var_t * var) {
 		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
-			reg = get_ax_reg_dt(var_dt);
+			reg = get_gpr_reg_dt(AsmRegGprAx, var_dt);
 			save_stack_var(ctx, var, reg);
 			break;
 		default:
@@ -1406,7 +1473,7 @@ static void w64_save_caller_arg(ctx_t * ctx, u_hs_t * arg_name, size_t arg) {
 					save_stack_var(ctx, var, reg);
 					break;
 				default:
-					reg = get_ax_reg_dt(var_dt);
+					reg = get_gpr_reg_dt(AsmRegGprAx, var_dt);
 					load_stack_gpr(ctx, reg, arg_offset);
 					save_stack_var(ctx, var, reg);
 					break;
@@ -1426,7 +1493,7 @@ static void w64_load_caller_ret(ctx_t * ctx, var_t * var) {
 		case IraDtInt:
 		case IraDtPtr:
 		{
-			asm_reg_t reg = get_ax_reg_dt(var_dt);
+			asm_reg_t reg = get_gpr_reg_dt(AsmRegGprAx, var_dt);
 
 			load_stack_var(ctx, reg, var);
 
@@ -1490,7 +1557,7 @@ static void div_int(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_out, va
 	ira_int_type_t int_type = opd0->qdt.dt->int_type;
 
 	asm_inst_type_t dx_inst_type = AsmInstXor;
-	asm_reg_t reg0 = int_type_to_ax[int_type], reg1 = int_type_to_cx[int_type], reg2;
+	asm_reg_t reg0 = get_gpr_reg_int(AsmRegGprAx, int_type), reg1 = get_gpr_reg_int(AsmRegGprCx, int_type), reg2;
 
 	switch (int_type) {
 		case IraIntS8:
@@ -1594,15 +1661,15 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 			break;
 		case IraValImmInt:
 		{
-			asm_reg_t reg = int_type_to_ax[val->dt->int_type];
-			asm_inst_imm_type_t imm_type = ira_int_infos[val->dt->int_type].imm_type;
+			asm_reg_t reg = get_gpr_reg_int(AsmRegGprAx, val->dt->int_type);
+			asm_inst_imm_type_t imm_type = ira_int_infos[val->dt->int_type].asm_imm_type;
 
 			load_int(ctx, reg, imm_type, val->int_val.si64);
 			save_stack_var(ctx, var, reg);
 			break;
 		}
-		case IraValNullPtr:
-			load_int(ctx, AsmRegRax, AsmInstImm64, 0);
+		case IraValImmPtr:
+			load_int(ctx, AsmRegRax, AsmInstImm64, (int64_t)val->int_val.ui64);
 			save_stack_var(ctx, var, AsmRegRax);
 			break;
 		case IraValLoPtr:
@@ -1633,7 +1700,7 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 			size_t off;
 
 			off = ira_dt_get_sd_elem_off(sd, IRA_DT_ARR_SIZE_IND);
-			load_int(ctx, AsmRegRax, AsmInstImm64, (int64_t)val->arr.size);
+			load_int(ctx, AsmRegRax, AsmInstImm64, (int64_t)val->arr_val.size);
 			save_stack_var_off(ctx, var, AsmRegRax, off);
 
 			off = ira_dt_get_sd_elem_off(sd, IRA_DT_ARR_DATA_IND);
@@ -1656,7 +1723,7 @@ static void compile_copy_impl(ctx_t * ctx, var_t * dst, var_t * src, size_t src_
 		case IraDtInt:
 		case IraDtPtr:
 		{
-			asm_reg_t reg = get_ax_reg_dt(dt);
+			asm_reg_t reg = get_gpr_reg_dt(AsmRegGprAx, dt);
 
 			load_stack_var_off(ctx, reg, src, src_off);
 			save_stack_var(ctx, dst, reg);
@@ -1683,8 +1750,8 @@ static void compile_copy_impl(ctx_t * ctx, var_t * dst, var_t * src, size_t src_
 	}
 }
 static void compile_int_like_cmp(ctx_t * ctx, var_t * dst, var_t * src0, var_t * src1, ira_int_cmp_t int_cmp, bool cmp_sign) {
-	asm_reg_t reg0 = get_ax_reg_dt(src0->qdt.dt);
-	asm_reg_t reg1 = get_cx_reg_dt(src0->qdt.dt);
+	asm_reg_t reg0 = get_gpr_reg_dt(AsmRegGprAx, src0->qdt.dt);
+	asm_reg_t reg1 = get_gpr_reg_dt(AsmRegGprCx, src0->qdt.dt);
 
 	load_stack_var(ctx, reg0, src0);
 	load_stack_var(ctx, reg1, src1);
@@ -1704,18 +1771,17 @@ static void compile_int_like_cmp(ctx_t * ctx, var_t * dst, var_t * src0, var_t *
 	save_stack_var(ctx, dst, AsmRegAl);
 }
 static void compile_int_like_cast(ctx_t * ctx, var_t * dst, var_t * src, ira_int_type_t from, ira_int_type_t to) {
-	asm_reg_t from_reg = int_type_to_cx[from];
-	asm_reg_t to_reg = int_type_to_ax[to];
-	
-	const int_cast_info_t * info = &int_cast_from_to[from][to];
+	asm_reg_gpr_t gpr_from = AsmRegGprAx, gpr_to = AsmRegGprAx;
 
-	load_stack_var(ctx, from_reg, src);
+	const int_cast_info_t * info = &int_cast_infos[from][to];
 
-	asm_inst_t cast = { .type = info->inst_type, .opds = AsmInstOpds_Reg_Reg, .reg0 = info->to, .reg1 = info->from };
+	load_stack_var(ctx, get_gpr_reg_int(gpr_from, from), src);
+
+	asm_inst_t cast = { .type = info->inst_type, .opds = AsmInstOpds_Reg_Reg, .reg0 = asm_reg_gprs[gpr_to][info->to], .reg1 = asm_reg_gprs[gpr_from][info->from] };
 
 	asm_frag_push_inst(ctx->frag, &cast);
 
-	save_stack_var(ctx, dst, to_reg);
+	save_stack_var(ctx, dst, get_gpr_reg_int(gpr_to, to));
 }
 
 static void compile_blank(ctx_t * ctx, inst_t * inst) {
@@ -1780,21 +1846,19 @@ static void compile_shift_ptr(ctx_t * ctx, inst_t * inst) {
 	{
 		ira_int_type_t index_type_from = index_dt->int_type;
 
-		index_int_type = ira_int_infos[index_dt->int_type].sign ? IraIntS64 : IraIntU64;
+		index_int_type = ira_int_infos[index_type_from].sign ? IraIntS64 : IraIntU64;
 
-		const int_cast_info_t * info = &int_cast_from_to[index_type_from][index_int_type];
+		const int_cast_info_t * info = &int_cast_infos[index_type_from][index_int_type];
 
-		load_stack_var(ctx, info->from, index_var);
+		load_stack_var(ctx, get_gpr_reg_int(AsmRegGprCx, index_type_from), index_var);
 
-		asm_inst_t cast = { .type = info->inst_type, .opds = AsmInstOpds_Reg_Reg, .reg0 = info->to, .reg1 = info->from };
+		asm_inst_t cast = { .type = info->inst_type, .opds = AsmInstOpds_Reg_Reg, .reg0 = asm_reg_gprs[AsmRegGprCx][info->to], .reg1 = asm_reg_gprs[AsmRegGprCx][info->from] };
 
 		asm_frag_push_inst(ctx->frag, &cast);
-
-		u_assert(info->to == AsmRegRax);
 	}
 
 	{
-		load_int(ctx, AsmRegRcx, AsmInstImm64, (int64_t)inst->shift_ptr.scale);
+		load_int(ctx, AsmRegRax, AsmInstImm64, (int64_t)inst->shift_ptr.scale);
 
 		asm_inst_t imul = { .type = AsmInstImul, .opds = AsmInstOpds_Reg_Reg, .reg0 = AsmRegRcx, .reg1 = AsmRegRax };
 
@@ -1835,7 +1899,7 @@ static void compile_unr_int(ctx_t * ctx, inst_t * inst) {
 
 	ira_int_type_t int_type = inst->opd0.var->qdt.dt->int_type;
 
-	asm_reg_t reg = int_type_to_ax[int_type];
+	asm_reg_t reg = get_gpr_reg_int(AsmRegGprAx, int_type);
 
 	load_stack_var(ctx, reg, inst->opd1.var);
 
@@ -1873,7 +1937,7 @@ static void compile_bin_int(ctx_t * ctx, inst_t * inst) {
 			u_assert_switch(inst->base->type);
 	}
 
-	asm_reg_t reg0 = int_type_to_ax[int_type], reg1 = int_type_to_cx[int_type];
+	asm_reg_t reg0 = get_gpr_reg_int(AsmRegGprAx, int_type), reg1 = get_gpr_reg_int(AsmRegGprCx, int_type);
 
 	load_stack_var(ctx, reg0, inst->opd1.var);
 	load_stack_var(ctx, reg1, inst->opd2.var);
@@ -1916,21 +1980,9 @@ static void compile_shift_int(ctx_t * ctx, inst_t * inst) {
 			u_assert_switch(inst->base->type);
 	}
 
-	ira_int_type_t int_type_to = ira_int_infos[int_type].sign ? IraIntS8 : IraIntU8;
+	load_stack_var(ctx, get_gpr_reg_int(AsmRegGprCx, int_type), inst->opd2.var);
 
-	const int_cast_info_t * info = &int_cast_from_to[int_type][int_type_to];
-
-	load_stack_var(ctx, int_type_to_cx[int_type], inst->opd2.var);
-
-	asm_inst_t cast = { .type = info->inst_type, .opds = AsmInstOpds_Reg_Reg, .reg0 = info->to, .reg1 = info->from };
-
-	asm_frag_push_inst(ctx->frag, &cast);
-
-	asm_inst_t mov = { .type = AsmInstMov, .opds = AsmInstOpds_Reg_Reg, .reg0 = AsmRegCl, .reg1 = AsmRegAl };
-
-	asm_frag_push_inst(ctx->frag, &mov);
-
-	asm_reg_t shift_reg = int_type_to_ax[int_type];
+	asm_reg_t shift_reg = get_gpr_reg_int(AsmRegGprAx, int_type);
 
 	load_stack_var(ctx, shift_reg, inst->opd1.var);
 
@@ -2184,7 +2236,7 @@ static bool get_size_from_val(ira_val_t * val, size_t * out) {
 			}
 			break;
 		case IraValImmVec:
-		case IraValNullPtr:
+		case IraValImmPtr:
 		case IraValLoPtr:
 		case IraValImmStct:
 		case IraValImmArr:

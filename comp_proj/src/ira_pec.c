@@ -419,9 +419,13 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 			val_type = IraValImmVec;
 			break;
 		case IraDtPtr:
-			val_type = IraValNullPtr;
+			val_type = IraValImmPtr;
 			break;
 		case IraDtStct:
+			if (dt->stct.lo->dt_stct.sd == NULL) {
+				return false;
+			}
+
 			val_type = IraValImmStct;
 			break;
 		case IraDtArr:
@@ -446,20 +450,20 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 			(*out)->int_val.ui64 = 0;
 			break;
 		case IraDtVec:
-			(*out)->vec.data = malloc(dt->vec.size * sizeof(*(*out)->vec.data));
+			(*out)->arr_val.data = malloc(dt->vec.size * sizeof(*(*out)->arr_val.data));
 
-			u_assert((*out)->vec.data != NULL);
+			u_assert((*out)->arr_val.data != NULL);
 
-			memset((*out)->vec.data, 0, dt->vec.size * sizeof(*(*out)->vec.data));
+			memset((*out)->arr_val.data, 0, dt->vec.size * sizeof(*(*out)->arr_val.data));
 
 			if (dt->vec.size > 0) {
-				if (!ira_pec_make_val_null(pec, dt->vec.body, &(*out)->vec.data[0])) {
+				if (!ira_pec_make_val_null(pec, dt->vec.body, &(*out)->arr_val.data[0])) {
 					return false;
 				}
 
-				ira_val_t * ref_val = (*out)->vec.data[0];
+				ira_val_t * ref_val = (*out)->arr_val.data[0];
 
-				ira_val_t ** elem = (*out)->vec.data, ** elem_end = elem + dt->vec.size;
+				ira_val_t ** elem = (*out)->arr_val.data, ** elem_end = elem + dt->vec.size;
 
 				++elem;
 
@@ -470,24 +474,21 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 
 			break;
 		case IraDtPtr:
+			(*out)->int_val.ui64 = 0;
 			break;
 		case IraDtStct:
 		{
 			ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
 
-			if (sd == NULL) {
-				return false;
-			}
+			(*out)->arr_val.size = sd->elems_size;
 
-			(*out)->stct.size = sd->elems_size;
+			(*out)->arr_val.data = malloc((*out)->arr_val.size * sizeof((*out)->arr_val.data));
 
-			(*out)->stct.elems = malloc((*out)->stct.size * sizeof((*out)->stct.elems));
+			u_assert((*out)->arr_val.data != NULL);
 
-			u_assert((*out)->stct.elems != NULL);
+			memset((*out)->arr_val.data, 0, (*out)->arr_val.size * sizeof((*out)->arr_val.data));
 
-			memset((*out)->stct.elems, 0, (*out)->stct.size * sizeof((*out)->stct.elems));
-
-			ira_val_t ** elem = (*out)->stct.elems, ** elem_end = elem + (*out)->stct.size;
+			ira_val_t ** elem = (*out)->arr_val.data, ** elem_end = elem + (*out)->arr_val.size;
 			ira_dt_ndt_t * elem_dt = sd->elems;
 
 			for (; elem != elem_end; ++elem, ++elem_dt) {
@@ -499,15 +500,15 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 		}
 		case IraDtArr:
 		{
-			(*out)->arr.size = 0;
+			(*out)->arr_val.size = 0;
 
-			size_t arr_size_bytes = (*out)->arr.size * sizeof((*out)->arr.data);
+			size_t arr_size_bytes = (*out)->arr_val.size * sizeof((*out)->arr_val.data);
 
-			(*out)->arr.data = malloc(arr_size_bytes);
+			(*out)->arr_val.data = malloc(arr_size_bytes);
 
-			u_assert((*out)->arr.data != NULL);
+			u_assert((*out)->arr_val.data != NULL);
 
-			memset((*out)->arr.data, 0, arr_size_bytes);
+			memset((*out)->arr_val.data, 0, arr_size_bytes);
 
 			break;
 		}

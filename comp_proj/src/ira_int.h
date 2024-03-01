@@ -27,8 +27,9 @@ enum ira_int_cmp {
 
 struct ira_int_info {
 	bool sign;
-	asm_inst_imm_type_t imm_type;
-	size_t size;
+	uint8_t size;
+	asm_size_t asm_size;
+	asm_inst_imm_type_t asm_imm_type;
 	uint64_t max;
 };
 

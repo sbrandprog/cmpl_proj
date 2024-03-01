@@ -20,9 +20,8 @@ asm_size_t asm_reg_get_size(asm_reg_t reg) {
 	else if (grps->s_64) {
 		return AsmSize64;
 	}
-	else {
-		u_assert_switch(grps);
-	}
+	
+	return AsmSizeNone;
 }
 
 bool asm_reg_is_gpr(asm_reg_t reg) {
@@ -107,4 +106,22 @@ const asm_reg_info_t asm_reg_infos[AsmReg_Count] = {
 	q_gpr_ext8(R14, 0b110),
 	q_gpr_ext8(R15, 0b111)
 
+};
+const asm_reg_t asm_reg_gprs[AsmRegGpr_Count][AsmSize_Count] = {
+	[AsmRegGprAx] = { [AsmSize8] = AsmRegAl, [AsmSize16] = AsmRegAx, [AsmSize32] = AsmRegEax, [AsmSize64] = AsmRegRax },
+	[AsmRegGprCx] = { [AsmSize8] = AsmRegCl, [AsmSize16] = AsmRegCx, [AsmSize32] = AsmRegEcx, [AsmSize64] = AsmRegRcx },
+	[AsmRegGprDx] = { [AsmSize8] = AsmRegDl, [AsmSize16] = AsmRegDx, [AsmSize32] = AsmRegEdx, [AsmSize64] = AsmRegRdx },
+	[AsmRegGprBx] = { [AsmSize8] = AsmRegBl, [AsmSize16] = AsmRegBx, [AsmSize32] = AsmRegEbx, [AsmSize64] = AsmRegRbx },
+	[AsmRegGprSp] = { [AsmSize8] = AsmRegSpl, [AsmSize16] = AsmRegSp, [AsmSize32] = AsmRegEsp, [AsmSize64] = AsmRegRsp },
+	[AsmRegGprBp] = { [AsmSize8] = AsmRegBpl, [AsmSize16] = AsmRegBp, [AsmSize32] = AsmRegEbp, [AsmSize64] = AsmRegRbp },
+	[AsmRegGprSi] = { [AsmSize8] = AsmRegSil, [AsmSize16] = AsmRegSi, [AsmSize32] = AsmRegEsi, [AsmSize64] = AsmRegRsi },
+	[AsmRegGprDi] = { [AsmSize8] = AsmRegDil, [AsmSize16] = AsmRegDi, [AsmSize32] = AsmRegEdi, [AsmSize64] = AsmRegRdi },
+	[AsmRegGprR8] = { [AsmSize8] = AsmRegR8b, [AsmSize16] = AsmRegR8w, [AsmSize32] = AsmRegR8d, [AsmSize64] = AsmRegR8 },
+	[AsmRegGprR9] = { [AsmSize8] = AsmRegR9b, [AsmSize16] = AsmRegR9w, [AsmSize32] = AsmRegR9d, [AsmSize64] = AsmRegR9 },
+	[AsmRegGprR10] = { [AsmSize8] = AsmRegR10b, [AsmSize16] = AsmRegR10w, [AsmSize32] = AsmRegR10d, [AsmSize64] = AsmRegR10 },
+	[AsmRegGprR11] = { [AsmSize8] = AsmRegR11b, [AsmSize16] = AsmRegR11w, [AsmSize32] = AsmRegR11d, [AsmSize64] = AsmRegR11 },
+	[AsmRegGprR12] = { [AsmSize8] = AsmRegR12b, [AsmSize16] = AsmRegR12w, [AsmSize32] = AsmRegR12d, [AsmSize64] = AsmRegR12 },
+	[AsmRegGprR13] = { [AsmSize8] = AsmRegR13b, [AsmSize16] = AsmRegR13w, [AsmSize32] = AsmRegR13d, [AsmSize64] = AsmRegR13 },
+	[AsmRegGprR14] = { [AsmSize8] = AsmRegR14b, [AsmSize16] = AsmRegR14w, [AsmSize32] = AsmRegR14d, [AsmSize64] = AsmRegR14 },
+	[AsmRegGprR15] = { [AsmSize8] = AsmRegR15b, [AsmSize16] = AsmRegR15w, [AsmSize32] = AsmRegR15d, [AsmSize64] = AsmRegR15 },
 };

@@ -35,7 +35,7 @@ bool ira_pec_c_is_val_compilable(ira_val_t * val) {
 			return false;
 		case IraValImmBool:
 		case IraValImmInt:
-		case IraValNullPtr:
+		case IraValImmPtr:
 		case IraValLoPtr:
 			break;
 		case IraValImmStct:
@@ -46,7 +46,7 @@ bool ira_pec_c_is_val_compilable(ira_val_t * val) {
 				return false;
 			}
 
-			for (ira_val_t ** elem = val->stct.elems, **elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
+			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
 				if (!ira_pec_c_is_val_compilable(*elem)) {
 					return false;
 				}
@@ -54,7 +54,7 @@ bool ira_pec_c_is_val_compilable(ira_val_t * val) {
 			break;
 		}
 		case IraValImmArr:
-			for (ira_val_t ** elem = val->arr.data, **elem_end = elem + val->arr.size; elem != elem_end; ++elem) {
+			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + val->arr_val.size; elem != elem_end; ++elem) {
 				if (!ira_pec_c_is_val_compilable(*elem)) {
 					return false;
 				}
@@ -93,21 +93,21 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 			asm_frag_push_inst(frag, &data);
 			break;
 		case IraValImmInt:
-			data.imm0_type = ira_int_infos[val->dt->int_type].imm_type;
+			data.imm0_type = ira_int_infos[val->dt->int_type].asm_imm_type;
 			data.imm0 = val->int_val.si64;
 			
 			asm_frag_push_inst(frag, &data);
 			break;
 		case IraValImmVec:
-			for (ira_val_t ** elem = val->vec.data, **elem_end = elem + val->dt->vec.size; elem != elem_end; ++elem) {
+			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + val->dt->vec.size; elem != elem_end; ++elem) {
 				if (!compile_val(ctx, frag, *elem)) {
 					return false;
 				}
 			}
 			break;
-		case IraValNullPtr:
+		case IraValImmPtr:
 			data.imm0_type = AsmInstImm64;
-			data.imm0 = 0;
+			data.imm0 = (int64_t)val->int_val.ui64;
 			
 			asm_frag_push_inst(frag, &data);
 			break;
@@ -125,7 +125,7 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 				return false;
 			}
 
-			for (ira_val_t ** elem = val->stct.elems, **elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
+			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
 				if (!compile_val(ctx, frag, *elem)) {
 					return false;
 				}
@@ -133,7 +133,7 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 			break;
 		}
 		case IraValImmArr:
-			for (ira_val_t ** elem = val->arr.data, **elem_end = elem + val->arr.size; elem != elem_end; ++elem) {
+			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + val->arr_val.size; elem != elem_end; ++elem) {
 				if (!compile_val(ctx, frag, *elem)) {
 					return false;
 				}
@@ -200,7 +200,7 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 		case IraValImmVoid:
 		case IraValImmBool:
 		case IraValImmInt:
-		case IraValNullPtr:
+		case IraValImmPtr:
 		case IraValLoPtr:
 		case IraValImmStct:
 			if (!compile_val(ctx, frag, lo->var.val)) {
@@ -216,7 +216,7 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 			}
 
 			{
-				asm_inst_t data = { .type = AsmInstData, .opds = AsmInstOpds_Imm, .imm0_type = AsmInstImm64, .imm0 = (int64_t)lo->var.val->arr.size };
+				asm_inst_t data = { .type = AsmInstData, .opds = AsmInstOpds_Imm, .imm0_type = AsmInstImm64, .imm0 = (int64_t)lo->var.val->arr_val.size };
 
 				asm_frag_push_inst(frag, &data);
 			}
