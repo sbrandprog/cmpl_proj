@@ -77,11 +77,7 @@ namespace std {
 		
 		variable read : u32;
 
-		if w64::read_console_w(con_in.handle, %[* void](&rd_buf!data[con_in.rd_buf_cap]), %[u32](con_in_buf_size - con_in.rd_buf_cap), &read, nullof[* void]) == 0's32 {
-			return 0xFFFF'u16; 
-		}
-
-		if read < 1'u32 {
+		if w64::read_console_w(con_in.handle, %[* void](&rd_buf!data[con_in.rd_buf_cap]), %[u32](con_in_buf_size - con_in.rd_buf_cap), &read, nullof[* void]) == 0's32 || read < 1'u32 {
 			return 0xFFFF'u16; 
 		}
 
@@ -126,16 +122,7 @@ namespace std {
 	}
 
 	function is_ws_ch : $(ch : u16) -> bool {
-		if ch == 9'u16 {
-			return true;
-		}
-		else if ch == 10'u16 {
-			return true;
-		}
-		else if ch == 13'u16 {
-			return true;
-		}
-		else if ch == 32'u16 {
+		if ch == 9'u16 || ch == 10'u16 || ch == 13'u16 || ch == 32'u16 {
 			return true;
 		}
 		else {
@@ -143,45 +130,18 @@ namespace std {
 		}
 	}
 	function get_upper_lim : $(size_bytes : u8, sign : bool, neg : bool, out : * u64) -> bool {
-		variable upper_lim : u64;
-
-		if size_bytes == 1'u8 {
-			if sign {
-				upper_lim = 0x0000_0000_0000_007F'u64;
-			}
-			else {
-				upper_lim = 0x0000_0000_0000_00FF'u64;
-			}
-		}
-		else if size_bytes == 2'u8 {
-			if sign {
-				upper_lim = 0x0000_0000_0000_7FFF'u64;
-			}
-			else {
-				upper_lim = 0x0000_0000_0000_FFFF'u64;
-			}
-		}
-		else if size_bytes == 4'u8 {
-			if sign {
-				upper_lim = 0x0000_0000_7FFF_FFFF'u64;
-			}
-			else {
-				upper_lim = 0x0000_0000_FFFF_FFFF'u64;
-			}
-		}
-		else if size_bytes == 8'u8 {
-			if sign {
-				upper_lim = 0x7FFF_FFFF_FFFF_FFFF'u64;
-			}
-			else {
-				upper_lim = 0xFFFF_FFFF_FFFF_FFFF'u64;
-			}
-		}
-		else {
+		if size_bytes != 1'u8
+			&& size_bytes != 2'u8
+			&& size_bytes != 4'u8
+			&& size_bytes != 8'u8 {
 			return false;
 		}
+		
+		variable upper_lim := -1'u64 >> %[u64](64'u8 - (size_bytes << 3'u8));
 
 		if sign {
+			upper_lim = upper_lim >> 1'u64;
+
 			if neg {
 				upper_lim = upper_lim + 1'u64;
 			}
@@ -191,7 +151,7 @@ namespace std {
 
 		return true;
 	}
-	function write_int_val : $(val : u64, size_bytes : u8, out : * void) -> bool {
+	function write_int_val : $(val : u64, size_bytes : u8, out : * void) {
 		if size_bytes == 1'u8 {
 			(%[* u8]out)! = %[u8]val;
 		}
@@ -204,11 +164,8 @@ namespace std {
 		else if size_bytes == 8'u8 {
 			(%[* u64]out)! = %[u64]val;
 		}
-		else {
-			return false;
-		}
 
-		return true;
+		return;
 	}
 	function read_con_dec : $(size_bytes : u8, sign : bool, out : * void) -> bool {
 		variable ch := read_con_ch();
@@ -236,24 +193,15 @@ namespace std {
 		variable loop := true;
 
 		while loop {
-			if ch < 48'u16 {
-				loop = false;
-			}
-			else if ch > 57'u16 {
+			if ch < 48'u16 || ch > 57'u16 {
 				loop = false;
 			}
 			else {
 				variable digit := %[u64](ch - 48'u16);
 
-				if val > pre_ovf_val {
+				if val > pre_ovf_val || val == pre_ovf_val && digit > pre_ovf_digit {
 					unget_con_ch(ch);
 					return false;
-				}
-				else if val == pre_ovf_val {
-					if digit > pre_ovf_digit {
-						unget_con_ch(ch);
-						return false;
-					}
 				}
 
 				val = val * radix + digit;
@@ -272,11 +220,7 @@ namespace std {
 
 		variable upper_lim : u64;
 
-		if !get_upper_lim(size_bytes, sign, neg, &upper_lim) {
-			return false;
-		}
-
-		if val > upper_lim {
+		if !get_upper_lim(size_bytes, sign, neg, &upper_lim) || val > upper_lim {
 			return false;
 		}
 
@@ -284,9 +228,7 @@ namespace std {
 			val = -val;
 		}
 
-		if !write_int_val(val, size_bytes, out) {
-			return false;
-		}
+		write_int_val(val, size_bytes, out);
 
 		return true;
 	}
@@ -300,22 +242,22 @@ namespace std {
 	}
 
 	function get_dec_val : $(val_ptr : * void, size_bytes : u8, sign : bool, out_val : * u64, out_neg : * bool) -> bool {
+		variable neg := false;
+
 		if size_bytes == 1'u8 {
 			if sign {
 				variable val := (%[* s8]val_ptr)!;
 
 				if val < 0's8 {
 					out_val! = %[u64]-val;
-					out_neg! = true;
+					neg = true;
 				}
 				else {
 					out_val! = %[u64]val;
-					out_neg! = false;
 				}
 			}
 			else {
 				out_val! = %[u64](%[* u8]val_ptr)!;
-				out_neg! = false;
 			}
 		}
 		else if size_bytes == 2'u8 {
@@ -324,16 +266,14 @@ namespace std {
 
 				if val < 0's16 {
 					out_val! = %[u64]-val;
-					out_neg! = true;
+					neg = true;
 				}
 				else {
 					out_val! = %[u64]val;
-					out_neg! = false;
 				}
 			}
 			else {
 				out_val! = %[u64](%[* u16]val_ptr)!;
-				out_neg! = false;
 			}
 		}
 		else if size_bytes == 4'u8 {
@@ -342,16 +282,14 @@ namespace std {
 
 				if val < 0's32 {
 					out_val! = %[u64]-val;
-					out_neg! = true;
+					neg = true;
 				}
 				else {
 					out_val! = %[u64]val;
-					out_neg! = false;
 				}
 			}
 			else {
 				out_val! = %[u64](%[* u32]val_ptr)!;
-				out_neg! = false;
 			}
 		}
 		else if size_bytes == 8'u8 {
@@ -360,21 +298,21 @@ namespace std {
 
 				if val < 0's64 {
 					out_val! = %[u64]-val;
-					out_neg! = true;
+					neg = true;
 				}
 				else {
 					out_val! = %[u64]val;
-					out_neg! = false;
 				}
 			}
 			else {
 				out_val! = %[u64](%[* u64]val_ptr)!;
-				out_neg! = false;
 			}
 		}
 		else {
 			return false;
 		}
+
+		out_neg! = neg;
 
 		return true;
 	}

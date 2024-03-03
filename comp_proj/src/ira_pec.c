@@ -52,7 +52,7 @@ bool ira_pec_init(ira_pec_t * pec, u_hst_t * hst) {
 		}
 
 		pec->dt_spcl.size = &pec->dt_ints[IraIntU64];
-		
+
 		if (!ira_pec_get_dt_arr(pec, &pec->dt_ints[IraIntU8], ira_dt_qual_const, &pec->dt_spcl.ascii_str)) {
 			return false;
 		}
@@ -66,16 +66,54 @@ bool ira_pec_init(ira_pec_t * pec, u_hst_t * hst) {
 
 	return true;
 }
-void ira_pec_cleanup(ira_pec_t * pec) {
-	ira_lo_destroy(pec->root);
+static void destroy_root0(ira_pec_t * pec, ira_lo_t * nspc) {
+	ira_lo_t ** ins = &nspc->nspc.body;
 
-	ira_lo_destroy_chain(pec->dt_stct_lo);
+	for (ira_lo_t * lo = nspc->nspc.body; lo != NULL;) {
+		ira_lo_t * next = lo->next;
+
+		switch (lo->type) {
+			case IraLoNone:
+				break;
+			case IraLoNspc:
+				destroy_root0(pec, lo);
+				*ins = lo;
+				ins = &lo->next;
+				break;
+			case IraLoFunc:
+			case IraLoImpt:
+			case IraLoVar:
+			case IraLoRoVal:
+				next = lo->next;
+				ira_lo_destroy(lo);
+				break;
+			case IraLoDtStct:
+				*ins = lo;
+				ins = &lo->next;
+				break;
+			default:
+				u_assert_switch(lo->type);
+		}
+
+		lo = next;
+	}
+
+	*ins = NULL;
+}
+static void destroy_root1(ira_pec_t * pec, ira_lo_t * nspc) {
+	ira_lo_destroy(nspc);
+}
+void ira_pec_cleanup(ira_pec_t * pec) {
+	destroy_root0(pec, pec->root);
 
 	destroy_dt_chain(pec, pec->dt_vec);
 	destroy_dt_chain(pec, pec->dt_ptr);
 	destroy_dt_chain(pec, pec->dt_stct);
 	destroy_dt_chain(pec, pec->dt_arr);
 	destroy_dt_chain(pec, pec->dt_func);
+
+	ira_lo_destroy_chain(pec->dt_stct_lo);
+	destroy_root1(pec, pec->root);
 
 	memset(pec, 0, sizeof(*pec));
 }
@@ -186,7 +224,7 @@ static bool get_listed_dt_copy(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * out)
 				if (!ira_dt_create_sd(pred_sd->elems_size, pred_sd->elems, &lo->dt_stct.sd)) {
 					return false;
 				}
-				
+
 				*out = (ira_dt_t){ .type = pred->type, .stct = { .lo = lo, .qual = pred->stct.qual } };
 			}
 			break;
@@ -250,7 +288,7 @@ static bool get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** ins, ira
 	memset(new_dt, 0, sizeof(*new_dt));
 
 	*ins = new_dt;
-	
+
 	if (!get_listed_dt_copy(pec, pred, new_dt)) {
 		return false;
 	}
@@ -401,7 +439,7 @@ bool ira_pec_make_val_lo_ptr(ira_pec_t * pec, ira_lo_t * lo, ira_val_t ** out) {
 
 bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 	ira_val_type_t val_type;
-	
+
 	switch (dt->type) {
 		case IraDtVoid:
 			val_type = IraValImmVoid;

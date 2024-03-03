@@ -120,6 +120,12 @@ static const bool expr_val_is_left_val[ExprVal_Count] = {
 	[ExprValDeref] = true
 };
 
+static const u_ros_t label_logic_and_base = U_MAKE_ROS(L"logic_and");
+static const u_ros_t label_logic_and_end = U_MAKE_ROS(L"end");
+
+static const u_ros_t label_logic_or_base = U_MAKE_ROS(L"logic_or");
+static const u_ros_t label_logic_or_end = U_MAKE_ROS(L"end");
+
 static const u_ros_t label_cond_base = U_MAKE_ROS(L"cond");
 static const u_ros_t label_cond_tc_end = U_MAKE_ROS(L"tc_end");
 static const u_ros_t label_cond_fc_end = U_MAKE_ROS(L"fc_end");
@@ -1116,6 +1122,23 @@ static bool translate_expr0_bin(ctx_t * ctx, expr_t * expr) {
 
 	return true;
 }
+static bool translate_expr0_logic_optr(ctx_t * ctx, expr_t * expr) {
+	ira_dt_t * dt_bool = &ctx->pec->dt_bool;
+
+	if (expr->opd0.expr->val_qdt.dt != dt_bool) {
+		pla_ast_t_report(ctx->t_ctx, L"logic_and: opd[0] should have a boolean data type");
+		return false;
+	}
+
+	if (expr->opd1.expr->val_qdt.dt != dt_bool) {
+		pla_ast_t_report(ctx->t_ctx, L"logic_and: opd[1] should have a boolean data type");
+		return false;
+	}
+
+	expr->val_qdt.dt = dt_bool;
+
+	return true;
+}
 static bool translate_expr0_asgn(ctx_t * ctx, expr_t * expr) {
 	ira_dt_qdt_t * opd0_qdt = &expr->opd0.expr->val_qdt;
 	ira_dt_t * opd1_dt = expr->opd1.expr->val_qdt.dt;
@@ -1189,6 +1212,8 @@ static bool translate_expr0_tse(ctx_t * ctx, pla_expr_t * base, expr_t ** out) {
 		[PlaExprBitAnd] = translate_expr0_bin,
 		[PlaExprBitXor] = translate_expr0_bin,
 		[PlaExprBitOr] = translate_expr0_bin,
+		[PlaExprLogicAnd] = translate_expr0_logic_optr,
+		[PlaExprLogicOr] = translate_expr0_logic_optr,
 		[PlaExprAsgn] = translate_expr0_asgn,
 	};
 
@@ -1807,6 +1832,54 @@ static bool translate_expr1_bin(ctx_t * ctx, expr_t * expr) {
 
 	return true;
 }
+static bool translate_expr1_logic_optr(ctx_t * ctx, expr_t * expr) {
+	var_t * opd0;
+	
+	if (!translate_expr1_imm_var(ctx, expr->opd0.expr, &opd0)) {
+		return false;
+	}
+
+	const u_ros_t * end_label_base, * end_label_suffix;
+	ira_inst_type_t br_type;
+
+	switch (expr->base->type) {
+		case PlaExprLogicAnd:
+			end_label_base = &label_logic_and_base;
+			end_label_suffix = &label_logic_and_end;
+			br_type = IraInstBrf;
+			break;
+		case PlaExprLogicOr:
+			end_label_base = &label_logic_or_base;
+			end_label_suffix = &label_logic_or_end;
+			br_type = IraInstBrt;
+			break;
+		default:
+			u_assert_switch(expr->base->type);
+	}
+
+	u_hs_t * end_label = get_unq_label_name(ctx, end_label_base, ctx->unq_label_index++, end_label_suffix);
+
+	ira_inst_t br = { .type = br_type, .opd0.hs = end_label, .opd1.hs = opd0->inst_name };
+
+	ira_func_push_inst(ctx->func, &br);
+
+	var_t * opd1;
+
+	if (!translate_expr1_imm_var(ctx, expr->opd1.expr, &opd1)) {
+		return false;
+	}
+
+	ira_inst_t copy = { .type = IraInstCopy, .opd0.hs = opd0->inst_name, .opd1.hs = opd1->inst_name };
+
+	ira_func_push_inst(ctx->func, &copy);
+	
+	push_def_label_inst(ctx, end_label);
+
+	expr->val_type = ExprValImmVar;
+	expr->val.var = opd0;
+
+	return true;
+}
 static bool translate_expr1_asgn(ctx_t * ctx, expr_t * expr) {
 	expr_t * opd0 = expr->opd0.expr;
 	var_t * opd1_var;
@@ -1895,6 +1968,8 @@ static bool translate_expr1_tse(ctx_t * ctx, expr_t * expr) {
 		[PlaExprBitAnd] = translate_expr1_bin,
 		[PlaExprBitXor] = translate_expr1_bin,
 		[PlaExprBitOr] = translate_expr1_bin,
+		[PlaExprLogicAnd] = translate_expr1_logic_optr,
+		[PlaExprLogicOr] = translate_expr1_logic_optr,
 		[PlaExprAsgn] = translate_expr1_asgn,
 	};
 

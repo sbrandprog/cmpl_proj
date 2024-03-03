@@ -899,7 +899,7 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 						}
 					}
 
-					if (consume_punc_exact_crit(ctx, PlaPuncRiArrow)) {
+					if (consume_punc_exact(ctx, PlaPuncRiArrow)) {
 						if (!parse_expr(ctx, &(*out)->opd0.expr)) {
 							return false;
 						}

@@ -1069,7 +1069,7 @@ static bool prepare_mmbr_acc_ptr(ctx_t * ctx, inst_t * inst, const ira_inst_info
 
 	return true;
 }
-static bool prepare_brf(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+static bool prepare_brc(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
 	if (inst->opd1.var->qdt.dt != &ctx->pec->dt_bool) {
 		report(ctx, L"[%s]: opd[1] must have a boolean data type", info->type_str.str);
 		return false;
@@ -1172,7 +1172,8 @@ static bool prepare_insts(ctx_t * ctx) {
 			[IraInstCast] = prepare_cast,
 			[IraInstCallFuncPtr] = prepare_call_func_ptr,
 			[IraInstBru] = prepare_blank,
-			[IraInstBrf] = prepare_brf,
+			[IraInstBrt] = prepare_brc,
+			[IraInstBrf] = prepare_brc,
 			[IraInstRet] = prepare_ret,
 		};
 
@@ -2075,16 +2076,29 @@ static void compile_bru(ctx_t * ctx, inst_t * inst) {
 
 	asm_frag_push_inst(ctx->frag, &jmp);
 }
-static void compile_brf(ctx_t * ctx, inst_t * inst) {
+static void compile_brc(ctx_t * ctx, inst_t * inst) {
+	asm_inst_type_t jump_type;
+
+	switch (inst->base->type) {
+		case IraInstBrt:
+			jump_type = AsmInstJnz;
+			break;
+		case IraInstBrf:
+			jump_type = AsmInstJz;
+			break;
+		default:
+			u_assert_switch(inst->base->type);
+	}
+
 	load_stack_var(ctx, AsmRegAl, inst->opd1.var);
 
 	asm_inst_t test = { .type = AsmInstTest, .opds = AsmInstOpds_Reg_Reg, .reg0 = AsmRegAl, .reg1 = AsmRegAl };
 
 	asm_frag_push_inst(ctx->frag, &test);
 
-	asm_inst_t jz = { .type = AsmInstJz, .opds = AsmInstOpds_Imm, .imm0_type = AsmInstImmLabelRel32, .imm0_label = inst->opd0.label->global_name };
+	asm_inst_t jump = { .type = jump_type, .opds = AsmInstOpds_Imm, .imm0_type = AsmInstImmLabelRel32, .imm0_label = inst->opd0.label->global_name };
 
-	asm_frag_push_inst(ctx->frag, &jz);
+	asm_frag_push_inst(ctx->frag, &jump);
 }
 static void compile_ret(ctx_t * ctx, inst_t * inst) {
 	w64_load_caller_ret(ctx, inst->opd0.var);
@@ -2131,7 +2145,8 @@ static void compile_insts(ctx_t * ctx) {
 			[IraInstCast] = compile_cast,
 			[IraInstCallFuncPtr] = compile_call_func_ptr,
 			[IraInstBru] = compile_bru,
-			[IraInstBrf] = compile_brf,
+			[IraInstBrt] = compile_brc,
+			[IraInstBrf] = compile_brc,
 			[IraInstRet] = compile_ret,
 		};
 
