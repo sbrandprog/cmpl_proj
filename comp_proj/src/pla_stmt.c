@@ -21,7 +21,7 @@ void pla_stmt_destroy(pla_stmt_t * stmt) {
 		case PlaStmtNone:
 			break;
 		case PlaStmtBlk:
-			for (pla_stmt_t * it = stmt->block.body; it != NULL; ) {
+			for (pla_stmt_t * it = stmt->blk.body; it != NULL; ) {
 				pla_stmt_t * next = it->next;
 
 				pla_stmt_destroy(it);
@@ -47,6 +47,13 @@ void pla_stmt_destroy(pla_stmt_t * stmt) {
 			pla_expr_destroy(stmt->pre_loop.cond_expr);
 			pla_stmt_destroy(stmt->pre_loop.body);
 			break;
+		case PlaStmtPostLoop:
+			pla_expr_destroy(stmt->post_loop.cond_expr);
+			pla_stmt_destroy(stmt->post_loop.body);
+			break;
+		case PlaStmtBrk:
+		case PlaStmtCnt:
+			break;
 		case PlaStmtRet:
 			pla_expr_destroy(stmt->ret.expr);
 			break;
@@ -64,6 +71,9 @@ const pla_stmt_info_t pla_stmt_infos[PlaStmt_Count] = {
 	[PlaStmtVarDt] = { .type_str = U_MAKE_ROS(L"StmtVarDt") },
 	[PlaStmtVarVal] = { .type_str = U_MAKE_ROS(L"StmtVarVal") },
 	[PlaStmtCond] = { .type_str = U_MAKE_ROS(L"StmtCond") },
-	[PlaStmtPreLoop] = { .type_str = U_MAKE_ROS(L"PreLoop") },
+	[PlaStmtPreLoop] = { .type_str = U_MAKE_ROS(L"StmtPreLoop") },
+	[PlaStmtPostLoop] = { .type_str = U_MAKE_ROS(L"StmtPostLoop") },
+	[PlaStmtBrk] = { .type_str = U_MAKE_ROS(L"StmtBrk") },
+	[PlaStmtCnt] = { .type_str = U_MAKE_ROS(L"StmtCnt") },
 	[PlaStmtRet] = { .type_str = U_MAKE_ROS(L"StmtRet") },
 };

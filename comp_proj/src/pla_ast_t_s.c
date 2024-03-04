@@ -22,10 +22,17 @@ struct pla_ast_t_s_var {
 	u_hs_t * inst_name;
 	ira_dt_qdt_t qdt;
 };
-typedef struct pla_ast_t_s_blk blk_t;
-struct pla_ast_t_s_blk {
-	blk_t * prev;
+typedef struct pla_ast_t_s_vvb vvb_t;
+struct pla_ast_t_s_vvb {
+	vvb_t * prev;
 	var_t * var;
+};
+typedef struct pla_ast_t_s_cfb cfb_t;
+struct pla_ast_t_s_cfb {
+	cfb_t * prev;
+	u_hs_t * name;
+	u_hs_t * exit_label;
+	u_hs_t * cnt_label;
 };
 
 typedef struct pla_ast_t_s_expr expr_t;
@@ -106,8 +113,9 @@ typedef struct pla_ast_t_s_ctx {
 	ira_func_t * func;
 	ira_dt_t * func_ret;
 
-	blk_t * blk;
+	vvb_t * vvb;
 	size_t unq_var_index;
+	cfb_t * cfb;
 	size_t unq_label_index;
 } ctx_t;
 
@@ -131,9 +139,13 @@ static const u_ros_t label_cond_tc_end = U_MAKE_ROS(L"tc_end");
 static const u_ros_t label_cond_fc_end = U_MAKE_ROS(L"fc_end");
 
 static const u_ros_t label_pre_loop_base = U_MAKE_ROS(L"pre_loop");
-static const u_ros_t label_pre_loop_cond = U_MAKE_ROS(L"cond");
+static const u_ros_t label_pre_loop_cnt = U_MAKE_ROS(L"cnt");
 static const u_ros_t label_pre_loop_exit = U_MAKE_ROS(L"exit");
 
+static const u_ros_t label_post_loop_base = U_MAKE_ROS(L"post_loop");
+static const u_ros_t label_post_loop_body = U_MAKE_ROS(L"body");
+static const u_ros_t label_post_loop_cnt = U_MAKE_ROS(L"cnt");
+static const u_ros_t label_post_loop_exit = U_MAKE_ROS(L"exit");
 
 static u_hs_t * get_unq_var_name(ctx_t * ctx, u_hs_t * name) {
 	return u_hsb_formatadd(ctx->hsb, ctx->hst, L"%s%s%zi", name->str, UNQ_VAR_NAME_SUFFIX, ctx->unq_var_index++);
@@ -142,15 +154,15 @@ static u_hs_t * get_unq_label_name(ctx_t * ctx, const u_ros_t * base, size_t ind
 	return u_hsb_formatadd(ctx->hsb, ctx->hst, L"%s%zi%s", base->str, index, suffix->str);
 }
 
-static void push_blk(ctx_t * ctx, blk_t * blk) {
-	blk->prev = ctx->blk;
+static void push_vvb(ctx_t * ctx, vvb_t * vvb) {
+	vvb->prev = ctx->vvb;
 
-	ctx->blk = blk;
+	ctx->vvb = vvb;
 }
-static void pop_blk(ctx_t * ctx) {
-	blk_t * blk = ctx->blk;
+static void pop_vvb(ctx_t * ctx) {
+	vvb_t * vvb = ctx->vvb;
 
-	for (var_t * var = blk->var; var != NULL; ) {
+	for (var_t * var = vvb->var; var != NULL; ) {
 		var_t * next = var->next;
 
 		free(var);
@@ -158,7 +170,17 @@ static void pop_blk(ctx_t * ctx) {
 		var = next;
 	}
 
-	ctx->blk = blk->prev;
+	ctx->vvb = vvb->prev;
+}
+static void push_cfb(ctx_t * ctx, cfb_t * cfb) {
+	cfb->prev = ctx->cfb;
+
+	ctx->cfb = cfb;
+}
+static void pop_cfb(ctx_t * ctx) {
+	cfb_t * cfb = ctx->cfb;
+
+	ctx->cfb = cfb->prev;
 }
 
 static expr_t * create_expr(ctx_t * ctx, pla_expr_t * base) {
@@ -237,7 +259,7 @@ static var_t * create_var(ctx_t * ctx, u_hs_t * name, ira_dt_t * dt, ira_dt_qual
 	return new_var;
 }
 static var_t * define_var(ctx_t * ctx, u_hs_t * name, ira_dt_t * dt, ira_dt_qual_t dt_qual, bool unq_name) {
-	var_t ** ins = &ctx->blk->var;
+	var_t ** ins = &ctx->vvb->var;
 
 	while (*ins != NULL) {
 		var_t * var = *ins;
@@ -256,7 +278,7 @@ static var_t * define_var(ctx_t * ctx, u_hs_t * name, ira_dt_t * dt, ira_dt_qual
 	return new_var;
 }
 static var_t * get_imm_var(ctx_t * ctx, ira_dt_t * dt) {
-	var_t ** ins = &ctx->blk->var;
+	var_t ** ins = &ctx->vvb->var;
 
 	while (*ins != NULL) {
 		ins = &(*ins)->next;
@@ -933,8 +955,8 @@ static bool translate_expr0_ident(ctx_t * ctx, expr_t * expr) {
 	pla_irid_t * irid = expr->opd0.irid;
 
 	if (irid->sub_name == NULL) {
-		for (blk_t * blk = ctx->blk; blk != NULL; blk = blk->prev) {
-			for (var_t * var = blk->var; var != NULL; var = var->next) {
+		for (vvb_t * vvb = ctx->vvb; vvb != NULL; vvb = vvb->prev) {
+			for (var_t * var = vvb->var; var != NULL; var = var->next) {
 				if (var->orig_name == irid->name) {
 					expr->val_qdt = var->qdt;
 
@@ -2026,8 +2048,8 @@ static bool translate_expr(ctx_t * ctx, pla_expr_t * pla_expr, var_t ** out) {
 
 static bool translate_stmt(ctx_t * ctx, pla_stmt_t * stmt);
 
-static bool translate_stmt_blk_blk(ctx_t * ctx, pla_stmt_t * stmt) {
-	for (pla_stmt_t * it = stmt->block.body; it != NULL; it = it->next) {
+static bool translate_stmt_blk_vvb(ctx_t * ctx, pla_stmt_t * stmt) {
+	for (pla_stmt_t * it = stmt->blk.body; it != NULL; it = it->next) {
 		if (!translate_stmt(ctx, it)) {
 			return false;
 		}
@@ -2036,13 +2058,13 @@ static bool translate_stmt_blk_blk(ctx_t * ctx, pla_stmt_t * stmt) {
 	return true;
 }
 static bool translate_stmt_blk(ctx_t * ctx, pla_stmt_t * stmt) {
-	blk_t blk = { 0 };
+	vvb_t vvb = { 0 };
 
-	push_blk(ctx, &blk);
+	push_vvb(ctx, &vvb);
 
-	bool result = translate_stmt_blk_blk(ctx, stmt);
+	bool result = translate_stmt_blk_vvb(ctx, stmt);
 
-	pop_blk(ctx);
+	pop_vvb(ctx);
 
 	return result;
 }
@@ -2146,22 +2168,22 @@ static bool translate_stmt_cond(ctx_t * ctx, pla_stmt_t * stmt) {
 
 	return true;
 }
-static bool translate_stmt_pre_loop(ctx_t * ctx, pla_stmt_t * stmt) {
+static bool translate_stmt_pre_loop_cfb(ctx_t * ctx, pla_stmt_t * stmt, cfb_t * cfb) {
 	size_t label_index = ctx->unq_label_index++;
 
-	u_hs_t * cond_label = get_unq_label_name(ctx, &label_pre_loop_base, label_index, &label_pre_loop_cond);
-	u_hs_t * exit_label = get_unq_label_name(ctx, &label_pre_loop_base, label_index, &label_pre_loop_exit);
+	cfb->exit_label = get_unq_label_name(ctx, &label_pre_loop_base, label_index, &label_pre_loop_exit);
+	cfb->cnt_label = get_unq_label_name(ctx, &label_pre_loop_base, label_index, &label_pre_loop_cnt);
 
-	push_def_label_inst(ctx, cond_label);
+	push_def_label_inst(ctx, cfb->cnt_label);
 
 	var_t * cond_var;
 
-	if (!translate_expr(ctx, stmt->cond.cond_expr, &cond_var)) {
+	if (!translate_expr(ctx, stmt->pre_loop.cond_expr, &cond_var)) {
 		return false;
 	}
 
 	{
-		ira_inst_t brf = { .type = IraInstBrf, .opd0.hs = exit_label, .opd1.hs = cond_var->inst_name };
+		ira_inst_t brf = { .type = IraInstBrf, .opd0.hs = cfb->exit_label, .opd1.hs = cond_var->inst_name };
 
 		ira_func_push_inst(ctx->func, &brf);
 	}
@@ -2171,12 +2193,119 @@ static bool translate_stmt_pre_loop(ctx_t * ctx, pla_stmt_t * stmt) {
 	}
 
 	{
-		ira_inst_t bru = { .type = IraInstBru, .opd0.hs = cond_label };
+		ira_inst_t bru = { .type = IraInstBru, .opd0.hs = cfb->cnt_label };
 
 		ira_func_push_inst(ctx->func, &bru);
 	}
 
-	push_def_label_inst(ctx, exit_label);
+	push_def_label_inst(ctx, cfb->exit_label);
+
+	return true;
+}
+static bool translate_stmt_pre_loop(ctx_t * ctx, pla_stmt_t * stmt) {
+	cfb_t cfb = { .name = stmt->pre_loop.name };
+
+	push_cfb(ctx, &cfb);
+
+	bool result = translate_stmt_pre_loop_cfb(ctx, stmt, &cfb);
+
+	pop_cfb(ctx);
+
+	return result;
+}
+static bool translate_stmt_post_loop_cfb(ctx_t * ctx, pla_stmt_t * stmt, cfb_t * cfb) {
+	size_t label_index = ctx->unq_label_index++;
+
+	cfb->exit_label = get_unq_label_name(ctx, &label_post_loop_base, label_index, &label_post_loop_exit);
+	cfb->cnt_label = get_unq_label_name(ctx, &label_post_loop_base, label_index, &label_post_loop_cnt);
+	u_hs_t * body_label = get_unq_label_name(ctx, &label_post_loop_base, label_index, &label_post_loop_body);
+	
+	push_def_label_inst(ctx, body_label);
+
+	if (!translate_stmt(ctx, stmt->post_loop.body)) {
+		return false;
+	}
+
+	push_def_label_inst(ctx, cfb->cnt_label);
+
+	var_t * cond_var;
+
+	if (!translate_expr(ctx, stmt->pre_loop.cond_expr, &cond_var)) {
+		return false;
+	}
+
+	{
+		ira_inst_t brt = { .type = IraInstBrt, .opd0.hs = body_label, .opd1.hs = cond_var->inst_name };
+
+		ira_func_push_inst(ctx->func, &brt);
+	}
+
+	push_def_label_inst(ctx, cfb->exit_label);
+
+	return true;
+}
+static bool translate_stmt_post_loop(ctx_t * ctx, pla_stmt_t * stmt) {
+	cfb_t cfb = { .name = stmt->post_loop.name };
+
+	push_cfb(ctx, &cfb);
+
+	bool result = translate_stmt_post_loop_cfb(ctx, stmt, &cfb);
+
+	pop_cfb(ctx);
+
+	return result;
+}
+static bool translate_stmt_brk(ctx_t * ctx, pla_stmt_t * stmt) {
+	u_hs_t * cfb_name = stmt->brk.name;
+	cfb_t * cfb = ctx->cfb;
+
+	for (; cfb != NULL; cfb = cfb->prev) {
+		if (cfb_name != NULL && cfb->name != cfb_name) {
+			continue;
+		}
+
+		if (cfb->exit_label != NULL) {
+			break;
+		}
+	}
+
+	if (cfb == NULL) {
+		pla_ast_t_report(ctx->t_ctx, L"failed to find target for break statement");
+		return false;
+	}
+
+	{
+		ira_inst_t bru = { .type = IraInstBru, .opd0.hs = cfb->exit_label };
+
+		ira_func_push_inst(ctx->func, &bru);
+	}
+
+	return true;
+}
+static bool translate_stmt_cnt(ctx_t * ctx, pla_stmt_t * stmt) {
+	u_hs_t * cfb_name = stmt->brk.name;
+	cfb_t * cfb = ctx->cfb;
+
+	for (; cfb != NULL; cfb = cfb->prev) {
+		if (cfb_name != NULL && cfb->name != cfb_name) {
+			continue;
+		}
+
+		if (cfb->cnt_label != NULL) {
+			break;
+		}
+	}
+
+	if (cfb == NULL) {
+		pla_ast_t_report(ctx->t_ctx, L"failed to find target for continue statement");
+		return false;
+	}
+
+	{
+		ira_inst_t bru = { .type = IraInstBru, .opd0.hs = cfb->cnt_label };
+
+		ira_func_push_inst(ctx->func, &bru);
+	}
 
 	return true;
 }
@@ -2237,6 +2366,21 @@ static bool translate_stmt_tse(ctx_t * ctx, pla_stmt_t * stmt) {
 				return false;
 			}
 			break;
+		case PlaStmtPostLoop:
+			if (!translate_stmt_post_loop(ctx, stmt)) {
+				return false;
+			}
+			break;
+		case PlaStmtBrk:
+			if (!translate_stmt_brk(ctx, stmt)) {
+				return false;
+			}
+			break;
+		case PlaStmtCnt:
+			if (!translate_stmt_cnt(ctx, stmt)) {
+				return false;
+			}
+			break;
 		case PlaStmtRet:
 			if (!translate_stmt_ret(ctx, stmt)) {
 				return false;
@@ -2260,7 +2404,7 @@ static bool translate_stmt(ctx_t * ctx, pla_stmt_t * stmt) {
 	return result;
 }
 
-static bool translate_args_blk(ctx_t * ctx) {
+static bool translate_args_vvb(ctx_t * ctx) {
 	if (ctx->func_dt != NULL) {
 		ctx->func_ret = ctx->func_dt->func.ret;
 
@@ -2293,13 +2437,13 @@ static bool translate_args_blk(ctx_t * ctx) {
 	return true;
 }
 static bool translate_args(ctx_t * ctx) {
-	blk_t blk = { 0 };
+	vvb_t vvb = { 0 };
 
-	push_blk(ctx, &blk);
+	push_vvb(ctx, &vvb);
 
-	bool result = translate_args_blk(ctx);
+	bool result = translate_args_vvb(ctx);
 
-	pop_blk(ctx);
+	pop_vvb(ctx);
 
 	return result;
 }

@@ -12,6 +12,9 @@ enum pla_stmt_type {
 	PlaStmtVarVal,
 	PlaStmtCond,
 	PlaStmtPreLoop,
+	PlaStmtPostLoop,
+	PlaStmtBrk,
+	PlaStmtCnt,
 	PlaStmtRet,
 	PlaStmt_Count
 };
@@ -21,7 +24,7 @@ struct pla_stmt {
 	union {
 		struct {
 			pla_stmt_t * body;
-		} block;
+		} blk;
 		struct {
 			pla_expr_t * expr;
 		} expr;
@@ -41,9 +44,21 @@ struct pla_stmt {
 			pla_stmt_t * false_br;
 		} cond;
 		struct {
+			u_hs_t * name;
 			pla_expr_t * cond_expr;
 			pla_stmt_t * body;
 		} pre_loop;
+		struct {
+			u_hs_t * name;
+			pla_expr_t * cond_expr;
+			pla_stmt_t * body;
+		} post_loop;
+		struct {
+			u_hs_t * name;
+		} brk;
+		struct {
+			u_hs_t * name;
+		} cnt;
 		struct {
 			pla_expr_t * expr;
 		} ret;

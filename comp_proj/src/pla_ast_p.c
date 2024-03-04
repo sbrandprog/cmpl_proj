@@ -1182,7 +1182,7 @@ static bool parse_stmt_blk(ctx_t * ctx, pla_stmt_t ** out) {
 
 	*out = pla_stmt_create(PlaStmtBlk);
 
-	for (pla_stmt_t ** ins = &(*out)->block.body; !consume_punc_exact(ctx, PlaPuncRiBrace); ) {
+	for (pla_stmt_t ** ins = &(*out)->blk.body; !consume_punc_exact(ctx, PlaPuncRiBrace); ) {
 		if (!parse_stmt(ctx, ins)) {
 			return false;
 		}
@@ -1306,11 +1306,78 @@ static bool parse_stmt_pre_loop(ctx_t * ctx, pla_stmt_t ** out) {
 
 	*out = pla_stmt_create(PlaStmtPreLoop);
 
+	if (consume_punc_exact(ctx, PlaPuncColon)) {
+		if (!consume_ident_crit(ctx, &(*out)->pre_loop.name)) {
+			return false;
+		}
+	}
+
 	if (!parse_expr(ctx, &(*out)->pre_loop.cond_expr)) {
 		return false;
 	}
 
 	if (!parse_stmt_blk(ctx, &(*out)->pre_loop.body)) {
+		return false;
+	}
+
+	return true;
+}
+static bool parse_stmt_post_loop(ctx_t * ctx, pla_stmt_t ** out) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywDo)) {
+		return false;
+	}
+
+	*out = pla_stmt_create(PlaStmtPostLoop);
+
+	if (consume_punc_exact(ctx, PlaPuncColon)) {
+		if (!consume_ident_crit(ctx, &(*out)->post_loop.name)) {
+			return false;
+		}
+	}
+
+	if (!parse_stmt_blk(ctx, &(*out)->post_loop.body)) {
+		return false;
+	}
+
+	if (!consume_keyw_exact_crit(ctx, PlaKeywWhile)) {
+		return false;
+	}
+
+	if (!parse_expr(ctx, &(*out)->post_loop.cond_expr)) {
+		return false;
+	}
+
+	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+		return false;
+	}
+
+	return true;
+}
+static bool parse_stmt_brk(ctx_t * ctx, pla_stmt_t ** out) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywBreak)) {
+		return false;
+	}
+
+	*out = pla_stmt_create(PlaStmtBrk);
+
+	consume_ident(ctx, &(*out)->brk.name);
+
+	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+		return false;
+	}
+
+	return true;
+}
+static bool parse_stmt_cnt(ctx_t * ctx, pla_stmt_t ** out) {
+	if (!consume_keyw_exact_crit(ctx, PlaKeywContinue)) {
+		return false;
+	}
+
+	*out = pla_stmt_create(PlaStmtCnt);
+
+	consume_ident(ctx, &(*out)->cnt.name);
+
+	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
 		return false;
 	}
 
@@ -1355,6 +1422,12 @@ static bool parse_stmt(ctx_t * ctx, pla_stmt_t ** out) {
 					return parse_stmt_cond(ctx, out);
 				case PlaKeywWhile:
 					return parse_stmt_pre_loop(ctx, out);
+				case PlaKeywDo:
+					return parse_stmt_post_loop(ctx, out);
+				case PlaKeywBreak:
+					return parse_stmt_brk(ctx, out);
+				case PlaKeywContinue:
+					return parse_stmt_cnt(ctx, out);
 				case PlaKeywRet:
 					return parse_stmt_ret(ctx, out);
 			}

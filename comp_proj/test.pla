@@ -19,7 +19,7 @@ function main : $() -> s32 {
 
 	variable a : s32, b : s32;
 
-	while true {
+	while:loop true {
 		if !std::read_con_dec(4'u8, true, &a) {
 			return -1's32;
 		}
@@ -42,71 +42,11 @@ function main : $() -> s32 {
 			return -1's32;
 		}
 
-		std::write_con_ch(32'u16);
-
-		res = a * b;
-
-		if !std::write_con_dec(&res, 4'u8, true) {
-			return -1's32;
-		}
-
-		std::write_con_ch(32'u16);
-
-		res = a / b;
-
-		if !std::write_con_dec(&res, 4'u8, true) {
-			return -1's32;
-		}
-
-		std::write_con_ch(32'u16);
-
-		res = a % b;
-
-		if !std::write_con_dec(&res, 4'u8, true) {
-			return -1's32;
-		}
-
-		std::write_con_ch(32'u16);
-
-		res = a << b;
-
-		if !std::write_con_dec(&res, 4'u8, true) {
-			return -1's32;
-		}
-
-		std::write_con_ch(32'u16);
-
-		res = a >> b;
-
-		if !std::write_con_dec(&res, 4'u8, true) {
-			return -1's32;
-		}
-
-		std::write_con_ch(32'u16);
-
-		res = a & b;
-
-		if !std::write_con_dec(&res, 4'u8, true) {
-			return -1's32;
-		}
-
-		std::write_con_ch(32'u16);
-
-		res = a ^ b;
-
-		if !std::write_con_dec(&res, 4'u8, true) {
-			return -1's32;
-		}
-
-		std::write_con_ch(32'u16);
-
-		res = a | b;
-
-		if !std::write_con_dec(&res, 4'u8, true) {
-			return -1's32;
-		}
-
 		std::write_con_ch(10'u16);
+
+		if a == b {
+			break loop;
+		}
 	}
 
 	return 0's32;

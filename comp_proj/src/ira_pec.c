@@ -67,6 +67,10 @@ bool ira_pec_init(ira_pec_t * pec, u_hst_t * hst) {
 	return true;
 }
 static void destroy_root0(ira_pec_t * pec, ira_lo_t * nspc) {
+	if (nspc == NULL) {
+		return;
+	}
+
 	ira_lo_t ** ins = &nspc->nspc.body;
 
 	for (ira_lo_t * lo = nspc->nspc.body; lo != NULL;) {

@@ -190,26 +190,23 @@ namespace std {
 			pre_ovf_val := (-1'u64) / radix,
 			pre_ovf_digit := (-1'u64) % radix;
 
-		variable loop := true;
-
-		while loop {
+		while true {
 			if ch < 48'u16 || ch > 57'u16 {
-				loop = false;
+				break;
 			}
-			else {
-				variable digit := %[u64](ch - 48'u16);
 
-				if val > pre_ovf_val || val == pre_ovf_val && digit > pre_ovf_digit {
-					unget_con_ch(ch);
-					return false;
-				}
+			variable digit := %[u64](ch - 48'u16);
 
-				val = val * radix + digit;
-
-				ch = read_con_ch();
-
-				digits_read = digits_read + 1'u64;
+			if val > pre_ovf_val || val == pre_ovf_val && digit > pre_ovf_digit {
+				unget_con_ch(ch);
+				return false;
 			}
+
+			val = val * radix + digit;
+
+			ch = read_con_ch();
+
+			digits_read = digits_read + 1'u64;
 		}
 
 		unget_con_ch(ch);
@@ -325,17 +322,11 @@ namespace std {
 
 		variable buf : [32'u64]u16, i := 0'u64;
 
-		if val == 0'u64 {
-			buf[i] = 48'u16;
+		do {
+			buf[i] = %[u16](val % 10'u64) + 48'u16;
 			i = i + 1'u64;
-		}
-		else {
-			while val > 0'u64 {
-				buf[i] = %[u16](val % 10'u64) + 48'u16;
-				i = i + 1'u64;
-				val = val / 10'u64;
-			}
-		}
+			val = val / 10'u64;
+		} while val > 0'u64;
 
 		if neg {
 			buf[i] = 45'u16;

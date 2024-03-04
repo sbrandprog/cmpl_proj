@@ -327,7 +327,7 @@ void pla_ast_t_print_ts(pla_ast_t_ctx_t * ctx, FILE * file) {
 
 bool pla_ast_t_calculate_expr(pla_ast_t_ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) {
 	pla_stmt_t ret = { .type = PlaStmtRet, .ret.expr = expr };
-	pla_stmt_t blk = { .type = PlaStmtBlk, .block.body = &ret };
+	pla_stmt_t blk = { .type = PlaStmtBlk, .blk.body = &ret };
 
 	ira_func_t * func = NULL;
 
