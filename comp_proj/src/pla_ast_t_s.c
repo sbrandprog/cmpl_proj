@@ -38,6 +38,7 @@ struct pla_ast_t_s_cfb {
 typedef struct pla_ast_t_s_expr expr_t;
 typedef enum pla_ast_t_s_expr_val_type {
 	ExprValImmVar,
+	ExprValImmDeref,
 	ExprValVar,
 	ExprValDeref,
 	ExprVal_Count
@@ -124,28 +125,23 @@ typedef bool val_proc_t(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out);
 
 static const bool expr_val_is_left_val[ExprVal_Count] = {
 	[ExprValImmVar] = false,
+	[ExprValImmDeref] = false,
 	[ExprValVar] = true,
 	[ExprValDeref] = true
 };
 
-static const u_ros_t label_logic_and_base = U_MAKE_ROS(L"logic_and");
-static const u_ros_t label_logic_and_end = U_MAKE_ROS(L"end");
+static const u_ros_t label_base_logic_and = U_MAKE_ROS(L"logic_and");
+static const u_ros_t label_base_logic_or = U_MAKE_ROS(L"logic_or");
+static const u_ros_t label_base_cond = U_MAKE_ROS(L"cond");
+static const u_ros_t label_base_pre_loop = U_MAKE_ROS(L"pre_loop");
+static const u_ros_t label_base_post_loop = U_MAKE_ROS(L"post_loop");
 
-static const u_ros_t label_logic_or_base = U_MAKE_ROS(L"logic_or");
-static const u_ros_t label_logic_or_end = U_MAKE_ROS(L"end");
-
-static const u_ros_t label_cond_base = U_MAKE_ROS(L"cond");
-static const u_ros_t label_cond_tc_end = U_MAKE_ROS(L"tc_end");
-static const u_ros_t label_cond_fc_end = U_MAKE_ROS(L"fc_end");
-
-static const u_ros_t label_pre_loop_base = U_MAKE_ROS(L"pre_loop");
-static const u_ros_t label_pre_loop_cnt = U_MAKE_ROS(L"cnt");
-static const u_ros_t label_pre_loop_exit = U_MAKE_ROS(L"exit");
-
-static const u_ros_t label_post_loop_base = U_MAKE_ROS(L"post_loop");
-static const u_ros_t label_post_loop_body = U_MAKE_ROS(L"body");
-static const u_ros_t label_post_loop_cnt = U_MAKE_ROS(L"cnt");
-static const u_ros_t label_post_loop_exit = U_MAKE_ROS(L"exit");
+static const u_ros_t label_suffix_end = U_MAKE_ROS(L"end");
+static const u_ros_t label_suffix_tc_end = U_MAKE_ROS(L"tc_end");
+static const u_ros_t label_suffix_fc_end = U_MAKE_ROS(L"fc_end");
+static const u_ros_t label_suffix_body = U_MAKE_ROS(L"body");
+static const u_ros_t label_suffix_cnt = U_MAKE_ROS(L"cnt");
+static const u_ros_t label_suffix_exit = U_MAKE_ROS(L"exit");
 
 static u_hs_t * get_unq_var_name(ctx_t * ctx, u_hs_t * name) {
 	return u_hsb_formatadd(ctx->hsb, ctx->hst, L"%s%s%zi", name->str, UNQ_VAR_NAME_SUFFIX, ctx->unq_var_index++);
@@ -1273,6 +1269,7 @@ static bool translate_expr1_imm_var(ctx_t * ctx, expr_t * expr, var_t ** out) {
 		case ExprValVar:
 			*out = expr->val.var;
 			break;
+		case ExprValImmDeref:
 		case ExprValDeref:
 		{
 			ira_inst_t read_ptr = { .type = IraInstReadPtr, .opd1.hs = expr->val.var->inst_name };
@@ -1308,6 +1305,7 @@ static bool translate_expr1_var_ptr(ctx_t * ctx, expr_t * expr, var_t ** out) {
 
 			break;
 		}
+		case ExprValImmDeref:
 		case ExprValDeref:
 			*out = expr->val.var;
 			break;
@@ -1321,13 +1319,10 @@ static bool translate_expr1_var_ptr(ctx_t * ctx, expr_t * expr, var_t ** out) {
 static void set_expr_ptr_val(ctx_t * ctx, expr_t * expr, expr_val_type_t val_type, var_t * ptr_var) {
 	switch (val_type) {
 		case ExprValImmVar:
-		{
-			ira_inst_t read_ptr = { .type = IraInstReadPtr, .opd1.hs = ptr_var->inst_name };
-
-			push_inst_imm_var0_expr(ctx, expr, &read_ptr);
-
+		case ExprValImmDeref:
+			expr->val_type = ExprValImmDeref;
+			expr->val.var = ptr_var;
 			break;
-		}
 		case ExprValVar:
 		case ExprValDeref:
 			expr->val_type = ExprValDeref;
@@ -1866,13 +1861,13 @@ static bool translate_expr1_logic_optr(ctx_t * ctx, expr_t * expr) {
 
 	switch (expr->base->type) {
 		case PlaExprLogicAnd:
-			end_label_base = &label_logic_and_base;
-			end_label_suffix = &label_logic_and_end;
+			end_label_base = &label_base_logic_and;
+			end_label_suffix = &label_suffix_end;
 			br_type = IraInstBrf;
 			break;
 		case PlaExprLogicOr:
-			end_label_base = &label_logic_or_base;
-			end_label_suffix = &label_logic_or_end;
+			end_label_base = &label_base_logic_or;
+			end_label_suffix = &label_suffix_end;
 			br_type = IraInstBrt;
 			break;
 		default:
@@ -2135,7 +2130,7 @@ static bool translate_stmt_cond(ctx_t * ctx, pla_stmt_t * stmt) {
 	u_hs_t * exit_label;
 
 	{
-		u_hs_t * tc_end = get_unq_label_name(ctx, &label_cond_base, label_index, &label_cond_tc_end);
+		u_hs_t * tc_end = get_unq_label_name(ctx, &label_base_cond, label_index, &label_suffix_tc_end);
 
 		ira_inst_t brf = { .type = IraInstBrf, .opd0.hs = tc_end, .opd1.hs = cond_var->inst_name };
 
@@ -2149,7 +2144,7 @@ static bool translate_stmt_cond(ctx_t * ctx, pla_stmt_t * stmt) {
 	}
 
 	if (stmt->cond.false_br != false) {
-		u_hs_t * fc_end = get_unq_label_name(ctx, &label_cond_base, label_index, &label_cond_fc_end);
+		u_hs_t * fc_end = get_unq_label_name(ctx, &label_base_cond, label_index, &label_suffix_fc_end);
 
 		ira_inst_t bru = { .type = IraInstBru, .opd0.hs = fc_end };
 
@@ -2171,8 +2166,8 @@ static bool translate_stmt_cond(ctx_t * ctx, pla_stmt_t * stmt) {
 static bool translate_stmt_pre_loop_cfb(ctx_t * ctx, pla_stmt_t * stmt, cfb_t * cfb) {
 	size_t label_index = ctx->unq_label_index++;
 
-	cfb->exit_label = get_unq_label_name(ctx, &label_pre_loop_base, label_index, &label_pre_loop_exit);
-	cfb->cnt_label = get_unq_label_name(ctx, &label_pre_loop_base, label_index, &label_pre_loop_cnt);
+	cfb->exit_label = get_unq_label_name(ctx, &label_base_pre_loop, label_index, &label_suffix_exit);
+	cfb->cnt_label = get_unq_label_name(ctx,  &label_base_pre_loop, label_index, &label_suffix_cnt);
 
 	push_def_label_inst(ctx, cfb->cnt_label);
 
@@ -2216,9 +2211,9 @@ static bool translate_stmt_pre_loop(ctx_t * ctx, pla_stmt_t * stmt) {
 static bool translate_stmt_post_loop_cfb(ctx_t * ctx, pla_stmt_t * stmt, cfb_t * cfb) {
 	size_t label_index = ctx->unq_label_index++;
 
-	cfb->exit_label = get_unq_label_name(ctx, &label_post_loop_base, label_index, &label_post_loop_exit);
-	cfb->cnt_label = get_unq_label_name(ctx, &label_post_loop_base, label_index, &label_post_loop_cnt);
-	u_hs_t * body_label = get_unq_label_name(ctx, &label_post_loop_base, label_index, &label_post_loop_body);
+	cfb->exit_label = get_unq_label_name(ctx, &label_base_post_loop, label_index, &label_suffix_exit);
+	cfb->cnt_label = get_unq_label_name(ctx,  &label_base_post_loop, label_index, &label_suffix_cnt);
+	u_hs_t * body_label = get_unq_label_name(ctx, &label_base_post_loop, label_index, &label_suffix_body);
 	
 	push_def_label_inst(ctx, body_label);
 
