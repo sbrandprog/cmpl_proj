@@ -15,264 +15,264 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\main.c">
+    <ClCompile Include="comp_proj\main.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\pch.c">
+    <ClCompile Include="comp_proj\pch.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\asm_inst.c">
+    <ClCompile Include="comp_proj\asm_inst.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\asm_reg.c">
+    <ClCompile Include="comp_proj\asm_reg.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\lnk_pe.c">
+    <ClCompile Include="comp_proj\lnk_pe.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\lnk_sect.c">
+    <ClCompile Include="comp_proj\lnk_sect.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\u_assert.c">
+    <ClCompile Include="comp_proj\u_assert.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\u_hs.c">
+    <ClCompile Include="comp_proj\u_hs.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\u_hst.c">
+    <ClCompile Include="comp_proj\u_hst.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\asm_frag.c">
+    <ClCompile Include="comp_proj\asm_frag.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\asm_pea.c">
+    <ClCompile Include="comp_proj\asm_pea.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\ira_lo.c">
+    <ClCompile Include="comp_proj\ira_lo.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\ira_inst.c">
+    <ClCompile Include="comp_proj\ira_inst.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\ira_pec.c">
+    <ClCompile Include="comp_proj\ira_pec.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\asm_size.c">
+    <ClCompile Include="comp_proj\asm_size.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\ira_val.c">
+    <ClCompile Include="comp_proj\ira_val.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\ira_dt.c">
+    <ClCompile Include="comp_proj\ira_dt.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\ira_int.c">
+    <ClCompile Include="comp_proj\ira_int.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\pla_ast_p.c">
+    <ClCompile Include="comp_proj\pla_ast_p.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\pla_punc.c">
+    <ClCompile Include="comp_proj\pla_punc.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\pla_keyw.c">
+    <ClCompile Include="comp_proj\pla_keyw.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\pla_expr.c">
+    <ClCompile Include="comp_proj\pla_expr.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\pla_ast.c">
+    <ClCompile Include="comp_proj\pla_ast.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\pla_stmt.c">
+    <ClCompile Include="comp_proj\pla_stmt.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\pla_dclr.c">
+    <ClCompile Include="comp_proj\pla_dclr.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\ira_func.c">
+    <ClCompile Include="comp_proj\ira_func.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\ira_pec_c.c">
+    <ClCompile Include="comp_proj\ira_pec_c.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\lnk_pe_l.c">
+    <ClCompile Include="comp_proj\lnk_pe_l.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\asm_pea_b.c">
+    <ClCompile Include="comp_proj\asm_pea_b.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\pla_ast_t.c">
+    <ClCompile Include="comp_proj\pla_ast_t.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\pla_ast_t_s.c">
+    <ClCompile Include="comp_proj\pla_ast_t_s.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\pla_pds.c">
+    <ClCompile Include="comp_proj\pla_pds.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\ira_pec_ip.c">
+    <ClCompile Include="comp_proj\ira_pec_ip.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\ira_pds.c">
+    <ClCompile Include="comp_proj\ira_pds.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\asm_it.c">
+    <ClCompile Include="comp_proj\asm_it.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\u_hsb.c">
+    <ClCompile Include="comp_proj\u_hsb.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\pla_irid.c">
+    <ClCompile Include="comp_proj\pla_irid.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\pch.h">
+    <ClInclude Include="comp_proj\pch.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\asm_inst.h">
+    <ClInclude Include="comp_proj\asm_inst.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\asm_reg.h">
+    <ClInclude Include="comp_proj\asm_reg.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\asm_size.h">
+    <ClInclude Include="comp_proj\asm_size.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\lnk.h">
+    <ClInclude Include="comp_proj\lnk.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\lnk_pe.h">
+    <ClInclude Include="comp_proj\lnk_pe.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\lnk_sect.h">
+    <ClInclude Include="comp_proj\lnk_sect.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\u_assert.h">
+    <ClInclude Include="comp_proj\u_assert.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\u_hs.h">
+    <ClInclude Include="comp_proj\u_hs.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\u_hst.h">
+    <ClInclude Include="comp_proj\u_hst.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\u_misc.h">
+    <ClInclude Include="comp_proj\u_misc.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\asm.h">
+    <ClInclude Include="comp_proj\asm.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\asm_frag.h">
+    <ClInclude Include="comp_proj\asm_frag.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\asm_pea.h">
+    <ClInclude Include="comp_proj\asm_pea.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\ira.h">
+    <ClInclude Include="comp_proj\ira.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\ira_pec.h">
+    <ClInclude Include="comp_proj\ira_pec.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\ira_lo.h">
+    <ClInclude Include="comp_proj\ira_lo.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\ira_inst.h">
+    <ClInclude Include="comp_proj\ira_inst.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\ira_dt.h">
+    <ClInclude Include="comp_proj\ira_dt.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\ira_int.h">
+    <ClInclude Include="comp_proj\ira_int.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\ira_val.h">
+    <ClInclude Include="comp_proj\ira_val.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\pla.h">
+    <ClInclude Include="comp_proj\pla.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\pla_expr.h">
+    <ClInclude Include="comp_proj\pla_expr.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\pla_stmt.h">
+    <ClInclude Include="comp_proj\pla_stmt.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\pla_dclr.h">
+    <ClInclude Include="comp_proj\pla_dclr.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\pla_ast.h">
+    <ClInclude Include="comp_proj\pla_ast.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\pla_ast_p.h">
+    <ClInclude Include="comp_proj\pla_ast_p.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\pla_punc.h">
+    <ClInclude Include="comp_proj\pla_punc.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\pla_keyw.h">
+    <ClInclude Include="comp_proj\pla_keyw.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\pla_ast_t.h">
+    <ClInclude Include="comp_proj\pla_ast_t.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\ira_func.h">
+    <ClInclude Include="comp_proj\ira_func.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\ira_pec_c.h">
+    <ClInclude Include="comp_proj\ira_pec_c.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\lnk_pe_l.h">
+    <ClInclude Include="comp_proj\lnk_pe_l.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\asm_pea_b.h">
+    <ClInclude Include="comp_proj\asm_pea_b.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\pla_ast_t_s.h">
+    <ClInclude Include="comp_proj\pla_ast_t_s.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\pla_pds.h">
+    <ClInclude Include="comp_proj\pla_pds.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\ira_pec_ip.h">
+    <ClInclude Include="comp_proj\ira_pec_ip.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\ira_pds.h">
+    <ClInclude Include="comp_proj\ira_pds.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\u_ros.h">
+    <ClInclude Include="comp_proj\u_ros.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\asm_it.h">
+    <ClInclude Include="comp_proj\asm_it.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\u_hsb.h">
+    <ClInclude Include="comp_proj\u_hsb.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="src\pla_irid.h">
+    <ClInclude Include="comp_proj\pla_irid.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\pla_punc.def">
+    <None Include="comp_proj\pla_punc.def">
       <Filter>Исходные файлы</Filter>
     </None>
-    <None Include="src\pla_keyw.def">
+    <None Include="comp_proj\pla_keyw.def">
       <Filter>Исходные файлы</Filter>
     </None>
     <None Include="test.pla" />
-    <None Include="src\pla_pds.def">
+    <None Include="comp_proj\pla_pds.def">
       <Filter>Исходные файлы</Filter>
     </None>
-    <None Include="src\ira_inst.def">
+    <None Include="comp_proj\ira_inst.def">
       <Filter>Исходные файлы</Filter>
     </None>
-    <None Include="src\ira_pds.def">
+    <None Include="comp_proj\ira_pds.def">
       <Filter>Исходные файлы</Filter>
     </None>
-    <None Include="src\pla_expr.def">
+    <None Include="comp_proj\pla_expr.def">
       <Filter>Исходные файлы</Filter>
     </None>
     <None Include="pla_lib\w64\kernel32.pla" />

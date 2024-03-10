@@ -46,10 +46,14 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)bin\$(ProjectName)-$(Platform)-$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)int\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <CopyLocalDeploymentContent>true</CopyLocalDeploymentContent>
+    <CopyLocalProjectReference>true</CopyLocalProjectReference>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)bin\$(ProjectName)-$(Platform)-$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)int\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <CopyLocalDeploymentContent>true</CopyLocalDeploymentContent>
+    <CopyLocalProjectReference>true</CopyLocalProjectReference>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -90,101 +94,115 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\asm_frag.c" />
-    <ClCompile Include="src\asm_inst.c" />
-    <ClCompile Include="src\asm_it.c" />
-    <ClCompile Include="src\asm_pea.c" />
-    <ClCompile Include="src\asm_pea_b.c" />
-    <ClCompile Include="src\asm_reg.c" />
-    <ClCompile Include="src\asm_size.c" />
-    <ClCompile Include="src\ira_func.c" />
-    <ClCompile Include="src\ira_dt.c" />
-    <ClCompile Include="src\ira_inst.c" />
-    <ClCompile Include="src\ira_int.c" />
-    <ClCompile Include="src\ira_lo.c" />
-    <ClCompile Include="src\ira_pds.c" />
-    <ClCompile Include="src\ira_pec.c" />
-    <ClCompile Include="src\ira_pec_c.c" />
-    <ClCompile Include="src\ira_pec_ip.c" />
-    <ClCompile Include="src\ira_val.c" />
-    <ClCompile Include="src\lnk_pe.c" />
-    <ClCompile Include="src\lnk_pe_l.c" />
-    <ClCompile Include="src\lnk_sect.c" />
-    <ClCompile Include="src\main.c" />
-    <ClCompile Include="src\pch.c">
+    <ClCompile Include="comp_proj\asm_frag.c" />
+    <ClCompile Include="comp_proj\asm_inst.c" />
+    <ClCompile Include="comp_proj\asm_it.c" />
+    <ClCompile Include="comp_proj\asm_pea.c" />
+    <ClCompile Include="comp_proj\asm_pea_b.c" />
+    <ClCompile Include="comp_proj\asm_reg.c" />
+    <ClCompile Include="comp_proj\asm_size.c" />
+    <ClCompile Include="comp_proj\ira_func.c" />
+    <ClCompile Include="comp_proj\ira_dt.c" />
+    <ClCompile Include="comp_proj\ira_inst.c" />
+    <ClCompile Include="comp_proj\ira_int.c" />
+    <ClCompile Include="comp_proj\ira_lo.c" />
+    <ClCompile Include="comp_proj\ira_pds.c" />
+    <ClCompile Include="comp_proj\ira_pec.c" />
+    <ClCompile Include="comp_proj\ira_pec_c.c" />
+    <ClCompile Include="comp_proj\ira_pec_ip.c" />
+    <ClCompile Include="comp_proj\ira_val.c" />
+    <ClCompile Include="comp_proj\lnk_pe.c" />
+    <ClCompile Include="comp_proj\lnk_pe_l.c" />
+    <ClCompile Include="comp_proj\lnk_sect.c" />
+    <ClCompile Include="comp_proj\main.c" />
+    <ClCompile Include="comp_proj\pch.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="src\pla_ast.c" />
-    <ClCompile Include="src\pla_ast_p.c" />
-    <ClCompile Include="src\pla_ast_t.c" />
-    <ClCompile Include="src\pla_ast_t_s.c" />
-    <ClCompile Include="src\pla_dclr.c" />
-    <ClCompile Include="src\pla_expr.c" />
-    <ClCompile Include="src\pla_irid.c" />
-    <ClCompile Include="src\pla_keyw.c" />
-    <ClCompile Include="src\pla_pds.c" />
-    <ClCompile Include="src\pla_punc.c" />
-    <ClCompile Include="src\pla_stmt.c" />
-    <ClCompile Include="src\u_assert.c" />
-    <ClCompile Include="src\u_hs.c" />
-    <ClCompile Include="src\u_hsb.c" />
-    <ClCompile Include="src\u_hst.c" />
+    <ClCompile Include="comp_proj\pla_ast.c" />
+    <ClCompile Include="comp_proj\pla_ast_p.c" />
+    <ClCompile Include="comp_proj\pla_ast_t.c" />
+    <ClCompile Include="comp_proj\pla_ast_t_s.c" />
+    <ClCompile Include="comp_proj\pla_dclr.c" />
+    <ClCompile Include="comp_proj\pla_expr.c" />
+    <ClCompile Include="comp_proj\pla_irid.c" />
+    <ClCompile Include="comp_proj\pla_keyw.c" />
+    <ClCompile Include="comp_proj\pla_pds.c" />
+    <ClCompile Include="comp_proj\pla_punc.c" />
+    <ClCompile Include="comp_proj\pla_stmt.c" />
+    <ClCompile Include="comp_proj\u_assert.c" />
+    <ClCompile Include="comp_proj\u_hs.c" />
+    <ClCompile Include="comp_proj\u_hsb.c" />
+    <ClCompile Include="comp_proj\u_hst.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\asm.h" />
-    <ClInclude Include="src\asm_frag.h" />
-    <ClInclude Include="src\asm_it.h" />
-    <ClInclude Include="src\asm_inst.h" />
-    <ClInclude Include="src\asm_pea.h" />
-    <ClInclude Include="src\asm_pea_b.h" />
-    <ClInclude Include="src\asm_reg.h" />
-    <ClInclude Include="src\asm_size.h" />
-    <ClInclude Include="src\ira.h" />
-    <ClInclude Include="src\ira_func.h" />
-    <ClInclude Include="src\ira_dt.h" />
-    <ClInclude Include="src\ira_int.h" />
-    <ClInclude Include="src\ira_pds.h" />
-    <ClInclude Include="src\ira_pec.h" />
-    <ClInclude Include="src\ira_inst.h" />
-    <ClInclude Include="src\ira_lo.h" />
-    <ClInclude Include="src\ira_pec_c.h" />
-    <ClInclude Include="src\ira_pec_ip.h" />
-    <ClInclude Include="src\ira_val.h" />
-    <ClInclude Include="src\lnk.h" />
-    <ClInclude Include="src\lnk_pe.h" />
-    <ClInclude Include="src\lnk_pe_l.h" />
-    <ClInclude Include="src\lnk_sect.h" />
-    <ClInclude Include="src\pch.h" />
-    <ClInclude Include="src\pla.h" />
-    <ClInclude Include="src\pla_ast.h" />
-    <ClInclude Include="src\pla_ast_t.h" />
-    <ClInclude Include="src\pla_ast_t_s.h" />
-    <ClInclude Include="src\pla_dclr.h" />
-    <ClInclude Include="src\pla_expr.h" />
-    <ClInclude Include="src\pla_ast_p.h" />
-    <ClInclude Include="src\pla_irid.h" />
-    <ClInclude Include="src\pla_keyw.h" />
-    <ClInclude Include="src\pla_pds.h" />
-    <ClInclude Include="src\pla_punc.h" />
-    <ClInclude Include="src\pla_stmt.h" />
-    <ClInclude Include="src\u_assert.h" />
-    <ClInclude Include="src\u_hs.h" />
-    <ClInclude Include="src\u_hsb.h" />
-    <ClInclude Include="src\u_hst.h" />
-    <ClInclude Include="src\u_misc.h" />
-    <ClInclude Include="src\u_ros.h" />
+    <ClInclude Include="comp_proj\asm.h" />
+    <ClInclude Include="comp_proj\asm_frag.h" />
+    <ClInclude Include="comp_proj\asm_it.h" />
+    <ClInclude Include="comp_proj\asm_inst.h" />
+    <ClInclude Include="comp_proj\asm_pea.h" />
+    <ClInclude Include="comp_proj\asm_pea_b.h" />
+    <ClInclude Include="comp_proj\asm_reg.h" />
+    <ClInclude Include="comp_proj\asm_size.h" />
+    <ClInclude Include="comp_proj\ira.h" />
+    <ClInclude Include="comp_proj\ira_func.h" />
+    <ClInclude Include="comp_proj\ira_dt.h" />
+    <ClInclude Include="comp_proj\ira_int.h" />
+    <ClInclude Include="comp_proj\ira_pds.h" />
+    <ClInclude Include="comp_proj\ira_pec.h" />
+    <ClInclude Include="comp_proj\ira_inst.h" />
+    <ClInclude Include="comp_proj\ira_lo.h" />
+    <ClInclude Include="comp_proj\ira_pec_c.h" />
+    <ClInclude Include="comp_proj\ira_pec_ip.h" />
+    <ClInclude Include="comp_proj\ira_val.h" />
+    <ClInclude Include="comp_proj\lnk.h" />
+    <ClInclude Include="comp_proj\lnk_pe.h" />
+    <ClInclude Include="comp_proj\lnk_pe_l.h" />
+    <ClInclude Include="comp_proj\lnk_sect.h" />
+    <ClInclude Include="comp_proj\pch.h" />
+    <ClInclude Include="comp_proj\pla.h" />
+    <ClInclude Include="comp_proj\pla_ast.h" />
+    <ClInclude Include="comp_proj\pla_ast_t.h" />
+    <ClInclude Include="comp_proj\pla_ast_t_s.h" />
+    <ClInclude Include="comp_proj\pla_dclr.h" />
+    <ClInclude Include="comp_proj\pla_expr.h" />
+    <ClInclude Include="comp_proj\pla_ast_p.h" />
+    <ClInclude Include="comp_proj\pla_irid.h" />
+    <ClInclude Include="comp_proj\pla_keyw.h" />
+    <ClInclude Include="comp_proj\pla_pds.h" />
+    <ClInclude Include="comp_proj\pla_punc.h" />
+    <ClInclude Include="comp_proj\pla_stmt.h" />
+    <ClInclude Include="comp_proj\u_assert.h" />
+    <ClInclude Include="comp_proj\u_hs.h" />
+    <ClInclude Include="comp_proj\u_hsb.h" />
+    <ClInclude Include="comp_proj\u_hst.h" />
+    <ClInclude Include="comp_proj\u_misc.h" />
+    <ClInclude Include="comp_proj\u_ros.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="pla_lib\std\io.pla" />
-    <None Include="pla_lib\w64\kernel32.pla" />
-    <None Include="src\ira_inst.def" />
-    <None Include="src\ira_pds.def" />
-    <None Include="src\pla_expr.def" />
-    <None Include="src\pla_pds.def" />
-    <None Include="src\pla_keyw.def" />
-    <None Include="src\pla_punc.def" />
-    <None Include="test.pla" />
+    <None Include="pla_lib\std\io.pla">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
+    </None>
+    <None Include="pla_lib\w64\kernel32.pla">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
+    </None>
+    <None Include="comp_proj\ira_inst.def" />
+    <None Include="comp_proj\ira_pds.def" />
+    <None Include="comp_proj\pla_expr.def" />
+    <None Include="comp_proj\pla_pds.def" />
+    <None Include="comp_proj\pla_keyw.def" />
+    <None Include="comp_proj\pla_punc.def" />
+    <None Include="test.pla">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\utility_lib\utility_lib.vcxproj">
+      <Project>{12d410f5-accb-4a16-a2c0-a6a64401262d}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

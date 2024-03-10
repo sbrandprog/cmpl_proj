@@ -60,7 +60,19 @@ static void main_run() {
 	wprintf(L"program exit code: %d 0x%X\n", ret_code, ret_code);
 }
 
+static void utility_lib_test() {
+	ul_hst_t ul_hst;
+
+	ul_hst_init(&ul_hst);
+
+	ul_hs_t * str = UL_HST_HASHADD_WS(&ul_hst, L"utility lib test");
+
+	ul_hst_cleanup(&ul_hst);
+}
+
 static int main_core() {
+	utility_lib_test();
+
 	if (!main_parse()) {
 		return -1;
 	}

@@ -4,9 +4,6 @@
 #include "u_misc.h"
 #include "u_assert.h"
 
-#define WIN32_LEAN_AND_MEAN 1
-#include <Windows.h>
-
 #define PAGE_SIZE 4096
 
 #define SECT_NAME_SIZE _countof(((IMAGE_SECTION_HEADER*)NULL)->Name)

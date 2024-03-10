@@ -2,9 +2,6 @@
 #include "lnk_pe.h"
 #include "lnk_sect.h"
 
-#define WIN32_LEAN_AND_MEAN 1
-#include <Windows.h>
-
 void lnk_pe_cleanup(lnk_pe_t * pe) {
 	lnk_sect_destroy_chain(pe->sect);
 

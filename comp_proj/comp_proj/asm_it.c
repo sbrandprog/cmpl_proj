@@ -2,9 +2,6 @@
 #include "asm_it.h"
 #include "u_misc.h"
 
-#define WIN32_LEAN_AND_MEAN 1
-#include <Windows.h>
-
 #define SECT_NAME ".rdata"
 #define LABEL_PREFIX L"#it:"
 #define NAME_ALIGN 2
