@@ -13,8 +13,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{12d410f5-accb-4a16-a2c0-a6a64401262d}</ProjectGuid>
-    <RootNamespace>utility_lib</RootNamespace>
+    <ProjectGuid>{2f79e37e-66be-4fb1-afb6-f3376a65cae8}</ProjectGuid>
+    <RootNamespace>wa_lib</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -46,18 +46,18 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)bin\$(ProjectName)-$(Platform)-$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)int\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
-    <PublicIncludeDirectories>$(ProjectDir);$(PublicIncludeDirectories)</PublicIncludeDirectories>
+    <PublicIncludeDirectories>$(ProjectDir)</PublicIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)bin\$(ProjectName)-$(Platform)-$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)int\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
-    <PublicIncludeDirectories>$(ProjectDir);$(PublicIncludeDirectories)</PublicIncludeDirectories>
+    <PublicIncludeDirectories>$(ProjectDir)</PublicIncludeDirectories>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>UL_BUILD_DLL;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WA_BUILD_DLL;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -74,7 +74,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>UL_BUILD_DLL;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WA_BUILD_DLL;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -88,26 +88,29 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="utility_lib\pch.c">
+    <ClCompile Include="wa_lib\pch.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="utility_lib\ul_hs.c" />
-    <ClCompile Include="utility_lib\ul_hsb.c" />
-    <ClCompile Include="utility_lib\ul_hst.c" />
-    <ClCompile Include="utility_lib\ul_raise.c" />
+    <ClCompile Include="wa_lib\wa_ctx.c" />
+    <ClCompile Include="wa_lib\wa_host.c" />
+    <ClCompile Include="wa_lib\wa_style.c" />
+    <ClCompile Include="wa_lib\wa_wcr.c" />
+    <ClCompile Include="wa_lib\wa_wnd.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="utility_lib\pch.h" />
-    <ClInclude Include="utility_lib\ul.h" />
-    <ClInclude Include="utility_lib\ul_arr.h" />
-    <ClInclude Include="utility_lib\ul_hs.h" />
-    <ClInclude Include="utility_lib\ul_hsb.h" />
-    <ClInclude Include="utility_lib\ul_hst.h" />
-    <ClInclude Include="utility_lib\ul_raise.h" />
-    <ClInclude Include="utility_lib\ul_ros.h" />
-    <ClInclude Include="utility_lib\ul_misc.h" />
-    <ClInclude Include="utility_lib\utility_lib.h" />
+    <ClInclude Include="wa_lib\pch.h" />
+    <ClInclude Include="wa_lib\wa.h" />
+    <ClInclude Include="wa_lib\wa_ctx.h" />
+    <ClInclude Include="wa_lib\wa_host.h" />
+    <ClInclude Include="wa_lib\wa_style.h" />
+    <ClInclude Include="wa_lib\wa_wcr.h" />
+    <ClInclude Include="wa_lib\wa_wnd.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\utility_lib\utility_lib.vcxproj">
+      <Project>{12d410f5-accb-4a16-a2c0-a6a64401262d}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

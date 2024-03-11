@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "comp_proj", "comp_proj\comp
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "utility_lib", "utility_lib\utility_lib.vcxproj", "{12D410F5-ACCB-4A16-A2C0-A6A64401262D}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wa_lib", "wa_lib\wa_lib.vcxproj", "{2F79E37E-66BE-4FB1-AFB6-F3376A65CAE8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +23,10 @@ Global
 		{12D410F5-ACCB-4A16-A2C0-A6A64401262D}.Debug|x64.Build.0 = Debug|x64
 		{12D410F5-ACCB-4A16-A2C0-A6A64401262D}.Release|x64.ActiveCfg = Release|x64
 		{12D410F5-ACCB-4A16-A2C0-A6A64401262D}.Release|x64.Build.0 = Release|x64
+		{2F79E37E-66BE-4FB1-AFB6-F3376A65CAE8}.Debug|x64.ActiveCfg = Debug|x64
+		{2F79E37E-66BE-4FB1-AFB6-F3376A65CAE8}.Debug|x64.Build.0 = Debug|x64
+		{2F79E37E-66BE-4FB1-AFB6-F3376A65CAE8}.Release|x64.ActiveCfg = Release|x64
+		{2F79E37E-66BE-4FB1-AFB6-F3376A65CAE8}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

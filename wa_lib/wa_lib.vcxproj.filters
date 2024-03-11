@@ -15,51 +15,45 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="utility_lib\pch.c">
+    <ClCompile Include="wa_lib\pch.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="utility_lib\ul_hsb.c">
+    <ClCompile Include="wa_lib\wa_ctx.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="utility_lib\ul_hst.c">
+    <ClCompile Include="wa_lib\wa_style.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="utility_lib\ul_hs.c">
+    <ClCompile Include="wa_lib\wa_wnd.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="utility_lib\ul_raise.c">
+    <ClCompile Include="wa_lib\wa_host.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="wa_lib\wa_wcr.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="utility_lib\pch.h">
+    <ClInclude Include="wa_lib\pch.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="utility_lib\ul.h">
+    <ClInclude Include="wa_lib\wa_style.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="utility_lib\ul_hsb.h">
+    <ClInclude Include="wa_lib\wa.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="utility_lib\ul_hst.h">
+    <ClInclude Include="wa_lib\wa_ctx.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="utility_lib\ul_ros.h">
+    <ClInclude Include="wa_lib\wa_wnd.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="utility_lib\ul_hs.h">
+    <ClInclude Include="wa_lib\wa_host.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="utility_lib\ul_arr.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="utility_lib\ul_misc.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="utility_lib\ul_raise.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="utility_lib\utility_lib.h">
+    <ClInclude Include="wa_lib\wa_wcr.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>
