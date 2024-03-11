@@ -1,6 +1,5 @@
 #pragma once
 #include "asm.h"
-#include "u_hs.h"
 
 #define ASM_INST_OPDS_SIZE 3
 #define ASM_INST_BS_SIZE 15
@@ -135,12 +134,12 @@ struct asm_inst {
 	asm_inst_imm_type_t imm0_type;
 	union {
 		int32_t mem_disp;
-		u_hs_t * mem_disp_label;
+		ul_hs_t * mem_disp_label;
 	};
 	union {
 		int64_t imm0;
-		u_hs_t * imm0_label;
-		u_hs_t * label;
+		ul_hs_t * imm0_label;
+		ul_hs_t * label;
 	};
 };
 enum asm_inst_off_type {

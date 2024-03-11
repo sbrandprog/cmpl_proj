@@ -45,7 +45,14 @@ static bool build_core(ctx_t * ctx) {
 bool asm_pea_b_build(asm_pea_t * pea, lnk_pe_t * out) {
 	ctx_t ctx = { .pea = pea, .pe = out };
 
-	bool result = build_core(&ctx);
+	bool res;
+	
+	__try {
+		res = build_core(&ctx);
+	}
+	__finally {
+		(void)0;
+	}
 
-	return result;
+	return res;
 }

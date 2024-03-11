@@ -1,6 +1,5 @@
 #pragma once
 #include "pla.h"
-#include "u_ros.h"
 
 enum pla_pds {
 #define PLA_PDS(name, str) PlaPds##name,
@@ -9,4 +8,4 @@ enum pla_pds {
 	PlaPds_Count
 };
 
-const u_ros_t pla_pds_strs[PlaPds_Count];
+const ul_ros_t pla_pds_strs[PlaPds_Count];

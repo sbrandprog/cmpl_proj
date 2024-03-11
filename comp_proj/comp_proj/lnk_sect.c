@@ -1,11 +1,10 @@
 #include "pch.h"
 #include "lnk_sect.h"
-#include "u_misc.h"
 
 lnk_sect_t * lnk_sect_create(lnk_sect_t ** ins) {
 	lnk_sect_t * sect = malloc(sizeof(*sect));
 
-	u_assert(sect != NULL);
+	ul_raise_check_mem_alloc(sect);
 
 	*sect = (lnk_sect_t){ 0 };
 
@@ -36,9 +35,9 @@ void lnk_sect_destroy_chain(lnk_sect_t * sect) {
 	}
 }
 
-void lnk_sect_add_lp(lnk_sect_t * sect, lnk_sect_lp_type_t type, lnk_sect_lp_stype_t stype, u_hs_t * label_name, size_t offset) {
+void lnk_sect_add_lp(lnk_sect_t * sect, lnk_sect_lp_type_t type, lnk_sect_lp_stype_t stype, ul_hs_t * label_name, size_t offset) {
 	if (sect->lps_size + 1 > sect->lps_cap) {
-		u_grow_arr(&sect->lps_cap, &sect->lps, sizeof(*sect->lps), 1);
+		ul_arr_grow(&sect->lps_cap, &sect->lps, sizeof(*sect->lps), 1);
 	}
 
 	sect->lps[sect->lps_size++] = (lnk_sect_lp_t){ .type = type, .stype = stype, .label_name = label_name, .offset = offset };

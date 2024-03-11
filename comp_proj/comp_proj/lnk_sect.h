@@ -1,6 +1,5 @@
 #pragma once
 #include "lnk.h"
-#include "u_hs.h"
 
 enum lnk_sect_lp_type {
 	LnkSectLpNone,
@@ -33,7 +32,7 @@ enum lnk_sect_lp_stype {
 struct lnk_sect_lp {
 	lnk_sect_lp_type_t type;
 	lnk_sect_lp_stype_t stype;
-	u_hs_t * label_name;
+	ul_hs_t * label_name;
 	size_t offset;
 };
 
@@ -61,6 +60,6 @@ void lnk_sect_destroy(lnk_sect_t * sect);
 
 void lnk_sect_destroy_chain(lnk_sect_t * sect);
 
-void lnk_sect_add_lp(lnk_sect_t * sect, lnk_sect_lp_type_t type, lnk_sect_lp_stype_t stype, u_hs_t * label_name, size_t offset);
+void lnk_sect_add_lp(lnk_sect_t * sect, lnk_sect_lp_type_t type, lnk_sect_lp_stype_t stype, ul_hs_t * label_name, size_t offset);
 
 const size_t lnk_sect_fixups_size[LnkSectFixup_Count];

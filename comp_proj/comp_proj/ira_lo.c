@@ -2,13 +2,11 @@
 #include "ira_val.h"
 #include "ira_lo.h"
 #include "ira_func.h"
-#include "u_assert.h"
-#include "u_misc.h"
 
-ira_lo_t * ira_lo_create(ira_lo_type_t type, u_hs_t * name) {
+ira_lo_t * ira_lo_create(ira_lo_type_t type, ul_hs_t * name) {
 	ira_lo_t * lo = malloc(sizeof(*lo));
 
-	u_assert(lo != NULL);
+	ul_raise_check_mem_alloc(lo);
 
 	*lo = (ira_lo_t){ .type = type, .name = name };
 
@@ -46,7 +44,7 @@ void ira_lo_destroy(ira_lo_t * lo) {
 			ira_val_destroy(lo->ro_val.val);
 			break;
 		default:
-			u_assert_switch(lo->type);
+			ul_raise_unreachable();
 	}
 
 	free(lo);

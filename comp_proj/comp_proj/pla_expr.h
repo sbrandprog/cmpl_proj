@@ -1,8 +1,6 @@
 #pragma once
 #include "pla.h"
 #include "ira_int.h"
-#include "u_ros.h"
-#include "u_hs.h"
 
 #define PLA_EXPR_OPDS_SIZE 3
 
@@ -20,7 +18,7 @@ enum pla_expr_opd_type {
 union pla_expr_opd {
 	bool boolean;
 	ira_int_type_t int_type;
-	u_hs_t * hs;
+	ul_hs_t * hs;
 	pla_irid_t * irid;
 	pla_expr_t * expr;
 };
@@ -43,7 +41,7 @@ struct pla_expr {
 };
 
 struct pla_expr_info {
-	u_ros_t type_str;
+	ul_ros_t type_str;
 	union {
 		pla_expr_opd_type_t opds[PLA_EXPR_OPDS_SIZE];
 		struct {

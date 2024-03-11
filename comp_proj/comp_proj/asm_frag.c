@@ -4,8 +4,6 @@
 #include "asm_reg.h"
 #include "asm_inst.h"
 #include "lnk_pe.h"
-#include "u_assert.h"
-#include "u_misc.h"
 
 typedef struct sect_info {
 	const char * name;
@@ -26,7 +24,7 @@ static const sect_info_t sect_infos[AsmFrag_Count] = {
 asm_frag_t * asm_frag_create(asm_frag_type_t type, asm_frag_t ** ins) {
 	asm_frag_t * frag = malloc(sizeof(*frag));
 
-	u_assert(frag != NULL);
+	ul_raise_check_mem_alloc(frag);
 
 	*frag = (asm_frag_t){ .type = type };
 
@@ -58,7 +56,7 @@ void asm_frag_destroy_chain(asm_frag_t * frag) {
 
 void asm_frag_push_inst(asm_frag_t * frag, asm_inst_t * inst) {
 	if (frag->insts_size + 1 > frag->insts_cap) {
-		u_grow_arr(&frag->insts_cap, &frag->insts, sizeof(*frag->insts), 1);
+		ul_arr_grow(&frag->insts_cap, &frag->insts, sizeof(*frag->insts), 1);
 	}
 
 	frag->insts[frag->insts_size++] = *inst;
@@ -100,7 +98,7 @@ static bool get_imm0_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
 		case AsmInstOpds_Mem_Imm:
 			break;
 		default:
-			u_assert_switch(inst->opds);
+			ul_raise_unreachable();
 	}
 
 	switch (inst->imm0_type) {
@@ -123,7 +121,7 @@ static bool get_imm0_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
 			*out = LnkSectFixupRva32;
 			break;
 		default:
-			u_assert_switch(inst->imm0_type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -143,7 +141,7 @@ static bool get_disp_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
 		case AsmInstOpds_Mem_Reg:
 			break;
 		default:
-			u_assert_switch(inst->opds);
+			ul_raise_unreachable();
 	}
 
 	switch (inst->mem_disp_type) {
@@ -162,7 +160,7 @@ static bool get_disp_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
 			*out = LnkSectFixupRva32;
 			break;
 		default:
-			u_assert_switch(inst->mem_disp_type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -184,12 +182,12 @@ static bool build_special_inst(asm_frag_t * frag, asm_inst_t * inst, lnk_sect_t 
 				return false;
 			}
 
-			size_t align_amount = u_align_to(out->data_size, (size_t)inst->imm0) - out->data_size;
+			size_t align_amount = ul_align_to(out->data_size, (size_t)inst->imm0) - out->data_size;
 
-			u_assert(align_amount < LNK_PE_MAX_MODULE_SIZE);
+			ul_raise_assert(align_amount < LNK_PE_MAX_MODULE_SIZE);
 
 			if (out->data_size + align_amount > out->data_cap) {
-				u_grow_arr(&out->data_cap, &out->data, sizeof(*out->data), align_amount);
+				ul_arr_grow(&out->data_cap, &out->data, sizeof(*out->data), align_amount);
 			}
 
 			memset(out->data + out->data_size, out->data_align_byte, align_amount);
@@ -223,7 +221,7 @@ static bool build_core(asm_frag_t * frag, lnk_sect_t * out) {
 		}
 
 		if (out->data_size + inst_size > out->data_cap) {
-			u_grow_arr(&out->data_cap, &out->data, sizeof(*out->data), inst_size);
+			ul_arr_grow(&out->data_cap, &out->data, sizeof(*out->data), inst_size);
 		}
 
 		size_t inst_start = out->data_size;

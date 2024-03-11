@@ -1,8 +1,6 @@
 #include "pch.h"
 #include "lnk_pe_l.h"
 #include "lnk_sect.h"
-#include "u_misc.h"
-#include "u_assert.h"
 
 #define PAGE_SIZE 4096
 
@@ -27,13 +25,13 @@ struct sect {
 };
 
 typedef struct label {
-	const u_hs_t * name;
+	const ul_hs_t * name;
 	sect_t * sect;
 	size_t offset;
 } label_t;
 typedef struct fixup {
 	lnk_sect_lp_stype_t stype;
-	const u_hs_t * label_name;
+	const ul_hs_t * label_name;
 	sect_t * sect;
 	size_t offset;
 } fixup_t;
@@ -102,7 +100,7 @@ static const lnk_sect_lp_stype_t dir_end_mark[IMAGE_NUMBEROF_DIRECTORY_ENTRIES] 
 	[IMAGE_DIRECTORY_ENTRY_IAT] = LnkSectMarkImpTabEnd
 };
 
-static label_t * find_label(ctx_t * ctx, const u_hs_t * name) {
+static label_t * find_label(ctx_t * ctx, const ul_hs_t * name) {
 	for (label_t * label = ctx->labels, *label_end = label + ctx->labels_size; label != label_end; ++label) {
 		if (name == label->name) {
 			return label;
@@ -120,9 +118,12 @@ static void prepare_bufs(ctx_t * ctx) {
 	}
 
 	ctx->sect_buf0 = malloc(ctx->sect_buf_size * sizeof(*ctx->sect_buf0));
-	u_assert(ctx->sect_buf0 != NULL);
+	
+	ul_raise_check_mem_alloc(ctx->sect_buf0);
+	
 	ctx->sect_buf1 = malloc(ctx->sect_buf_size * sizeof(*ctx->sect_buf1));
-	u_assert(ctx->sect_buf1 != NULL);
+	
+	ul_raise_check_mem_alloc(ctx->sect_buf0);
 
 	{
 		lnk_sect_t * sect = pe->sect;
@@ -171,7 +172,7 @@ static lnk_sect_t ** find_common_sects(ctx_t * ctx) {
 static sect_t * add_sect(ctx_t * ctx) {
 	sect_t * new_sect = malloc(sizeof(*new_sect));
 
-	u_assert(new_sect != NULL);
+	ul_raise_check_mem_alloc(new_sect);
 
 	memset(new_sect, 0, sizeof(*new_sect));
 
@@ -220,7 +221,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 		case LnkSectLpLabel:
 		{
 			if (ctx->labels_size + 1 > ctx->labels_cap) {
-				u_grow_arr(&ctx->labels_cap, &ctx->labels, sizeof(label_t), 1);
+				ul_arr_grow(&ctx->labels_cap, &ctx->labels, sizeof(label_t), 1);
 			}
 
 			label_t * label = &ctx->labels[ctx->labels_size++];
@@ -248,7 +249,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 			}
 
 			if (ctx->fixups_size + 1 > ctx->fixups_cap) {
-				u_grow_arr(&ctx->fixups_cap, &ctx->fixups, sizeof(fixup_t), 1);
+				ul_arr_grow(&ctx->fixups_cap, &ctx->fixups, sizeof(fixup_t), 1);
 			}
 
 			fixup_t * fixup = &ctx->fixups[ctx->fixups_size++];
@@ -267,14 +268,14 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 			return true;
 		}
 		default:
-			u_assert_switch(lp->type);
+			ul_raise_unreachable();
 	}
 }
 static bool form_sect(ctx_t * ctx, lnk_sect_t ** buf1_end) {
 	sect_t * new_sect = add_sect(ctx);
 
 	{
-		u_assert(buf1_end != ctx->sect_buf1);
+		ul_raise_assert(buf1_end != ctx->sect_buf1);
 
 		lnk_sect_t * base_sect = *ctx->sect_buf1;
 
@@ -294,10 +295,10 @@ static bool form_sect(ctx_t * ctx, lnk_sect_t ** buf1_end) {
 			align = SECT_DEFAULT_ALIGN;
 		}
 
-		size_t sect_start = u_align_to(new_sect->data_size, align);
+		size_t sect_start = ul_align_to(new_sect->data_size, align);
 
 		if (new_sect->data_size + sect_start + sect->data_size > new_sect->data_cap) {
-			u_grow_arr(&new_sect->data_cap, &new_sect->data, sizeof(uint8_t), sect_start + sect->data_size);
+			ul_arr_grow(&new_sect->data_cap, &new_sect->data, sizeof(uint8_t), sect_start + sect->data_size);
 		}
 
 		memset(new_sect->data + new_sect->data_size, sect->data_align_byte, sect_start - new_sect->data_size);
@@ -346,7 +347,8 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 	}
 
 	ctx->va64_fixups = malloc(ctx->va64_fixups_size * sizeof(*ctx->va64_fixups));
-	u_assert(ctx->va64_fixups != NULL);
+	
+	ul_raise_check_mem_alloc(ctx->va64_fixups);
 
 	{
 		fixup_t ** cur = ctx->va64_fixups, ** cur_end = cur + ctx->va64_fixups_size;
@@ -354,7 +356,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 
 		for (; fixup != fixup_end; ++fixup) {
 			if (fixup->stype == LnkSectFixupVa64) {
-				u_assert(cur != cur_end);
+				ul_raise_assert(cur != cur_end);
 
 				*cur++ = fixup;
 			}
@@ -384,7 +386,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 
 		fixup_t ** last_ptr = cur;
 
-		size_t block_start = u_align_to(reloc->data_size, sizeof(uint32_t));
+		size_t block_start = ul_align_to(reloc->data_size, sizeof(uint32_t));
 
 		size_t block_size = sizeof(IMAGE_BASE_RELOCATION) + (last_ptr - va64_f) * sizeof(WORD);
 
@@ -393,7 +395,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 		}
 
 		if (block_start + block_size > reloc->data_cap) {
-			u_grow_arr(&reloc->data_cap, &reloc->data, sizeof(*reloc->data), block_start - reloc->data_size + block_size);
+			ul_arr_grow(&reloc->data_cap, &reloc->data, sizeof(*reloc->data), block_start - reloc->data_size + block_size);
 		}
 
 		memset(reloc->data + reloc->data_size, 0, block_start - reloc->data_size);
@@ -408,7 +410,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 			data_cur += sizeof(block_hdr);
 
 			if (ctx->br_fixups_size + 1 > ctx->br_fixups_cap) {
-				u_grow_arr(&ctx->br_fixups_cap, &ctx->br_fixups, sizeof(*ctx->br_fixups), 1);
+				ul_arr_grow(&ctx->br_fixups_cap, &ctx->br_fixups, sizeof(*ctx->br_fixups), 1);
 			}
 
 			ctx->br_fixups[ctx->br_fixups_size++] = (br_fixup_t){
@@ -480,15 +482,15 @@ static bool calculate_offsets(ctx_t * ctx) {
 	lnk_pe_t * pe = ctx->pe;
 
 	ctx->raw_hdrs_size = sizeof(IMAGE_DOS_HEADER) + sizeof(IMAGE_NT_HEADERS64) + sizeof(IMAGE_SECTION_HEADER) * ctx->sect_count;
-	ctx->hdrs_size = u_align_to(ctx->raw_hdrs_size, pe->sett->file_align);
-	ctx->first_sect_va = u_align_to(ctx->hdrs_size, pe->sett->sect_align);
+	ctx->hdrs_size = ul_align_to(ctx->raw_hdrs_size, pe->sett->file_align);
+	ctx->first_sect_va = ul_align_to(ctx->hdrs_size, pe->sett->sect_align);
 
 	size_t next_raw_addr = ctx->hdrs_size, next_virt_addr = ctx->first_sect_va;
 
 	for (sect_t * sect = ctx->sect; sect != NULL; sect = sect->next) {
-		sect->raw_size = u_align_to(sect->data_size, pe->sett->file_align);
+		sect->raw_size = ul_align_to(sect->data_size, pe->sett->file_align);
 		sect->raw_addr = next_raw_addr;
-		sect->virt_size = u_align_to(sect->raw_size, pe->sett->sect_align);
+		sect->virt_size = ul_align_to(sect->raw_size, pe->sett->sect_align);
 		sect->virt_addr = next_virt_addr;
 
 		next_raw_addr += sect->raw_size;
@@ -566,7 +568,7 @@ static bool apply_fixups(ctx_t * ctx) {
 				*(uint64_t *)write_pos = (uint64_t)((lpos & 0x7FFFFFFFull) | (*(uint64_t *)write_pos & 0xFFFFFFFF80000000ull));
 				break;
 			default:
-				u_assert_switch(fixup->stype);
+				ul_raise_unreachable();
 		}
 	}
 
@@ -580,7 +582,7 @@ static bool apply_fixups(ctx_t * ctx) {
 static bool set_dir_info(ctx_t * ctx, IMAGE_NT_HEADERS64 * nt, DWORD dir_ent) {
 	lnk_sect_lp_stype_t start = dir_start_mark[dir_ent], end = dir_end_mark[dir_ent];
 
-	u_assert(start != LnkSectLpNone && end != LnkSectLpNone);
+	ul_raise_assert(start != LnkSectLpNone && end != LnkSectLpNone);
 
 	mark_t * start_mark = &ctx->marks[start], * end_mark = &ctx->marks[end];
 
@@ -607,12 +609,12 @@ static void write_zeros(FILE * file, size_t size) {
 	for (size_t i = 0; i < div; ++i) {
 		size_t count = fwrite(zero_obj, sizeof(*zero_obj), _countof(zero_obj), file);
 
-		u_assert(count == _countof(zero_obj));
+		ul_raise_assert(count == _countof(zero_obj));
 	}
 
 	size_t count = fwrite(zero_obj, sizeof(*zero_obj), mod, file);
 
-	u_assert(count == mod);
+	ul_raise_assert(count == mod);
 }
 static bool write_file_core(ctx_t * ctx, FILE * file) {
 	lnk_pe_t * pe = ctx->pe;
@@ -625,7 +627,7 @@ static bool write_file_core(ctx_t * ctx, FILE * file) {
 
 		size_t count = fwrite(&dos, sizeof(dos), 1, file);
 
-		u_assert(count == 1);
+		ul_raise_assert(count == 1);
 	}
 
 	{
@@ -669,7 +671,7 @@ static bool write_file_core(ctx_t * ctx, FILE * file) {
 
 		size_t count = fwrite(&nt, sizeof(nt), 1, file);
 
-		u_assert(count == 1);
+		ul_raise_assert(count == 1);
 	}
 
 	for (sect_t * sect = ctx->sect; sect != NULL; sect = sect->next) {
@@ -688,7 +690,7 @@ static bool write_file_core(ctx_t * ctx, FILE * file) {
 
 		size_t count = fwrite(&sect_hdr, sizeof(sect_hdr), 1, file);
 
-		u_assert(count == 1);
+		ul_raise_assert(count == 1);
 	}
 
 	write_zeros(file, ctx->hdrs_size - ctx->raw_hdrs_size);
@@ -696,7 +698,7 @@ static bool write_file_core(ctx_t * ctx, FILE * file) {
 	for (sect_t * sect = ctx->sect; sect != NULL; sect = sect->next) {
 		size_t count = fwrite(sect->data, sizeof(*sect->data), sect->data_size, file);
 
-		u_assert(count == sect->data_size);
+		ul_raise_assert(count == sect->data_size);
 
 		write_zeros(file, sect->raw_size - sect->data_size);
 	}
@@ -739,25 +741,30 @@ static bool link_core(ctx_t * ctx) {
 bool lnk_pe_l_link(lnk_pe_t * pe) {
 	ctx_t ctx = { .pe = pe };
 
-	bool result = link_core(&ctx);
+	bool res;
+	
+	__try {
+		res = link_core(&ctx);
+	}
+	__finally {
+		free(ctx.br_fixups);
+		free(ctx.va64_fixups);
 
-	free(ctx.br_fixups);
-	free(ctx.va64_fixups);
+		free(ctx.labels);
+		free(ctx.fixups);
 
-	free(ctx.labels);
-	free(ctx.fixups);
+		for (sect_t * sect = ctx.sect; sect != NULL;) {
+			sect_t * next = sect->next;
 
-	for (sect_t * sect = ctx.sect; sect != NULL;) {
-		sect_t * next = sect->next;
+			free(sect->data);
+			free(sect);
 
-		free(sect->data);
-		free(sect);
+			sect = next;
+		}
 
-		sect = next;
+		free(ctx.sect_buf0);
+		free(ctx.sect_buf1);
 	}
 
-	free(ctx.sect_buf0);
-	free(ctx.sect_buf1);
-
-	return result;
+	return res;
 }

@@ -1,6 +1,5 @@
 #pragma once
 #include "pla.h"
-#include "u_ros.h"
 
 enum pla_keyw {
 	PlaKeywNone,
@@ -12,4 +11,4 @@ enum pla_keyw {
 
 pla_keyw_t pla_keyw_fetch_exact(size_t str_size, wchar_t * str);
 
-const u_ros_t pla_keyw_strs[PlaKeyw_Count];
+const ul_ros_t pla_keyw_strs[PlaKeyw_Count];

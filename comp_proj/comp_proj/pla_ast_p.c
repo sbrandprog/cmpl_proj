@@ -8,8 +8,6 @@
 #include "pla_dclr.h"
 #include "pla_ast.h"
 #include "ira_int.h"
-#include "u_assert.h"
-#include "u_misc.h"
 
 typedef struct file_pos {
 	long long file_cur;
@@ -31,10 +29,10 @@ typedef struct tok {
 	union {
 		pla_punc_t punc;
 		pla_keyw_t keyw;
-		u_hs_t * ident;
+		ul_hs_t * ident;
 		struct {
-			u_hs_t * data;
-			u_hs_t * tag;
+			ul_hs_t * data;
+			ul_hs_t * tag;
 		} ch_str, num_str;
 	};
 } tok_t;
@@ -56,7 +54,7 @@ typedef struct bin_oper_info {
 
 typedef struct lc lc_t;
 struct lc {
-	u_hst_t * hst;
+	ul_hst_t * hst;
 	const wchar_t * file_name;
 	lc_t * prev;
 
@@ -76,7 +74,7 @@ struct lc {
 	size_t str_size;
 	wchar_t * str;
 	size_t str_cap;
-	u_hs_hash_t str_hash;
+	ul_hs_hash_t str_hash;
 
 	size_t punc_start;
 
@@ -85,7 +83,7 @@ struct lc {
 };
 
 typedef struct asm_ast_p_ctx {
-	u_hst_t * hst;
+	ul_hst_t * hst;
 
 	const wchar_t * file_name;
 
@@ -184,17 +182,17 @@ static void report_file_pos(lc_t * lc) {
 	fwprintf(stderr, L"@%4ziC:%4ziL:%s\n", lc->tok_start.line_ch, lc->tok_start.line_num, lc->file_name);
 
 	long long backup_cur = _ftelli64(lc->file);
-	u_assert(backup_cur != -1L);
+	ul_raise_assert(backup_cur != -1L);
 
 	{
 		int res = _fseeki64(lc->file, lc->line_start, SEEK_SET);
-		u_assert(res == 0);
+		ul_raise_assert(res == 0);
 	}
 
 	wint_t ch;
 
 	while ((ch = fgetwc(lc->file)) != WEOF) {
-		u_assert(ferror(lc->file) == 0);
+		ul_raise_assert(ferror(lc->file) == 0);
 
 		if (ch == L'\t') {
 			ch = L' ';
@@ -209,7 +207,7 @@ static void report_file_pos(lc_t * lc) {
 
 	{
 		int res = _fseeki64(lc->file, backup_cur, SEEK_SET);
-		u_assert(res == 0);
+		ul_raise_assert(res == 0);
 	}
 
 	long long diff = lc->tok_start.file_cur - lc->line_start;
@@ -262,7 +260,7 @@ static bool push_lc(ctx_t * ctx, lc_t * lc, const wchar_t * file_name) {
 		lc_t * prev_lc = lc->prev;
 
 		prev_lc->saved_pos = _ftelli64(prev_lc->file);
-		u_assert(prev_lc->saved_pos != -1L);
+		ul_raise_assert(prev_lc->saved_pos != -1L);
 
 		if (_wfreopen_s(&lc->file, lc->file_name, L"r", prev_lc->file) != 0) {
 			fwprintf(stderr, L"failed to open [%s] file", lc->file_name);
@@ -280,7 +278,7 @@ static bool push_lc(ctx_t * ctx, lc_t * lc, const wchar_t * file_name) {
 
 	return true;
 }
-static bool pop_lc(ctx_t * ctx) {
+static void pop_lc(ctx_t * ctx) {
 	lc_t * lc = ctx->lc;
 
 	free(lc->str);
@@ -289,13 +287,12 @@ static bool pop_lc(ctx_t * ctx) {
 
 	if (prev_lc != NULL) {
 		if (_wfreopen_s(&prev_lc->file, prev_lc->file_name, L"r", lc->file) != 0) {
-			fwprintf(stderr, L"failed to reopen [%s] file", lc->file_name);
-			return false;
+			ul_raise_unreachable();
 		}
 
 		{
 			int res = _fseeki64(prev_lc->file, prev_lc->saved_pos, SEEK_SET);
-			u_assert(res == 0);
+			ul_raise_assert(res == 0);
 		}
 	}
 	else {
@@ -303,11 +300,10 @@ static bool pop_lc(ctx_t * ctx) {
 	}
 
 	ctx->lc = prev_lc;
+
 	if (ctx->lc != NULL) {
 		ctx->tok = ctx->lc->tok;
 	}
-
-	return true;
 }
 
 
@@ -315,12 +311,12 @@ static bool next_ch(lc_t * lc) {
 	lc->ch_succ = false;
 
 	lc->ch_pos = _ftelli64(lc->file);
-	u_assert(lc->ch_pos != -1);
+	ul_raise_assert(lc->ch_pos != -1);
 
 	wint_t new_ch = fgetwc(lc->file);
 
 	if (new_ch == WEOF) {
-		u_assert(ferror(lc->file) == 0);
+		ul_raise_assert(ferror(lc->file) == 0);
 		return false;
 	}
 
@@ -349,11 +345,11 @@ static file_pos_t capture_file_pos(lc_t * lc) {
 }
 static void push_str_ch(lc_t * lc, wchar_t ch) {
 	if (lc->str_size + 1 > lc->str_cap) {
-		u_grow_arr(&lc->str_cap, &lc->str, sizeof(*lc->str), 1);
+		ul_arr_grow(&lc->str_cap, &lc->str, sizeof(*lc->str), 1);
 	}
 
 	lc->str[lc->str_size++] = ch;
-	lc->str_hash = u_hs_hash_ch(lc->str_hash, ch);
+	lc->str_hash = ul_hs_hash_ch(lc->str_hash, ch);
 }
 static bool fetch_str(lc_t * lc, ch_pred_t * pred, ch_proc_t * proc) {
 	lc->str_size = 0;
@@ -373,10 +369,10 @@ static bool fetch_str(lc_t * lc, ch_pred_t * pred, ch_proc_t * proc) {
 
 	return true;
 }
-static u_hs_t * hadd_str(lc_t * lc) {
-	return u_hst_add(lc->hst, lc->str_size, lc->str, lc->str_hash);
+static ul_hs_t * hadd_str(lc_t * lc) {
+	return ul_hst_add(lc->hst, lc->str_size, lc->str, lc->str_hash);
 }
-static bool fadd_str(lc_t * lc, ch_pred_t * pred, ch_proc_t * proc, u_hs_t ** out) {
+static bool fadd_str(lc_t * lc, ch_pred_t * pred, ch_proc_t * proc, ul_hs_t ** out) {
 	if (!fetch_str(lc, pred, proc)) {
 		return false;
 	}
@@ -503,7 +499,7 @@ static bool next_tok_core(lc_t * lc) {
 			return true;
 		}
 
-		u_hs_t * str = hadd_str(lc);
+		ul_hs_t * str = hadd_str(lc);
 
 		lc->tok.type = TokIdent;
 		lc->tok.ident = str;
@@ -515,7 +511,7 @@ static bool next_tok_core(lc_t * lc) {
 			return false;
 		}
 
-		u_hs_t * data;
+		ul_hs_t * data;
 		
 		if (!fadd_str(lc, is_ch_str_ch, ch_str_ch_proc, &data)) {
 			return false;
@@ -526,7 +522,7 @@ static bool next_tok_core(lc_t * lc) {
 			return false;
 		}
 
-		u_hs_t * tag;
+		ul_hs_t * tag;
 		
 		if (!fadd_str(lc, is_tag_ch, NULL, &tag)) {
 			return false;
@@ -539,7 +535,7 @@ static bool next_tok_core(lc_t * lc) {
 		return true;
 	}
 	else if (is_first_num_str_ch(lc->ch)) {
-		u_hs_t * data;
+		ul_hs_t * data;
 		
 		if (!fadd_str(lc, is_num_str_ch, NULL, &data)) {
 			return false;
@@ -550,7 +546,7 @@ static bool next_tok_core(lc_t * lc) {
 			return false;
 		}
 
-		u_hs_t * tag;
+		ul_hs_t * tag;
 		
 		if (!fadd_str(lc, is_tag_ch, NULL, &tag)) {
 			return false;
@@ -596,7 +592,7 @@ static bool consume_punc_exact(ctx_t * ctx, pla_punc_t punc) {
 	return false;
 }
 static bool consume_punc_exact_crit(ctx_t * ctx, pla_punc_t punc) {
-	u_assert(punc < PlaPunc_Count);
+	ul_raise_assert(punc < PlaPunc_Count);
 
 	if (consume_punc_exact(ctx, punc)) {
 		return true;
@@ -621,7 +617,7 @@ static bool consume_keyw_exact(ctx_t * ctx, pla_keyw_t keyw) {
 	return false;
 }
 static bool consume_keyw_exact_crit(ctx_t * ctx, pla_keyw_t keyw) {
-	u_assert(keyw < PlaKeyw_Count);
+	ul_raise_assert(keyw < PlaKeyw_Count);
 
 	if (consume_keyw_exact(ctx, keyw)) {
 		return true;
@@ -630,7 +626,7 @@ static bool consume_keyw_exact_crit(ctx_t * ctx, pla_keyw_t keyw) {
 	report(ctx, L"failed to consume \'%s\'", pla_keyw_strs[keyw].str);
 	return false;
 }
-static bool consume_ident(ctx_t * ctx, u_hs_t ** out) {
+static bool consume_ident(ctx_t * ctx, ul_hs_t ** out) {
 	if (ctx->tok.type == TokIdent) {
 		*out = ctx->tok.ident;
 		next_tok(ctx);
@@ -639,7 +635,7 @@ static bool consume_ident(ctx_t * ctx, u_hs_t ** out) {
 
 	return false;
 }
-static bool consume_ident_crit(ctx_t * ctx, u_hs_t ** out) {
+static bool consume_ident_crit(ctx_t * ctx, ul_hs_t ** out) {
 	if (consume_ident(ctx, out)) {
 		return true;
 	}
@@ -647,7 +643,7 @@ static bool consume_ident_crit(ctx_t * ctx, u_hs_t ** out) {
 	report(ctx, L"failed to consume an identifier");
 	return false;
 }
-static bool consume_ch_str_crit(ctx_t * ctx, u_hs_t ** out_data, u_hs_t ** out_tag) {
+static bool consume_ch_str_crit(ctx_t * ctx, ul_hs_t ** out_data, ul_hs_t ** out_tag) {
 	if (ctx->tok.type == TokChStr) {
 		*out_data = ctx->tok.ch_str.data;
 		if (out_tag != NULL) {
@@ -708,7 +704,7 @@ static ira_int_type_t get_int_type(pla_keyw_t keyw) {
 		case PlaKeywS64:
 			return IraIntS64;
 		default:
-			u_assert_switch(keyw);
+			ul_raise_unreachable();
 	}
 }
 
@@ -1074,7 +1070,7 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 				break;
 			case PlaExprDeref:
 			{
-				u_hs_t * ident;
+				ul_hs_t * ident;
 
 				if (consume_ident(ctx, &ident)) {
 					expr = pla_expr_create(PlaExprMmbrAcc);
@@ -1218,7 +1214,7 @@ static bool parse_stmt_var(ctx_t * ctx, pla_stmt_t ** out) {
 
 		parse_quals(ctx, &qual);
 
-		u_hs_t * var_name;
+		ul_hs_t * var_name;
 
 		if (!consume_ident_crit(ctx, &var_name)) {
 			return false;
@@ -1545,7 +1541,7 @@ static bool parse_dclr_var(ctx_t * ctx, pla_dclr_t ** out) {
 
 		parse_quals(ctx, &qual);
 
-		u_hs_t * var_name;
+		ul_hs_t * var_name;
 
 		if (!consume_ident_crit(ctx, &var_name)) {
 			return false;
@@ -1597,7 +1593,7 @@ static bool parse_dclr_stct(ctx_t * ctx, pla_dclr_t ** out) {
 		return false;
 	}
 
-	u_hs_t * name;
+	ul_hs_t * name;
 
 	if (!consume_ident_crit(ctx, &name)) {
 		return false;
@@ -1696,7 +1692,7 @@ static bool parse_file_include(ctx_t * ctx, pla_dclr_t ** ins) {
 		return false;
 	}
 
-	u_hs_t * file_name;
+	ul_hs_t * file_name;
 
 	if (!consume_ch_str_crit(ctx, &file_name, NULL)) {
 		return false;
@@ -1754,13 +1750,16 @@ static bool parse_file(ctx_t * ctx, const wchar_t * file_name, pla_dclr_t ** ins
 		return false;
 	}
 
-	bool result = parse_file_lc(ctx, ins);
-
-	if (!pop_lc(ctx)) {
-		return false;
+	bool res;
+	
+	__try {
+		res = parse_file_lc(ctx, ins);
+	}
+	__finally {
+		pop_lc(ctx);
 	}
 	
-	return result;
+	return res;
 }
 
 static bool parse_core(ctx_t * ctx) {
@@ -1780,10 +1779,17 @@ static bool parse_core(ctx_t * ctx) {
 
 	return true;
 }
-bool pla_ast_p_parse(u_hst_t * hst, const wchar_t * file_name, pla_ast_t * out) {
+bool pla_ast_p_parse(ul_hst_t * hst, const wchar_t * file_name, pla_ast_t * out) {
 	ctx_t ctx = { .hst = hst, .file_name = file_name, .out = out };
 
-	bool result = parse_core(&ctx);
+	bool res;
+	
+	__try {
+		res = parse_core(&ctx);
+	}
+	__finally {
 
-	return result;
+	}
+
+	return res;
 }

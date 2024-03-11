@@ -1,6 +1,5 @@
 #pragma once
 #include "ira_dt.h"
-#include "u_hs.h"
 
 enum ira_lo_type {
 	IraLoNone,
@@ -17,8 +16,8 @@ struct ira_lo {
 
 	ira_lo_t * next;
 
-	u_hs_t * name;
-	u_hs_t * full_name;
+	ul_hs_t * name;
+	ul_hs_t * full_name;
 
 	union {
 		struct {
@@ -27,8 +26,8 @@ struct ira_lo {
 		ira_func_t * func;
 		struct {
 			ira_dt_t * dt;
-			u_hs_t * lib_name;
-			u_hs_t * sym_name;
+			ul_hs_t * lib_name;
+			ul_hs_t * sym_name;
 		} impt;
 		struct {
 			ira_dt_qdt_t qdt;
@@ -43,7 +42,7 @@ struct ira_lo {
 	};
 };
 
-ira_lo_t * ira_lo_create(ira_lo_type_t type, u_hs_t * name);
+ira_lo_t * ira_lo_create(ira_lo_type_t type, ul_hs_t * name);
 void ira_lo_destroy(ira_lo_t * ira);
 
 void ira_lo_destroy_chain(ira_lo_t * ira);

@@ -1,12 +1,11 @@
 #include "pch.h"
 #include "pla_expr.h"
 #include "pla_irid.h"
-#include "u_assert.h"
 
 pla_expr_t * pla_expr_create(pla_expr_type_t type) {
 	pla_expr_t * expr = malloc(sizeof(*expr));
 
-	u_assert(expr != NULL);
+	ul_raise_check_mem_alloc(expr);
 
 	*expr = (pla_expr_t){ .type = type };
 
@@ -17,7 +16,7 @@ void pla_expr_destroy(pla_expr_t * expr) {
 		return;
 	}
 
-	u_assert(expr->type < PlaExpr_Count);
+	ul_raise_assert(expr->type < PlaExpr_Count);
 
 	const pla_expr_info_t * info = &pla_expr_infos[expr->type];
 
@@ -46,7 +45,7 @@ void pla_expr_destroy(pla_expr_t * expr) {
 			case PlaExprOpdExprListLink:
 				break;
 			default:
-				u_assert_switch(info->opds[opd]);
+				ul_raise_unreachable();
 		}
 	}
 
@@ -54,8 +53,8 @@ void pla_expr_destroy(pla_expr_t * expr) {
 }
 
 const pla_expr_info_t pla_expr_infos[PlaExpr_Count] = {
-	[PlaExprNone] = { .type_str = U_MAKE_ROS(L"ExprNone"), .opds = { PlaExprOpdNone, PlaExprOpdNone, PlaExprOpdNone } },
-#define PLA_EXPR(name, opd0, opd1, opd2) [PlaExpr##name] = { .type_str = U_MAKE_ROS(L"Expr" L## #name), .opds = { PlaExprOpd##opd0, PlaExprOpd##opd1, PlaExprOpd##opd2 } },
+	[PlaExprNone] = { .type_str = UL_ROS_MAKE(L"ExprNone"), .opds = { PlaExprOpdNone, PlaExprOpdNone, PlaExprOpdNone } },
+#define PLA_EXPR(name, opd0, opd1, opd2) [PlaExpr##name] = { .type_str = UL_ROS_MAKE(L"Expr" L## #name), .opds = { PlaExprOpd##opd0, PlaExprOpd##opd1, PlaExprOpd##opd2 } },
 #include "pla_expr.def"
 #undef PLA_EXPR
 };

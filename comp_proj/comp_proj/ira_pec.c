@@ -3,7 +3,6 @@
 #include "ira_val.h"
 #include "ira_func.h"
 #include "ira_lo.h"
-#include "u_assert.h"
 
 static void destroy_dt_chain(ira_pec_t * pec, ira_dt_t * dt) {
 	while (dt != NULL) {
@@ -19,7 +18,7 @@ static void destroy_dt_chain(ira_pec_t * pec, ira_dt_t * dt) {
 				free(dt->func.args);
 				break;
 			default:
-				u_assert_switch(dt->type);
+				ul_raise_unreachable();
 		}
 
 		free(dt);
@@ -28,13 +27,13 @@ static void destroy_dt_chain(ira_pec_t * pec, ira_dt_t * dt) {
 	}
 }
 
-bool ira_pec_init(ira_pec_t * pec, u_hst_t * hst) {
+bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst) {
 	*pec = (ira_pec_t){ .hst = hst };
 
 	for (ira_pds_t pds = 0; pds < IraPds_Count; ++pds) {
-		const u_ros_t * pds_str = &ira_pds_strs[pds];
+		const ul_ros_t * pds_str = &ira_pds_strs[pds];
 
-		pec->pds[pds] = u_hst_hashadd(pec->hst, pds_str->size, pds_str->str);
+		pec->pds[pds] = ul_hst_hashadd(pec->hst, pds_str->size, pds_str->str);
 	}
 
 	{
@@ -96,7 +95,7 @@ static void destroy_root0(ira_pec_t * pec, ira_lo_t * nspc) {
 				ins = &lo->next;
 				break;
 			default:
-				u_assert_switch(lo->type);
+				ul_raise_unreachable();
 		}
 
 		lo = next;
@@ -123,7 +122,7 @@ void ira_pec_cleanup(ira_pec_t * pec) {
 }
 
 static bool get_listed_dt_cmp(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * dt) {
-	u_assert(pred->type == dt->type);
+	ul_raise_assert(pred->type == dt->type);
 
 	switch (pred->type) {
 		case IraDtVec:
@@ -157,7 +156,7 @@ static bool get_listed_dt_cmp(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * dt) {
 				if (dt->stct.lo->name == pec->pds[IraPdsStctLoName] && dt->stct.lo->name == pred->stct.lo->name) {
 					ira_dt_sd_t * dt_sd = dt->stct.lo->dt_stct.sd, * pred_sd = pred->stct.lo->dt_stct.sd;
 
-					u_assert(dt_sd != NULL && pred_sd != NULL);
+					ul_raise_assert(dt_sd != NULL && pred_sd != NULL);
 
 					if (dt_sd->elems_size != pred_sd->elems_size) {
 						return false;
@@ -200,7 +199,7 @@ static bool get_listed_dt_cmp(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * dt) {
 			}
 			break;
 		default:
-			u_assert_switch(pred->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -260,7 +259,7 @@ static bool get_listed_dt_copy(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * out)
 
 			ira_dt_ndt_t * new_args = malloc(pred->func.args_size * sizeof(*new_args));
 
-			u_assert(new_args != NULL);
+			ul_raise_check_mem_alloc(new_args);
 
 			memcpy(new_args, pred->func.args, pred->func.args_size * sizeof(*new_args));
 
@@ -268,7 +267,7 @@ static bool get_listed_dt_copy(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * out)
 			break;
 		}
 		default:
-			u_assert_switch(pred->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -287,7 +286,7 @@ static bool get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** ins, ira
 
 	ira_dt_t * new_dt = malloc(sizeof(*new_dt));
 
-	u_assert(new_dt != NULL);
+	ul_raise_check_mem_alloc(new_dt);
 
 	memset(new_dt, 0, sizeof(*new_dt));
 
@@ -377,7 +376,7 @@ bool ira_pec_apply_qual(ira_pec_t * pec, ira_dt_t * dt, ira_dt_qual_t qual, ira_
 			*out = dt;
 			break;
 		default:
-			u_assert_switch(dt->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -403,7 +402,7 @@ bool ira_pec_make_val_imm_bool(ira_pec_t * pec, bool bool_val, ira_val_t ** out)
 	return true;
 }
 bool ira_pec_make_val_imm_int(ira_pec_t * pec, ira_int_type_t int_type, ira_int_t int_val, ira_val_t ** out) {
-	u_assert(int_type < IraInt_Count);
+	ul_raise_assert(int_type < IraInt_Count);
 
 	*out = ira_val_create(IraValImmInt, &pec->dt_ints[int_type]);
 
@@ -431,7 +430,7 @@ bool ira_pec_make_val_lo_ptr(ira_pec_t * pec, ira_lo_t * lo, ira_val_t ** out) {
 			}
 			break;
 		default:
-			u_assert_switch(lo->type);
+			ul_raise_unreachable();
 	}
 
 	*out = ira_val_create(IraValLoPtr, val_dt);
@@ -474,7 +473,7 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 			val_type = IraValImmArr;
 			break;
 		default:
-			u_assert_switch(dt->type);
+			ul_raise_unreachable();
 	}
 
 	*out = ira_val_create(val_type, dt);
@@ -494,7 +493,7 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 		case IraDtVec:
 			(*out)->arr_val.data = malloc(dt->vec.size * sizeof(*(*out)->arr_val.data));
 
-			u_assert((*out)->arr_val.data != NULL);
+			ul_raise_check_mem_alloc((*out)->arr_val.data);
 
 			memset((*out)->arr_val.data, 0, dt->vec.size * sizeof(*(*out)->arr_val.data));
 
@@ -526,7 +525,7 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 
 			(*out)->arr_val.data = malloc((*out)->arr_val.size * sizeof((*out)->arr_val.data));
 
-			u_assert((*out)->arr_val.data != NULL);
+			ul_raise_check_mem_alloc((*out)->arr_val.data);
 
 			memset((*out)->arr_val.data, 0, (*out)->arr_val.size * sizeof((*out)->arr_val.data));
 
@@ -548,14 +547,14 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 
 			(*out)->arr_val.data = malloc(arr_size_bytes);
 
-			u_assert((*out)->arr_val.data != NULL);
+			ul_raise_check_mem_alloc((*out)->arr_val.data);
 
 			memset((*out)->arr_val.data, 0, arr_size_bytes);
 
 			break;
 		}
 		default:
-			u_assert_switch(dt->type);
+			ul_raise_unreachable();
 	}
 
 	return true;

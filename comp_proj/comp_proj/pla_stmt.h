@@ -1,8 +1,6 @@
 #pragma once
 #include "pla.h"
 #include "ira_dt.h"
-#include "u_ros.h"
-#include "u_hs.h"
 
 enum pla_stmt_type {
 	PlaStmtNone,
@@ -29,12 +27,12 @@ struct pla_stmt {
 			pla_expr_t * expr;
 		} expr;
 		struct {
-			u_hs_t * name;
+			ul_hs_t * name;
 			pla_expr_t * dt_expr;
 			ira_dt_qual_t dt_qual;
 		} var_dt;
 		struct {
-			u_hs_t * name;
+			ul_hs_t * name;
 			pla_expr_t * val_expr;
 			ira_dt_qual_t dt_qual;
 		} var_val;
@@ -44,20 +42,20 @@ struct pla_stmt {
 			pla_stmt_t * false_br;
 		} cond;
 		struct {
-			u_hs_t * name;
+			ul_hs_t * name;
 			pla_expr_t * cond_expr;
 			pla_stmt_t * body;
 		} pre_loop;
 		struct {
-			u_hs_t * name;
+			ul_hs_t * name;
 			pla_expr_t * cond_expr;
 			pla_stmt_t * body;
 		} post_loop;
 		struct {
-			u_hs_t * name;
+			ul_hs_t * name;
 		} brk;
 		struct {
-			u_hs_t * name;
+			ul_hs_t * name;
 		} cnt;
 		struct {
 			pla_expr_t * expr;
@@ -66,7 +64,7 @@ struct pla_stmt {
 };
 
 struct pla_stmt_info {
-	u_ros_t type_str;
+	ul_ros_t type_str;
 };
 
 pla_stmt_t * pla_stmt_create(pla_stmt_type_t type);

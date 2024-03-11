@@ -6,7 +6,7 @@ pla_punc_t pla_punc_fetch_best(size_t str_size, wchar_t * str, size_t * punc_len
 	size_t best_len = 0;
 
 	for (pla_punc_t p = PlaPuncNone + 1; p < PlaPunc_Count; ++p) {
-		const u_ros_t * p_str = &pla_punc_strs[p];
+		const ul_ros_t * p_str = &pla_punc_strs[p];
 
 		if (best_len < p_str->size && p_str->size <= str_size
 			&& wmemcmp(p_str->str, str, p_str->size) == 0) {
@@ -20,9 +20,9 @@ pla_punc_t pla_punc_fetch_best(size_t str_size, wchar_t * str, size_t * punc_len
 	return best;
 }
 
-const u_ros_t pla_punc_strs[PlaPunc_Count] = {
+const ul_ros_t pla_punc_strs[PlaPunc_Count] = {
 	[PlaPuncNone] = { .size = 0, .str = NULL },
-#define PLA_PUNC(name, str_) [PlaPunc##name] = U_MAKE_ROS(str_),
+#define PLA_PUNC(name, str_) [PlaPunc##name] = UL_ROS_MAKE(str_),
 #include "pla_punc.def"
 #undef PLA_PUNC
 };

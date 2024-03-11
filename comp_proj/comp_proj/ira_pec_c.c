@@ -6,7 +6,6 @@
 #include "asm_inst.h"
 #include "asm_frag.h"
 #include "asm_pea.h"
-#include "u_misc.h"
 
 #define LO_NAME_DELIM L'.'
 
@@ -17,14 +16,14 @@ typedef struct ira_pec_c_ctx {
 
 	asm_pea_t * out;
 
-	u_hsb_t hsb;
-	u_hst_t * hst;
+	ul_hsb_t hsb;
+	ul_hst_t * hst;
 
 	size_t str_unq_index;
 } ctx_t;
 
-static u_hs_t * get_unq_arr_label(ctx_t * ctx) {
-	return u_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%zi", ARR_UNQ_PREFIX, ctx->str_unq_index++);
+static ul_hs_t * get_unq_arr_label(ctx_t * ctx) {
+	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%zi", ARR_UNQ_PREFIX, ctx->str_unq_index++);
 }
 
 bool ira_pec_c_is_val_compilable(ira_val_t * val) {
@@ -61,7 +60,7 @@ bool ira_pec_c_is_val_compilable(ira_val_t * val) {
 			}
 			break;
 		default:
-			u_assert_switch(val->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -140,16 +139,16 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 			}
 			break;
 		default:
-			u_assert_switch(val->type);
+			ul_raise_unreachable();
 	}
 
 
 	return true;
 }
-bool ira_pec_c_compile_val_frag(ira_pec_c_ctx_t * ctx, ira_val_t * val, u_hs_t ** out_label) {
+bool ira_pec_c_compile_val_frag(ira_pec_c_ctx_t * ctx, ira_val_t * val, ul_hs_t ** out_label) {
 	asm_frag_t * frag = asm_frag_create(AsmFragRoData, &ctx->out->frag);
 
-	u_hs_t * frag_label = get_unq_arr_label(ctx);
+	ul_hs_t * frag_label = get_unq_arr_label(ctx);
 
 	{
 		asm_inst_t label = { .type = AsmInstLabel, .opds = AsmInstLabel, .label = frag_label };
@@ -166,10 +165,10 @@ bool ira_pec_c_compile_val_frag(ira_pec_c_ctx_t * ctx, ira_val_t * val, u_hs_t *
 	return true;
 }
 
-u_hsb_t * ira_pec_c_get_hsb(ira_pec_c_ctx_t * ctx) {
+ul_hsb_t * ira_pec_c_get_hsb(ira_pec_c_ctx_t * ctx) {
 	return &ctx->hsb;
 }
-u_hst_t * ira_pec_c_get_hst(ira_pec_c_ctx_t * ctx) {
+ul_hst_t * ira_pec_c_get_hst(ira_pec_c_ctx_t * ctx) {
 	return ctx->hst;
 }
 ira_pec_t * ira_pec_c_get_pec(ira_pec_c_ctx_t * ctx) {
@@ -209,7 +208,7 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 			break;
 		case IraValImmArr:
 		{
-			u_hs_t * arr_label;
+			ul_hs_t * arr_label;
 
 			if (!ira_pec_c_compile_val_frag(ctx, lo->var.val, &arr_label)) {
 				return false;
@@ -261,7 +260,7 @@ static bool compile_lo(ctx_t * ctx, ira_lo_t * lo) {
 		case IraLoRoVal:
 			break;
 		default:
-			u_assert_switch(lo->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -269,6 +268,8 @@ static bool compile_lo(ctx_t * ctx, ira_lo_t * lo) {
 
 static bool compile_core(ctx_t * ctx) {
 	ctx->hst = ctx->pec->hst;
+
+	ul_hsb_init(&ctx->hsb);
 
 	asm_pea_init(ctx->out, ctx->hst);
 
@@ -283,9 +284,14 @@ static bool compile_core(ctx_t * ctx) {
 bool ira_pec_c_compile(ira_pec_t * pec, asm_pea_t * out) {
 	ctx_t ctx = { .pec = pec, .out = out };
 
-	bool result = compile_core(&ctx);
+	bool res;
 
-	u_hsb_cleanup(&ctx.hsb);
+	__try {
+		res = compile_core(&ctx);
+	}
+	__finally {
+		ul_hsb_cleanup(&ctx.hsb);
+	}
 
-	return result;
+	return res;
 }

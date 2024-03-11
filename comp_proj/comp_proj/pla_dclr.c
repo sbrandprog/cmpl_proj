@@ -2,12 +2,11 @@
 #include "pla_dclr.h"
 #include "pla_expr.h"
 #include "pla_stmt.h"
-#include "u_assert.h"
 
 pla_dclr_t * pla_dclr_create(pla_dclr_type_t type) {
 	pla_dclr_t * dclr = malloc(sizeof(*dclr));
 
-	u_assert(dclr != NULL);
+	ul_raise_check_mem_alloc(dclr);
 
 	*dclr = (pla_dclr_t){ .type = type };
 
@@ -52,20 +51,20 @@ void pla_dclr_destroy(pla_dclr_t * dclr) {
 			pla_expr_destroy(dclr->ro_val.val_expr);
 			break;
 		default:
-			u_assert_switch(dclr->type);
+			ul_raise_unreachable();
 	}
 
 	free(dclr);
 }
 
 const pla_dclr_info_t pla_dclr_infos[PlaDclr_Count] = {
-	[PlaDclrNone] = { .type_str = U_MAKE_ROS(L"DclrNone") },
-	[PlaDclrNspc] = { .type_str = U_MAKE_ROS(L"DclrNspc") },
-	[PlaDclrFunc] = { .type_str = U_MAKE_ROS(L"DclrFunc") },
-	[PlaDclrImpt] = { .type_str = U_MAKE_ROS(L"DclrImpt") },
-	[PlaDclrVarDt] = { .type_str = U_MAKE_ROS(L"DclrVarDt") },
-	[PlaDclrVarVal] = { .type_str = U_MAKE_ROS(L"DclrVarVal") },
-	[PlaDclrDtStct] = { .type_str = U_MAKE_ROS(L"DclrDtStct") },
-	[PlaDclrDtStctDecl] = { .type_str = U_MAKE_ROS(L"DclrDtStctDecl") },
-	[PlaDclrRoVal] = { .type_str = U_MAKE_ROS(L"DclrRoVal") }
+	[PlaDclrNone] = { .type_str = UL_ROS_MAKE(L"DclrNone") },
+	[PlaDclrNspc] = { .type_str = UL_ROS_MAKE(L"DclrNspc") },
+	[PlaDclrFunc] = { .type_str = UL_ROS_MAKE(L"DclrFunc") },
+	[PlaDclrImpt] = { .type_str = UL_ROS_MAKE(L"DclrImpt") },
+	[PlaDclrVarDt] = { .type_str = UL_ROS_MAKE(L"DclrVarDt") },
+	[PlaDclrVarVal] = { .type_str = UL_ROS_MAKE(L"DclrVarVal") },
+	[PlaDclrDtStct] = { .type_str = UL_ROS_MAKE(L"DclrDtStct") },
+	[PlaDclrDtStctDecl] = { .type_str = UL_ROS_MAKE(L"DclrDtStctDecl") },
+	[PlaDclrRoVal] = { .type_str = UL_ROS_MAKE(L"DclrRoVal") }
 };

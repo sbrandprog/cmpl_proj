@@ -1,12 +1,11 @@
 #pragma once
 #include "ira_pds.h"
 #include "ira_dt.h"
-#include "u_hst.h"
 
 struct ira_pec {
-	u_hst_t * hst;
+	ul_hst_t * hst;
 
-	u_hs_t * pds[IraPds_Count];
+	ul_hs_t * pds[IraPds_Count];
 
 	ira_dt_t dt_void;
 	ira_dt_t dt_dt;
@@ -28,10 +27,10 @@ struct ira_pec {
 
 	ira_lo_t * root;
 
-	u_hs_t * ep_name;
+	ul_hs_t * ep_name;
 };
 
-bool ira_pec_init(ira_pec_t * pec, u_hst_t * hst);
+bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst);
 void ira_pec_cleanup(ira_pec_t * pec);
 
 bool ira_pec_get_dt_vec(ira_pec_t * pec, size_t size, ira_dt_t * body, ira_dt_qual_t qual, ira_dt_t ** out);

@@ -1,10 +1,9 @@
 #include "pch.h"
 #include "asm_reg.h"
 #include "asm_size.h"
-#include "u_assert.h"
 
 asm_size_t asm_reg_get_size(asm_reg_t reg) {
-	u_assert(reg < AsmReg_Count);
+	ul_raise_assert(reg < AsmReg_Count);
 
 	const asm_reg_grps_t * grps = &asm_reg_infos[reg].grps;
 

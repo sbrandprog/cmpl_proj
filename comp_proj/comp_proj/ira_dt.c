@@ -2,7 +2,6 @@
 #include "ira_dt.h"
 #include "ira_int.h"
 #include "ira_lo.h"
-#include "u_misc.h"
 
 bool ira_dt_is_complete(ira_dt_t * dt) {
 	switch (dt->type) {
@@ -40,7 +39,7 @@ bool ira_dt_is_complete(ira_dt_t * dt) {
 			}
 			break;
 		default:
-			u_assert_switch(dt->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -154,7 +153,7 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 			}
 			break;
 		default:
-			u_assert_switch(first->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -173,7 +172,7 @@ static bool is_castable_to_void(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			break;
 		default:
-			u_assert_switch(from->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -192,7 +191,7 @@ static bool is_castable_to_dt(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			u_assert_switch(from->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -215,7 +214,7 @@ static bool is_castable_to_bool(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			u_assert_switch(from->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -238,7 +237,7 @@ static bool is_castable_to_int(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			u_assert_switch(from->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -260,7 +259,7 @@ static bool is_castable_to_vec(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			u_assert_switch(from->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -283,7 +282,7 @@ static bool is_castable_to_ptr(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			u_assert_switch(from->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -305,7 +304,7 @@ static bool is_castable_to_stct(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			u_assert_switch(from->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -327,7 +326,7 @@ static bool is_castable_to_arr(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			u_assert_switch(from->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -345,7 +344,7 @@ static bool is_castable_to_func(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			u_assert_switch(from->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -402,7 +401,7 @@ bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to) {
 			}
 			break;
 		default:
-			u_assert_switch(to->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -432,7 +431,7 @@ bool ira_dt_get_qual(ira_dt_t * dt, ira_dt_qual_t * out) {
 			*out = ira_dt_qual_none;
 			break;
 		default:
-			u_assert_switch(dt->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -481,7 +480,7 @@ bool ira_dt_get_size(ira_dt_t * dt, size_t * out) {
 			*out = 0;
 			break;
 		default:
-			u_assert_switch(dt->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -524,7 +523,7 @@ bool ira_dt_get_align(ira_dt_t * dt, size_t * out) {
 			*out = 1;
 			break;
 		default:
-			u_assert_switch(dt->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -541,22 +540,24 @@ static void calc_sd_props(ira_dt_sd_t * sd) {
 	for (ira_dt_ndt_t * elem = sd->elems, *elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
 		size_t elem_align;
 
-		bool res = ira_dt_get_align(elem->dt, &elem_align);
-		u_assert(res);
+		if (!ira_dt_get_align(elem->dt, &elem_align)) {
+			ul_raise_unreachable();
+		}
 
-		size = u_align_to(size, elem_align);
+		size = ul_align_to(size, elem_align);
 
 		size_t elem_size;
 
-		res = ira_dt_get_size(elem->dt, &elem_size);
-		u_assert(res);
+		if (!ira_dt_get_size(elem->dt, &elem_size)) {
+			ul_raise_unreachable();
+		}
 
 		size += elem_size;
 
 		align = max(align, elem_align);
 	}
 
-	size = u_align_to(size, align);
+	size = ul_align_to(size, align);
 
 	sd->size = size;
 	sd->align = align;
@@ -570,13 +571,13 @@ bool ira_dt_create_sd(size_t elems_size, ira_dt_ndt_t * elems, ira_dt_sd_t ** ou
 
 	*out = malloc(sizeof(**out));
 
-	u_assert(*out != NULL);
+	ul_raise_check_mem_alloc(*out);
 
 	**out = (ira_dt_sd_t){ .elems_size = elems_size };
 
 	ira_dt_ndt_t * new_elems = malloc(elems_size * sizeof(*new_elems));
 
-	u_assert(new_elems != NULL);
+	ul_raise_check_mem_alloc(*out);
 
 	memcpy(new_elems, elems, elems_size * sizeof(*new_elems));
 
@@ -597,22 +598,24 @@ void ira_dt_destroy_sd(ira_dt_sd_t * sd) {
 }
 
 size_t ira_dt_get_sd_elem_off(ira_dt_sd_t * sd, size_t elem_ind) {
-	u_assert(elem_ind < sd->elems_size);
+	ul_raise_assert(elem_ind < sd->elems_size);
 
 	size_t off = 0;
 
 	for (ira_dt_ndt_t * elem = sd->elems, *elem_end = elem + elem_ind; elem != elem_end; ++elem) {
 		size_t elem_align;
 
-		bool res = ira_dt_get_align(elem->dt, &elem_align);
-		u_assert(res);
+		if (!ira_dt_get_align(elem->dt, &elem_align)) {
+			ul_raise_unreachable();
+		}
 
-		off = u_align_to(off, elem_align);
+		off = ul_align_to(off, elem_align);
 
 		size_t elem_size;
 
-		res = ira_dt_get_size(elem->dt, &elem_size);
-		u_assert(res);
+		if (!ira_dt_get_size(elem->dt, &elem_size)) {
+			ul_raise_unreachable();
+		}
 
 		off += elem_size;
 	}
@@ -624,13 +627,13 @@ const ira_dt_qual_t ira_dt_qual_none;
 const ira_dt_qual_t ira_dt_qual_const = { .const_q = true };
 
 const ira_dt_info_t ira_dt_infos[IraDt_Count] = {
-	[IraDtVoid] = { .type_str = U_MAKE_ROS(L"DtVoid") },
-	[IraDtDt] = { .type_str = U_MAKE_ROS(L"DtDt") },
-	[IraDtBool] = { .type_str = U_MAKE_ROS(L"DtBool") },
-	[IraDtInt] = { .type_str = U_MAKE_ROS(L"DtInt") },
-	[IraDtVec] = { .type_str = U_MAKE_ROS(L"DtVec") },
-	[IraDtPtr] = { .type_str = U_MAKE_ROS(L"DtPtr") },
-	[IraDtArr] = { .type_str = U_MAKE_ROS(L"DtArr") },
-	[IraDtStct] = { .type_str = U_MAKE_ROS(L"DtStct") },
-	[IraDtFunc] = { .type_str = U_MAKE_ROS(L"DtFunc") }
+	[IraDtVoid] = { .type_str = UL_ROS_MAKE(L"DtVoid") },
+	[IraDtDt] = { .type_str = UL_ROS_MAKE(L"DtDt") },
+	[IraDtBool] = { .type_str = UL_ROS_MAKE(L"DtBool") },
+	[IraDtInt] = { .type_str = UL_ROS_MAKE(L"DtInt") },
+	[IraDtVec] = { .type_str = UL_ROS_MAKE(L"DtVec") },
+	[IraDtPtr] = { .type_str = UL_ROS_MAKE(L"DtPtr") },
+	[IraDtArr] = { .type_str = UL_ROS_MAKE(L"DtArr") },
+	[IraDtStct] = { .type_str = UL_ROS_MAKE(L"DtStct") },
+	[IraDtFunc] = { .type_str = UL_ROS_MAKE(L"DtFunc") }
 };

@@ -1,7 +1,5 @@
 #pragma once
 #include "ira_int.h"
-#include "u_ros.h"
-#include "u_hs.h"
 
 #define IRA_DT_ARR_SIZE_IND 0
 #define IRA_DT_ARR_DATA_IND 1
@@ -16,7 +14,7 @@ struct ira_dt_qdt {
 
 struct ira_dt_ndt {
 	ira_dt_t * dt;
-	u_hs_t * name;
+	ul_hs_t * name;
 };
 
 struct ira_dt_sd {
@@ -72,7 +70,7 @@ struct ira_dt {
 };
 
 struct ira_dt_info {
-	u_ros_t type_str;
+	ul_ros_t type_str;
 };
 
 bool ira_dt_is_complete(ira_dt_t * dt);

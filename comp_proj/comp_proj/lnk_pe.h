@@ -1,6 +1,5 @@
 #pragma once
 #include "lnk.h"
-#include "u_hst.h"
 
 #define LNK_PE_MAX_MODULE_SIZE INT32_MAX
 
@@ -24,7 +23,7 @@ struct lnk_pe_sett {
 struct lnk_pe {
 	lnk_sect_t * sect;
 
-	u_hs_t * ep_name;
+	ul_hs_t * ep_name;
 
 	const wchar_t * file_name;
 

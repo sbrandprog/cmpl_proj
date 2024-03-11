@@ -33,15 +33,6 @@
     <ClCompile Include="comp_proj\lnk_sect.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="comp_proj\u_assert.c">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
-    <ClCompile Include="comp_proj\u_hs.c">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
-    <ClCompile Include="comp_proj\u_hst.c">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
     <ClCompile Include="comp_proj\asm_frag.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
@@ -120,9 +111,6 @@
     <ClCompile Include="comp_proj\asm_it.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="comp_proj\u_hsb.c">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
     <ClCompile Include="comp_proj\pla_irid.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
@@ -147,18 +135,6 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\lnk_sect.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="comp_proj\u_assert.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="comp_proj\u_hs.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="comp_proj\u_hst.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="comp_proj\u_misc.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\asm.h">
@@ -242,13 +218,7 @@
     <ClInclude Include="comp_proj\ira_pds.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="comp_proj\u_ros.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
     <ClInclude Include="comp_proj\asm_it.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="comp_proj\u_hsb.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\pla_irid.h">

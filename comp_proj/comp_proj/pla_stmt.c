@@ -1,12 +1,11 @@
 #include "pch.h"
 #include "pla_stmt.h"
 #include "pla_expr.h"
-#include "u_assert.h"
 
 pla_stmt_t * pla_stmt_create(pla_stmt_type_t type) {
 	pla_stmt_t * stmt = malloc(sizeof(*stmt));
 
-	u_assert(stmt != NULL);
+	ul_raise_check_mem_alloc(stmt);
 
 	*stmt = (pla_stmt_t){ .type = type };
 
@@ -58,22 +57,22 @@ void pla_stmt_destroy(pla_stmt_t * stmt) {
 			pla_expr_destroy(stmt->ret.expr);
 			break;
 		default:
-			u_assert_switch(stmt->type);
+			ul_raise_unreachable();
 	}
 
 	free(stmt);
 }
 
 const pla_stmt_info_t pla_stmt_infos[PlaStmt_Count] = {
-	[PlaStmtNone] = { .type_str = U_MAKE_ROS(L"StmtNone") },
-	[PlaStmtBlk] = { .type_str = U_MAKE_ROS(L"StmtBlk") },
-	[PlaStmtExpr] = { .type_str = U_MAKE_ROS(L"StmtExpr") },
-	[PlaStmtVarDt] = { .type_str = U_MAKE_ROS(L"StmtVarDt") },
-	[PlaStmtVarVal] = { .type_str = U_MAKE_ROS(L"StmtVarVal") },
-	[PlaStmtCond] = { .type_str = U_MAKE_ROS(L"StmtCond") },
-	[PlaStmtPreLoop] = { .type_str = U_MAKE_ROS(L"StmtPreLoop") },
-	[PlaStmtPostLoop] = { .type_str = U_MAKE_ROS(L"StmtPostLoop") },
-	[PlaStmtBrk] = { .type_str = U_MAKE_ROS(L"StmtBrk") },
-	[PlaStmtCnt] = { .type_str = U_MAKE_ROS(L"StmtCnt") },
-	[PlaStmtRet] = { .type_str = U_MAKE_ROS(L"StmtRet") },
+	[PlaStmtNone] = { .type_str = UL_ROS_MAKE(L"StmtNone") },
+	[PlaStmtBlk] = { .type_str = UL_ROS_MAKE(L"StmtBlk") },
+	[PlaStmtExpr] = { .type_str = UL_ROS_MAKE(L"StmtExpr") },
+	[PlaStmtVarDt] = { .type_str = UL_ROS_MAKE(L"StmtVarDt") },
+	[PlaStmtVarVal] = { .type_str = UL_ROS_MAKE(L"StmtVarVal") },
+	[PlaStmtCond] = { .type_str = UL_ROS_MAKE(L"StmtCond") },
+	[PlaStmtPreLoop] = { .type_str = UL_ROS_MAKE(L"StmtPreLoop") },
+	[PlaStmtPostLoop] = { .type_str = UL_ROS_MAKE(L"StmtPostLoop") },
+	[PlaStmtBrk] = { .type_str = UL_ROS_MAKE(L"StmtBrk") },
+	[PlaStmtCnt] = { .type_str = UL_ROS_MAKE(L"StmtCnt") },
+	[PlaStmtRet] = { .type_str = UL_ROS_MAKE(L"StmtRet") },
 };

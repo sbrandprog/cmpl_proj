@@ -1,6 +1,5 @@
 #include "pch.h"
 #include "asm_size.h"
-#include "u_assert.h"
 
 bool asm_size_is_int(asm_size_t size) {
 	switch (size) {
@@ -27,6 +26,6 @@ size_t asm_size_get_bytes(asm_size_t size) {
 		case AsmSize64:
 			return 8;
 		default:
-			u_assert_switch(size);
+			ul_raise_unreachable();
 	}
 }

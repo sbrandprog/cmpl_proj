@@ -11,7 +11,6 @@
 #include "ira_lo.h"
 #include "ira_pec.h"
 #include "ira_pec_ip.h"
-#include "u_misc.h"
 
 #define LO_FULL_NAME_DELIM L'.'
 
@@ -26,20 +25,20 @@ typedef struct pla_ast_t_ctx {
 
 	ira_pec_t * out;
 
-	u_hst_t * hst;
+	ul_hst_t * hst;
 
 	pla_ast_t_optr_t * optrs[PlaExpr_Count];
 
 	tse_t * tse;
 	vse_t * vse;
 
-	u_hsb_t hsb;
+	ul_hsb_t hsb;
 } ctx_t;
 
 static optr_t * create_optr(optr_type_t type) {
 	optr_t * optr = malloc(sizeof(*optr));
 
-	u_assert(optr != NULL);
+	ul_raise_check_mem_alloc(optr);
 
 	*optr = (optr_t){ .type = type };
 
@@ -59,7 +58,7 @@ static void destroy_optr(optr_t * optr) {
 		case PlaAstTOptrBinInstPtrBool:
 			break;
 		default:
-			u_assert_switch(optr->type);
+			ul_raise_unreachable();
 	}
 
 	free(optr);
@@ -98,7 +97,7 @@ static optr_t * copy_optr(ctx_t * ctx, optr_t * src) {
 			optr->bin_inst_ptr_bool.int_cmp = src->bin_inst_ptr_bool.int_cmp;
 			break;
 		default:
-			u_assert_switch(optr->type);
+			ul_raise_unreachable();
 	}
 
 	return optr;
@@ -139,7 +138,7 @@ static bool is_optrs_equivalent(optr_t * first, optr_t * second) {
 			}
 			break;
 		default:
-			u_assert_switch(first->type);
+			ul_raise_unreachable();
 	}
 
 	return false;
@@ -162,10 +161,10 @@ void pla_ast_t_report_pec_err(pla_ast_t_ctx_t * ctx) {
 	pla_ast_t_report(ctx, L"pec function error");
 }
 
-u_hsb_t * pla_ast_t_get_hsb(pla_ast_t_ctx_t * ctx) {
+ul_hsb_t * pla_ast_t_get_hsb(pla_ast_t_ctx_t * ctx) {
 	return &ctx->hsb;
 }
-u_hst_t * pla_ast_t_get_hst(pla_ast_t_ctx_t * ctx) {
+ul_hst_t * pla_ast_t_get_hst(pla_ast_t_ctx_t * ctx) {
 	return ctx->hst;
 }
 ira_pec_t * pla_ast_t_get_pec(pla_ast_t_ctx_t * ctx) {
@@ -213,7 +212,7 @@ bool pla_ast_t_get_optr_dt(pla_ast_t_ctx_t * ctx, pla_ast_t_optr_t * optr, ira_d
 			*out = &ctx->out->dt_bool;
 			break;
 		default:
-			u_assert_switch(optr->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -243,7 +242,7 @@ void pla_ast_t_pop_vse(pla_ast_t_ctx_t * ctx) {
 		case PlaAstTVseNspc:
 			break;
 		default:
-			u_assert_switch(vse->type);
+			ul_raise_unreachable();
 	}
 
 	ctx->vse = vse->prev;
@@ -251,7 +250,7 @@ void pla_ast_t_pop_vse(pla_ast_t_ctx_t * ctx) {
 pla_ast_t_vse_t * pla_ast_t_get_vse(pla_ast_t_ctx_t * ctx) {
 	return ctx->vse;
 }
-static ira_lo_t ** get_vse_lo_ins(pla_ast_t_ctx_t * ctx, u_hs_t * name) {
+static ira_lo_t ** get_vse_lo_ins(pla_ast_t_ctx_t * ctx, ul_hs_t * name) {
 	pla_ast_t_vse_t * vse = ctx->vse;
 
 	switch (vse->type) {
@@ -272,16 +271,16 @@ static ira_lo_t ** get_vse_lo_ins(pla_ast_t_ctx_t * ctx, u_hs_t * name) {
 			return ins;
 		}
 		default:
-			u_assert_switch(vse->type);
+			ul_raise_unreachable();
 	}
 }
 
-static u_hs_t * cat_hs_delim(ctx_t * ctx, u_hs_t * str1, wchar_t delim, u_hs_t * str2) {
-	return u_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%c%s", str1->str, delim, str2->str);
+static ul_hs_t * cat_hs_delim(ctx_t * ctx, ul_hs_t * str1, wchar_t delim, ul_hs_t * str2) {
+	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%c%s", str1->str, delim, str2->str);
 }
 
-u_hs_t * pla_ast_t_get_pds(pla_ast_t_ctx_t * ctx, pla_pds_t pds) {
-	u_assert(pds < PlaPds_Count);
+ul_hs_t * pla_ast_t_get_pds(pla_ast_t_ctx_t * ctx, pla_pds_t pds) {
+	ul_raise_assert(pds < PlaPds_Count);
 
 	return ctx->ast->pds[pds];
 }
@@ -302,7 +301,7 @@ void pla_ast_t_print_ts(pla_ast_t_ctx_t * ctx, FILE * file) {
 					dclr_name = dclr->name->str;
 				}
 				else {
-					u_assert(dclr->type == PlaDclrNspc);
+					ul_raise_assert(dclr->type == PlaDclrNspc);
 					dclr_name = L"#root_nspc";
 				}
 
@@ -379,7 +378,7 @@ static optr_t ** get_optr_ins(ctx_t * ctx, pla_expr_type_t expr_type, optr_t * p
 static void register_bltn_optr_pred(ctx_t * ctx, pla_expr_type_t expr_type, optr_t * pred) {
 	optr_t ** ins = get_optr_ins(ctx, expr_type, pred);
 
-	u_assert(*ins == NULL);
+	ul_raise_assert(*ins == NULL);
 
 	*ins = copy_optr(ctx, pred);
 }
@@ -655,7 +654,7 @@ static bool translate_dclr_tse(ctx_t * ctx, pla_dclr_t * dclr) {
 			}
 			break;
 		default:
-			u_assert_switch(dclr->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -699,6 +698,8 @@ static bool translate_core(ctx_t * ctx) {
 
 	ctx->hst = ctx->ast->hst;
 
+	ul_hsb_init(&ctx->hsb);
+
 	if (!ira_pec_init(ctx->out, ctx->hst)) {
 		return false;
 	}
@@ -711,20 +712,25 @@ static bool translate_core(ctx_t * ctx) {
 
 	generate_full_names(ctx);
 
-	u_assert(ctx->tse == NULL && ctx->vse == NULL);
+	ul_raise_assert(ctx->tse == NULL && ctx->vse == NULL);
 
 	return true;
 }
 bool pla_ast_t_translate(pla_ast_t * ast, ira_pec_t * out) {
 	ctx_t ctx = { .ast = ast, .out = out };
 
-	bool result = translate_core(&ctx);
+	bool res;
+	
+	__try {
+		res = translate_core(&ctx);
+	}
+	__finally {
+		for (pla_expr_type_t expr_type = PlaExprNone; expr_type < PlaExpr_Count; ++expr_type) {
+			destroy_optr_chain(ctx.optrs[expr_type]);
+		}
 
-	for (pla_expr_type_t expr_type = PlaExprNone; expr_type < PlaExpr_Count; ++expr_type) {
-		destroy_optr_chain(ctx.optrs[expr_type]);
+		ul_hsb_cleanup(&ctx.hsb);
 	}
 
-	u_hsb_cleanup(&ctx.hsb);
-
-	return result;
+	return res;
 }

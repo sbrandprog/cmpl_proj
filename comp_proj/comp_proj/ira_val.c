@@ -2,7 +2,6 @@
 #include "ira_val.h"
 #include "ira_dt.h"
 #include "ira_lo.h"
-#include "u_assert.h"
 
 static void destroy_val_arr(size_t arr_size, ira_val_t ** arr) {
 	for (ira_val_t ** elem = arr, **elem_end = elem + arr_size; elem != elem_end; ++elem) {
@@ -12,7 +11,7 @@ static void destroy_val_arr(size_t arr_size, ira_val_t ** arr) {
 static ira_val_t ** copy_val_arr(size_t arr_size, ira_val_t ** arr) {
 	ira_val_t ** new_arr = malloc(arr_size * sizeof(*new_arr));
 
-	u_assert(new_arr != NULL);
+	ul_raise_check_mem_alloc(new_arr);
 
 	for (ira_val_t ** elem = arr, **elem_end = elem + arr_size, **ins = new_arr; elem != elem_end; ++elem, ++ins) {
 		*ins = ira_val_copy(*elem);
@@ -24,7 +23,7 @@ static ira_val_t ** copy_val_arr(size_t arr_size, ira_val_t ** arr) {
 ira_val_t * ira_val_create(ira_val_type_t type, ira_dt_t * dt) {
 	ira_val_t * val = malloc(sizeof(*val));
 
-	u_assert(val != NULL);
+	ul_raise_check_mem_alloc(val);
 
 	memset(val, 0, sizeof(*val));
 
@@ -51,7 +50,7 @@ void ira_val_destroy(ira_val_t * val) {
 		case IraValLoPtr:
 			break;
 		case IraValImmStct:
-			u_assert(val->dt->stct.lo->dt_stct.sd != NULL);
+			ul_raise_assert(val->dt->stct.lo->dt_stct.sd != NULL);
 			destroy_val_arr(val->dt->stct.lo->dt_stct.sd->elems_size, val->arr_val.data);
 			free(val->arr_val.data);
 			break;
@@ -60,15 +59,13 @@ void ira_val_destroy(ira_val_t * val) {
 			free(val->arr_val.data);
 			break;
 		default:
-			u_assert_switch(val->type);
+			ul_raise_unreachable();
 	}
 
 	free(val);
 }
 
 ira_val_t * ira_val_copy(ira_val_t * val) {
-	u_assert(val != NULL);
-
 	ira_val_t * new_val = ira_val_create(val->type, val->dt);
 
 	switch (val->type) {
@@ -93,7 +90,7 @@ ira_val_t * ira_val_copy(ira_val_t * val) {
 			new_val->lo_val = val->lo_val;
 			break;
 		case IraValImmStct:
-			u_assert(val->dt->stct.lo->dt_stct.sd != NULL);
+			ul_raise_assert(val->dt->stct.lo->dt_stct.sd != NULL);
 			new_val->arr_val.data = copy_val_arr(val->dt->stct.lo->dt_stct.sd->elems_size, val->arr_val.data);
 			break;
 		case IraValImmArr:
@@ -101,7 +98,7 @@ ira_val_t * ira_val_copy(ira_val_t * val) {
 			new_val->arr_val.data = copy_val_arr(val->arr_val.size, val->arr_val.data);
 			break;
 		default:
-			u_assert_switch(val->type);
+			ul_raise_unreachable();
 	}
 
 	return new_val;

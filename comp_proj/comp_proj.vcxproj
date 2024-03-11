@@ -130,10 +130,6 @@
     <ClCompile Include="comp_proj\pla_pds.c" />
     <ClCompile Include="comp_proj\pla_punc.c" />
     <ClCompile Include="comp_proj\pla_stmt.c" />
-    <ClCompile Include="comp_proj\u_assert.c" />
-    <ClCompile Include="comp_proj\u_hs.c" />
-    <ClCompile Include="comp_proj\u_hsb.c" />
-    <ClCompile Include="comp_proj\u_hst.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="comp_proj\asm.h" />
@@ -172,12 +168,6 @@
     <ClInclude Include="comp_proj\pla_pds.h" />
     <ClInclude Include="comp_proj\pla_punc.h" />
     <ClInclude Include="comp_proj\pla_stmt.h" />
-    <ClInclude Include="comp_proj\u_assert.h" />
-    <ClInclude Include="comp_proj\u_hs.h" />
-    <ClInclude Include="comp_proj\u_hsb.h" />
-    <ClInclude Include="comp_proj\u_hst.h" />
-    <ClInclude Include="comp_proj\u_misc.h" />
-    <ClInclude Include="comp_proj\u_ros.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="pla_lib\std\io.pla">

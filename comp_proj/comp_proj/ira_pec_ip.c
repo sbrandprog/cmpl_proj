@@ -11,8 +11,6 @@
 #include "asm_inst.h"
 #include "asm_frag.h"
 #include "asm_pea.h"
-#include "u_assert.h"
-#include "u_misc.h"
 
 #define GLOBAL_LABEL_DELIM L'$'
 
@@ -31,7 +29,7 @@ typedef struct ira_pec_ip_var var_t;
 struct ira_pec_ip_var {
 	var_t * next;
 
-	u_hs_t * name;
+	ul_hs_t * name;
 
 	ira_dt_qdt_t qdt;
 
@@ -46,17 +44,17 @@ struct ira_pec_ip_var {
 typedef struct ira_pec_ip_label label_t;
 struct ira_pec_ip_label {
 	label_t * next;
-	u_hs_t * name;
+	ul_hs_t * name;
 	inst_t * inst;
-	u_hs_t * global_name;
+	ul_hs_t * global_name;
 };
 
 typedef union inst_opd {
 	ira_int_cmp_t int_cmp;
 	ira_dt_qual_t dt_qual;
 	size_t size;
-	u_hs_t * hs;
-	u_hs_t ** hss;
+	ul_hs_t * hs;
+	ul_hs_t ** hss;
 	ira_dt_t * dt;
 	label_t * label;
 	ira_val_t * val;
@@ -109,8 +107,8 @@ typedef struct ira_pec_ip_ctx {
 
 	ira_val_t ** i_out;
 
-	u_hsb_t * hsb;
-	u_hst_t * hst;
+	ul_hsb_t * hsb;
+	ul_hst_t * hst;
 	ira_pec_t * pec;
 
 	ira_func_t * func;
@@ -242,7 +240,7 @@ static const int_cast_info_t int_cast_infos[IraInt_Count][IraInt_Count] = {
 };
 
 static void report(ctx_t * ctx, const wchar_t * format, ...) {
-	u_assert(ctx->trg < Trg_Count);
+	ul_raise_assert(ctx->trg < Trg_Count);
 
 	if (!ctx->report_head_printed) {
 		fwprintf(stderr, L"reporting error in instruction processor [%s]\n", trg_to_str[ctx->trg]);
@@ -329,7 +327,7 @@ static void cleanup_inst(ctx_t * ctx, inst_t * inst) {
 				free(inst->opds[opd].vars);
 				break;
 			default:
-				u_assert_switch(info->opds[opd]);
+				ul_raise_unreachable();
 		}
 	}
 }
@@ -363,7 +361,7 @@ static void ctx_cleanup(ctx_t * ctx) {
 	}
 }
 
-static bool define_var(ctx_t * ctx, ira_dt_t * dt, ira_dt_qual_t dt_qual, u_hs_t * name) {
+static bool define_var(ctx_t * ctx, ira_dt_t * dt, ira_dt_qual_t dt_qual, ul_hs_t * name) {
 	var_t ** ins = &ctx->var;
 
 	while (*ins != NULL) {
@@ -379,7 +377,7 @@ static bool define_var(ctx_t * ctx, ira_dt_t * dt, ira_dt_qual_t dt_qual, u_hs_t
 
 	var_t * new_var = malloc(sizeof(*new_var));
 
-	u_assert(new_var != NULL);
+	ul_raise_check_mem_alloc(new_var);
 
 	size_t dt_size, dt_align;
 
@@ -394,7 +392,7 @@ static bool define_var(ctx_t * ctx, ira_dt_t * dt, ira_dt_qual_t dt_qual, u_hs_t
 
 	return true;
 }
-static var_t * find_var(ctx_t * ctx, u_hs_t * name) {
+static var_t * find_var(ctx_t * ctx, ul_hs_t * name) {
 	for (var_t * var = ctx->var; var != NULL; var = var->next) {
 		if (var->name == name) {
 			return var;
@@ -403,7 +401,7 @@ static var_t * find_var(ctx_t * ctx, u_hs_t * name) {
 
 	return NULL;
 }
-static label_t * get_label(ctx_t * ctx, u_hs_t * name) {
+static label_t * get_label(ctx_t * ctx, ul_hs_t * name) {
 	label_t ** ins = &ctx->label;
 
 	for (; *ins != NULL; ins = &(*ins)->next) {
@@ -416,7 +414,7 @@ static label_t * get_label(ctx_t * ctx, u_hs_t * name) {
 
 	label_t * new_label = malloc(sizeof(*new_label));
 
-	u_assert(new_label != NULL);
+	ul_raise_check_mem_alloc(new_label);
 
 	*new_label = (label_t){ .name = name };
 
@@ -435,7 +433,7 @@ static bool define_label(ctx_t * ctx, inst_t * inst, label_t * label) {
 	return true;
 }
 
-static bool set_mmbr_acc_ptr_data_stct(ctx_t * ctx, inst_t * inst, ira_dt_t * dt, u_hs_t * mmbr) {
+static bool set_mmbr_acc_ptr_data_stct(ctx_t * ctx, inst_t * inst, ira_dt_t * dt, ul_hs_t * mmbr) {
 	ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
 
 	if (sd == NULL) {
@@ -461,7 +459,7 @@ static bool set_mmbr_acc_ptr_data_stct(ctx_t * ctx, inst_t * inst, ira_dt_t * dt
 
 	return false;
 }
-static bool set_mmbr_acc_ptr_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt, u_hs_t * mmbr) {
+static bool set_mmbr_acc_ptr_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt, ul_hs_t * mmbr) {
 	switch (opd_dt->type) {
 		case IraDtVoid:
 		case IraDtBool:
@@ -482,7 +480,7 @@ static bool set_mmbr_acc_ptr_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt,
 		case IraDtFunc:
 			return false;
 		default:
-			u_assert_switch(opd_dt->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -508,11 +506,11 @@ static bool prepare_insts_opds_vars(ctx_t * ctx, inst_t * inst, size_t opd_size,
 
 	var_t ** vars = malloc(vars_size * sizeof(*vars));
 
-	u_assert(vars != NULL);
+	ul_raise_check_mem_alloc(vars);
 
 	inst->opds[opd].vars = vars;
 
-	u_hs_t ** var_name = base->opds[opd].hss;
+	ul_hs_t ** var_name = base->opds[opd].hss;
 	for (var_t ** var = vars, **var_end = var + vars_size; var != var_end; ++var, ++var_name) {
 		*var = find_var(ctx, *var_name);
 
@@ -605,7 +603,7 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
 				inst->opds[opd].hss = ira_inst->opds[opd].hss;
 				break;
 			default:
-				u_assert_switch(info->opds[opd]);
+				ul_raise_unreachable();
 		}
 	}
 
@@ -666,7 +664,7 @@ static bool prepare_def_var_copy(ctx_t * ctx, inst_t * inst, const ira_inst_info
 
 	inst->def_var_copy.var = find_var(ctx, inst->opd0.hs);
 
-	u_assert(inst->def_var_copy.var != NULL);
+	ul_raise_assert(inst->def_var_copy.var != NULL);
 
 	return true;
 }
@@ -1043,7 +1041,7 @@ static bool prepare_mmbr_acc_ptr(ctx_t * ctx, inst_t * inst, const ira_inst_info
 		return false;
 	}
 
-	u_hs_t * mmbr = inst->opd2.hs;
+	ul_hs_t * mmbr = inst->opd2.hs;
 	ira_dt_t * opd_dt = opd_ptr_dt->ptr.body;
 
 	if (!set_mmbr_acc_ptr_data(ctx, inst, opd_dt, mmbr)) {
@@ -1096,7 +1094,7 @@ static bool prepare_insts(ctx_t * ctx) {
 
 	ctx->insts = malloc(ctx->insts_size * sizeof(*ctx->insts));
 
-	u_assert(ctx->insts != NULL);
+	ul_raise_check_mem_alloc(ctx->insts);
 
 	memset(ctx->insts, 0, ctx->insts_size * sizeof(*ctx->insts));
 
@@ -1122,7 +1120,7 @@ static bool prepare_insts(ctx_t * ctx) {
 					trg_comp = info->intrp_comp;
 					break;
 				default:
-					u_assert_switch(ctx->trg);
+					ul_raise_unreachable();
 			}
 
 			if (!trg_comp) {
@@ -1179,7 +1177,7 @@ static bool prepare_insts(ctx_t * ctx) {
 
 		prepare_proc_t * proc = prepare_insts_procs[ira_inst->type];
 
-		u_assert(proc != NULL);
+		ul_raise_assert(proc != NULL);
 
 		if (!proc(ctx, inst, info)) {
 			return false;
@@ -1197,13 +1195,13 @@ static bool prepare_insts(ctx_t * ctx) {
 }
 
 
-static void form_global_label_names(ctx_t * ctx, u_hs_t * prefix) {
+static void form_global_label_names(ctx_t * ctx, ul_hs_t * prefix) {
 	for (label_t * label = ctx->label; label != NULL; label = label->next) {
-		label->global_name = u_hsb_formatadd(ctx->hsb, ctx->hst, L"%s%c%s", prefix->str, GLOBAL_LABEL_DELIM, label->name->str);
+		label->global_name = ul_hsb_formatadd(ctx->hsb, ctx->hst, L"%s%c%s", prefix->str, GLOBAL_LABEL_DELIM, label->name->str);
 	}
 }
 
-static void push_label(ctx_t * ctx, u_hs_t * name) {
+static void push_label(ctx_t * ctx, ul_hs_t * name) {
 	asm_inst_t label = { .type = AsmInstLabel, .opds = AsmInstLabel, .label = name };
 
 	asm_frag_push_inst(ctx->frag, &label);
@@ -1213,7 +1211,7 @@ static bool calculate_stack(ctx_t * ctx) {
 	size_t size = 0;
 
 	if (ctx->has_calls) {
-		size = u_align_to(size, STACK_ALIGN);
+		size = ul_align_to(size, STACK_ALIGN);
 
 		size_t args_size = max(ctx->call_args_size_max, 4);
 
@@ -1221,12 +1219,12 @@ static bool calculate_stack(ctx_t * ctx) {
 	}
 
 	{
-		size = u_align_to(size, STACK_ALIGN);
+		size = ul_align_to(size, STACK_ALIGN);
 
 		size_t var_pos = 0;
 
 		for (var_t * var = ctx->var; var != NULL; var = var->next) {
-			var_pos = u_align_to(var_pos, var->align);
+			var_pos = ul_align_to(var_pos, var->align);
 
 			var->pos = var_pos;
 
@@ -1239,7 +1237,7 @@ static bool calculate_stack(ctx_t * ctx) {
 		size += var_pos;
 	}
 
-	size = u_align_biased_to(size, STACK_ALIGN, STACK_ALIGN - STACK_UNIT);
+	size = ul_align_biased_to(size, STACK_ALIGN, STACK_ALIGN - STACK_UNIT);
 
 	if (size >= INT32_MAX) {
 		return false;
@@ -1256,11 +1254,11 @@ static void save_stack_gpr(ctx_t * ctx, int32_t offset, asm_reg_t reg) {
 	asm_frag_push_inst(ctx->frag, &save);
 }
 static void save_stack_var_off(ctx_t * ctx, var_t * var, asm_reg_t reg, size_t offset) {
-	u_assert(asm_reg_is_gpr(reg));
+	ul_raise_assert(asm_reg_is_gpr(reg));
 
 	asm_size_t mem_size = asm_reg_get_size(reg);
 
-	u_assert(asm_size_get_bytes(mem_size) + offset <= var->size);
+	ul_raise_assert(asm_size_get_bytes(mem_size) + offset <= var->size);
 
 	save_stack_gpr(ctx, (int32_t)(ctx->stack_vars_pos + var->pos + offset), reg);
 }
@@ -1268,20 +1266,20 @@ static void save_stack_var(ctx_t * ctx, var_t * var, asm_reg_t reg) {
 	save_stack_var_off(ctx, var, reg, 0);
 }
 static void load_int(ctx_t * ctx, asm_reg_t reg, asm_inst_imm_type_t imm_type, int64_t imm) {
-	u_assert(asm_reg_get_size(reg) == asm_inst_imm_type_to_size[imm_type]);
+	ul_raise_assert(asm_reg_get_size(reg) == asm_inst_imm_type_to_size[imm_type]);
 
 	asm_inst_t load = { .type = AsmInstMov, .opds = AsmInstOpds_Reg_Imm, .reg0 = reg, .imm0_type = imm_type, .imm0 = imm };
 
 	asm_frag_push_inst(ctx->frag, &load);
 }
-static void load_label_off(ctx_t * ctx, asm_reg_t reg, u_hs_t * label) {
-	u_assert(asm_reg_get_size(reg) == AsmSize64);
+static void load_label_off(ctx_t * ctx, asm_reg_t reg, ul_hs_t * label) {
+	ul_raise_assert(asm_reg_get_size(reg) == AsmSize64);
 
 	asm_inst_t lea = { .type = AsmInstLea, .opds = AsmInstOpds_Reg_Mem, .reg0 = reg, .mem_base = AsmRegRip, .mem_disp_type = AsmInstDispLabelRel32, .mem_disp_label = label };
 
 	asm_frag_push_inst(ctx->frag, &lea);
 }
-static void load_label_val(ctx_t * ctx, asm_reg_t reg, u_hs_t * label) {
+static void load_label_val(ctx_t * ctx, asm_reg_t reg, ul_hs_t * label) {
 	asm_inst_t mov = { .type = AsmInstMov, .opds = AsmInstOpds_Reg_Mem, .reg0 = reg, .mem_size = asm_reg_get_size(reg), .mem_base = AsmRegRip, .mem_disp_type = AsmInstDispLabelRel32, .mem_disp_label = label };
 
 	asm_frag_push_inst(ctx->frag, &mov);
@@ -1292,11 +1290,11 @@ static void load_stack_gpr(ctx_t * ctx, asm_reg_t reg, int32_t offset) {
 	asm_frag_push_inst(ctx->frag, &load);
 }
 static void load_stack_var_off(ctx_t * ctx, asm_reg_t reg, var_t * var, size_t offset) {
-	u_assert(asm_reg_is_gpr(reg));
+	ul_raise_assert(asm_reg_is_gpr(reg));
 
 	asm_size_t mem_size = asm_reg_get_size(reg);
 
-	u_assert(asm_size_get_bytes(mem_size) + offset <= var->size);
+	ul_raise_assert(asm_size_get_bytes(mem_size) + offset <= var->size);
 
 	load_stack_gpr(ctx, reg, (int32_t)(ctx->stack_vars_pos + var->pos + offset));
 }
@@ -1304,14 +1302,14 @@ static void load_stack_var(ctx_t * ctx, asm_reg_t reg, var_t * var) {
 	load_stack_var_off(ctx, reg, var, 0);
 }
 static void read_ptr_off(ctx_t * ctx, asm_reg_t reg, asm_reg_t ptr, size_t offset) {
-	u_assert(offset < INT32_MAX);
+	ul_raise_assert(offset < INT32_MAX);
 
 	asm_inst_t mov = { .type = AsmInstMov, .opds = AsmInstOpds_Reg_Mem, .reg0 = reg, .mem_size = asm_reg_get_size(reg), .mem_base = ptr, .mem_disp_type = AsmInstDispAuto, .mem_disp = (int32_t)offset };
 
 	asm_frag_push_inst(ctx->frag, &mov);
 }
 static void write_ptr_off(ctx_t * ctx, asm_reg_t ptr, asm_reg_t reg, size_t offset) {
-	u_assert(offset < INT32_MAX);
+	ul_raise_assert(offset < INT32_MAX);
 
 	asm_inst_t mov = { .type = AsmInstMov, .opds = AsmInstOpds_Mem_Reg, .mem_size = asm_reg_get_size(reg), .mem_base = ptr, .mem_disp_type = AsmInstDispAuto, .mem_disp = (int32_t)offset, .reg0 = reg };
 
@@ -1323,7 +1321,7 @@ static asm_reg_t get_gpr_reg_int(asm_reg_gpr_t gpr, ira_int_type_t int_type) {
 
 	asm_reg_t reg = asm_reg_gprs[gpr][reg_size];
 
-	u_assert(reg != AsmRegNone);
+	ul_raise_assert(reg != AsmRegNone);
 
 	return reg;
 }
@@ -1341,18 +1339,18 @@ static asm_reg_t get_gpr_reg_dt(asm_reg_gpr_t gpr, ira_dt_t * dt) {
 			reg_size = AsmSize64;
 			break;
 		default:
-			u_assert_switch(dt->type);
+			ul_raise_unreachable();
 	}
 
 	asm_reg_t reg = asm_reg_gprs[gpr][reg_size];
 
-	u_assert(reg != AsmRegNone);
+	ul_raise_assert(reg != AsmRegNone);
 
 	return reg;
 }
 
 static asm_reg_t w64_get_arg_reg(ira_dt_t * dt, size_t arg) {
-	u_assert(arg < 4);
+	ul_raise_assert(arg < 4);
 
 	asm_reg_t reg;
 
@@ -1367,7 +1365,7 @@ static asm_reg_t w64_get_arg_reg(ira_dt_t * dt, size_t arg) {
 			reg = w64_int_arg_to_reg[arg][IraIntU64];
 			break;
 		default:
-			u_assert_switch(dt->type);
+			ul_raise_unreachable();
 	}
 
 	return reg;
@@ -1382,7 +1380,7 @@ static bool w64_load_callee_ret_link(ctx_t * ctx, var_t * var) {
 		case IraDtPtr:
 			return false;
 		default:
-			u_assert_switch(var_dt->type);
+			ul_raise_unreachable();
 	}
 }
 static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg) {
@@ -1414,7 +1412,7 @@ static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg) {
 			}
 			break;
 		default:
-			u_assert_switch(var_dt->type);
+			ul_raise_unreachable();
 	}
 }
 static void w64_save_callee_ret(ctx_t * ctx, var_t * var) {
@@ -1432,7 +1430,7 @@ static void w64_save_callee_ret(ctx_t * ctx, var_t * var) {
 			save_stack_var(ctx, var, reg);
 			break;
 		default:
-			u_assert_switch(var_dt->type);
+			ul_raise_unreachable();
 	}
 }
 static bool w64_save_caller_ret_link(ctx_t * ctx) {
@@ -1445,13 +1443,13 @@ static bool w64_save_caller_ret_link(ctx_t * ctx) {
 		case IraDtPtr:
 			return false;
 		default:
-			u_assert_switch(var_dt->type);
+			ul_raise_unreachable();
 	}
 }
-static void w64_save_caller_arg(ctx_t * ctx, u_hs_t * arg_name, size_t arg) {
+static void w64_save_caller_arg(ctx_t * ctx, ul_hs_t * arg_name, size_t arg) {
 	var_t * var = find_var(ctx, arg_name);
 
-	u_assert(var != NULL);
+	ul_raise_assert(var != NULL);
 
 	ira_dt_t * var_dt = var->qdt.dt;
 
@@ -1481,7 +1479,7 @@ static void w64_save_caller_arg(ctx_t * ctx, u_hs_t * arg_name, size_t arg) {
 			}
 			break;
 		default:
-			u_assert_switch(var_dt->type);
+			ul_raise_unreachable();
 	}
 }
 static void w64_load_caller_ret(ctx_t * ctx, var_t * var) {
@@ -1501,7 +1499,7 @@ static void w64_load_caller_ret(ctx_t * ctx, var_t * var) {
 			break;
 		}
 		default:
-			u_assert_switch(var_dt->type);
+			ul_raise_unreachable();
 	}
 }
 
@@ -1582,7 +1580,7 @@ static void div_int(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_out, va
 			reg2 = AsmRegRdx;
 			break;
 		default:
-			u_assert_switch(int_type);
+			ul_raise_unreachable();
 	}
 
 	load_stack_var(ctx, reg0, opd0);
@@ -1628,7 +1626,7 @@ static asm_inst_type_t get_set_inst_type(bool sign, ira_int_cmp_t int_cmp) {
 			case IraIntCmpNeq:
 				return AsmInstSetne;
 			default:
-				u_assert_switch(int_cmp);
+				ul_raise_unreachable();
 		}
 	}
 	else {
@@ -1646,7 +1644,7 @@ static asm_inst_type_t get_set_inst_type(bool sign, ira_int_cmp_t int_cmp) {
 			case IraIntCmpNeq:
 				return AsmInstSetne;
 			default:
-				u_assert_switch(int_cmp);
+				ul_raise_unreachable();
 		}
 	}
 }
@@ -1685,18 +1683,20 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 					save_stack_var(ctx, var, AsmRegRax);
 					break;
 				default:
-					u_assert_switch(val->lo_val->type);
+					ul_raise_unreachable();
 			}
 			break;
 		case IraValImmArr:
 		{
-			u_hs_t * arr_label = NULL;
+			ul_hs_t * arr_label = NULL;
 
-			bool res = ira_pec_c_compile_val_frag(ctx->c_ctx, val, &arr_label);
-			u_assert(res);
+			if (!ira_pec_c_compile_val_frag(ctx->c_ctx, val, &arr_label)) {
+				ul_raise_unreachable();
+			}
 
 			ira_dt_sd_t * sd = val->dt->arr.assoc_stct->stct.lo->dt_stct.sd;
-			u_assert(sd != NULL);
+			
+			ul_raise_assert(sd != NULL);
 
 			size_t off;
 
@@ -1711,7 +1711,7 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 			break;
 		}
 		default:
-			u_assert_switch(val->type);
+			ul_raise_unreachable();
 	}
 }
 static void compile_copy_impl(ctx_t * ctx, var_t * dst, var_t * src, size_t src_off) {
@@ -1733,7 +1733,7 @@ static void compile_copy_impl(ctx_t * ctx, var_t * dst, var_t * src, size_t src_
 		case IraDtArr:
 		{
 			ira_dt_sd_t * sd = dt->arr.assoc_stct->stct.lo->dt_stct.sd;
-			u_assert(sd != NULL);
+			ul_raise_assert(sd != NULL);
 
 			size_t off;
 
@@ -1747,7 +1747,7 @@ static void compile_copy_impl(ctx_t * ctx, var_t * dst, var_t * src, size_t src_
 			break;
 		}
 		default:
-			u_assert_switch(dt->type);
+			ul_raise_unreachable();
 	}
 }
 static void compile_int_like_cmp(ctx_t * ctx, var_t * dst, var_t * src0, var_t * src1, ira_int_cmp_t int_cmp, bool cmp_sign) {
@@ -1895,7 +1895,7 @@ static void compile_unr_int(ctx_t * ctx, inst_t * inst) {
 			inst_type = AsmInstNeg;
 			break;
 		default:
-			u_assert_switch(inst->base->type);
+			ul_raise_unreachable();
 	}
 
 	ira_int_type_t int_type = inst->opd0.var->qdt.dt->int_type;
@@ -1935,7 +1935,7 @@ static void compile_bin_int(ctx_t * ctx, inst_t * inst) {
 			inst_type = AsmInstOr;
 			break;
 		default:
-			u_assert_switch(inst->base->type);
+			ul_raise_unreachable();
 	}
 
 	asm_reg_t reg0 = get_gpr_reg_int(AsmRegGprAx, int_type), reg1 = get_gpr_reg_int(AsmRegGprCx, int_type);
@@ -1978,7 +1978,7 @@ static void compile_shift_int(ctx_t * ctx, inst_t * inst) {
 			}
 			break;
 		default:
-			u_assert_switch(inst->base->type);
+			ul_raise_unreachable();
 	}
 
 	load_stack_var(ctx, get_gpr_reg_int(AsmRegGprCx, int_type), inst->opd2.var);
@@ -2021,7 +2021,7 @@ static void compile_cast_to_int(ctx_t * ctx, inst_t * inst, ira_dt_t * from, ira
 			compile_int_like_cast(ctx, inst->opd0.var, inst->opd1.var, IraIntU64, to->int_type);
 			break;
 		default:
-			u_assert_switch(from->type);
+			ul_raise_unreachable();
 	}
 }
 static void compile_cast_to_ptr(ctx_t * ctx, inst_t * inst, ira_dt_t * from, ira_dt_t * to) {
@@ -2034,7 +2034,7 @@ static void compile_cast_to_ptr(ctx_t * ctx, inst_t * inst, ira_dt_t * from, ira
 			save_stack_var(ctx, inst->opd0.var, AsmRegRax);
 			break;
 		default:
-			u_assert_switch(from->type);
+			ul_raise_unreachable();
 	}
 }
 static void compile_cast(ctx_t * ctx, inst_t * inst) {
@@ -2049,7 +2049,7 @@ static void compile_cast(ctx_t * ctx, inst_t * inst) {
 			compile_cast_to_ptr(ctx, inst, from, to);
 			break;
 		default:
-			u_assert_switch(to->type);
+			ul_raise_unreachable();
 	}
 }
 static void compile_call_func_ptr(ctx_t * ctx, inst_t * inst) {
@@ -2087,7 +2087,7 @@ static void compile_brc(ctx_t * ctx, inst_t * inst) {
 			jump_type = AsmInstJz;
 			break;
 		default:
-			u_assert_switch(inst->base->type);
+			ul_raise_unreachable();
 	}
 
 	load_stack_var(ctx, AsmRegAl, inst->opd1.var);
@@ -2152,7 +2152,7 @@ static void compile_insts(ctx_t * ctx) {
 
 		compile_inst_proc_t * proc = compile_insts_procs[inst->base->type];
 
-		u_assert(proc != NULL);
+		ul_raise_assert(proc != NULL);
 
 		proc(ctx, inst);
 	}
@@ -2192,11 +2192,16 @@ static bool compile_core(ctx_t * ctx) {
 bool ira_pec_ip_compile(ira_pec_c_ctx_t * c_ctx, ira_lo_t * lo) {
 	ctx_t ctx = { .trg = TrgCompl, .c_ctx = c_ctx, .c_lo = lo };
 
-	bool result = compile_core(&ctx);
+	bool res;
+	
+	__try {
+		res = compile_core(&ctx);
+	}
+	__finally {
+		ctx_cleanup(&ctx);
+	}
 
-	ctx_cleanup(&ctx);
-
-	return result;
+	return res;
 }
 
 
@@ -2247,7 +2252,7 @@ static bool get_size_from_val(ira_val_t * val, size_t * out) {
 					*out = (size_t)val->int_val.si64;
 					break;
 				default:
-					u_assert_switch(val->dt->int_type);
+					ul_raise_unreachable();
 			}
 			break;
 		case IraValImmVec:
@@ -2257,7 +2262,7 @@ static bool get_size_from_val(ira_val_t * val, size_t * out) {
 		case IraValImmArr:
 			return false;
 		default:
-			u_assert_switch(val->type);
+			ul_raise_unreachable();
 	}
 
 	return true;
@@ -2338,11 +2343,11 @@ static bool execute_make_dt_stct(ctx_t * ctx, inst_t * inst) {
 
 	ira_dt_ndt_t * elems = _malloca(elems_size * sizeof(*elems));
 
-	u_assert(elems != NULL);
+	ul_raise_check_mem_alloc(elems);
 
 	{
 		ira_dt_ndt_t * elem = elems;
-		u_hs_t ** id = inst->opd4.hss;
+		ul_hs_t ** id = inst->opd4.hss;
 		for (var_t ** var = inst->opd3.vars, **var_end = var + elems_size; var != var_end; ++var, ++elem, ++id) {
 			var_t * var_ptr = *var;
 
@@ -2396,11 +2401,11 @@ static bool execute_make_dt_func(ctx_t * ctx, inst_t * inst) {
 
 	ira_dt_ndt_t * args = _malloca(args_size * sizeof(*args));
 
-	u_assert(args != NULL);
+	ul_raise_check_mem_alloc(args);
 
 	{
 		ira_dt_ndt_t * arg = args;
-		u_hs_t ** id = inst->opd4.hss;
+		ul_hs_t ** id = inst->opd4.hss;
 		for (var_t ** var = inst->opd3.vars, **var_end = var + args_size; var != var_end; ++var, ++arg, ++id) {
 			var_t * var_ptr = *var;
 
@@ -2486,7 +2491,7 @@ static bool execute_insts(ctx_t * ctx) {
 
 		execute_inst_proc_t * proc = execute_insts_procs[inst->base->type];
 
-		u_assert(proc != NULL);
+		ul_raise_assert(proc != NULL);
 
 		if (!proc(ctx, inst)) {
 			return false;
@@ -2518,9 +2523,14 @@ static bool interpret_core(ctx_t * ctx) {
 bool ira_pec_ip_interpret(ira_pec_t * pec, ira_func_t * func, ira_val_t ** out) {
 	ctx_t ctx = { .trg = TrgIntrp, .pec = pec, .func = func, .i_out = out };
 
-	bool result = interpret_core(&ctx);
+	bool res;
+	
+	__try {
+		res = interpret_core(&ctx);
+	}
+	__finally {
+		ctx_cleanup(&ctx);
+	}
 
-	ctx_cleanup(&ctx);
-
-	return result;
+	return res;
 }

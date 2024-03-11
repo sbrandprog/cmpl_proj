@@ -1,7 +1,5 @@
 #pragma once
 #include "ira_dt.h"
-#include "u_ros.h"
-#include "u_hs.h"
 
 #define IRA_INST_OPDS_SIZE 5
 
@@ -24,8 +22,8 @@ union ira_inst_opd {
 	ira_int_cmp_t int_cmp;
 	ira_dt_qual_t dt_qual;
 	size_t size;
-	u_hs_t * hs;
-	u_hs_t ** hss;
+	ul_hs_t * hs;
+	ul_hs_t ** hss;
 	ira_dt_t * dt;
 	ira_val_t * val;
 };
@@ -52,7 +50,7 @@ struct ira_inst {
 };
 
 struct ira_inst_info {
-	u_ros_t type_str;
+	ul_ros_t type_str;
 	bool intrp_comp, compl_comp;
 	union {
 		ira_inst_opd_type_t opds[IRA_INST_OPDS_SIZE];
