@@ -1,11 +1,13 @@
 #include "pch.h"
 #include "wa_ctx.h"
 #include "wa_wnd.h"
+#include "wa_ctl.h"
 #include "wa_host.h"
 
 typedef struct wnd_host_data {
 	HWND hw;
 	wa_ctx_t * ctx;
+	HWND child;
 } wnd_data_t;
 
 static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) {
@@ -18,6 +20,13 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 			break;
 		case WM_DESTROY:
 			wa_ctx_dec_twc(data->ctx);
+			break;
+		case WM_SIZE:
+			if (data->child != NULL) {
+				int w = LOWORD(lp), h = HIWORD(lp);
+
+				SetWindowPos(data->child, NULL, 0, 0, w, h, SWP_NOZORDER);
+			}
 			break;
 		case WM_PAINT:
 		{
@@ -33,6 +42,32 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 		}
 		case WM_ERASEBKGND:
 			return FALSE;
+		case WM_PARENTNOTIFY:
+			switch (LOWORD(wp)) {
+				case WM_CREATE:
+				{
+					HWND child = (HWND)lp;
+
+					if (wa_ctl_get_data(child) != NULL) {
+						ul_raise_assert(data->child == NULL);
+
+						data->child = child;
+					}
+
+					break;
+				}
+				case WM_DESTROY:
+				{
+					HWND child = (HWND)lp;
+
+					if (data->child == child && wa_ctl_get_data(child) != NULL) {
+						data->child = NULL;
+					}
+
+					break;
+				}
+			}
+			break;
 	}
 
 	return DefWindowProcW(hw, msg, wp, lp);

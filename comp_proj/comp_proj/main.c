@@ -3,6 +3,7 @@
 #include "wa_lib/wa_wnd.h"
 #include "wa_lib/wa_host.h"
 #include "wa_lib/wa_wcr.h"
+#include "pla_edit.h"
 #include "pla_ast_p.h"
 #include "pla_ast_t.h"
 #include "ira_pec_c.h"
@@ -30,11 +31,21 @@ static bool main_gui() {
 		return false;
 	}
 
+	if (!wa_wcr_register_p(&main_wcr, pla_edit_get_wnd_cls_desc)) {
+		return false;
+	}
+
 	ul_hs_t * main_wnd_name = UL_HST_HASHADD_WS(&main_hst, L"main window");
 
 	HWND main_wnd = wa_wnd_create(&main_wa_ctx, L"wa_host", NULL, WS_OVERLAPPEDWINDOW, WS_EX_COMPOSITED, L"size_pos", wa_host_dflt_sp, L"text", main_wnd_name, NULL);
 
 	if (main_wnd == NULL) {
+		return false;
+	}
+
+	HWND pla_edit = wa_wnd_create(&main_wa_ctx, L"pla_edit", main_wnd, WS_CHILD | WS_VISIBLE, 0, NULL);
+
+	if (pla_edit == NULL) {
 		return false;
 	}
 

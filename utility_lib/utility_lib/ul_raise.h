@@ -4,7 +4,11 @@
 inline _Noreturn void ul_raise_func(DWORD exc_code) {
 	RaiseException(exc_code, EXCEPTION_NONCONTINUABLE, 0, NULL);
 	
-	__fastfail(-1);
+	if (IsDebuggerPresent()) {
+		__debugbreak();
+	}
+
+	exit(EXIT_FAILURE);
 }
 
 #define ul_raise(exc_code) ul_raise_func(exc_code)

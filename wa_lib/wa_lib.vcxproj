@@ -92,6 +92,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="wa_lib\wa_ctl.c" />
     <ClCompile Include="wa_lib\wa_ctx.c" />
     <ClCompile Include="wa_lib\wa_host.c" />
     <ClCompile Include="wa_lib\wa_style.c" />
@@ -101,6 +102,7 @@
   <ItemGroup>
     <ClInclude Include="wa_lib\pch.h" />
     <ClInclude Include="wa_lib\wa.h" />
+    <ClInclude Include="wa_lib\wa_ctl.h" />
     <ClInclude Include="wa_lib\wa_ctx.h" />
     <ClInclude Include="wa_lib\wa_host.h" />
     <ClInclude Include="wa_lib\wa_style.h" />

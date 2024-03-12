@@ -33,6 +33,9 @@
     <ClCompile Include="wa_lib\wa_wcr.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="wa_lib\wa_ctl.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="wa_lib\pch.h">
@@ -54,6 +57,9 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="wa_lib\wa_wcr.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="wa_lib\wa_ctl.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

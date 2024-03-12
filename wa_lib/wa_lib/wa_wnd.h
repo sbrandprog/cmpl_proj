@@ -1,6 +1,8 @@
 #pragma once
 #include "wa.h"
 
+#define WA_WND_CHECK_CLS_NAME_SIZE_MAX 63
+
 struct wa_wnd_sp {
 	int x, y, w, h;
 };
@@ -16,6 +18,8 @@ WA_SYMBOL bool wa_wnd_cd_fill_va(wa_wnd_cd_t * cd, va_list args);
 WA_SYMBOL bool wa_wnd_cd_fill(wa_wnd_cd_t * cd, ...);
 
 WA_SYMBOL HWND wa_wnd_create(wa_ctx_t * ctx, const wchar_t * wnd_cls_name, HWND parent_hw, DWORD style, DWORD style_ex, ...);
+
+WA_SYMBOL bool wa_wnd_check_cls(HWND hw, const wchar_t * cls_name);
 
 WA_SYMBOL wa_wnd_cd_t * wa_wnd_get_cd(LPARAM lp);
 
