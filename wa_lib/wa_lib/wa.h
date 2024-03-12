@@ -14,7 +14,8 @@ typedef struct wa_style wa_style_t;
 
 typedef struct wa_ctx wa_ctx_t;
 
-typedef struct wa_wnd_sp wa_wnd_sp_t;
+typedef struct wa_wnd_size wa_wnd_size_t;
+typedef struct wa_wnd_pos wa_wnd_pos_t;
 typedef struct wa_wnd_cd wa_wnd_cd_t;
 
 typedef LONG wa_ctl_get_w_proc_t(void * ctl_ptr, RECT * parent_rect);

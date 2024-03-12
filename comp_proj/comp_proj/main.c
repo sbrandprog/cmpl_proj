@@ -37,7 +37,7 @@ static bool main_gui() {
 
 	ul_hs_t * main_wnd_name = UL_HST_HASHADD_WS(&main_hst, L"main window");
 
-	HWND main_wnd = wa_wnd_create(&main_wa_ctx, L"wa_host", NULL, WS_OVERLAPPEDWINDOW, WS_EX_COMPOSITED, L"size_pos", wa_host_dflt_sp, L"text", main_wnd_name, NULL);
+	HWND main_wnd = wa_wnd_create(&main_wa_ctx, L"wa_host", NULL, WS_OVERLAPPEDWINDOW, WS_EX_COMPOSITED, L"size", wa_host_dflt_size, L"text", main_wnd_name, NULL);
 
 	if (main_wnd == NULL) {
 		return false;

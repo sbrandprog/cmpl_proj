@@ -5,4 +5,4 @@
 
 WA_SYMBOL WNDCLASSEXW wa_host_get_wnd_cls_desc();
 
-WA_SYMBOL extern const wa_wnd_sp_t wa_host_dflt_sp;
+WA_SYMBOL extern const wa_wnd_size_t wa_host_dflt_size;
