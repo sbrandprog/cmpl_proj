@@ -9,7 +9,9 @@ enum asm_size {
 	AsmSize64,
 	AsmSize_Count
 };
+struct asm_size_info {
+	bool is_int;
+	size_t bytes;
+};
 
-bool asm_size_is_int(asm_size_t size);
-
-size_t asm_size_get_bytes(asm_size_t size);
+extern const asm_size_info_t asm_size_infos[AsmSize_Count];

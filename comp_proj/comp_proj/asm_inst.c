@@ -241,7 +241,7 @@ static bool validate_mem(asm_inst_t * inst, bool * use_ext) {
 			return false;
 		}
 
-		if (!asm_size_is_int(inst->mem_scale)) {
+		if (!asm_size_infos[inst->mem_scale].is_int) {
 			return false;
 		}
 
@@ -261,7 +261,7 @@ static bool validate_mem(asm_inst_t * inst, bool * use_ext) {
 			return false;
 		}
 
-		if (!asm_size_is_int(inst->mem_scale)) {
+		if (!asm_size_infos[inst->mem_scale].is_int) {
 			return false;
 		}
 
@@ -917,6 +917,12 @@ const asm_size_t asm_inst_imm_type_to_size[AsmInstImm_Count] = {
 	[AsmInstImmLabelRel32] = AsmSize32,
 	[AsmInstImmLabelVa64] = AsmSize64,
 	[AsmInstImmLabelRva32] = AsmSize32
+};
+const asm_inst_imm_type_t asm_inst_imm_size_to_type[AsmSize_Count] = {
+	[AsmSize8] = AsmInstImm8,
+	[AsmSize16] = AsmInstImm16,
+	[AsmSize32] = AsmInstImm32,
+	[AsmSize64] = AsmInstImm64,
 };
 const asm_size_t asm_inst_disp_type_to_size[AsmInstDisp_Count] = {
 	[AsmInstDispAuto] = AsmSizeNone,

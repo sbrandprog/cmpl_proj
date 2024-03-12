@@ -60,6 +60,4 @@ extern const asm_reg_t asm_reg_gprs[AsmRegGpr_Count][AsmSize_Count];
 
 asm_size_t asm_reg_get_size(asm_reg_t reg);
 
-bool asm_reg_is_gpr(asm_reg_t reg);
-
 bool asm_reg_check_grps(const asm_reg_grps_t * has, const asm_reg_grps_t * req);

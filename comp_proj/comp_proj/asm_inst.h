@@ -1,5 +1,5 @@
 #pragma once
-#include "asm.h"
+#include "asm_size.h"
 
 #define ASM_INST_OPDS_SIZE 3
 #define ASM_INST_BS_SIZE 15
@@ -166,4 +166,5 @@ bool asm_inst_build(asm_inst_t * inst, size_t * inst_size, asm_inst_bs_t out, as
 
 extern const asm_inst_opd_t asm_inst_opds_to_opd[AsmInstOpds__Count][ASM_INST_OPDS_SIZE];
 extern const asm_size_t asm_inst_imm_type_to_size[AsmInstImm_Count];
+extern const asm_inst_imm_type_t asm_inst_imm_size_to_type[AsmSize_Count];
 extern const asm_size_t asm_inst_disp_type_to_size[AsmInstDisp_Count];

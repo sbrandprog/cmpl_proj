@@ -1254,19 +1254,18 @@ static void save_stack_gpr(ctx_t * ctx, int32_t offset, asm_reg_t reg) {
 	asm_frag_push_inst(ctx->frag, &save);
 }
 static void save_stack_var_off(ctx_t * ctx, var_t * var, asm_reg_t reg, size_t offset) {
-	ul_raise_assert(asm_reg_is_gpr(reg));
-
-	asm_size_t mem_size = asm_reg_get_size(reg);
-
-	ul_raise_assert(asm_size_get_bytes(mem_size) + offset <= var->size);
+	ul_raise_assert(asm_reg_infos[reg].grps.gpr
+		&& asm_size_infos[asm_reg_get_size(reg)].bytes + offset <= var->size);
 
 	save_stack_gpr(ctx, (int32_t)(ctx->stack_vars_pos + var->pos + offset), reg);
 }
 static void save_stack_var(ctx_t * ctx, var_t * var, asm_reg_t reg) {
 	save_stack_var_off(ctx, var, reg, 0);
 }
-static void load_int(ctx_t * ctx, asm_reg_t reg, asm_inst_imm_type_t imm_type, int64_t imm) {
-	ul_raise_assert(asm_reg_get_size(reg) == asm_inst_imm_type_to_size[imm_type]);
+static void load_int(ctx_t * ctx, asm_reg_t reg, int64_t imm) {
+	asm_inst_imm_type_t imm_type = asm_inst_imm_size_to_type[asm_reg_get_size(reg)];
+
+	ul_raise_assert(imm_type != AsmInstImmNone);
 
 	asm_inst_t load = { .type = AsmInstMov, .opds = AsmInstOpds_Reg_Imm, .reg0 = reg, .imm0_type = imm_type, .imm0 = imm };
 
@@ -1290,11 +1289,8 @@ static void load_stack_gpr(ctx_t * ctx, asm_reg_t reg, int32_t offset) {
 	asm_frag_push_inst(ctx->frag, &load);
 }
 static void load_stack_var_off(ctx_t * ctx, asm_reg_t reg, var_t * var, size_t offset) {
-	ul_raise_assert(asm_reg_is_gpr(reg));
-
-	asm_size_t mem_size = asm_reg_get_size(reg);
-
-	ul_raise_assert(asm_size_get_bytes(mem_size) + offset <= var->size);
+	ul_raise_assert(asm_reg_infos[reg].grps.gpr
+		&& asm_size_infos[asm_reg_get_size(reg)].bytes + offset <= var->size);
 
 	load_stack_gpr(ctx, reg, (int32_t)(ctx->stack_vars_pos + var->pos + offset));
 }
@@ -1655,20 +1651,19 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 		case IraValImmVoid:
 			break;
 		case IraValImmBool:
-			load_int(ctx, AsmRegAl, AsmInstImm8, val->bool_val ? 1 : 0);
+			load_int(ctx, AsmRegAl, val->bool_val ? 1 : 0);
 			save_stack_var(ctx, var, AsmRegAl);
 			break;
 		case IraValImmInt:
 		{
 			asm_reg_t reg = get_gpr_reg_int(AsmRegGprAx, val->dt->int_type);
-			asm_inst_imm_type_t imm_type = ira_int_infos[val->dt->int_type].asm_imm_type;
 
-			load_int(ctx, reg, imm_type, val->int_val.si64);
+			load_int(ctx, reg, val->int_val.si64);
 			save_stack_var(ctx, var, reg);
 			break;
 		}
 		case IraValImmPtr:
-			load_int(ctx, AsmRegRax, AsmInstImm64, (int64_t)val->int_val.ui64);
+			load_int(ctx, AsmRegRax, (int64_t)val->int_val.ui64);
 			save_stack_var(ctx, var, AsmRegRax);
 			break;
 		case IraValLoPtr:
@@ -1701,7 +1696,7 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 			size_t off;
 
 			off = ira_dt_get_sd_elem_off(sd, IRA_DT_ARR_SIZE_IND);
-			load_int(ctx, AsmRegRax, AsmInstImm64, (int64_t)val->arr_val.size);
+			load_int(ctx, AsmRegRax, (int64_t)val->arr_val.size);
 			save_stack_var_off(ctx, var, AsmRegRax, off);
 
 			off = ira_dt_get_sd_elem_off(sd, IRA_DT_ARR_DATA_IND);
@@ -1859,7 +1854,7 @@ static void compile_shift_ptr(ctx_t * ctx, inst_t * inst) {
 	}
 
 	{
-		load_int(ctx, AsmRegRax, AsmInstImm64, (int64_t)inst->shift_ptr.scale);
+		load_int(ctx, AsmRegRax, (int64_t)inst->shift_ptr.scale);
 
 		asm_inst_t imul = { .type = AsmInstImul, .opds = AsmInstOpds_Reg_Reg, .reg0 = AsmRegRcx, .reg1 = AsmRegRax };
 

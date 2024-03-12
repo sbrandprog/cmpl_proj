@@ -1,6 +1,7 @@
 #pragma once
 
 typedef uint8_t asm_size_t;
+typedef struct asm_size_info asm_size_info_t;
 
 typedef uint8_t asm_reg_t;
 typedef union asm_reg_grps asm_reg_grps_t;
