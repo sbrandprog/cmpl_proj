@@ -108,6 +108,19 @@ bool wa_style_init_dflt(wa_style_t * style) {
 	return true;
 }
 
+TEXTMETRICW wa_style_get_font_metric(HFONT hf) {
+	HDC hdc = GetDC(NULL);
+
+	SelectFont(hdc, hf);
+
+	TEXTMETRICW tm;
+
+	GetTextMetricsW(hdc, &tm);
+
+	ReleaseDC(NULL, hdc);
+
+	return tm;
+}
 LONG wa_style_get_font_str_w(HFONT hf, size_t str_size, wchar_t * str) {
 	HDC hdc = GetDC(NULL);
 
@@ -120,17 +133,4 @@ LONG wa_style_get_font_str_w(HFONT hf, size_t str_size, wchar_t * str) {
 	ReleaseDC(NULL, hdc);
 
 	return text_rect.right;
-}
-LONG wa_style_get_font_h(HFONT hf) {
-	HDC hdc = GetDC(NULL);
-
-	SelectFont(hdc, hf);
-
-	TEXTMETRICW tm;
-
-	GetTextMetricsW(hdc, &tm);
-
-	ReleaseDC(NULL, hdc);
-
-	return tm.tmHeight;
 }

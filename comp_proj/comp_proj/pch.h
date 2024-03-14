@@ -15,5 +15,6 @@
 #include <intrin.h>
 
 #include <Windows.h>
+#include <windowsx.h>
 
 #include <utility_lib/utility_lib.h>

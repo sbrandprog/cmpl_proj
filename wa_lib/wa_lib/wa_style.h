@@ -40,5 +40,8 @@ WA_SYMBOL void wa_style_cleanup(wa_style_t * style);
 
 WA_SYMBOL bool wa_style_init_dflt(wa_style_t * style);
 
+WA_SYMBOL TEXTMETRICW wa_style_get_font_metric(HFONT hf);
 WA_SYMBOL LONG wa_style_get_font_str_w(HFONT hf, size_t str_size, wchar_t * str);
-WA_SYMBOL LONG wa_style_get_font_h(HFONT hf);
+inline LONG wa_style_get_font_h(HFONT hf) {
+	return wa_style_get_font_metric(hf).tmHeight;
+}
