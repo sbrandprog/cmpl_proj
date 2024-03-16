@@ -11,22 +11,55 @@
 
 #define ARR_UNQ_PREFIX L"#arr"
 
+#define COMPILE_LO_WORKER_TIMEOUT 5000
+#define COMPILE_LO_WORKER_COUNT 4
+
+typedef struct ira_pec_c_ctx_cl_elem {
+	ira_lo_t * lo;
+} cl_elem_t;
+
 typedef struct ira_pec_c_ctx {
 	ira_pec_t * pec;
-
 	asm_pea_t * out;
 
 	ul_hsb_t hsb;
 	ul_hst_t * hst;
 
 	size_t str_unq_index;
+
+	CRITICAL_SECTION cl_lock;
+	size_t cl_elems_cap;
+	cl_elem_t * cl_elems;
+	size_t cl_elems_size;
+	CONDITION_VARIABLE cl_cv;
+	size_t cl_elems_cur;
+	size_t cl_wips;
+	bool cl_err_flag;
 } ctx_t;
 
 static ul_hs_t * get_unq_arr_label(ctx_t * ctx) {
 	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%zi", ARR_UNQ_PREFIX, ctx->str_unq_index++);
 }
 
-bool ira_pec_c_is_val_compilable(ira_val_t * val) {
+static bool is_lo_compilable(ira_lo_t * lo) {
+	switch (lo->type) {
+		case IraLoNone:
+		case IraLoNspc:
+			return false;
+		case IraLoFunc:
+		case IraLoImpt:
+		case IraLoVar:
+			break;
+		case IraLoDtStct:
+		case IraLoRoVal:
+			return false;
+		default:
+			ul_raise_unreachable();
+	}
+
+	return true;
+}
+bool ira_pec_c_process_val_compl(ira_pec_c_ctx_t * ctx, ira_val_t * val) {
 	switch (val->type) {
 		case IraValImmVoid:
 			break;
@@ -35,7 +68,13 @@ bool ira_pec_c_is_val_compilable(ira_val_t * val) {
 		case IraValImmBool:
 		case IraValImmInt:
 		case IraValImmPtr:
+			break;
 		case IraValLoPtr:
+			if (!is_lo_compilable(val->lo_val)) {
+				return false;
+			}
+
+			ira_pec_c_push_cl_elem(ctx, val->lo_val);
 			break;
 		case IraValImmStct:
 		{
@@ -46,7 +85,7 @@ bool ira_pec_c_is_val_compilable(ira_val_t * val) {
 			}
 
 			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
-				if (!ira_pec_c_is_val_compilable(*elem)) {
+				if (!ira_pec_c_process_val_compl(ctx, *elem)) {
 					return false;
 				}
 			}
@@ -54,7 +93,7 @@ bool ira_pec_c_is_val_compilable(ira_val_t * val) {
 		}
 		case IraValImmArr:
 			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + val->arr_val.size; elem != elem_end; ++elem) {
-				if (!ira_pec_c_is_val_compilable(*elem)) {
+				if (!ira_pec_c_process_val_compl(ctx, *elem)) {
 					return false;
 				}
 			}
@@ -111,6 +150,10 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 			asm_frag_push_inst(frag, &data);
 			break;
 		case IraValLoPtr:
+			if (!is_lo_compilable(val->lo_val)) {
+				return false;
+			}
+
 			data.imm0_type = AsmInstImmLabelVa64;
 			data.imm0_label = val->lo_val->full_name;
 			
@@ -178,6 +221,37 @@ asm_pea_t * ira_pec_c_get_pea(ira_pec_c_ctx_t * ctx) {
 	return ctx->out;
 }
 
+static void push_cl_elem_nl(ctx_t * ctx, ira_lo_t * lo) {
+	for (cl_elem_t * elem = ctx->cl_elems, *elem_end = elem + ctx->cl_elems_size; elem != elem_end; ++elem) {
+		if (elem->lo == lo) {
+			return;
+		}
+	}
+	
+	if (ctx->cl_elems_size + 1 >= ctx->cl_elems_cap) {
+		ul_arr_grow(&ctx->cl_elems_cap, &ctx->cl_elems, sizeof(*ctx->cl_elems), 1);
+	}
+
+	ctx->cl_elems[ctx->cl_elems_size++] = (cl_elem_t){ .lo = lo };
+}
+void ira_pec_c_push_cl_elem(ira_pec_c_ctx_t * ctx, ira_lo_t * lo) {
+	EnterCriticalSection(&ctx->cl_lock);
+
+	__try {
+		push_cl_elem_nl(ctx, lo);
+	}
+	__finally {
+		LeaveCriticalSection(&ctx->cl_lock);
+	}
+
+	WakeConditionVariable(&ctx->cl_cv);
+}
+
+static bool compile_lo_impt(ctx_t * ctx, ira_lo_t * lo) {
+	asm_it_add_sym(&ctx->out->it, lo->impt.lib_name, lo->impt.sym_name, lo->full_name);
+
+	return true;
+}
 static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 	if (!ira_dt_is_complete(lo->var.qdt.dt)) {
 		return false;
@@ -234,30 +308,20 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 }
 static bool compile_lo(ctx_t * ctx, ira_lo_t * lo) {
 	switch (lo->type) {
-		case IraLoNone:
-			break;
-		case IraLoNspc:
-			for (ira_lo_t * it = lo->nspc.body; it != NULL; it = it->next) {
-				if (!compile_lo(ctx, it)) {
-					return false;
-				}
-			}
-			break;
 		case IraLoFunc:
 			if (!ira_pec_ip_compile(ctx, lo)) {
 				return false;
 			}
 			break;
 		case IraLoImpt:
-			asm_it_add_sym(&ctx->out->it, lo->impt.lib_name, lo->impt.sym_name, lo->full_name);
+			if (!compile_lo_impt(ctx, lo)) {
+				return false;
+			}
 			break;
 		case IraLoVar:
 			if (!compile_lo_var(ctx, lo)) {
 				return false;
 			}
-			break;
-		case IraLoDtStct:
-		case IraLoRoVal:
 			break;
 		default:
 			ul_raise_unreachable();
@@ -266,20 +330,107 @@ static bool compile_lo(ctx_t * ctx, ira_lo_t * lo) {
 	return true;
 }
 
+static bool get_cl_elem(ctx_t * ctx, cl_elem_t * out) {
+	EnterCriticalSection(&ctx->cl_lock);
+
+	bool res = false;
+
+	while (true) {
+		if (ctx->cl_elems_cur < ctx->cl_elems_size) {
+			*out = ctx->cl_elems[ctx->cl_elems_cur++];
+
+			InterlockedIncrement64(&ctx->cl_wips);
+
+			res = true;
+
+			break;
+		}
+		else if (ctx->cl_wips == 0) {
+			break;
+		}
+
+		SleepConditionVariableCS(&ctx->cl_cv, &ctx->cl_lock, COMPILE_LO_WORKER_TIMEOUT);
+	}
+
+	LeaveCriticalSection(&ctx->cl_lock);
+
+	return res;
+}
+static bool process_cl_elem(ctx_t * ctx, cl_elem_t * elem) {
+	bool res = true;
+
+	__try {
+		if (!compile_lo(ctx, elem->lo)) {
+			res = false;
+		}
+	}
+	__except (exception_code() == STATUS_NO_MEMORY) {
+		res = false;
+	}
+
+	if (InterlockedDecrement64(&ctx->cl_wips) == 0) {
+		WakeAllConditionVariable(&ctx->cl_cv);
+	}
+
+	return res;
+}
+static VOID compile_lo_worker(PTP_CALLBACK_INSTANCE itnc, PVOID user_data, PTP_WORK work) {
+	ctx_t * ctx = user_data;
+	cl_elem_t elem;
+
+	while (get_cl_elem(ctx, &elem)) {
+		if (!process_cl_elem(ctx, &elem)) {
+			ctx->cl_err_flag = true;
+		}
+	}
+}
+
+static ira_lo_t * find_lo(ira_lo_t * nspc, ul_hs_t * name) {
+	for (ira_lo_t * lo = nspc->nspc.body; lo != NULL; lo = lo->next) {
+		if (lo->name == name) {
+			return lo;
+		}
+	}
+
+	return NULL;
+}
+
 static bool compile_core(ctx_t * ctx) {
+	ira_lo_t * ep_lo = find_lo(ctx->pec->root, ctx->pec->ep_name);
+
+	if (ep_lo == NULL) {
+		return false;
+	}
+
 	ctx->hst = ctx->pec->hst;
 
 	ul_hsb_init(&ctx->hsb);
 
 	asm_pea_init(ctx->out, ctx->hst);
 
-	if (!compile_lo(ctx, ctx->pec->root)) {
+	InitializeCriticalSection(&ctx->cl_lock);
+
+	InitializeConditionVariable(&ctx->cl_cv);
+
+	PTP_WORK work = CreateThreadpoolWork(compile_lo_worker, ctx, NULL);
+
+	if (work == NULL) {
 		return false;
 	}
 
+	for (size_t i = 0; i < COMPILE_LO_WORKER_COUNT; ++i) {
+		SubmitThreadpoolWork(work);
+	}
+
+	push_cl_elem_nl(ctx, ep_lo);
+
+	WaitForThreadpoolWorkCallbacks(work, FALSE);
+
+	CloseThreadpoolWork(work);
+
 	ctx->out->ep_name = ctx->pec->ep_name;
 
-	return true;
+	return !ctx->cl_err_flag;
 }
 bool ira_pec_c_compile(ira_pec_t * pec, asm_pea_t * out) {
 	ctx_t ctx = { .pec = pec, .out = out };
@@ -290,6 +441,10 @@ bool ira_pec_c_compile(ira_pec_t * pec, asm_pea_t * out) {
 		res = compile_core(&ctx);
 	}
 	__finally {
+		DeleteCriticalSection(&ctx.cl_lock);
+
+		free(ctx.cl_elems);
+
 		ul_hsb_cleanup(&ctx.hsb);
 	}
 

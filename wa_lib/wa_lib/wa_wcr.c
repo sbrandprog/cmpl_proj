@@ -62,7 +62,9 @@ bool wa_wcr_init(wa_wcr_t * wcr, wa_ctx_t * ctx) {
 
 	return true;
 }
-static void unregister_clss_nl(wa_wcr_t * wcr) {
+void wa_wcr_cleanup(wa_wcr_t * wcr) {
+	DeleteCriticalSection(&wcr->lock);
+
 	for (ATOM * wnd_cls = wcr->wnd_clss, *wnd_cls_end = wnd_cls + wcr->wnd_clss_size; wnd_cls != wnd_cls_end; ++wnd_cls) {
 		UnregisterClassW(wnd_cls, wcr->ctx->itnc);
 	}
@@ -72,19 +74,6 @@ static void unregister_clss_nl(wa_wcr_t * wcr) {
 	wcr->wnd_clss_cap = 0;
 	wcr->wnd_clss = NULL;
 	wcr->wnd_clss_size = 0;
-}
-void wa_wcr_cleanup(wa_wcr_t * wcr) {
-	EnterCriticalSection(&wcr->lock);
-
-	__try {
-		unregister_clss_nl(wcr);
-	}
-	__finally {
-		LeaveCriticalSection(&wcr->lock);
-	}
-
-	
-	DeleteCriticalSection(&wcr->lock);
 
 	memset(wcr, 0, sizeof(*wcr));
 }

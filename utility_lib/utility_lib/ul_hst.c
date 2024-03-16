@@ -7,7 +7,9 @@ void ul_hst_init(ul_hst_t * hst) {
 
 	InitializeCriticalSection(&hst->lock);
 }
-static void cleanup_nodes_nl(ul_hst_t * hst) {
+void ul_hst_cleanup(ul_hst_t * hst) {
+	DeleteCriticalSection(&hst->lock);
+
 	for (ul_hst_node_t ** ent = hst->ents, **ent_end = ent + _countof(hst->ents); ent != ent_end; ++ent) {
 		for (ul_hst_node_t * node = *ent; node != NULL; ) {
 			ul_hst_node_t * temp = node->next;
@@ -20,18 +22,6 @@ static void cleanup_nodes_nl(ul_hst_t * hst) {
 
 		*ent = NULL;
 	}
-}
-void ul_hst_cleanup(ul_hst_t * hst) {
-	EnterCriticalSection(&hst->lock);
-
-	__try {
-		cleanup_nodes_nl(hst);
-	}
-	__finally {
-		LeaveCriticalSection(&hst->lock);
-	}
-
-	DeleteCriticalSection(&hst->lock);
 
 	memset(hst, 0, sizeof(*hst));
 }

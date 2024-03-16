@@ -8,9 +8,9 @@ void ul_hsb_init(ul_hsb_t * hsb) {
 	InitializeCriticalSection(&hsb->lock);
 }
 void ul_hsb_cleanup(ul_hsb_t * hsb) {
-	free(hsb->buf);
-
 	DeleteCriticalSection(&hsb->lock);
+
+	free(hsb->buf);
 
 	memset(hsb, 0, sizeof(*hsb));
 }

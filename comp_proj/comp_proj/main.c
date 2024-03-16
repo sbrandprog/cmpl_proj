@@ -101,11 +101,12 @@ static void main_run() {
 static int main_core() {
 	ul_hst_init(&main_hst);
 	
+	/*
 	if (!main_gui()) {
 		return -1;
 	}
+	*/
 
-	/*
 	if (!main_parse()) {
 		return -1;
 	}
@@ -128,8 +129,6 @@ static int main_core() {
 
 	main_run();
 
-	*/
-
 	return 0;
 }
 
@@ -144,7 +143,6 @@ int main() {
 
 		wa_ctx_cleanup(&main_wa_ctx);
 
-		/*
 		lnk_pe_cleanup(&main_pe);
 
 		asm_pea_cleanup(&main_pea);
@@ -152,7 +150,6 @@ int main() {
 		ira_pec_cleanup(&main_pec);
 
 		pla_ast_cleanup(&main_ast);
-		*/
 
 		ul_hst_cleanup(&main_hst);
 	}

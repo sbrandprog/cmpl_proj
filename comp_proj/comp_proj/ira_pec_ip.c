@@ -636,9 +636,11 @@ static bool prepare_load_val(ctx_t * ctx, inst_t * inst, const ira_inst_info_t *
 		return false;
 	}
 
-	if (ctx->trg == TrgCompl && !ira_pec_c_is_val_compilable(inst->opd1.val)) {
-		report(ctx, L"[%s]: value in opd[1] contains non compilable elements", ira_inst_infos[inst->base->type].type_str.str);
-		return false;
+	if (ctx->trg == TrgCompl) {
+		if (!ira_pec_c_process_val_compl(ctx->c_ctx, inst->opd1.val)) {
+			report(ctx, L"[%s]: value in opd[1] is non compilable", ira_inst_infos[inst->base->type].type_str.str);
+			return false;
+		}
 	}
 
 	return true;

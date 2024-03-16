@@ -269,7 +269,7 @@ static ira_lo_t ** get_vse_lo_ins(pla_ast_t_ctx_t * ctx, ul_hs_t * name) {
 			}
 
 			return ins;
-		}
+			}
 		default:
 			ul_raise_unreachable();
 	}
@@ -671,22 +671,18 @@ static bool translate_dclr(ctx_t * ctx, pla_dclr_t * dclr) {
 	return result;
 }
 
-static void generate_full_names_depth(ctx_t * ctx, ira_lo_t * lo) {
-	if (lo->type != IraLoNspc) {
-		return;
-	}
+static void generate_full_names(ctx_t * ctx, ira_lo_t * nspc) {
+	for (ira_lo_t * lo = nspc->nspc.body; lo != NULL; lo = lo->next) {
+		if (nspc->name == NULL) {
+			lo->full_name = lo->name;
+		}
+		else {
+			lo->full_name = cat_hs_delim(ctx, lo->name, LO_FULL_NAME_DELIM, nspc->name);
+		}
 
-	for (ira_lo_t * body = lo->nspc.body; body != NULL; body = body->next) {
-		body->full_name = cat_hs_delim(ctx, lo->full_name, LO_FULL_NAME_DELIM, body->name);
-
-		generate_full_names_depth(ctx, body);
-	}
-}
-static void generate_full_names(ctx_t * ctx) {
-	for (ira_lo_t * body = ctx->out->root->nspc.body; body != NULL; body = body->next) {
-		body->full_name = body->name;
-
-		generate_full_names_depth(ctx, body);
+		if (lo->type == IraLoNspc) {
+			generate_full_names(ctx, lo);
+		}
 	}
 }
 
@@ -710,7 +706,7 @@ static bool translate_core(ctx_t * ctx) {
 		return false;
 	}
 
-	generate_full_names(ctx);
+	generate_full_names(ctx, ctx->out->root);
 
 	ul_raise_assert(ctx->tse == NULL && ctx->vse == NULL);
 
