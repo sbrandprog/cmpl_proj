@@ -1,17 +1,12 @@
 #include "pch.h"
 #include "lnk_sect.h"
 
-lnk_sect_t * lnk_sect_create(lnk_sect_t ** ins) {
+lnk_sect_t * lnk_sect_create() {
 	lnk_sect_t * sect = malloc(sizeof(*sect));
 
 	ul_raise_check_mem_alloc(sect);
 
 	*sect = (lnk_sect_t){ 0 };
-
-	if (ins != NULL) {
-		sect->next = *ins;
-		*ins = sect;
-	}
 
 	return sect;
 }

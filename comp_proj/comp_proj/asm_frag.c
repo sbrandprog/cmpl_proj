@@ -1,9 +1,10 @@
 #include "pch.h"
-#include "asm_frag.h"
+#include "lnk_sect.h"
+#include "lnk_pe.h"
 #include "asm_size.h"
 #include "asm_reg.h"
 #include "asm_inst.h"
-#include "lnk_pe.h"
+#include "asm_frag.h"
 
 typedef struct sect_info {
 	const char * name;
@@ -21,17 +22,12 @@ static const sect_info_t sect_infos[AsmFrag_Count] = {
 	[AsmFragWrData] = { .name = ".data", .align = 16, .align_byte = 0x00, .mem_r = true, .mem_w = true }
 };
 
-asm_frag_t * asm_frag_create(asm_frag_type_t type, asm_frag_t ** ins) {
+asm_frag_t * asm_frag_create(asm_frag_type_t type) {
 	asm_frag_t * frag = malloc(sizeof(*frag));
 
 	ul_raise_check_mem_alloc(frag);
 
 	*frag = (asm_frag_t){ .type = type };
-
-	if (ins != NULL) {
-		frag->next = *ins;
-		*ins = frag;
-	}
 
 	return frag;
 }
@@ -247,8 +243,8 @@ static bool build_core(asm_frag_t * frag, lnk_sect_t * out) {
 	return true;
 }
 
-bool asm_frag_build(asm_frag_t * frag, lnk_sect_t ** out) {
-	lnk_sect_create(out);
+bool asm_frag_build(asm_frag_t * frag, lnk_pe_t * out) {
+	lnk_sect_t * sect = lnk_pe_push_new_sect(out);
 
-	return build_core(frag, *out);
+	return build_core(frag, sect);
 }

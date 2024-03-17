@@ -4,7 +4,8 @@
 
 struct asm_pea {
 	ul_hst_t * hst;
-
+	
+	CRITICAL_SECTION frag_lock;
 	asm_frag_t * frag;
 
 	asm_it_t it;
@@ -14,3 +15,5 @@ struct asm_pea {
 
 void asm_pea_init(asm_pea_t * pea, ul_hst_t * hst);
 void asm_pea_cleanup(asm_pea_t * pea);
+
+asm_frag_t * asm_pea_push_new_frag(asm_pea_t * pea, asm_frag_type_t frag_type);

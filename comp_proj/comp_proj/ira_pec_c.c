@@ -189,7 +189,7 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 	return true;
 }
 bool ira_pec_c_compile_val_frag(ira_pec_c_ctx_t * ctx, ira_val_t * val, ul_hs_t ** out_label) {
-	asm_frag_t * frag = asm_frag_create(AsmFragRoData, &ctx->out->frag);
+	asm_frag_t * frag = asm_pea_push_new_frag(ctx->out, AsmFragRoData);
 
 	ul_hs_t * frag_label = get_unq_arr_label(ctx);
 
@@ -259,7 +259,7 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 
 	asm_frag_type_t frag_type = lo->var.qdt.qual.const_q ? AsmFragRoData : AsmFragWrData;
 
-	asm_frag_t * frag = asm_frag_create(frag_type, &ctx->out->frag);
+	asm_frag_t * frag = asm_pea_push_new_frag(ctx->out, frag_type);
 
 	{
 		asm_inst_t label = { .type = AsmInstLabel, .opds = AsmInstOpds_Label, .label = lo->full_name };

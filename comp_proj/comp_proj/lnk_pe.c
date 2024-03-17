@@ -2,10 +2,40 @@
 #include "lnk_pe.h"
 #include "lnk_sect.h"
 
+void lnk_pe_init(lnk_pe_t * pe) {
+	*pe = (lnk_pe_t){ 0 };
+
+	InitializeCriticalSection(&pe->sect_lock);
+}
 void lnk_pe_cleanup(lnk_pe_t * pe) {
+	DeleteCriticalSection(&pe->sect_lock);
+
 	lnk_sect_destroy_chain(pe->sect);
 
 	memset(pe, 0, sizeof(*pe));
+}
+
+static lnk_sect_t * push_pe_new_sect_nl(lnk_pe_t * pe) {
+	lnk_sect_t * sect = lnk_sect_create();
+
+	sect->next = pe->sect;
+	pe->sect = sect;
+
+	return sect;
+}
+lnk_sect_t * lnk_pe_push_new_sect(lnk_pe_t * pe) {
+	EnterCriticalSection(&pe->sect_lock);
+
+	lnk_sect_t * res;
+
+	__try {
+		res = push_pe_new_sect_nl(pe);
+	}
+	__finally {
+		LeaveCriticalSection(&pe->sect_lock);
+	}
+
+	return res;
 }
 
 const lnk_pe_sett_t lnk_pe_sett_default = {
@@ -24,4 +54,4 @@ const lnk_pe_sett_t lnk_pe_sett_default = {
 	.make_base_reloc = true,
 	.base_reloc_name = ".reloc"
 };
-extern const wchar_t * lnk_pe_file_name_default = L"out.exe";
+const wchar_t * lnk_pe_file_name_default = L"out.exe";

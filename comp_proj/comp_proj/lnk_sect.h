@@ -55,7 +55,7 @@ struct lnk_sect {
 	bool mem_r, mem_w, mem_e, mem_disc;
 };
 
-lnk_sect_t * lnk_sect_create(lnk_sect_t ** ins);
+lnk_sect_t * lnk_sect_create();
 void lnk_sect_destroy(lnk_sect_t * sect);
 
 void lnk_sect_destroy_chain(lnk_sect_t * sect);

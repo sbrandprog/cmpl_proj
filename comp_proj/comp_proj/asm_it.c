@@ -1,4 +1,6 @@
 #include "pch.h"
+#include "lnk_sect.h"
+#include "lnk_pe.h"
 #include "asm_it.h"
 
 #define SECT_NAME ".rdata"
@@ -9,20 +11,26 @@ typedef IMAGE_IMPORT_DESCRIPTOR impt_desc_t;
 
 typedef struct asm_it_ctx {
 	asm_it_t * it;
-
 	ul_hst_t * hst;
+	lnk_pe_t * out;
 
-	lnk_sect_t ** out;
+	ul_hsb_t hsb;
 
 	lnk_sect_t * dir_sect;
 	lnk_sect_t * addr_sect;
 	lnk_sect_t * hnt_sect;
 
 	size_t label_index;
-	wchar_t * label_buf;
 } ctx_t;
 
+void asm_it_init(asm_it_t * it) {
+	*it = (asm_it_t){ 0 };
+
+	InitializeCriticalSection(&it->lock);
+}
 void asm_it_cleanup(asm_it_t * it) {
+	DeleteCriticalSection(&it->lock);
+
 	for (asm_it_lib_t * lib = it->lib; lib != NULL; ) {
 		asm_it_lib_t * next = lib->next;
 
@@ -42,7 +50,7 @@ void asm_it_cleanup(asm_it_t * it) {
 	memset(it, 0, sizeof(*it));
 }
 
-asm_it_lib_t * asm_it_get_lib(asm_it_t * it, ul_hs_t * name) {
+static asm_it_lib_t * get_it_lib_nl(asm_it_t * it, ul_hs_t * name) {
 	asm_it_lib_t ** ins = &it->lib;
 
 	while (*ins != NULL) {
@@ -65,13 +73,21 @@ asm_it_lib_t * asm_it_get_lib(asm_it_t * it, ul_hs_t * name) {
 
 	return new_lib;
 }
-asm_it_sym_t * asm_it_add_sym(asm_it_t * it, ul_hs_t * lib_name, ul_hs_t * sym_name, ul_hs_t * sym_link_name) {
-	asm_it_lib_t * lib = asm_it_get_lib(it, lib_name);
+asm_it_lib_t * asm_it_get_lib(asm_it_t * it, ul_hs_t * name) {
+	EnterCriticalSection(&it->lock);
 
-	return asm_it_lib_add_sym(lib, sym_name, sym_link_name);
+	asm_it_lib_t * res;
+
+	__try {
+		res = get_it_lib_nl(it, name);
+	}
+	__finally {
+		LeaveCriticalSection(&it->lock);
+	}
+
+	return res;
 }
-
-asm_it_sym_t * asm_it_lib_add_sym(asm_it_lib_t * lib, ul_hs_t * name, ul_hs_t * link_name) {
+static asm_it_sym_t * add_lib_sym_nl(asm_it_lib_t * lib, ul_hs_t * name, ul_hs_t * link_name) {
 	asm_it_sym_t ** ins = &lib->sym;
 
 	while (*ins != NULL) {
@@ -94,9 +110,25 @@ asm_it_sym_t * asm_it_lib_add_sym(asm_it_lib_t * lib, ul_hs_t * name, ul_hs_t * 
 
 	return new_sym;
 }
+asm_it_sym_t * asm_it_add_sym(asm_it_t * it, ul_hs_t * lib_name, ul_hs_t * sym_name, ul_hs_t * sym_link_name) {
+	EnterCriticalSection(&it->lock);
+
+	asm_it_sym_t * res;
+
+	__try {
+		asm_it_lib_t * lib = get_it_lib_nl(it, lib_name);
+
+		res = add_lib_sym_nl(lib, sym_name, sym_link_name);
+	}
+	__finally {
+		LeaveCriticalSection(&it->lock);
+	}
+
+	return res;
+}
 
 static lnk_sect_t * create_sects_sect(ctx_t * ctx) {
-	lnk_sect_t * sect = lnk_sect_create(ctx->out);
+	lnk_sect_t * sect = lnk_pe_push_new_sect(ctx->out);
 
 	sect->name = SECT_NAME;
 
@@ -114,20 +146,7 @@ static void create_sects(ctx_t * ctx) {
 }
 
 static ul_hs_t * get_unq_label_name(ctx_t * ctx) {
-	size_t str_size = _countof(LABEL_PREFIX) - 1 + UL_SIZE_T_NUM_SIZE;
-	size_t str_size_full = str_size + 1;
-
-	if (ctx->label_buf == NULL) {
-		ctx->label_buf = malloc(sizeof(*ctx->label_buf) * str_size_full);
-
-		ul_raise_check_mem_alloc(ctx->label_buf);
-	}
-
-	int result = swprintf_s(ctx->label_buf, str_size_full, L"%s%zi", LABEL_PREFIX, ctx->label_index++);
-
-	ul_raise_assert(result >= 0 && result < (int)str_size);
-
-	return ul_hst_hashadd(ctx->hst, (size_t)result, ctx->label_buf);
+	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%zi", LABEL_PREFIX, ctx->label_index++);
 }
 static void write_data(lnk_sect_t * sect, size_t data_size, void * data) {
 	if (sect->data_size + data_size > sect->data_cap) {
@@ -224,6 +243,8 @@ static bool build_core(ctx_t * ctx) {
 		return true;
 	}
 
+	ul_hsb_init(&ctx->hsb);
+
 	create_sects(ctx);
 
 	lnk_sect_add_lp(ctx->dir_sect, LnkSectLpMark, LnkSectMarkImpStart, NULL, ctx->dir_sect->data_size);
@@ -245,12 +266,17 @@ static bool build_core(ctx_t * ctx) {
 	return true;
 }
 
-bool asm_it_build(asm_it_t * it, ul_hst_t * hst, lnk_sect_t ** out) {
+bool asm_it_build(asm_it_t * it, ul_hst_t * hst, lnk_pe_t * out) {
 	ctx_t ctx = { .it = it, .hst = hst, .out = out };
 
-	bool result = build_core(&ctx);
+	bool res;
+	
+	__try {
+		res = build_core(&ctx);
+	}
+	__finally {
+		ul_hsb_cleanup(&ctx.hsb);
+	}
 
-	free(ctx.label_buf);
-
-	return result;
+	return res;
 }

@@ -21,6 +21,7 @@ struct lnk_pe_sett {
 };
 
 struct lnk_pe {
+	CRITICAL_SECTION sect_lock;
 	lnk_sect_t * sect;
 
 	ul_hs_t * ep_name;
@@ -30,7 +31,10 @@ struct lnk_pe {
 	const lnk_pe_sett_t * sett;
 };
 
+void lnk_pe_init(lnk_pe_t * pe);
 void lnk_pe_cleanup(lnk_pe_t * pe);
+
+lnk_sect_t * lnk_pe_push_new_sect(lnk_pe_t * pe);
 
 extern const lnk_pe_sett_t lnk_pe_sett_default;
 extern const wchar_t * lnk_pe_file_name_default;

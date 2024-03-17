@@ -13,7 +13,7 @@ static bool build_frags(ctx_t * ctx) {
 	lnk_pe_t * pe = ctx->pe;
 
 	for (asm_frag_t * frag = ctx->pea->frag; frag != NULL; frag = frag->next) {
-		if (!asm_frag_build(frag, &pe->sect)) {
+		if (!asm_frag_build(frag, pe)) {
 			return false;
 		}
 	}
@@ -30,11 +30,13 @@ static void fill_props(ctx_t * ctx) {
 }
 
 static bool build_core(ctx_t * ctx) {
+	lnk_pe_init(ctx->pe);
+
 	if (!build_frags(ctx)) {
 		return false;
 	}
 
-	if (!asm_it_build(&ctx->pea->it, ctx->pea->hst, &ctx->pe->sect)) {
+	if (!asm_it_build(&ctx->pea->it, ctx->pea->hst, ctx->pe)) {
 		return false;
 	}
 

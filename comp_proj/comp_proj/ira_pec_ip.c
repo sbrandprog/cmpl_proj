@@ -103,7 +103,6 @@ typedef struct ira_pec_ip_ctx {
 
 	ira_pec_c_ctx_t * c_ctx;
 	ira_lo_t * c_lo;
-	asm_frag_t ** c_out;
 
 	ira_val_t ** i_out;
 
@@ -2160,13 +2159,11 @@ static bool compile_core(ctx_t * ctx) {
 		return false;
 	}
 
-	ctx->c_out = &ira_pec_c_get_pea(ctx->c_ctx)->frag;
-
 	ctx->hsb = ira_pec_c_get_hsb(ctx->c_ctx);
 	ctx->hst = ira_pec_c_get_hst(ctx->c_ctx);
 	ctx->pec = ira_pec_c_get_pec(ctx->c_ctx);
 
-	ctx->frag = asm_frag_create(AsmFragProc, ctx->c_out);
+	ctx->frag = asm_pea_push_new_frag(ira_pec_c_get_pea(ctx->c_ctx), AsmFragProc);
 
 	push_label(ctx, ctx->c_lo->full_name);
 

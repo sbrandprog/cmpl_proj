@@ -1,6 +1,6 @@
 #pragma once
+#include "lnk.h"
 #include "asm.h"
-#include "lnk_sect.h"
 
 enum asm_frag_type {
 	AsmFragNone,
@@ -20,11 +20,11 @@ struct asm_frag {
 	size_t align;
 };
 
-asm_frag_t * asm_frag_create(asm_frag_type_t type, asm_frag_t ** ins);
+asm_frag_t * asm_frag_create(asm_frag_type_t type);
 void asm_frag_destroy(asm_frag_t * frag);
 
 void asm_frag_destroy_chain(asm_frag_t * frag);
 
 void asm_frag_push_inst(asm_frag_t * frag, asm_inst_t * inst);
 
-bool asm_frag_build(asm_frag_t * frag, lnk_sect_t ** out);
+bool asm_frag_build(asm_frag_t * frag, lnk_pe_t * out);
