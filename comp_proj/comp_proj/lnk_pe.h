@@ -21,7 +21,6 @@ struct lnk_pe_sett {
 };
 
 struct lnk_pe {
-	CRITICAL_SECTION sect_lock;
 	lnk_sect_t * sect;
 
 	ul_hs_t * ep_name;

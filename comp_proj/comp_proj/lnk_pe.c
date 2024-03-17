@@ -4,38 +4,25 @@
 
 void lnk_pe_init(lnk_pe_t * pe) {
 	*pe = (lnk_pe_t){ 0 };
-
-	InitializeCriticalSection(&pe->sect_lock);
 }
 void lnk_pe_cleanup(lnk_pe_t * pe) {
-	DeleteCriticalSection(&pe->sect_lock);
-
 	lnk_sect_destroy_chain(pe->sect);
 
 	memset(pe, 0, sizeof(*pe));
 }
 
-static lnk_sect_t * push_pe_new_sect_nl(lnk_pe_t * pe) {
+lnk_sect_t * lnk_pe_push_new_sect(lnk_pe_t * pe) {
 	lnk_sect_t * sect = lnk_sect_create();
 
-	sect->next = pe->sect;
-	pe->sect = sect;
+	lnk_sect_t * next;
+
+	do {
+		next = pe->sect;
+
+		sect->next = pe->sect;
+	} while (InterlockedCompareExchangePointer(&pe->sect, sect, next) != next);
 
 	return sect;
-}
-lnk_sect_t * lnk_pe_push_new_sect(lnk_pe_t * pe) {
-	EnterCriticalSection(&pe->sect_lock);
-
-	lnk_sect_t * res;
-
-	__try {
-		res = push_pe_new_sect_nl(pe);
-	}
-	__finally {
-		LeaveCriticalSection(&pe->sect_lock);
-	}
-
-	return res;
 }
 
 const lnk_pe_sett_t lnk_pe_sett_default = {
