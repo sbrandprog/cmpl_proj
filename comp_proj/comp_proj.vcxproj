@@ -46,13 +46,11 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)bin\$(ProjectName)-$(Platform)-$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)int\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
-    <CopyLocalDeploymentContent>true</CopyLocalDeploymentContent>
     <CopyLocalProjectReference>true</CopyLocalProjectReference>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)bin\$(ProjectName)-$(Platform)-$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)int\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
-    <CopyLocalDeploymentContent>true</CopyLocalDeploymentContent>
     <CopyLocalProjectReference>true</CopyLocalProjectReference>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -172,24 +170,15 @@
     <ClInclude Include="comp_proj\pla_edit.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="pla_lib\std\io.pla">
-      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
-      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
-    </None>
-    <None Include="pla_lib\w64\kernel32.pla">
-      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
-      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
-    </None>
+    <None Include="pla_lib\std\io.pla" />
+    <None Include="pla_lib\w64\kernel32.pla" />
     <None Include="comp_proj\ira_inst.def" />
     <None Include="comp_proj\ira_pds.def" />
     <None Include="comp_proj\pla_expr.def" />
     <None Include="comp_proj\pla_pds.def" />
     <None Include="comp_proj\pla_keyw.def" />
     <None Include="comp_proj\pla_punc.def" />
-    <None Include="test.pla">
-      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
-      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
-    </None>
+    <None Include="test.pla" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\utility_lib\utility_lib.vcxproj">

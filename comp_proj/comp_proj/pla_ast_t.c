@@ -22,17 +22,16 @@ typedef pla_ast_t_vse_t vse_t;
 
 typedef struct pla_ast_t_ctx {
 	pla_ast_t * ast;
-
 	ira_pec_t * out;
 
 	ul_hst_t * hst;
+	ul_hsb_t hsb;
 
 	pla_ast_t_optr_t * optrs[PlaExpr_Count];
 
 	tse_t * tse;
 	vse_t * vse;
 
-	ul_hsb_t hsb;
 } ctx_t;
 
 static optr_t * create_optr(optr_type_t type) {
@@ -250,34 +249,6 @@ void pla_ast_t_pop_vse(pla_ast_t_ctx_t * ctx) {
 pla_ast_t_vse_t * pla_ast_t_get_vse(pla_ast_t_ctx_t * ctx) {
 	return ctx->vse;
 }
-static ira_lo_t ** get_vse_lo_ins(pla_ast_t_ctx_t * ctx, ul_hs_t * name) {
-	pla_ast_t_vse_t * vse = ctx->vse;
-
-	switch (vse->type) {
-		case PlaAstTVseNone:
-			return NULL;
-		case PlaAstTVseNspc:
-		{
-			ira_lo_t ** ins = &vse->nspc.lo->nspc.body;
-
-			for (; *ins != NULL; ins = &(*ins)->next) {
-				ira_lo_t * lo = *ins;
-
-				if (lo->name == name) {
-					break;
-				}
-			}
-
-			return ins;
-			}
-		default:
-			ul_raise_unreachable();
-	}
-}
-
-static ul_hs_t * cat_hs_delim(ctx_t * ctx, ul_hs_t * str1, wchar_t delim, ul_hs_t * str2) {
-	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%c%s", str1->str, delim, str2->str);
-}
 
 ul_hs_t * pla_ast_t_get_pds(pla_ast_t_ctx_t * ctx, pla_pds_t pds) {
 	ul_raise_assert(pds < PlaPds_Count);
@@ -286,11 +257,8 @@ ul_hs_t * pla_ast_t_get_pds(pla_ast_t_ctx_t * ctx, pla_pds_t pds) {
 }
 
 void pla_ast_t_print_ts(pla_ast_t_ctx_t * ctx, FILE * file) {
-	for (tse_t * tse = ctx->tse; tse != NULL; tse = tse->prev) {
+	for (tse_t * tse = pla_ast_t_get_tse(ctx); tse != NULL; tse = tse->prev) {
 		switch (tse->type) {
-			case PlaAstTTseNone:
-				fwprintf(file, L"#None\n");
-				break;
 			case PlaAstTTseDclr:
 			{
 				pla_dclr_t * dclr = tse->dclr;
@@ -324,26 +292,34 @@ void pla_ast_t_print_ts(pla_ast_t_ctx_t * ctx, FILE * file) {
 	}
 }
 
+static bool calculate_expr_guard(pla_ast_t_ctx_t * ctx, pla_stmt_t * blk, ira_func_t ** func, ira_val_t ** out) {
+	if (!pla_ast_t_s_translate(ctx, NULL, blk, func)) {
+		return false;
+	}
+
+	if (!ira_pec_ip_interpret(ctx->out, *func, out)) {
+		pla_ast_t_report(ctx, L"failed to calculate an expression\n");
+		return false;
+	}
+
+	return true;
+}
 bool pla_ast_t_calculate_expr(pla_ast_t_ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) {
 	pla_stmt_t ret = { .type = PlaStmtRet, .ret.expr = expr };
 	pla_stmt_t blk = { .type = PlaStmtBlk, .blk.body = &ret };
 
 	ira_func_t * func = NULL;
 
-	if (!pla_ast_t_s_translate(ctx, NULL, &blk, &func)) {
+	bool res;
+
+	__try {
+		res = calculate_expr_guard(ctx, &blk, &func, out);
+	}
+	__finally {
 		ira_func_destroy(func);
-		return false;
 	}
 
-	bool result = ira_pec_ip_interpret(ctx->out, func, out);
-
-	if (!result) {
-		pla_ast_t_report(ctx, L"failed to calculate an expression\n");
-	}
-
-	ira_func_destroy(func);
-
-	return result;
+	return res;
 }
 bool pla_ast_t_calculate_expr_dt(pla_ast_t_ctx_t * ctx, pla_expr_t * expr, ira_dt_t ** out) {
 	bool result = false;
@@ -439,6 +415,35 @@ static void register_bltn_optrs(ctx_t * ctx) {
 
 static bool translate_dclr(ctx_t * ctx, pla_dclr_t * dclr);
 
+static ira_lo_t ** get_vse_lo_ins(pla_ast_t_ctx_t * ctx, ul_hs_t * name) {
+	pla_ast_t_vse_t * vse = pla_ast_t_get_vse(ctx);
+
+	if (vse == NULL) {
+		ul_raise_assert(name == NULL);
+
+		return &ctx->out->root;
+	}
+
+	switch (vse->type) {
+		case PlaAstTVseNspc:
+		{
+			ira_lo_t ** ins = &vse->nspc->nspc.body;
+
+			for (; *ins != NULL; ins = &(*ins)->next) {
+				ira_lo_t * lo = *ins;
+
+				if (lo->name == name) {
+					break;
+				}
+			}
+
+			return ins;
+		}
+		default:
+			ul_raise_unreachable();
+	}
+}
+
 static bool translate_dclr_nspc_vse(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
 	for (pla_dclr_t * it = dclr->nspc.body; it != NULL; it = it->next) {
 		if (!translate_dclr(ctx, it)) {
@@ -457,15 +462,20 @@ static bool translate_dclr_nspc(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 		return false;
 	}
 
-	vse_t vse = { .type = PlaAstTVseNspc, .nspc.lo = *out };
+	vse_t vse = { .type = PlaAstTVseNspc, .nspc = *out };
 
 	pla_ast_t_push_vse(ctx, &vse);
 
-	bool result = translate_dclr_nspc_vse(ctx, dclr, out);
+	bool res;
 
-	pla_ast_t_pop_vse(ctx);
+	__try {
+		res = translate_dclr_nspc_vse(ctx, dclr, out);
+	}
+	__finally {
+		pla_ast_t_pop_vse(ctx);
+	}
 
-	return result;
+	return res;
 }
 static bool translate_dclr_func(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
 	if (*out != NULL) {
@@ -497,7 +507,7 @@ static bool translate_dclr_impt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 		pla_ast_t_report(ctx, L"language object with [%s] name already exists", dclr->name->str);
 		return false;
 	}
-	
+
 	*out = ira_lo_create(IraLoImpt, dclr->name);
 
 	if (!pla_ast_t_calculate_expr_dt(ctx, dclr->impt.dt_expr, &(*out)->impt.dt)) {
@@ -516,7 +526,7 @@ static bool translate_dclr_var_dt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** ou
 	}
 
 	*out = ira_lo_create(IraLoVar, dclr->name);
-	
+
 	if (!pla_ast_t_calculate_expr_dt(ctx, dclr->var_dt.dt_expr, &(*out)->var.qdt.dt)) {
 		return false;
 	}
@@ -664,13 +674,21 @@ static bool translate_dclr(ctx_t * ctx, pla_dclr_t * dclr) {
 
 	pla_ast_t_push_tse(ctx, &tse);
 
-	bool result = translate_dclr_tse(ctx, dclr);
+	bool res;
 
-	pla_ast_t_pop_tse(ctx);
+	__try {
+		res = translate_dclr_tse(ctx, dclr);
+	}
+	__finally {
+		pla_ast_t_pop_tse(ctx);
+	}
 
-	return result;
+	return res;
 }
 
+static ul_hs_t * cat_hs_delim(ctx_t * ctx, ul_hs_t * str1, wchar_t delim, ul_hs_t * str2) {
+	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%c%s", str1->str, delim, str2->str);
+}
 static void generate_full_names(ctx_t * ctx, ira_lo_t * nspc) {
 	for (ira_lo_t * lo = nspc->nspc.body; lo != NULL; lo = lo->next) {
 		if (nspc->name == NULL) {
@@ -716,7 +734,7 @@ bool pla_ast_t_translate(pla_ast_t * ast, ira_pec_t * out) {
 	ctx_t ctx = { .ast = ast, .out = out };
 
 	bool res;
-	
+
 	__try {
 		res = translate_core(&ctx);
 	}

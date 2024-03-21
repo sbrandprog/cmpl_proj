@@ -965,11 +965,9 @@ static bool translate_expr0_ident(ctx_t * ctx, expr_t * expr) {
 
 	for (vse_t * vse = pla_ast_t_get_vse(ctx->t_ctx); vse != NULL; vse = vse->prev) {
 		switch (vse->type) {
-			case PlaAstTVseNone:
-				break;
 			case PlaAstTVseNspc:
 			{
-				ira_lo_t * lo = find_irid_lo(ctx, vse->nspc.lo, irid);
+				ira_lo_t * lo = find_irid_lo(ctx, vse->nspc, irid);
 
 				if (lo != NULL && process_ident_lo(ctx, expr, lo)) {
 					return true;
@@ -1249,11 +1247,16 @@ static bool translate_expr0(ctx_t * ctx, pla_expr_t * base, expr_t ** out) {
 
 	pla_ast_t_push_tse(ctx->t_ctx, &tse);
 
-	bool result = translate_expr0_tse(ctx, base, out);
+	bool res;
+	
+	__try {
+		res = translate_expr0_tse(ctx, base, out);
+	}
+	__finally {
+		pla_ast_t_pop_tse(ctx->t_ctx);
+	}
 
-	pla_ast_t_pop_tse(ctx->t_ctx);
-
-	return result;
+	return res;
 }
 
 static bool translate_expr1(ctx_t * ctx, expr_t * expr);
@@ -2011,40 +2014,49 @@ static bool translate_expr1(ctx_t * ctx, expr_t * expr) {
 
 	pla_ast_t_push_tse(ctx->t_ctx, &tse);
 
-	bool result = translate_expr1_tse(ctx, expr);
+	bool res;
+	
+	__try {
+		res = translate_expr1_tse(ctx, expr);
+	}
+	__finally {
+		pla_ast_t_pop_tse(ctx->t_ctx);
+	}
 
-	pla_ast_t_pop_tse(ctx->t_ctx);
-
-	return result;
+	return res;
 }
 
+static bool translate_expr_guard(ctx_t * ctx, pla_expr_t * pla_expr, expr_t ** expr, var_t ** out) {
+	if (!translate_expr0(ctx, pla_expr, expr)) {
+		return false;
+	}
+
+	if (out != NULL) {
+		if (!translate_expr1_imm_var(ctx, *expr, out)) {
+			return false;
+		}
+	}
+	else {
+		if (!translate_expr1(ctx, *expr)) {
+			return false;
+		}
+	}
+
+	return true;
+}
 static bool translate_expr(ctx_t * ctx, pla_expr_t * pla_expr, var_t ** out) {
-	expr_t * expr;
+	expr_t * expr = NULL;
 
-	bool result = false;
+	bool res;
 
-	do {
-		if (!translate_expr0(ctx, pla_expr, &expr)) {
-			break;
-		}
+	__try {
+		res = translate_expr_guard(ctx, pla_expr, &expr, out);
+	}
+	__finally {
+		destroy_expr(ctx, expr);
+	}
 
-		if (out != NULL) {
-			if (!translate_expr1_imm_var(ctx, expr, out)) {
-				break;
-			}
-		}
-		else {
-			if (!translate_expr1(ctx, expr)) {
-				break;
-			}
-		}
-
-		result = true;
-	} while (false);
-
-	destroy_expr(ctx, expr);
-
-	return result;
+	return res;
 }
 
 static bool translate_stmt(ctx_t * ctx, pla_stmt_t * stmt);
@@ -2063,11 +2075,16 @@ static bool translate_stmt_blk(ctx_t * ctx, pla_stmt_t * stmt) {
 
 	push_vvb(ctx, &vvb);
 
-	bool result = translate_stmt_blk_vvb(ctx, stmt);
+	bool res;
+	
+	__try {
+		res = translate_stmt_blk_vvb(ctx, stmt);
+	}
+	__finally {
+		pop_vvb(ctx);
+	}
 
-	pop_vvb(ctx);
-
-	return result;
+	return res;
 }
 static bool translate_stmt_expr(ctx_t * ctx, pla_stmt_t * stmt) {
 	if (!translate_expr(ctx, stmt->expr.expr, NULL)) {
@@ -2208,11 +2225,16 @@ static bool translate_stmt_pre_loop(ctx_t * ctx, pla_stmt_t * stmt) {
 
 	push_cfb(ctx, &cfb);
 
-	bool result = translate_stmt_pre_loop_cfb(ctx, stmt, &cfb);
+	bool res;
+	
+	__try {
+		res = translate_stmt_pre_loop_cfb(ctx, stmt, &cfb);
+	}
+	__finally {
+		pop_cfb(ctx);
+	}
 
-	pop_cfb(ctx);
-
-	return result;
+	return res;
 }
 static bool translate_stmt_post_loop_cfb(ctx_t * ctx, pla_stmt_t * stmt, cfb_t * cfb) {
 	size_t label_index = ctx->unq_label_index++;
@@ -2250,11 +2272,16 @@ static bool translate_stmt_post_loop(ctx_t * ctx, pla_stmt_t * stmt) {
 
 	push_cfb(ctx, &cfb);
 
-	bool result = translate_stmt_post_loop_cfb(ctx, stmt, &cfb);
+	bool res;
+	
+	__try {
+		res = translate_stmt_post_loop_cfb(ctx, stmt, &cfb);
+	}
+	__finally {
+		pop_cfb(ctx);
+	}
 
-	pop_cfb(ctx);
-
-	return result;
+	return res;
 }
 static bool translate_stmt_brk(ctx_t * ctx, pla_stmt_t * stmt) {
 	ul_hs_t * cfb_name = stmt->brk.name;
@@ -2398,11 +2425,16 @@ static bool translate_stmt(ctx_t * ctx, pla_stmt_t * stmt) {
 
 	pla_ast_t_push_tse(ctx->t_ctx, &tse);
 
-	bool result = translate_stmt_tse(ctx, stmt);
+	bool res;
+	
+	__try {
+		res = translate_stmt_tse(ctx, stmt);
+	}
+	__finally {
+		pla_ast_t_pop_tse(ctx->t_ctx);
+	}
 
-	pla_ast_t_pop_tse(ctx->t_ctx);
-
-	return result;
+	return res;
 }
 
 static bool translate_args_vvb(ctx_t * ctx) {
@@ -2442,11 +2474,16 @@ static bool translate_args(ctx_t * ctx) {
 
 	push_vvb(ctx, &vvb);
 
-	bool result = translate_args_vvb(ctx);
+	bool res;
+	
+	__try {
+		res = translate_args_vvb(ctx);
+	}
+	__finally {
+		pop_vvb(ctx);
+	}
 
-	pop_vvb(ctx);
-
-	return result;
+	return res;
 }
 
 static bool translate_core(ctx_t * ctx) {

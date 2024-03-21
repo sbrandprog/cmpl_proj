@@ -36,7 +36,6 @@ struct pla_ast_t_optr {
 };
 
 enum pla_ast_t_tse_type {
-	PlaAstTTseNone,
 	PlaAstTTseDclr,
 	PlaAstTTseStmt,
 	PlaAstTTseExpr,
@@ -53,7 +52,6 @@ struct pla_ast_t_tse {
 };
 
 enum pla_ast_t_vse_type {
-	PlaAstTVseNone,
 	PlaAstTVseNspc,
 	PlaAstTVse_Count
 };
@@ -61,9 +59,7 @@ struct pla_ast_t_vse {
 	pla_ast_t_vse_type_t type;
 	pla_ast_t_vse_t * prev;
 	union {
-		struct {
-			ira_lo_t * lo;
-		} nspc;
+		ira_lo_t * nspc;
 	};
 };
 

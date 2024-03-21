@@ -375,6 +375,8 @@ static bool process_cl_elem(ctx_t * ctx, cl_elem_t * elem) {
 	return res;
 }
 static VOID compile_lo_worker(PTP_CALLBACK_INSTANCE itnc, PVOID user_data, PTP_WORK work) {
+	CallbackMayRunLong(itnc);
+
 	ctx_t * ctx = user_data;
 	cl_elem_t elem;
 
@@ -418,11 +420,11 @@ static bool compile_core(ctx_t * ctx) {
 		return false;
 	}
 
+	push_cl_elem_nl(ctx, ep_lo);
+
 	for (size_t i = 0; i < COMPILE_LO_WORKER_COUNT; ++i) {
 		SubmitThreadpoolWork(work);
 	}
-
-	push_cl_elem_nl(ctx, ep_lo);
 
 	WaitForThreadpoolWorkCallbacks(work, FALSE);
 
