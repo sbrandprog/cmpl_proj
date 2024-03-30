@@ -101,7 +101,7 @@ static void main_run() {
 static int main_core() {
 	ul_hst_init(&main_hst);
 	
-	if (true) {
+	if (false) {
 		if (!main_gui()) {
 			return -1;
 		}

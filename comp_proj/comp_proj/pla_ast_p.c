@@ -71,12 +71,12 @@ struct lc {
 	size_t line_ch;
 	long long line_start;
 
+	bool file_pos_rptd;
+
 	size_t str_size;
 	wchar_t * str;
 	size_t str_cap;
 	ul_hs_hash_t str_hash;
-
-	size_t punc_start;
 
 	file_pos_t tok_start;
 	tok_t tok;
@@ -165,7 +165,7 @@ static bool is_dqoute_ch(wchar_t ch) {
 	return ch == L'\"';
 }
 static bool is_ch_str_ch(wchar_t ch) {
-	return !is_dqoute_ch(ch);
+	return !is_dqoute_ch(ch) && ch != L'\n';
 }
 
 static bool is_first_num_str_ch(wchar_t ch) {
@@ -179,6 +179,12 @@ static bool is_num_str_tag_intro_ch(wchar_t ch) {
 }
 
 static void report_file_pos(lc_t * lc) {
+	if (lc->file_pos_rptd) {
+		return;
+	}
+
+	lc->file_pos_rptd = true;
+
 	fwprintf(stderr, L"@%4ziC:%4ziL:%s\n", lc->tok_start.line_ch, lc->tok_start.line_num, lc->file_name);
 
 	long long backup_cur = _ftelli64(lc->file);
@@ -189,12 +195,15 @@ static void report_file_pos(lc_t * lc) {
 		ul_raise_assert(res == 0);
 	}
 
-	wint_t ch;
+	while (true) {
+		wint_t ch = fgetwc(lc->file);
 
-	while ((ch = fgetwc(lc->file)) != WEOF) {
 		ul_raise_assert(ferror(lc->file) == 0);
 
-		if (ch == L'\t') {
+		if (ch == WEOF) {
+			ch = L'\n';
+		}
+		else if (ch == L'\t') {
 			ch = L' ';
 		}
 
@@ -210,15 +219,21 @@ static void report_file_pos(lc_t * lc) {
 		ul_raise_assert(res == 0);
 	}
 
-	long long diff = lc->tok_start.file_cur - lc->line_start;
-	for (long long ch = 0; ch < diff; ++ch) {
+	long long spaces = lc->tok_start.file_cur - lc->line_start;
+	for (long long ch = 0; ch < spaces; ++ch) {
 		fputwc(L' ', stderr);
 	}
 
-	diff = lc->ch_pos - lc->tok_start.file_cur;
-	for (long long ch = 0; ch < diff; ++ch) {
+	long long carets = lc->ch_pos - lc->tok_start.file_cur;
+
+	if (carets == 0) {
+		++carets;
+	}
+
+	for (long long ch = 0; ch < carets; ++ch) {
 		fputwc(L'^', stderr);
 	}
+
 	fputwc(L'\n', stderr);
 }
 static void report_lc(lc_t * lc, const wchar_t * format, ...) {
@@ -343,6 +358,10 @@ static file_pos_t capture_file_pos(lc_t * lc) {
 		.file_cur = lc->ch_pos, .line_num = lc->line_num, .line_ch = lc->line_ch
 	};
 }
+static void clear_str(lc_t * lc) {
+	lc->str_size = 0;
+	lc->str_hash = 0;
+}
 static void push_str_ch(lc_t * lc, wchar_t ch) {
 	if (lc->str_size + 1 > lc->str_cap) {
 		ul_arr_grow(&lc->str_cap, &lc->str, sizeof(*lc->str), 1);
@@ -352,8 +371,7 @@ static void push_str_ch(lc_t * lc, wchar_t ch) {
 	lc->str_hash = ul_hs_hash_ch(lc->str_hash, ch);
 }
 static bool fetch_str(lc_t * lc, ch_pred_t * pred, ch_proc_t * proc) {
-	lc->str_size = 0;
-	lc->str_hash = 0;
+	clear_str(lc);
 
 	do {
 		wchar_t str_ch = lc->ch;
@@ -429,138 +447,129 @@ static bool ch_str_ch_proc(lc_t * lc, wchar_t * out) {
 static bool next_tok_core(lc_t * lc) {
 	lc->tok.type = TokNone;
 
-	if (lc->punc_start != 0) {
-		size_t punc_len;
-		pla_punc_t punc = pla_punc_fetch_best(lc->str_size, lc->str + lc->punc_start, &punc_len);
-
-		if (punc == PlaPuncNone) {
-			report_lc(lc, L"invalid punctuator string");
-			return false;
-		}
-
-		if (lc->punc_start + punc_len < lc->str_size) {
-			lc->punc_start += punc_len;
-		}
-		else {
-			lc->punc_start = 0;
-		}
-
-		lc->tok.type = TokPunc;
-		lc->tok.punc = punc;
-
-		return true;
-	}
-
 	if (!lc->ch_succ) {
 		return false;
 	}
 
-	while (is_emp_ch(lc->ch)) {
-		if (!next_ch(lc)) {
-			return false;
+	while (true) {
+		lc->tok_start = capture_file_pos(lc);
+
+		if (is_emp_ch(lc->ch)) {
+			do {
+				if (!next_ch(lc)) {
+					return false;
+				}
+			} while (is_emp_ch(lc->ch));
 		}
-	}
+		else if (is_punc_ch(lc->ch)) {
+			clear_str(lc);
 
-	lc->tok_start = capture_file_pos(lc);
+			pla_punc_t punc = PlaPuncNone;
+			size_t punc_len = 0, punc_len_old = 0;
 
-	if (is_punc_ch(lc->ch)) {
-		if (!fetch_str(lc, is_punc_ch, NULL)) {
-			return false;
-		}
+			while (true) {
+				push_str_ch(lc, lc->ch);
 
-		size_t punc_len;
-		pla_punc_t punc = pla_punc_fetch_best(lc->str_size, lc->str, &punc_len);
+				punc = pla_punc_fetch_best(lc->str_size, lc->str, &punc_len);
 
-		if (punc == PlaPuncNone) {
-			report_lc(lc, L"invalid punctuator string");
-			return false;
-		}
+				if (punc_len <= punc_len_old) {
+					break;
+				}
 
-		if (punc_len < lc->str_size) {
-			lc->punc_start = punc_len;
-		}
+				if (!next_ch(lc) || !is_punc_ch(lc->ch)) {
+					break;
+				}
 
-		lc->tok.type = TokPunc;
-		lc->tok.punc = punc;
+				punc_len_old = punc_len;
+			}
 
-		return true;
-	}
-	else if (is_first_ident_ch(lc->ch)) {
-		if (!fetch_str(lc, is_ident_ch, NULL)) {
-			return false;
-		}
+			if (punc == PlaPuncNone) {
+				report_lc(lc, L"invalid punctuator");
+				return false;
+			}
 
-		pla_keyw_t keyw = pla_keyw_fetch_exact(lc->str_size, lc->str);
-
-		if (keyw != PlaKeywNone) {
-			lc->tok.type = TokKeyw;
-			lc->tok.keyw = keyw;
+			lc->tok.type = TokPunc;
+			lc->tok.punc = punc;
 
 			return true;
 		}
+		else if (is_first_ident_ch(lc->ch)) {
+			if (!fetch_str(lc, is_ident_ch, NULL)) {
+				return false;
+			}
 
-		ul_hs_t * str = hadd_str(lc);
+			pla_keyw_t keyw = pla_keyw_fetch_exact(lc->str_size, lc->str);
 
-		lc->tok.type = TokIdent;
-		lc->tok.ident = str;
+			if (keyw != PlaKeywNone) {
+				lc->tok.type = TokKeyw;
+				lc->tok.keyw = keyw;
 
-		return true;
-	}
-	else if (is_dqoute_ch(lc->ch)) {
-		if (!next_ch(lc)) {
+				return true;
+			}
+
+			ul_hs_t * str = hadd_str(lc);
+
+			lc->tok.type = TokIdent;
+			lc->tok.ident = str;
+
+			return true;
+		}
+		else if (is_dqoute_ch(lc->ch)) {
+			if (!next_ch(lc)) {
+				return false;
+			}
+
+			ul_hs_t * data;
+
+			if (!fadd_str(lc, is_ch_str_ch, ch_str_ch_proc, &data)) {
+				return false;
+			}
+
+			if (!is_dqoute_ch(lc->ch) || !next_ch(lc) || !is_tag_ch(lc->ch)) {
+				report_lc(lc, L"invalid character string");
+				return false;
+			}
+
+			ul_hs_t * tag;
+
+			if (!fadd_str(lc, is_tag_ch, NULL, &tag)) {
+				return false;
+			}
+
+			lc->tok.type = TokChStr;
+			lc->tok.ch_str.data = data;
+			lc->tok.ch_str.tag = tag;
+
+			return true;
+		}
+		else if (is_first_num_str_ch(lc->ch)) {
+			ul_hs_t * data;
+
+			if (!fadd_str(lc, is_num_str_ch, NULL, &data)) {
+				return false;
+			}
+
+			if (!is_num_str_tag_intro_ch(lc->ch) || !next_ch(lc) || !is_tag_ch(lc->ch)) {
+				report_lc(lc, L"invalid number string");
+				return false;
+			}
+
+			ul_hs_t * tag;
+
+			if (!fadd_str(lc, is_tag_ch, NULL, &tag)) {
+				return false;
+			}
+
+			lc->tok.type = TokNumStr;
+			lc->tok.num_str.data = data;
+			lc->tok.num_str.tag = tag;
+
+			return true;
+		}
+		else {
+			report_lc(lc, L"unknown character");
 			return false;
 		}
-
-		ul_hs_t * data;
-		
-		if (!fadd_str(lc, is_ch_str_ch, ch_str_ch_proc, &data)) {
-			return false;
-		}
-
-		if (!is_dqoute_ch(lc->ch) || !next_ch(lc) || !is_tag_ch(lc->ch)) {
-			report_lc(lc, L"invalid character string");
-			return false;
-		}
-
-		ul_hs_t * tag;
-		
-		if (!fadd_str(lc, is_tag_ch, NULL, &tag)) {
-			return false;
-		}
-
-		lc->tok.type = TokChStr;
-		lc->tok.ch_str.data = data;
-		lc->tok.ch_str.tag = tag;
-
-		return true;
-	}
-	else if (is_first_num_str_ch(lc->ch)) {
-		ul_hs_t * data;
-		
-		if (!fadd_str(lc, is_num_str_ch, NULL, &data)) {
-			return false;
-		}
-
-		if (!is_num_str_tag_intro_ch(lc->ch) || !next_ch(lc) || !is_tag_ch(lc->ch)) {
-			report_lc(lc, L"invalid number string");
-			return false;
-		}
-
-		ul_hs_t * tag;
-		
-		if (!fadd_str(lc, is_tag_ch, NULL, &tag)) {
-			return false;
-		}
-
-		lc->tok.type = TokNumStr;
-		lc->tok.num_str.data = data;
-		lc->tok.num_str.tag = tag;
-
-		return true;
-	}
-	else {
-		report_lc(lc, L"unknown character");
-		return false;
 	}
 }
 static bool next_tok(ctx_t * ctx) {

@@ -14,8 +14,20 @@ function buf_io_test : $() -> void {
 	}
 }
 
+function print_hello_world : $() -> void {
+	variable handle := w64::get_std_handle(-11'u32);
+
+	variable str := "Hello world!\n"a, written : u32;
+
+	w64::write_file(handle, %[const * void]str.data, %[u32]str.size, &written, nullof[*void]);
+
+	return;
+}
+
 function main : $() -> s32 {
 	std::init_con_io();
+
+	print_hello_world();
 
 	variable a : s32, b : s32;
 
