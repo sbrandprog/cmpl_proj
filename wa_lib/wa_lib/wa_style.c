@@ -33,6 +33,15 @@ bool wa_style_font_set(wa_style_font_t * font, LOGFONTW * lf) {
 	font->lf = *lf;
 	font->hf = new_hf;
 
+	TEXTMETRICW tm;
+	
+	if (!wa_style_get_font_metric(font->hf, &tm)) {
+		return false;
+	}
+
+	font->f_h = tm.tmHeight;
+	font->f_w = tm.tmAveCharWidth;
+
 	return true;
 }
 void wa_style_font_cleanup(wa_style_font_t * font) {
@@ -108,29 +117,14 @@ bool wa_style_init_dflt(wa_style_t * style) {
 	return true;
 }
 
-TEXTMETRICW wa_style_get_font_metric(HFONT hf) {
+bool wa_style_get_font_metric(HFONT hf, TEXTMETRICW * out) {
 	HDC hdc = GetDC(NULL);
 
 	SelectFont(hdc, hf);
 
-	TEXTMETRICW tm;
-
-	GetTextMetricsW(hdc, &tm);
+	BOOL res = GetTextMetricsW(hdc, out);
 
 	ReleaseDC(NULL, hdc);
 
-	return tm;
-}
-LONG wa_style_get_font_str_w(HFONT hf, size_t str_size, wchar_t * str) {
-	HDC hdc = GetDC(NULL);
-
-	SelectFont(hdc, hf);
-
-	RECT text_rect = { 0 };
-
-	DrawTextExW(hdc, str, (int)str_size, &text_rect, DT_SINGLELINE | DT_NOCLIP | DT_CALCRECT, NULL);
-
-	ReleaseDC(NULL, hdc);
-
-	return text_rect.right;
+	return res != 0 ? true : false;
 }

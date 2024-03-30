@@ -101,33 +101,34 @@ static void main_run() {
 static int main_core() {
 	ul_hst_init(&main_hst);
 	
-	/*
-	if (!main_gui()) {
-		return -1;
+	if (true) {
+		if (!main_gui()) {
+			return -1;
+		}
 	}
-	*/
+	else {
+		if (!main_parse()) {
+			return -1;
+		}
 
-	if (!main_parse()) {
-		return -1;
+		if (!main_translate()) {
+			return -1;
+		}
+
+		if (!main_compile()) {
+			return -1;
+		}
+
+		if (!main_assemble()) {
+			return -1;
+		}
+
+		if (!main_link()) {
+			return -1;
+		}
+
+		main_run();
 	}
-
-	if (!main_translate()) {
-		return -1;
-	}
-
-	if (!main_compile()) {
-		return -1;
-	}
-
-	if (!main_assemble()) {
-		return -1;
-	}
-
-	if (!main_link()) {
-		return -1;
-	}
-
-	main_run();
 
 	return 0;
 }

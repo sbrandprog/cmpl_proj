@@ -24,6 +24,9 @@ enum wa_style_font_type {
 struct wa_style_font {
 	LOGFONTW lf;
 	HFONT hf;
+
+	size_t f_w;
+	size_t f_h;
 };
 struct wa_style {
 	wa_style_col_t cols[WaStyleCol_Count];
@@ -40,8 +43,4 @@ WA_SYMBOL void wa_style_cleanup(wa_style_t * style);
 
 WA_SYMBOL bool wa_style_init_dflt(wa_style_t * style);
 
-WA_SYMBOL TEXTMETRICW wa_style_get_font_metric(HFONT hf);
-WA_SYMBOL LONG wa_style_get_font_str_w(HFONT hf, size_t str_size, wchar_t * str);
-inline LONG wa_style_get_font_h(HFONT hf) {
-	return wa_style_get_font_metric(hf).tmHeight;
-}
+WA_SYMBOL bool wa_style_get_font_metric(HFONT hf, TEXTMETRICW * out);
