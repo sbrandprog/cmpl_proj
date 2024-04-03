@@ -126,9 +126,11 @@
     <ClCompile Include="comp_proj\pla_expr.c" />
     <ClCompile Include="comp_proj\pla_irid.c" />
     <ClCompile Include="comp_proj\pla_keyw.c" />
+    <ClCompile Include="comp_proj\pla_lex.c" />
     <ClCompile Include="comp_proj\pla_pds.c" />
     <ClCompile Include="comp_proj\pla_punc.c" />
     <ClCompile Include="comp_proj\pla_stmt.c" />
+    <ClCompile Include="comp_proj\pla_tok.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="comp_proj\asm.h" />
@@ -164,10 +166,12 @@
     <ClInclude Include="comp_proj\pla_ast_p.h" />
     <ClInclude Include="comp_proj\pla_irid.h" />
     <ClInclude Include="comp_proj\pla_keyw.h" />
+    <ClInclude Include="comp_proj\pla_lex.h" />
     <ClInclude Include="comp_proj\pla_pds.h" />
     <ClInclude Include="comp_proj\pla_punc.h" />
     <ClInclude Include="comp_proj\pla_stmt.h" />
     <ClInclude Include="comp_proj\pla_edit.h" />
+    <ClInclude Include="comp_proj\pla_tok.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="pla_lib\std\io.pla" />

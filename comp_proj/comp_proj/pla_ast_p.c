@@ -2,6 +2,8 @@
 #include "pla_ast_p.h"
 #include "pla_punc.h"
 #include "pla_keyw.h"
+#include "pla_tok.h"
+#include "pla_lex.h"
 #include "pla_irid.h"
 #include "pla_expr.h"
 #include "pla_stmt.h"
@@ -15,27 +17,8 @@ typedef struct file_pos {
 	size_t line_ch;
 } file_pos_t;
 
-typedef enum tok_type {
-	TokNone,
-	TokPunc,
-	TokKeyw,
-	TokIdent,
-	TokChStr,
-	TokNumStr,
-	Tok_Count
-} tok_type_t;
-typedef struct tok {
-	tok_type_t type;
-	union {
-		pla_punc_t punc;
-		pla_keyw_t keyw;
-		ul_hs_t * ident;
-		struct {
-			ul_hs_t * data;
-			ul_hs_t * tag;
-		} ch_str, num_str;
-	};
-} tok_t;
+typedef enum pla_tok_type tok_type_t;
+typedef struct pla_tok tok_t;
 
 typedef size_t bin_oper_preced_t;
 typedef struct post_oper_info {
@@ -54,32 +37,17 @@ typedef struct bin_oper_info {
 
 typedef struct lc lc_t;
 struct lc {
-	ul_hst_t * hst;
 	const wchar_t * file_name;
 	lc_t * prev;
 
 	FILE * file;
-
 	long long saved_pos;
-
-	wchar_t ch;
-	bool ch_succ;
-	long long ch_pos;
-
-	bool line_switch;
-	size_t line_num;
-	size_t line_ch;
-	long long line_start;
 
 	bool file_pos_rptd;
 
-	size_t str_size;
-	wchar_t * str;
-	size_t str_cap;
-	ul_hs_hash_t str_hash;
+	long long line_start;
 
-	file_pos_t tok_start;
-	tok_t tok;
+	pla_lex_t lex;
 };
 
 typedef struct asm_ast_p_ctx {
@@ -142,42 +110,6 @@ static const bin_oper_info_t opr_bin_infos[] = {
 static const size_t opr_bin_infos_count = _countof(opr_bin_infos);
 
 
-static bool is_emp_ch(wchar_t ch) {
-	return ch == L' ' || ch == '\t' || ch == L'\n';
-}
-
-static bool is_punc_ch(wchar_t ch) {
-	return (L'!' <= ch && ch <= L'/' && ch != L'\"' && ch != '\'') || (L':' <= ch && ch <= L'>') || (L'[' <= ch && ch <= L'^') || (L'{' <= ch && ch <= L'~');
-}
-
-static bool is_first_ident_ch(wchar_t ch) {
-	return (L'A' <= ch && ch <= L'Z') || (L'a' <= ch && ch <= L'z') || ch == L'_';
-}
-static bool is_ident_ch(wchar_t ch) {
-	return is_first_ident_ch(ch) || (L'0' <= ch && ch <= L'9');
-}
-
-static bool is_tag_ch(wchar_t ch) {
-	return is_ident_ch(ch);
-}
-
-static bool is_dqoute_ch(wchar_t ch) {
-	return ch == L'\"';
-}
-static bool is_ch_str_ch(wchar_t ch) {
-	return !is_dqoute_ch(ch) && ch != L'\n';
-}
-
-static bool is_first_num_str_ch(wchar_t ch) {
-	return (L'0' <= ch && ch <= L'9');
-}
-static bool is_num_str_ch(wchar_t ch) {
-	return is_first_num_str_ch(ch) || (L'A' <= ch && ch <= L'Z') || (L'a' <= ch && ch <= L'z') || ch == L'_';
-}
-static bool is_num_str_tag_intro_ch(wchar_t ch) {
-	return ch == L'\'';
-}
-
 static void report_file_pos(lc_t * lc) {
 	if (lc->file_pos_rptd) {
 		return;
@@ -185,7 +117,7 @@ static void report_file_pos(lc_t * lc) {
 
 	lc->file_pos_rptd = true;
 
-	fwprintf(stderr, L"@%4ziC:%4ziL:%s\n", lc->tok_start.line_ch, lc->tok_start.line_num, lc->file_name);
+	fwprintf(stderr, L"@%4ziC:%4ziL:%s\n", lc->lex.tok_start.line_ch, lc->lex.tok_start.line_num, lc->file_name);
 
 	long long backup_cur = _ftelli64(lc->file);
 	ul_raise_assert(backup_cur != -1L);
@@ -219,18 +151,17 @@ static void report_file_pos(lc_t * lc) {
 		ul_raise_assert(res == 0);
 	}
 
-	long long spaces = lc->tok_start.file_cur - lc->line_start;
-	for (long long ch = 0; ch < spaces; ++ch) {
+	for (size_t ch = 0; ch < lc->lex.tok_start.line_ch; ++ch) {
 		fputwc(L' ', stderr);
 	}
 
-	long long carets = lc->ch_pos - lc->tok_start.file_cur;
+	size_t carets = lc->lex.line_ch - lc->lex.tok_start.line_ch;
 
 	if (carets == 0) {
 		++carets;
 	}
 
-	for (long long ch = 0; ch < carets; ++ch) {
+	for (size_t ch = 0; ch < carets; ++ch) {
 		fputwc(L'^', stderr);
 	}
 
@@ -266,10 +197,38 @@ static void report(ctx_t * ctx, const wchar_t * format, ...) {
 		fputwc(L'\n', stderr);
 	}
 }
+static void report_lex_err_stack(lc_t * lc) {
+	for (pla_lex_err_t * err = lc->lex.err_stack, *err_end = err + lc->lex.err_stack_pos; err != err_end; ++err) {
+		if (err->type == PlaLexErrSrc) {
+			continue;
+		}
+
+		report_lc(lc, L"lexer error: %s @%4ziC:%4ziL", pla_lex_err_strs[err->type].str, err->pos.line_ch, err->pos.line_num);
+	}
+}
 
 
+static bool get_lc_ch(lc_t * lc, wchar_t * out) {
+	long long file_pos = _ftelli64(lc->file);
+	ul_raise_assert(lc->line_start != -1);
+
+	wint_t ch = fgetwc(lc->file);
+
+	if (ch == WEOF) {
+		ul_raise_assert(ferror(lc->file) == 0);
+		return false;
+	}
+
+	if (lc->lex.line_switch) {
+		lc->line_start = file_pos;
+	}
+
+	*out = (wchar_t)ch;
+
+	return true;
+}
 static bool push_lc(ctx_t * ctx, lc_t * lc, const wchar_t * file_name) {
-	*lc = (lc_t){ .hst = ctx->hst, .file_name = file_name, .prev = ctx->lc };
+	*lc = (lc_t){ .file_name = file_name, .prev = ctx->lc };
 
 	if (lc->prev != NULL) {
 		lc_t * prev_lc = lc->prev;
@@ -288,6 +247,8 @@ static bool push_lc(ctx_t * ctx, lc_t * lc, const wchar_t * file_name) {
 			return false;
 		}
 	}
+	
+	pla_lex_init(&lc->lex, ctx->hst, get_lc_ch, lc);
 
 	ctx->lc = lc;
 
@@ -296,7 +257,7 @@ static bool push_lc(ctx_t * ctx, lc_t * lc, const wchar_t * file_name) {
 static void pop_lc(ctx_t * ctx) {
 	lc_t * lc = ctx->lc;
 
-	free(lc->str);
+	pla_lex_cleanup(&lc->lex);
 
 	lc_t * prev_lc = lc->prev;
 
@@ -317,276 +278,27 @@ static void pop_lc(ctx_t * ctx) {
 	ctx->lc = prev_lc;
 
 	if (ctx->lc != NULL) {
-		ctx->tok = ctx->lc->tok;
+		ctx->tok = ctx->lc->lex.tok;
 	}
 }
 
 
-static bool next_ch(lc_t * lc) {
-	lc->ch_succ = false;
-
-	lc->ch_pos = _ftelli64(lc->file);
-	ul_raise_assert(lc->ch_pos != -1);
-
-	wint_t new_ch = fgetwc(lc->file);
-
-	if (new_ch == WEOF) {
-		ul_raise_assert(ferror(lc->file) == 0);
-		return false;
-	}
-
-	lc->ch = (wchar_t)new_ch;
-	lc->ch_succ = true;
-
-	++lc->line_ch;
-
-	if (lc->line_switch) {
-		lc->line_switch = false;
-		++lc->line_num;
-		lc->line_ch = 0;
-		lc->line_start = lc->ch_pos;
-	}
-
-	if (lc->ch == L'\n') {
-		lc->line_switch = true;
-	}
-
-	return true;
-}
-static file_pos_t capture_file_pos(lc_t * lc) {
-	return (file_pos_t) {
-		.file_cur = lc->ch_pos, .line_num = lc->line_num, .line_ch = lc->line_ch
-	};
-}
-static void clear_str(lc_t * lc) {
-	lc->str_size = 0;
-	lc->str_hash = 0;
-}
-static void push_str_ch(lc_t * lc, wchar_t ch) {
-	if (lc->str_size + 1 > lc->str_cap) {
-		ul_arr_grow(&lc->str_cap, &lc->str, sizeof(*lc->str), 1);
-	}
-
-	lc->str[lc->str_size++] = ch;
-	lc->str_hash = ul_hs_hash_ch(lc->str_hash, ch);
-}
-static bool fetch_str(lc_t * lc, ch_pred_t * pred, ch_proc_t * proc) {
-	clear_str(lc);
-
-	do {
-		wchar_t str_ch = lc->ch;
-
-		if (proc != NULL) {
-			if (!proc(lc, &str_ch)) {
-				return false;
-			}
-		}
-
-		push_str_ch(lc, str_ch);
-	} while (next_ch(lc) && pred(lc->ch));
-
-	return true;
-}
-static ul_hs_t * hadd_str(lc_t * lc) {
-	return ul_hst_add(lc->hst, lc->str_size, lc->str, lc->str_hash);
-}
-static bool fadd_str(lc_t * lc, ch_pred_t * pred, ch_proc_t * proc, ul_hs_t ** out) {
-	if (!fetch_str(lc, pred, proc)) {
-		return false;
-	}
-	
-	*out = hadd_str(lc);
-
-	return true;
-}
-static bool ch_str_ch_proc(lc_t * lc, wchar_t * out) {
-	if (lc->ch == L'\\') {
-		if (!next_ch(lc)) {
-			return false;
-		}
-
-		switch (lc->ch) {
-			case L'a':
-				*out = L'\a';
-				break;
-			case L'b':
-				*out = L'\b';
-				break;
-			case L'f':
-				*out = L'\f';
-				break;
-			case L'n':
-				*out = L'\n';
-				break;
-			case L'r':
-				*out = L'\r';
-				break;
-			case L't':
-				*out = L'\t';
-				break;
-			case L'v':
-				*out = L'\v';
-				break;
-			case L'\\':
-				*out = L'\\';
-				break;
-			case L'\'':
-				*out = L'\'';
-				break;
-			case L'\"':
-				*out = L'\"';
-				break;
-			default:
-				report_lc(lc, L"invalid escape sequence character");
-				return false;
-		}
-	}
-
-	return true;
-}
-static bool next_tok_core(lc_t * lc) {
-	lc->tok.type = TokNone;
-
-	if (!lc->ch_succ) {
-		return false;
-	}
-
-	while (true) {
-		lc->tok_start = capture_file_pos(lc);
-
-		if (is_emp_ch(lc->ch)) {
-			do {
-				if (!next_ch(lc)) {
-					return false;
-				}
-			} while (is_emp_ch(lc->ch));
-		}
-		else if (is_punc_ch(lc->ch)) {
-			clear_str(lc);
-
-			pla_punc_t punc = PlaPuncNone;
-			size_t punc_len = 0, punc_len_old = 0;
-
-			while (true) {
-				push_str_ch(lc, lc->ch);
-
-				punc = pla_punc_fetch_best(lc->str_size, lc->str, &punc_len);
-
-				if (punc_len <= punc_len_old) {
-					break;
-				}
-
-				if (!next_ch(lc) || !is_punc_ch(lc->ch)) {
-					break;
-				}
-
-				punc_len_old = punc_len;
-			}
-
-			if (punc == PlaPuncNone) {
-				report_lc(lc, L"invalid punctuator");
-				return false;
-			}
-
-			lc->tok.type = TokPunc;
-			lc->tok.punc = punc;
-
-			return true;
-		}
-		else if (is_first_ident_ch(lc->ch)) {
-			if (!fetch_str(lc, is_ident_ch, NULL)) {
-				return false;
-			}
-
-			pla_keyw_t keyw = pla_keyw_fetch_exact(lc->str_size, lc->str);
-
-			if (keyw != PlaKeywNone) {
-				lc->tok.type = TokKeyw;
-				lc->tok.keyw = keyw;
-
-				return true;
-			}
-
-			ul_hs_t * str = hadd_str(lc);
-
-			lc->tok.type = TokIdent;
-			lc->tok.ident = str;
-
-			return true;
-		}
-		else if (is_dqoute_ch(lc->ch)) {
-			if (!next_ch(lc)) {
-				return false;
-			}
-
-			ul_hs_t * data;
-
-			if (!fadd_str(lc, is_ch_str_ch, ch_str_ch_proc, &data)) {
-				return false;
-			}
-
-			if (!is_dqoute_ch(lc->ch) || !next_ch(lc) || !is_tag_ch(lc->ch)) {
-				report_lc(lc, L"invalid character string");
-				return false;
-			}
-
-			ul_hs_t * tag;
-
-			if (!fadd_str(lc, is_tag_ch, NULL, &tag)) {
-				return false;
-			}
-
-			lc->tok.type = TokChStr;
-			lc->tok.ch_str.data = data;
-			lc->tok.ch_str.tag = tag;
-
-			return true;
-		}
-		else if (is_first_num_str_ch(lc->ch)) {
-			ul_hs_t * data;
-
-			if (!fadd_str(lc, is_num_str_ch, NULL, &data)) {
-				return false;
-			}
-
-			if (!is_num_str_tag_intro_ch(lc->ch) || !next_ch(lc) || !is_tag_ch(lc->ch)) {
-				report_lc(lc, L"invalid number string");
-				return false;
-			}
-
-			ul_hs_t * tag;
-
-			if (!fadd_str(lc, is_tag_ch, NULL, &tag)) {
-				return false;
-			}
-
-			lc->tok.type = TokNumStr;
-			lc->tok.num_str.data = data;
-			lc->tok.num_str.tag = tag;
-
-			return true;
-		}
-		else {
-			report_lc(lc, L"unknown character");
-			return false;
-		}
-	}
-}
 static bool next_tok(ctx_t * ctx) {
-	ctx->tok.type = TokNone;
+	ctx->tok.type = PlaTokNone;
 	
-	if (!next_tok_core(ctx->lc)) {
+	if (!pla_lex_get_tok(&ctx->lc->lex)) {
+		report_lex_err_stack(ctx->lc);
 		return false;
 	}
 
-	ctx->tok = ctx->lc->tok;
+	ctx->tok = ctx->lc->lex.tok;
 
 	return true;
 }
 
 
 static pla_punc_t get_punc(ctx_t * ctx) {
-	if (ctx->tok.type == TokPunc) {
+	if (ctx->tok.type == PlaTokPunc) {
 		return ctx->tok.punc;
 	}
 
@@ -611,7 +323,7 @@ static bool consume_punc_exact_crit(ctx_t * ctx, pla_punc_t punc) {
 	return false;
 }
 static pla_keyw_t get_keyw(ctx_t * ctx) {
-	if (ctx->tok.type == TokKeyw) {
+	if (ctx->tok.type == PlaTokKeyw) {
 		return ctx->tok.keyw;
 	}
 
@@ -636,7 +348,7 @@ static bool consume_keyw_exact_crit(ctx_t * ctx, pla_keyw_t keyw) {
 	return false;
 }
 static bool consume_ident(ctx_t * ctx, ul_hs_t ** out) {
-	if (ctx->tok.type == TokIdent) {
+	if (ctx->tok.type == PlaTokIdent) {
 		*out = ctx->tok.ident;
 		next_tok(ctx);
 		return true;
@@ -653,7 +365,7 @@ static bool consume_ident_crit(ctx_t * ctx, ul_hs_t ** out) {
 	return false;
 }
 static bool consume_ch_str_crit(ctx_t * ctx, ul_hs_t ** out_data, ul_hs_t ** out_tag) {
-	if (ctx->tok.type == TokChStr) {
+	if (ctx->tok.type == PlaTokChStr) {
 		*out_data = ctx->tok.ch_str.data;
 		if (out_tag != NULL) {
 			*out_tag = ctx->tok.ch_str.tag;
@@ -774,7 +486,7 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 		bool success = true;
 
 		switch (ctx->tok.type) {
-			case TokPunc:
+			case PlaTokPunc:
 			{
 				const unr_oper_info_t * info = get_unr_oper_info(ctx->tok.punc);
 
@@ -822,7 +534,7 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 
 				break;
 			}
-			case TokKeyw:
+			case PlaTokKeyw:
 				switch (ctx->tok.keyw) {
 					case PlaKeywConst:
 						next_tok(ctx);
@@ -851,7 +563,7 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 	bool success = true;
 
 	switch (ctx->tok.type) {
-		case TokPunc:
+		case PlaTokPunc:
 			switch (ctx->tok.punc) {
 				case PlaPuncLeParen:
 					next_tok(ctx);
@@ -918,7 +630,7 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 					success = false;
 			}
 			break;
-		case TokKeyw:
+		case PlaTokKeyw:
 			switch (ctx->tok.keyw) {
 				case PlaKeywVoid:
 					*out = pla_expr_create(PlaExprDtVoid);
@@ -986,7 +698,7 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 					success = false;
 			}
 			break;
-		case TokIdent:
+		case PlaTokIdent:
 		{
 			*out = pla_expr_create(PlaExprIdent);
 			
@@ -1002,13 +714,13 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 
 			break;
 		}
-		case TokChStr:
+		case PlaTokChStr:
 			*out = pla_expr_create(PlaExprChStr);
 			(*out)->opd0.hs = ctx->tok.ch_str.data;
 			(*out)->opd1.hs = ctx->tok.ch_str.tag;
 			next_tok(ctx);
 			break;
-		case TokNumStr:
+		case PlaTokNumStr:
 			*out = pla_expr_create(PlaExprNumStr);
 			(*out)->opd0.hs = ctx->tok.num_str.data;
 			(*out)->opd1.hs = ctx->tok.num_str.tag;
@@ -1412,14 +1124,14 @@ static bool parse_stmt_ret(ctx_t * ctx, pla_stmt_t ** out) {
 }
 static bool parse_stmt(ctx_t * ctx, pla_stmt_t ** out) {
 	switch (ctx->tok.type) {
-		case TokPunc:
+		case PlaTokPunc:
 			switch (ctx->tok.punc) {
 				case PlaPuncSemicolon:
 					next_tok(ctx);
 					return true;
 			}
 			break;
-		case TokKeyw:
+		case PlaTokKeyw:
 			switch (ctx->tok.keyw) {
 				case PlaKeywVariable:
 					return parse_stmt_var(ctx, out);
@@ -1669,9 +1381,9 @@ static bool parse_dclr_ro_val(ctx_t * ctx, pla_dclr_t ** out) {
 }
 static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out) {
 	switch (ctx->tok.type) {
-		case TokNone:
+		case PlaTokNone:
 			break;
-		case TokKeyw:
+		case PlaTokKeyw:
 			switch (ctx->tok.keyw) {
 				case PlaKeywNamespace:
 					return parse_dclr_nspc(ctx, out);
@@ -1719,9 +1431,9 @@ static bool parse_file_include(ctx_t * ctx, pla_dclr_t ** ins) {
 }
 static bool parse_file_item(ctx_t * ctx, pla_dclr_t ** ins) {
 	switch (ctx->tok.type) {
-		case TokNone:
+		case PlaTokNone:
 			break;
-		case TokKeyw:
+		case PlaTokKeyw:
 			switch (ctx->tok.keyw) {
 				case PlaKeywInclude:
 					return parse_file_include(ctx, ins);
@@ -1732,15 +1444,11 @@ static bool parse_file_item(ctx_t * ctx, pla_dclr_t ** ins) {
 	return parse_dclr(ctx, ins);
 }
 static bool parse_file_lc(ctx_t * ctx, pla_dclr_t ** ins) {
-	if (!next_ch(ctx->lc)) {
-		return false;
-	}
-
 	if (!next_tok(ctx)) {
 		return false;
 	}
 
-	while (ctx->tok.type != TokNone) {
+	while (ctx->tok.type != PlaTokNone) {
 		if (!parse_file_item(ctx, ins)) {
 			return false;
 		}

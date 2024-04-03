@@ -117,6 +117,12 @@
     <ClCompile Include="comp_proj\pla_edit.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="comp_proj\pla_tok.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="comp_proj\pla_lex.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="comp_proj\pch.h">
@@ -228,6 +234,12 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\pla_edit.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="comp_proj\pla_tok.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="comp_proj\pla_lex.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>
