@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "pla_expr.h"
-#include "pla_irid.h"
+#include "pla_cn.h"
 
 pla_expr_t * pla_expr_create(pla_expr_type_t type) {
 	pla_expr_t * expr = malloc(sizeof(*expr));
@@ -27,8 +27,8 @@ void pla_expr_destroy(pla_expr_t * expr) {
 			case PlaExprOpdIntType:
 			case PlaExprOpdHs:
 				break;
-			case PlaExprOpdIrid:
-				pla_irid_destroy(expr->opds[opd].irid);
+			case PlaExprOpdCn:
+				pla_cn_destroy(expr->opds[opd].cn);
 				break;
 			case PlaExprOpdExpr:
 				pla_expr_destroy(expr->opds[opd].expr);

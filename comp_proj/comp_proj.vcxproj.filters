@@ -111,7 +111,7 @@
     <ClCompile Include="comp_proj\asm_it.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="comp_proj\pla_irid.c">
+    <ClCompile Include="comp_proj\pla_cn.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="comp_proj\pla_edit.c">
@@ -230,7 +230,7 @@
     <ClInclude Include="comp_proj\asm_it.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="comp_proj\pla_irid.h">
+    <ClInclude Include="comp_proj\pla_cn.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\pla_edit.h">

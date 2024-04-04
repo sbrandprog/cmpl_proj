@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "pla_ast_t_s.h"
-#include "pla_irid.h"
+#include "pla_cn.h"
 #include "pla_expr.h"
 #include "pla_stmt.h"
 #include "ira_val.h"
@@ -49,7 +49,7 @@ typedef union pla_ast_t_s_expr_opd {
 	bool boolean;
 	ira_int_type_t int_type;
 	ul_hs_t * hs;
-	pla_irid_t * irid;
+	pla_cn_t * cn;
 	expr_t * expr;
 } expr_opd_t;
 struct pla_ast_t_s_expr {
@@ -202,7 +202,7 @@ static void destroy_expr(ctx_t * ctx, expr_t * expr) {
 			case PlaExprOpdBoolean:
 			case PlaExprOpdIntType:
 			case PlaExprOpdHs:
-			case PlaExprOpdIrid:
+			case PlaExprOpdCn:
 				break;
 			case PlaExprOpdExpr:
 				destroy_expr(ctx, expr->opds[opd].expr);
@@ -630,15 +630,15 @@ static bool get_null_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) 
 	return true;
 }
 
-static ira_lo_t * find_irid_lo(ctx_t * ctx, ira_lo_t * nspc, pla_irid_t * irid) {
+static ira_lo_t * find_cn_lo(ctx_t * ctx, ira_lo_t * nspc, pla_cn_t * cn) {
 	for (ira_lo_t * lo = nspc->nspc.body; lo != NULL; lo = lo->next) {
-		if (lo->name == irid->name) {
+		if (lo->name == cn->name) {
 			switch (lo->type) {
 				case IraLoNone:
 					break;
 				case IraLoNspc:
-					if (irid->sub_name != NULL) {
-						return find_irid_lo(ctx, lo, irid->sub_name);
+					if (cn->sub_name != NULL) {
+						return find_cn_lo(ctx, lo, cn->sub_name);
 					}
 					break;
 				case IraLoFunc:
@@ -646,7 +646,7 @@ static ira_lo_t * find_irid_lo(ctx_t * ctx, ira_lo_t * nspc, pla_irid_t * irid) 
 				case IraLoVar:
 				case IraLoDtStct:
 				case IraLoRoVal:
-					if (irid->sub_name == NULL) {
+					if (cn->sub_name == NULL) {
 						return lo;
 					}
 					break;
@@ -785,8 +785,8 @@ static bool translate_expr0_opds(ctx_t * ctx, expr_t * expr) {
 			case PlaExprOpdHs:
 				expr->opds[opd].hs = base->opds[opd].hs;
 				break;
-			case PlaExprOpdIrid:
-				expr->opds[opd].irid = base->opds[opd].irid;
+			case PlaExprOpdCn:
+				expr->opds[opd].cn = base->opds[opd].cn;
 				break;
 			case PlaExprOpdExpr:
 				if (!translate_expr0(ctx, base->opds[opd].expr, &expr->opds[opd].expr)) {
@@ -947,12 +947,12 @@ static bool translate_expr0_dt_const(ctx_t * ctx, expr_t * expr) {
 	return true;
 }
 static bool translate_expr0_ident(ctx_t * ctx, expr_t * expr) {
-	pla_irid_t * irid = expr->opd0.irid;
+	pla_cn_t * cn = expr->opd0.cn;
 
-	if (irid->sub_name == NULL) {
+	if (cn->sub_name == NULL) {
 		for (vvb_t * vvb = ctx->vvb; vvb != NULL; vvb = vvb->prev) {
 			for (var_t * var = vvb->var; var != NULL; var = var->next) {
-				if (var->orig_name == irid->name) {
+				if (var->orig_name == cn->name) {
 					expr->val_qdt = var->qdt;
 
 					expr->ident.type = ExprIdentVar;
@@ -967,7 +967,7 @@ static bool translate_expr0_ident(ctx_t * ctx, expr_t * expr) {
 		switch (vse->type) {
 			case PlaAstTVseNspc:
 			{
-				ira_lo_t * lo = find_irid_lo(ctx, vse->nspc, irid);
+				ira_lo_t * lo = find_cn_lo(ctx, vse->nspc, cn);
 
 				if (lo != NULL && process_ident_lo(ctx, expr, lo)) {
 					return true;
@@ -980,7 +980,7 @@ static bool translate_expr0_ident(ctx_t * ctx, expr_t * expr) {
 		}
 	}
 
-	pla_ast_t_report(ctx->t_ctx, L"failed to find an object for identifier [%s]", irid->name->str);
+	pla_ast_t_report(ctx->t_ctx, L"failed to find an object for identifier [%s]", cn->name->str);
 	return false;
 }
 static bool translate_expr0_call_func_ptr(ctx_t * ctx, expr_t * expr, ira_dt_t * callee_dt) {

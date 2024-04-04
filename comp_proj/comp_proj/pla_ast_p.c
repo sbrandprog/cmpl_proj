@@ -4,7 +4,7 @@
 #include "pla_keyw.h"
 #include "pla_tok.h"
 #include "pla_lex.h"
-#include "pla_irid.h"
+#include "pla_cn.h"
 #include "pla_expr.h"
 #include "pla_stmt.h"
 #include "pla_dclr.h"
@@ -702,10 +702,10 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 		{
 			*out = pla_expr_create(PlaExprIdent);
 			
-			pla_irid_t ** ins = &(*out)->opd0.irid;
+			pla_cn_t ** ins = &(*out)->opd0.cn;
 
 			do {
-				*ins = pla_irid_create(ctx->tok.ident);
+				*ins = pla_cn_create(ctx->tok.ident);
 
 				next_tok(ctx);
 

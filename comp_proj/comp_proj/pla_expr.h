@@ -9,7 +9,7 @@ enum pla_expr_opd_type {
 	PlaExprOpdBoolean,
 	PlaExprOpdIntType,
 	PlaExprOpdHs,
-	PlaExprOpdIrid,
+	PlaExprOpdCn,
 	PlaExprOpdExpr,
 	PlaExprOpdExprList1,
 	PlaExprOpdExprListLink,
@@ -19,7 +19,7 @@ union pla_expr_opd {
 	bool boolean;
 	ira_int_type_t int_type;
 	ul_hs_t * hs;
-	pla_irid_t * irid;
+	pla_cn_t * cn;
 	pla_expr_t * expr;
 };
 

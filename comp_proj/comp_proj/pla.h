@@ -14,7 +14,7 @@ typedef enum pla_lex_err_type pla_lex_err_type_t;
 typedef struct pla_lex_err pla_lex_err_t;
 typedef struct pla_lex pla_lex_t;
 
-typedef struct pla_irid pla_irid_t;
+typedef struct pla_cn pla_cn_t;
 
 typedef enum pla_expr_opd_type pla_expr_opd_type_t;
 typedef union pla_expr_opd pla_expr_opd_t;
