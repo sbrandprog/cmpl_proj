@@ -10,6 +10,12 @@
 #include "asm_pea_b.h"
 #include "lnk_pe_l.h"
 
+static const ul_ros_t files_to_parse[] = {
+	UL_ROS_MAKE(L"test.pla"),
+	UL_ROS_MAKE(L"pla_lib/std/io.pla"),
+	UL_ROS_MAKE(L"pla_lib/w64/kernel32.pla")
+};
+
 static const wchar_t * pla_name = L"test.pla";
 static const wchar_t * exe_name = L"test.exe";
 static const wchar_t * exe_cmd = L"test.exe";
@@ -55,42 +61,62 @@ static bool main_gui() {
 
 	return true;
 }
+static bool main_parse_file(const ul_ros_t * file_name_ros) {
+	ul_hs_t * file_name = ul_hst_hashadd(&main_hst, file_name_ros->size, file_name_ros->str);
+
+	if (!pla_ast_p_parse_file(&main_ast, file_name)) {
+		return false;
+	}
+
+	return true;
+}
+static bool main_parse_core() {
+	pla_ast_init(&main_ast, &main_hst);
+
+	for (const ul_ros_t * file = files_to_parse, *file_end = file + _countof(files_to_parse); file != file_end; ++file) {
+		if (!main_parse_file(file)) {
+			return false;
+		}
+	}
+
+	return true;
+}
 static bool main_parse() {
-	bool result = pla_ast_p_parse(&main_hst, pla_name, &main_ast);
+	bool res = main_parse_core();
 
-	wprintf(L"parsing result: %s\n", result ? L"success" : L"failure");
+	wprintf(L"parsing result: %s\n", res ? L"success" : L"failure");
 
-	return result;
+	return res;
 }
 static bool main_translate() {
-	bool result = pla_ast_t_translate(&main_ast, &main_pec);
+	bool res = pla_ast_t_translate(&main_ast, &main_pec);
 
-	wprintf(L"translation result: %s\n", result ? L"success" : L"failure");
+	wprintf(L"translation result: %s\n", res ? L"success" : L"failure");
 
-	return result;
+	return res;
 }
 static bool main_compile() {
-	bool result = ira_pec_c_compile(&main_pec, &main_pea);
+	bool res = ira_pec_c_compile(&main_pec, &main_pea);
 
-	wprintf(L"compilation result: %s\n", result ? L"success" : L"failure");
+	wprintf(L"compilation result: %s\n", res ? L"success" : L"failure");
 
-	return result;
+	return res;
 }
 static bool main_assemble() {
-	bool result = asm_pea_b_build(&main_pea, &main_pe);
+	bool res = asm_pea_b_build(&main_pea, &main_pe);
 
-	wprintf(L"assembling result: %s\n", result ? L"success" : L"failure");
+	wprintf(L"assembling result: %s\n", res ? L"success" : L"failure");
 
-	return result;
+	return res;
 }
 static bool main_link() {
 	main_pe.file_name = exe_name;
 
-	bool result = lnk_pe_l_link(&main_pe);
+	bool res = lnk_pe_l_link(&main_pe);
 
-	wprintf(L"link result: %s\n", result ? L"success" : L"failure");
+	wprintf(L"link result: %s\n", res ? L"success" : L"failure");
 
-	return result;
+	return res;
 }
 static void main_run() {
 	int ret_code = (int)_wspawnl(_P_WAIT, exe_name, exe_cmd, NULL);

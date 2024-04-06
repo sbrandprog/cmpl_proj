@@ -4,6 +4,7 @@
 #include "pla_expr.h"
 #include "pla_stmt.h"
 #include "pla_dclr.h"
+#include "pla_tu.h"
 #include "ira_dt.h"
 #include "ira_val.h"
 #include "ira_inst.h"
@@ -20,6 +21,11 @@ typedef pla_ast_t_optr_t optr_t;
 typedef pla_ast_t_tse_t tse_t;
 typedef pla_ast_t_vse_t vse_t;
 
+typedef struct pla_ast_t_tu {
+	pla_tu_t * base;
+	bool is_tlated;
+} tu_t;
+
 typedef struct pla_ast_t_ctx {
 	pla_ast_t * ast;
 	ira_pec_t * out;
@@ -29,9 +35,12 @@ typedef struct pla_ast_t_ctx {
 
 	pla_ast_t_optr_t * optrs[PlaExpr_Count];
 
+	size_t tus_cap;
+	tu_t * tus;
+	size_t tus_size;
+
 	tse_t * tse;
 	vse_t * vse;
-
 } ctx_t;
 
 static optr_t * create_optr(optr_type_t type) {
@@ -686,6 +695,84 @@ static bool translate_dclr(ctx_t * ctx, pla_dclr_t * dclr) {
 	return res;
 }
 
+static bool translate_tu(ctx_t * ctx, tu_t * tu);
+
+static tu_t * find_tu_ref(ctx_t * ctx, ul_hs_t * ref) {
+	for (tu_t * tu = ctx->tus, *tu_end = tu + ctx->tus_size; tu != tu_end; ++tu) {
+		if (tu->base->name == ref) {
+			return tu;
+		}
+	}
+
+	return NULL;
+}
+static bool translate_tu_refs(ctx_t * ctx, tu_t * tu) {
+	pla_tu_t * base = tu->base;
+
+	for (ul_hs_t ** ref = base->refs, **ref_end = ref + base->refs_size; ref != ref_end; ++ref) {
+		tu_t * ref_tu = find_tu_ref(ctx, *ref);
+
+		if (ref_tu == NULL) {
+			return false;
+		}
+
+		if (ref_tu->is_tlated) {
+			continue;
+		}
+
+		if (!translate_tu(ctx, ref_tu)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+static bool translate_tu(ctx_t * ctx, tu_t * tu) {
+	pla_tu_t * base = tu->base;
+
+	if (base->root->type != PlaDclrNspc
+		|| base->root->name != NULL) {
+		return false;
+	}
+
+	if (!translate_tu_refs(ctx, tu)) {
+		return false;
+	}
+
+	if (!translate_dclr(ctx, base->root)) {
+		return false;
+	}
+
+	tu->is_tlated = true;
+
+	return true;
+}
+
+static void form_tus_list(ctx_t * ctx) {
+	for (pla_tu_t * tu = ctx->ast->tu; tu != NULL; tu = tu->next) {
+		if (ctx->tus_size + 1 >= ctx->tus_cap) {
+			ul_arr_grow(&ctx->tus_cap, &ctx->tus, sizeof(*ctx->tus), 1);
+		}
+
+		ctx->tus[ctx->tus_size++] = (tu_t){ .base = tu };
+	}
+}
+static bool translate_tus(ctx_t * ctx) {
+	form_tus_list(ctx);
+
+	for (tu_t * tu = ctx->tus, *tu_end = tu + ctx->tus_size; tu != tu_end; ++tu) {
+		if (tu->is_tlated) {
+			continue;
+		}
+
+		if (!translate_tu(ctx, tu)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static ul_hs_t * cat_hs_delim(ctx_t * ctx, ul_hs_t * str1, wchar_t delim, ul_hs_t * str2) {
 	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%c%s", str1->str, delim, str2->str);
 }
@@ -705,11 +792,6 @@ static void generate_full_names(ctx_t * ctx, ira_lo_t * nspc) {
 }
 
 static bool translate_core(ctx_t * ctx) {
-	if (ctx->ast->root->type != PlaDclrNspc
-		|| ctx->ast->root->name != NULL) {
-		return false;
-	}
-
 	ctx->hst = ctx->ast->hst;
 
 	ul_hsb_init(&ctx->hsb);
@@ -720,7 +802,7 @@ static bool translate_core(ctx_t * ctx) {
 
 	register_bltn_optrs(ctx);
 
-	if (!translate_dclr_nspc(ctx, ctx->ast->root, &ctx->out->root)) {
+	if (!translate_tus(ctx)) {
 		return false;
 	}
 
@@ -739,6 +821,8 @@ bool pla_ast_t_translate(pla_ast_t * ast, ira_pec_t * out) {
 		res = translate_core(&ctx);
 	}
 	__finally {
+		free(ctx.tus);
+
 		for (pla_expr_type_t expr_type = PlaExprNone; expr_type < PlaExpr_Count; ++expr_type) {
 			destroy_optr_chain(ctx.optrs[expr_type]);
 		}

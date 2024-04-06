@@ -1,4 +1,4 @@
 #pragma once
-#include "pla.h"
+#include "pla_ast.h"
 
-bool pla_ast_p_parse(ul_hst_t * hst, const wchar_t * file_name, pla_ast_t * out);
+bool pla_ast_p_parse_file(pla_ast_t * ast, ul_hs_t * file_name);
