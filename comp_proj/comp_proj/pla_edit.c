@@ -9,7 +9,7 @@
 
 #define LINE_INIT_STR_SIZE 64
 
-#define GSK_PRS_CHECK 0x8000
+#define GKS_PRS_CHECK 0x8000
 
 typedef struct pla_edit_style {
 	wa_style_col_t cols[PlaEditCol_Count];
@@ -28,14 +28,15 @@ typedef struct pla_edit_data {
 	wa_ctl_data_t ctl_data;
 	style_t style;
 
+	bool is_fcs;
+	HWND prev_fcs_hw;
+
 	size_t lines_cap;
 	line_t * lines;
 	size_t lines_size;
 
-	bool is_fcs;
-	HWND prev_fcs_hw;
-
 	size_t vis_line;
+	size_t vis_ch;
 
 	size_t caret_line;
 	size_t caret_col;
@@ -136,30 +137,26 @@ static int convert_line_to_disp_y(wnd_data_t * data, size_t y) {
 
 
 static bool is_caret_vis(wnd_data_t * data) {
-	if (data->vis_line > data->caret_line) {
-		return false;
-	}
-
-	RECT rect;
-
-	GetClientRect(data->hw, &rect);
-
-	size_t vis_size = ((size_t)rect.bottom + data->style.font.f_h - 1) / data->style.font.f_h;
-
-	if (data->vis_line <= data->caret_line && data->caret_line - data->vis_line > vis_size) {
+	if (data->vis_line > data->caret_line
+		|| data->vis_ch > data->caret_ch) {
 		return false;
 	}
 
 	return true;
 }
 static void update_caret_pos(wnd_data_t * data) {
-	if (!data->is_fcs || !is_caret_vis(data)) {
+	if (!data->is_fcs) {
 		return;
 	}
+	
+	if (is_caret_vis(data)) {
+		SetCaretPos(convert_line_to_disp_x(data, data->caret_ch), convert_line_to_disp_y(data, data->caret_line - data->vis_line));
 
-	SetCaretPos(convert_line_to_disp_x(data, data->caret_ch), convert_line_to_disp_y(data, data->caret_line - data->vis_line));
-
-	ShowCaret(data->hw);
+		ShowCaret(data->hw);
+	}
+	else {
+		HideCaret(data->hw);
+	}
 }
 
 static void set_caret_pos(wnd_data_t * data, size_t caret_line, size_t caret_col) {
@@ -250,6 +247,55 @@ static void set_caret_pos_by_nav_wp(wnd_data_t * data, WPARAM wp) {
 	}
 
 	set_caret_pos(data, caret_line, caret_col);
+}
+
+static void redraw_lines(wnd_data_t * data, HDC hdc, RECT * rect) {
+	HWND hw = data->hw;
+	wa_ctx_t * ctx = data->ctx;
+
+	FillRect(hdc, rect, ctx->style.cols[WaStyleColBg].hb);
+
+	SelectFont(hdc, data->style.font.hf);
+	SetBkColor(hdc, ctx->style.cols[WaStyleColBg].cr);
+
+	{
+		size_t max_w = ((size_t)rect->right + data->style.font.f_w - 1) / data->style.font.f_w;
+		size_t max_h = ((size_t)rect->bottom + data->style.font.f_h - 1) / data->style.font.f_h;
+
+		LONG line_h_step = (LONG)data->style.font.f_h;
+		RECT line_rect = { .left = 0, .top = 0, .right = rect->right, .bottom = line_h_step };
+
+		for (size_t line_i = 0; line_i + data->vis_line < data->lines_size && line_i < max_h; ++line_i) {
+			line_t * line = &data->lines[line_i + data->vis_line];
+
+			if (data->vis_ch < line->size) {
+				DrawTextW(hdc, line->str + data->vis_ch, (int)line->size, &line_rect, DT_SINGLELINE | DT_NOCLIP);
+			}
+			else {
+				FillRect(hdc, &line_rect, ctx->style.cols[WaStyleColBg].hb);
+			}
+
+			line_rect.top = line_rect.bottom;
+			line_rect.bottom += line_h_step;
+		}
+	}
+}
+static void redraw_lines_buf(wnd_data_t * data, HDC hdc) {
+	HWND hw = data->hw;
+	wa_ctx_t * ctx = data->ctx;
+	RECT rect;
+
+	GetClientRect(hw, &rect);
+
+	HDC hdc_buf;
+
+	HPAINTBUFFER buf = BeginBufferedPaint(hdc, &rect, BPBF_COMPATIBLEBITMAP, NULL, &hdc_buf);
+
+	if (buf != NULL) {
+		redraw_lines(data, hdc_buf, &rect);
+
+		EndBufferedPaint(buf, TRUE);
+	}
 }
 
 static void process_caret_back(wnd_data_t * data) {
@@ -363,7 +409,6 @@ static bool process_cd_args(wnd_data_t * data, wa_wnd_cd_t * cd) {
 static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) {
 	HWND hw = data->hw;
 	wa_ctx_t * ctx = data->ctx;
-	RECT rect;
 
 	switch (msg) {
 		case WM_CREATE:
@@ -404,36 +449,21 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 			
 			HDC hdc = BeginPaint(hw, &ps);
 
-			GetClientRect(hw, &rect);
-			FillRect(hdc, &rect, ctx->style.cols[WaStyleColBg].hb);
-
-			SelectFont(hdc, data->style.font.hf);
-			SetBkColor(hdc, ctx->style.cols[WaStyleColBg].cr);
-
-			{
-				size_t max_w = ((size_t)rect.right + data->style.font.f_w - 1) / data->style.font.f_w;
-				size_t max_h = ((size_t)rect.bottom + data->style.font.f_h - 1) / data->style.font.f_h;
-
-				for (size_t line_i = 0; line_i + data->vis_line < data->lines_size && line_i < max_h; ++line_i) {
-					line_t * line = &data->lines[line_i + data->vis_line];
-
-					TextOutW(hdc, 0, (int)(line_i * data->style.font.f_h), line->str, (int)line->size);
-				}
-			}
+			redraw_lines_buf(data, hdc);
 
 			EndPaint(hw, &ps);
 
 			return TRUE;
 		}
 		case WM_ERASEBKGND:
-			return FALSE;
+			return TRUE;
 		case WM_KEYDOWN:
 			switch (wp) {
 				case VK_BACK:
 					process_caret_back(data);
 					break;
 				case VK_RETURN:
-					if ((GetKeyState(VK_CONTROL) & GSK_PRS_CHECK) != 0) {
+					if ((GetKeyState(VK_CONTROL) & GKS_PRS_CHECK) != 0) {
 						process_caret_cret(data);
 					}
 					else {
@@ -473,7 +503,9 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 		case WM_LBUTTONDOWN:
 			set_caret_pos_by_cur_lp(data, lp);
 
-			SetFocus(hw);
+			if (!data->is_fcs) {
+				SetFocus(hw);
+			}
 			break;
 		case WM_LBUTTONUP:
 			set_caret_pos_by_cur_lp(data, lp);

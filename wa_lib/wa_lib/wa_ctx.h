@@ -22,3 +22,6 @@ WA_SYMBOL void wa_ctx_run_msg_loop(wa_ctx_t * ctx);
 
 WA_SYMBOL void wa_ctx_inc_twc(wa_ctx_t * ctx);
 WA_SYMBOL void wa_ctx_dec_twc(wa_ctx_t * ctx);
+
+WA_SYMBOL bool wa_ctx_init_buf_paint(wa_ctx_t * ctx);
+WA_SYMBOL void wa_ctx_cleanup_buf_paint(wa_ctx_t * ctx);

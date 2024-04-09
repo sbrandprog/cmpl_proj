@@ -33,6 +33,10 @@ static bool main_gui() {
 		return false;
 	}
 
+	if (!wa_ctx_init_buf_paint(&main_wa_ctx)) {
+		return false;
+	}
+
 	if (!wa_wcr_init(&main_wcr, &main_wa_ctx)) {
 		return false;
 	}
@@ -43,13 +47,13 @@ static bool main_gui() {
 
 	ul_hs_t * main_wnd_name = UL_HST_HASHADD_WS(&main_hst, L"main window");
 
-	HWND main_wnd = wa_wnd_create(&main_wa_ctx, L"wa_host", NULL, WS_OVERLAPPEDWINDOW, WS_EX_COMPOSITED, L"size", wa_host_dflt_size, L"text", main_wnd_name, NULL);
+	HWND main_wnd = wa_wnd_create(&main_wa_ctx, L"wa_host", NULL, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, WS_EX_COMPOSITED, L"size", wa_host_dflt_size, L"text", main_wnd_name, NULL);
 
 	if (main_wnd == NULL) {
 		return false;
 	}
 
-	HWND pla_edit = wa_wnd_create(&main_wa_ctx, L"pla_edit", main_wnd, WS_CHILD | WS_VISIBLE, 0, NULL);
+	HWND pla_edit = wa_wnd_create(&main_wa_ctx, L"pla_edit", main_wnd, WS_CHILD | WS_VISIBLE, WS_EX_COMPOSITED, NULL);
 
 	if (pla_edit == NULL) {
 		return false;
@@ -58,6 +62,8 @@ static bool main_gui() {
 	wa_ctx_use_show_cmd(&main_wa_ctx, main_wnd);
 
 	wa_ctx_run_msg_loop(&main_wa_ctx);
+
+	wa_ctx_cleanup_buf_paint(&main_wa_ctx);
 
 	return true;
 }
@@ -127,7 +133,7 @@ static void main_run() {
 static int main_core() {
 	ul_hst_init(&main_hst);
 	
-	if (false) {
+	if (true) {
 		if (!main_gui()) {
 			return -1;
 		}

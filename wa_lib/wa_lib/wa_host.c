@@ -72,7 +72,7 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 			return TRUE;
 		}
 		case WM_ERASEBKGND:
-			return FALSE;
+			return TRUE;
 		case WM_PARENTNOTIFY:
 			switch (LOWORD(wp)) {
 				case WM_CREATE:

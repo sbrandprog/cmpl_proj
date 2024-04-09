@@ -59,3 +59,14 @@ void wa_ctx_dec_twc(wa_ctx_t * ctx) {
 		PostQuitMessage(0);
 	}
 }
+
+bool wa_ctx_init_buf_paint(wa_ctx_t * ctx) {
+	if (BufferedPaintInit() != S_OK) {
+		return false;
+	}
+	
+	return true;
+}
+void wa_ctx_cleanup_buf_paint(wa_ctx_t * ctx) {
+	(void)BufferedPaintUnInit();
+}

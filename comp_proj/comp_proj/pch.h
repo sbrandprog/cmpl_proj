@@ -16,5 +16,6 @@
 
 #include <Windows.h>
 #include <windowsx.h>
+#include <Uxtheme.h>
 
 #include <utility_lib/utility_lib.h>
