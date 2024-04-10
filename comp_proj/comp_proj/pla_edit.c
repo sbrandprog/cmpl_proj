@@ -7,6 +7,8 @@
 #include "pla_dclr.h"
 #include "pla_edit.h"
 
+#define TAB_SIZE 4
+
 #define LINE_INIT_STR_SIZE 64
 
 #define GKS_PRS_CHECK 0x8000
@@ -43,6 +45,7 @@ typedef struct pla_edit_data {
 	size_t caret_ch;
 } wnd_data_t;
 
+
 static bool init_style(style_t * style, pla_edit_style_desc_t * desc) {
 	for (pla_edit_col_type_t col = 0; col < PlaEditCol_Count; ++col) {
 		if (!wa_style_col_set(&style->cols[col], desc->cols[col])) {
@@ -63,6 +66,7 @@ static void cleanup_style(style_t * style) {
 
 	wa_style_font_cleanup(&style->font);
 }
+
 
 static void init_line(line_t * line) {
 	*line = (line_t){ 0 };
@@ -99,6 +103,39 @@ static void remove_line_ch(wnd_data_t * data, line_t * line, size_t rem_pos) {
 	--line->size;
 }
 
+static size_t get_ch_col_size(wnd_data_t * data, size_t line_col, wchar_t ch) {
+	if (ch == L'\t') {
+		return TAB_SIZE - line_col % TAB_SIZE;
+	}
+
+	return 1;
+}
+static size_t convert_line_ch_to_col(wnd_data_t * data, line_t * line, size_t line_ch) {
+	ul_raise_assert(line_ch <= line->size);
+
+	size_t line_col = 0;
+
+	for (wchar_t * ch = line->str, *ch_end = ch + line_ch; ch != ch_end; ++ch) {
+		line_col += get_ch_col_size(data, line_col, *ch);
+	}
+
+	return line_col;
+}
+static size_t convert_line_col_to_ch(wnd_data_t * data, line_t * line, size_t line_col) {
+	size_t line_ch = 0, line_col_calc = 0;
+
+	for (; line_ch < line->size; ++line_ch) {
+		if (line_col_calc >= line_col) {
+			return line_ch;
+		}
+
+		line_col_calc += get_ch_col_size(data, line_col_calc, line->str[line_ch]);
+	}
+
+	return line_ch;
+}
+
+
 static line_t * insert_line(wnd_data_t * data, size_t ins_pos) {
 	ul_raise_assert(ins_pos <= data->lines_size);
 
@@ -128,13 +165,6 @@ static void remove_line(wnd_data_t * data, size_t rem_pos) {
 	--data->lines_size;
 }
 
-static int convert_line_to_disp_x(wnd_data_t * data, size_t x) {
-	return (int)(x * data->style.font.f_w);
-}
-static int convert_line_to_disp_y(wnd_data_t * data, size_t y) {
-	return (int)(y * data->style.font.f_h);
-}
-
 
 static bool is_caret_vis(wnd_data_t * data) {
 	if (data->vis_line > data->caret_line
@@ -144,13 +174,17 @@ static bool is_caret_vis(wnd_data_t * data) {
 
 	return true;
 }
-static void update_caret_pos(wnd_data_t * data) {
+
+static void redraw_caret(wnd_data_t * data) {
 	if (!data->is_fcs) {
 		return;
 	}
-	
+
 	if (is_caret_vis(data)) {
-		SetCaretPos(convert_line_to_disp_x(data, data->caret_ch), convert_line_to_disp_y(data, data->caret_line - data->vis_line));
+		int caret_x = (int)(convert_line_ch_to_col(data, &data->lines[data->caret_line], data->caret_ch) * data->style.font.f_w);
+		int caret_y = (int)((data->caret_line - data->vis_line) * data->style.font.f_h);
+
+		SetCaretPos(caret_x, caret_y);
 
 		ShowCaret(data->hw);
 	}
@@ -158,97 +192,30 @@ static void update_caret_pos(wnd_data_t * data) {
 		HideCaret(data->hw);
 	}
 }
+static void draw_line(wnd_data_t * data, HDC hdc, line_t * line, size_t line_pos) {
+	for (size_t line_ch = 0, ch_pos = 0; line_ch < line->size;) {
+		wchar_t ch = line->str[line_ch];
 
-static void set_caret_pos(wnd_data_t * data, size_t caret_line, size_t caret_col) {
-	size_t caret_ch = min(caret_col, data->lines[caret_line].size);
-	
-	if (data->caret_line != caret_line
-		|| data->caret_col != caret_col
-		|| data->caret_ch != caret_ch) {
-		data->caret_line = caret_line;
-		data->caret_col = caret_col;
-		data->caret_ch = caret_ch;
+		if (ch == L'\t') {
+			ch_pos += TAB_SIZE - ch_pos % TAB_SIZE;
+			++line_ch;
+		}
+		else {
+			size_t line_batch = line_ch + 1;
 
-		update_caret_pos(data);
+			while (line_batch < line->size && line->str[line_batch] != L'\t') {
+				++line_batch;
+			}
+
+			size_t batch_size = line_batch - line_ch;
+
+			TextOutW(hdc, (int)(ch_pos * data->style.font.f_w), (int)(line_pos * data->style.font.f_h), line->str + line_ch, (int)batch_size);
+
+			ch_pos += batch_size;
+			line_ch = line_batch;
+		}
 	}
 }
-static void set_caret_pos_by_cur_lp(wnd_data_t * data, LPARAM lp) {
-	int x = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
-
-	if (x < 0 || y < 0) {
-		return;
-	}
-	
-	x += (int)(data->style.font.f_w / 2);
-
-	ul_raise_assert(data->lines_size > 0);
-
-	size_t caret_line = min(data->lines_size - 1, data->vis_line + (size_t)y / data->style.font.f_h);
-
-	line_t * line = &data->lines[caret_line];
-
-	size_t caret_col = min(line->size, (size_t)x / data->style.font.f_w);
-
-	set_caret_pos(data, caret_line, caret_col);
-}
-static void set_caret_pos_by_nav_wp(wnd_data_t * data, WPARAM wp) {
-	size_t caret_line = data->caret_line;
-	size_t caret_col = data->caret_col;
-
-	switch (wp) {
-		case VK_END:
-			caret_col = data->lines[caret_line].size;
-			break;
-		case VK_HOME:
-			caret_col = 0;
-			break;
-		case VK_LEFT:
-			caret_col = min(caret_col, data->lines[caret_line].size);
-
-			if (caret_col > 0) {
-				--caret_col;
-			}
-			else {
-				if (caret_line > 0) {
-					--caret_line;
-					caret_col = data->lines[caret_line].size;
-				}
-			}
-			break;
-		case VK_UP:
-			if (caret_line > 0) {
-				--caret_line;
-			}
-			else if (caret_col > 0) {
-				caret_col = 0;
-			}
-			break;
-		case VK_RIGHT:
-			caret_col = min(caret_col, data->lines[caret_line].size);
-			
-			if (caret_col < data->lines[caret_line].size) {
-				++caret_col;
-			}
-			else {
-				if (caret_line < data->lines_size - 1) {
-					++caret_line;
-					caret_col = 0;
-				}
-			}
-			break;
-		case VK_DOWN:
-			if (caret_line < data->lines_size - 1) {
-				++caret_line;
-			}
-			else if (caret_col < data->lines[caret_line].size) {
-				caret_col = data->lines[caret_line].size;
-			}
-			break;
-	}
-
-	set_caret_pos(data, caret_line, caret_col);
-}
-
 static void redraw_lines(wnd_data_t * data, HDC hdc, RECT * rect) {
 	HWND hw = data->hw;
 	wa_ctx_t * ctx = data->ctx;
@@ -263,20 +230,11 @@ static void redraw_lines(wnd_data_t * data, HDC hdc, RECT * rect) {
 		size_t max_h = ((size_t)rect->bottom + data->style.font.f_h - 1) / data->style.font.f_h;
 
 		LONG line_h_step = (LONG)data->style.font.f_h;
-		RECT line_rect = { .left = 0, .top = 0, .right = rect->right, .bottom = line_h_step };
 
 		for (size_t line_i = 0; line_i + data->vis_line < data->lines_size && line_i < max_h; ++line_i) {
 			line_t * line = &data->lines[line_i + data->vis_line];
 
-			if (data->vis_ch < line->size) {
-				DrawTextW(hdc, line->str + data->vis_ch, (int)line->size, &line_rect, DT_SINGLELINE | DT_NOCLIP);
-			}
-			else {
-				FillRect(hdc, &line_rect, ctx->style.cols[WaStyleColBg].hb);
-			}
-
-			line_rect.top = line_rect.bottom;
-			line_rect.bottom += line_h_step;
+			draw_line(data, hdc, line, line_i);
 		}
 	}
 }
@@ -298,13 +256,121 @@ static void redraw_lines_buf(wnd_data_t * data, HDC hdc) {
 	}
 }
 
+static void set_caret_pos_col(wnd_data_t * data, size_t caret_line, size_t caret_col) {
+	caret_line = min(caret_line, data->lines_size);
+
+	size_t caret_ch = convert_line_col_to_ch(data, &data->lines[caret_line], caret_col);
+
+	if (data->caret_line != caret_line
+		|| data->caret_col != caret_col
+		|| data->caret_ch != caret_ch) {
+		data->caret_line = caret_line;
+		data->caret_col = caret_col;
+		data->caret_ch = caret_ch;
+
+		redraw_caret(data);
+	}
+}
+static void set_caret_pos_ch(wnd_data_t * data, size_t caret_line, size_t caret_ch) {
+	caret_line = min(caret_line, data->lines_size);
+
+	caret_ch = min(caret_ch, data->lines[caret_line].size);
+
+	size_t caret_col = convert_line_ch_to_col(data, &data->lines[caret_line], caret_ch);
+
+	if (data->caret_line != caret_line
+		|| data->caret_col != caret_col
+		|| data->caret_ch != caret_ch) {
+		data->caret_line = caret_line;
+		data->caret_col = caret_col;
+		data->caret_ch = caret_ch;
+
+		redraw_caret(data);
+	}
+}
+static void set_caret_pos_by_cur_lp(wnd_data_t * data, LPARAM lp) {
+	int x = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
+
+	if (x < 0 || y < 0) {
+		return;
+	}
+
+	x += (int)(data->style.font.f_w / 2);
+
+	ul_raise_assert(data->lines_size > 0);
+
+	size_t caret_line = min(data->lines_size - 1, data->vis_line + (size_t)y / data->style.font.f_h);
+
+	line_t * line = &data->lines[caret_line];
+
+	size_t caret_col = (size_t)x / data->style.font.f_w;
+
+	set_caret_pos_col(data, caret_line, caret_col);
+}
+static void set_caret_pos_by_nav_wp(wnd_data_t * data, WPARAM wp) {
+	size_t caret_line = data->caret_line, caret_col = data->caret_col, caret_ch = data->caret_ch;
+
+	switch (wp) {
+		case VK_END:
+			set_caret_pos_ch(data, caret_line, data->lines[caret_line].size);
+			break;
+		case VK_HOME:
+			set_caret_pos_ch(data, caret_line, 0);
+			break;
+		case VK_LEFT:
+			if (caret_ch > 0) {
+				--caret_ch;
+			}
+			else if (caret_line > 0) {
+				--caret_line;
+				caret_ch = data->lines[caret_line].size;
+			}
+
+			set_caret_pos_ch(data, caret_line, caret_ch);
+			break;
+		case VK_UP:
+			if (caret_line > 0) {
+				--caret_line;
+			}
+			else if (caret_col > 0) {
+				caret_col = 0;
+			}
+
+			set_caret_pos_col(data, caret_line, caret_col);
+			break;
+		case VK_RIGHT:
+			if (caret_ch < data->lines[caret_line].size) {
+				++caret_ch;
+			}
+			else if (caret_line < data->lines_size - 1) {
+				++caret_line;
+				caret_ch = 0;
+			}
+
+			set_caret_pos_ch(data, caret_line, caret_ch);
+			break;
+		case VK_DOWN:
+			if (caret_line < data->lines_size - 1) {
+				++caret_line;
+			}
+			else if (caret_col < data->lines[caret_line].size) {
+				caret_col = data->lines[caret_line].size;
+			}
+
+			set_caret_pos_col(data, caret_line, caret_col);
+			break;
+		default:
+			ul_raise_unreachable();
+	}
+}
+
 static void process_caret_back(wnd_data_t * data) {
 	if (data->caret_ch > 0) {
 		remove_line_ch(data, &data->lines[data->caret_line], data->caret_ch - 1);
 
 		InvalidateRect(data->hw, NULL, FALSE);
 
-		set_caret_pos(data, data->caret_line, data->caret_ch - 1);
+		set_caret_pos_ch(data, data->caret_line, data->caret_ch - 1);
 	}
 	else if (data->caret_line > 0) {
 		line_t * ins_line = &data->lines[data->caret_line - 1];
@@ -316,7 +382,7 @@ static void process_caret_back(wnd_data_t * data) {
 
 		wmemcpy_s(ins_line->str + ins_line->size, ins_line->cap - ins_line->size, rem_line->str, rem_line->size);
 
-		size_t caret_col = ins_line->size;
+		size_t caret_ch = ins_line->size;
 
 		ins_line->size += rem_line->size;
 
@@ -324,7 +390,7 @@ static void process_caret_back(wnd_data_t * data) {
 
 		InvalidateRect(data->hw, NULL, FALSE);
 
-		set_caret_pos(data, data->caret_line - 1, caret_col);
+		set_caret_pos_ch(data, data->caret_line - 1, caret_ch);
 	}
 }
 static void process_caret_ret(wnd_data_t * data) {
@@ -342,14 +408,14 @@ static void process_caret_ret(wnd_data_t * data) {
 
 	InvalidateRect(data->hw, NULL, FALSE);
 
-	set_caret_pos(data, data->caret_line + 1, 0);
+	set_caret_pos_ch(data, data->caret_line + 1, 0);
 }
 static void process_caret_cret(wnd_data_t * data) {
 	line_t * line = insert_line(data, data->caret_line);
 
 	InvalidateRect(data->hw, NULL, FALSE);
 
-	set_caret_pos(data, data->caret_line, data->caret_col);
+	set_caret_pos_col(data, data->caret_line, data->caret_col);
 }
 static void process_caret_del(wnd_data_t * data) {
 	line_t * line = &data->lines[data->caret_line];
@@ -377,12 +443,12 @@ static void process_caret_del(wnd_data_t * data) {
 static void process_caret_ch(wnd_data_t * data, WPARAM wp) {
 	wchar_t ch = (wchar_t)wp;
 
-	if (iswprint(ch)) {
+	if (iswprint(ch) || ch == L'\t') {
 		insert_line_ch(data, &data->lines[data->caret_line], data->caret_ch, ch);
 
 		InvalidateRect(data->hw, NULL, FALSE);
 
-		set_caret_pos(data, data->caret_line, data->caret_ch + 1);
+		set_caret_pos_ch(data, data->caret_line, data->caret_ch + 1);
 	}
 }
 
@@ -406,6 +472,32 @@ static bool process_cd_args(wnd_data_t * data, wa_wnd_cd_t * cd) {
 	return true;
 }
 
+static void fill_test_data(wnd_data_t * data) {
+	FILE * file;
+
+	(void)_wfopen_s(&file, L"test.pla", L"r");
+
+	ul_raise_assert(file != NULL);
+
+	size_t line_num = 0, line_ch = 0;
+
+	wint_t ch;
+
+	while ((ch = fgetwc(file)) != WEOF) {
+		if (ch == L'\n') {
+			++line_num;
+			line_ch = 0;
+
+			insert_line(data, line_num);
+		}
+		else {
+			insert_line_ch(data, &data->lines[line_num], line_ch++, (wchar_t)ch);
+		}
+	}
+
+	fclose(file);
+}
+
 static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) {
 	HWND hw = data->hw;
 	wa_ctx_t * ctx = data->ctx;
@@ -416,18 +508,8 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 				return -1;
 			}
 
-			{
-				line_t * line = insert_line(data, 0);
+			fill_test_data(data);
 
-				static const ul_ros_t str_data = UL_ROS_MAKE(L"test text <= => <==> <====> <- -> <---->");
-
-				ul_raise_assert(line->cap >= str_data.size);
-
-				wmemcpy_s(line->str, line->cap, str_data.str, str_data.size);
-
-				line->size = str_data.size;
-			}
-			
 			break;
 		case WM_SETFOCUS:
 			data->is_fcs = true;
@@ -435,7 +517,7 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 
 			CreateCaret(hw, NULL, 1, (int)data->style.font.f_h);
 
-			update_caret_pos(data);
+			redraw_caret(data);
 			break;
 		case WM_KILLFOCUS:
 			data->is_fcs = false;
@@ -446,7 +528,7 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 		case WM_PAINT:
 		{
 			PAINTSTRUCT ps;
-			
+
 			HDC hdc = BeginPaint(hw, &ps);
 
 			redraw_lines_buf(data, hdc);
@@ -593,7 +675,7 @@ pla_edit_style_desc_t pla_edit_get_style_desc_dflt(wa_ctx_t * ctx) {
 		.cols = {
 			[PlaEditColPlain] = RGB(0, 0, 0),
 			[PlaEditColKeyw] = RGB(0, 0, 255)
-		},
+	},
 		.font = ctx->style.fonts[WaStyleFontFxd].lf
 	};
 
