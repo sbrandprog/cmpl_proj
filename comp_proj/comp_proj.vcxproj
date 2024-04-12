@@ -101,6 +101,7 @@
     <ClCompile Include="comp_proj\asm_pea_b.c" />
     <ClCompile Include="comp_proj\asm_reg.c" />
     <ClCompile Include="comp_proj\asm_size.c" />
+    <ClCompile Include="comp_proj\gia_text.c" />
     <ClCompile Include="comp_proj\ira_func.c" />
     <ClCompile Include="comp_proj\ira_dt.c" />
     <ClCompile Include="comp_proj\ira_inst.c" />
@@ -124,7 +125,7 @@
     <ClCompile Include="comp_proj\pla_ast_t.c" />
     <ClCompile Include="comp_proj\pla_ast_t_s.c" />
     <ClCompile Include="comp_proj\pla_dclr.c" />
-    <ClCompile Include="comp_proj\pla_edit.c" />
+    <ClCompile Include="comp_proj\gia_edit.c" />
     <ClCompile Include="comp_proj\pla_expr.c" />
     <ClCompile Include="comp_proj\pla_cn.c" />
     <ClCompile Include="comp_proj\pla_keyw.c" />
@@ -145,6 +146,8 @@
     <ClInclude Include="comp_proj\asm_pea_b.h" />
     <ClInclude Include="comp_proj\asm_reg.h" />
     <ClInclude Include="comp_proj\asm_size.h" />
+    <ClInclude Include="comp_proj\gia.h" />
+    <ClInclude Include="comp_proj\gia_text.h" />
     <ClInclude Include="comp_proj\ira.h" />
     <ClInclude Include="comp_proj\ira_func.h" />
     <ClInclude Include="comp_proj\ira_dt.h" />
@@ -174,7 +177,7 @@
     <ClInclude Include="comp_proj\pla_pds.h" />
     <ClInclude Include="comp_proj\pla_punc.h" />
     <ClInclude Include="comp_proj\pla_stmt.h" />
-    <ClInclude Include="comp_proj\pla_edit.h" />
+    <ClInclude Include="comp_proj\gia_edit.h" />
     <ClInclude Include="comp_proj\pla_tok.h" />
     <ClInclude Include="comp_proj\pla_tu.h" />
     <ClInclude Include="comp_proj\pla_tu_p.h" />

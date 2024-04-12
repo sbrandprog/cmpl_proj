@@ -41,6 +41,3 @@ typedef struct pla_ast_t_tse pla_ast_t_tse_t;
 typedef enum pla_ast_t_vse_type pla_ast_t_vse_type_t;
 typedef struct pla_ast_t_vse pla_ast_t_vse_t;
 typedef struct pla_ast_t_ctx pla_ast_t_ctx_t;
-
-typedef enum pla_edit_col_type pla_edit_col_type_t;
-typedef struct pla_edit_style_desc pla_edit_style_desc_t;

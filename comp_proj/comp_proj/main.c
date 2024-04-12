@@ -3,12 +3,12 @@
 #include "wa_lib/wa_wnd.h"
 #include "wa_lib/wa_host.h"
 #include "wa_lib/wa_wcr.h"
-#include "pla_edit.h"
-#include "pla_ast_p.h"
-#include "pla_ast_t.h"
-#include "ira_pec_c.h"
-#include "asm_pea_b.h"
 #include "lnk_pe_l.h"
+#include "asm_pea_b.h"
+#include "ira_pec_c.h"
+#include "pla_ast_t.h"
+#include "pla_ast_p.h"
+#include "gia_edit.h"
 
 static const ul_ros_t files_to_parse[] = {
 	UL_ROS_MAKE(L"test.pla"),
@@ -41,7 +41,7 @@ static bool main_gui() {
 		return false;
 	}
 
-	if (!wa_wcr_register_p(&main_wcr, pla_edit_get_wnd_cls_desc)) {
+	if (!wa_wcr_register_p(&main_wcr, gia_edit_get_wnd_cls_desc)) {
 		return false;
 	}
 
@@ -53,7 +53,7 @@ static bool main_gui() {
 		return false;
 	}
 
-	HWND pla_edit = wa_wnd_create(&main_wa_ctx, L"pla_edit", main_wnd, WS_CHILD | WS_VISIBLE, WS_EX_COMPOSITED, NULL);
+	HWND pla_edit = wa_wnd_create(&main_wa_ctx, L"gia_edit", main_wnd, WS_CHILD | WS_VISIBLE, WS_EX_COMPOSITED, NULL);
 
 	if (pla_edit == NULL) {
 		return false;
