@@ -9,6 +9,8 @@
 #include "gia_edit.h"
 
 #define TAB_SIZE 4
+#define VIS_SPACE 3
+#define VIS_WHEEL_MUL 2
 
 #define LINE_INIT_STR_SIZE 64
 
@@ -25,9 +27,6 @@ typedef struct gia_edit_data {
 	wa_ctl_data_t ctl_data;
 	style_t style;
 
-	bool is_fcs;
-	HWND prev_fcs_hw;
-
 	gia_text_t text;
 
 	size_t vis_line;
@@ -35,6 +34,12 @@ typedef struct gia_edit_data {
 
 	size_t caret_line;
 	size_t caret_col;
+
+	bool is_fcs;
+	HWND prev_fcs_hw;
+
+	int wheel_x;
+	int wheel_y;
 } wnd_data_t;
 
 
@@ -108,7 +113,7 @@ static gia_text_ch_pos_t get_caret_ch_pos(wnd_data_t * data) {
 	return get_ch_pos(data, data->caret_line, data->caret_col);
 }
 
-static void redraw_caret(wnd_data_t * data) {
+static void redraw_caret_nl(wnd_data_t * data) {
 	if (!data->is_fcs) {
 		return;
 	}
@@ -117,39 +122,49 @@ static void redraw_caret(wnd_data_t * data) {
 
 	size_t col = convert_line_ch_to_col(data, &data->text.lines[data->caret_line], pos.ch);
 
+	int x, y;
+
 	if (data->vis_line <= pos.line && data->vis_col <= col) {
-		int show_x = (int)((col - data->vis_col) * data->style.font.f_w);
-		int show_y = (int)((pos.line - data->vis_line) * data->style.font.f_h);
-
-		SetCaretPos(show_x, show_y);
-
-		ShowCaret(data->hw);
+		x = (int)((col - data->vis_col) * data->style.font.f_w);
+		y = (int)((pos.line - data->vis_line) * data->style.font.f_h);
 	}
 	else {
-		HideCaret(data->hw);
+		x = -(int)data->style.font.f_w;
+		y = -(int)data->style.font.f_h;
+	}
+
+	SetCaretPos(x, y);
+}
+static void redraw_caret(wnd_data_t * data) {
+	EnterCriticalSection(&data->text.lock);
+
+	__try {
+		redraw_caret_nl(data);
+	}
+	__finally {
+		LeaveCriticalSection(&data->text.lock);
 	}
 }
-static void draw_line(wnd_data_t * data, HDC hdc, gia_text_line_t * line, size_t line_pos) {
-	for (size_t line_ch = 0, ch_pos = 0; line_ch < line->size;) {
+static void draw_line(wnd_data_t * data, HDC hdc, size_t line_pos, size_t line_max_w) {
+	gia_text_line_t * line = &data->text.lines[data->vis_line + line_pos];
+
+	int line_h = (int)(line_pos * data->style.font.f_h);
+	size_t line_col_max = line_max_w + data->vis_col;
+
+	for (size_t line_ch = 0, line_col = 0; line_ch < line->size && line_col < line_col_max; ) {
 		wchar_t ch = line->str[line_ch];
 
 		if (ch == L'\t') {
-			ch_pos += TAB_SIZE - ch_pos % TAB_SIZE;
+			line_col += TAB_SIZE - line_col % TAB_SIZE;
 			++line_ch;
 		}
 		else {
-			size_t line_batch = line_ch + 1;
-
-			while (line_batch < line->size && line->str[line_batch] != L'\t') {
-				++line_batch;
+			if (line_col >= data->vis_col) {
+				TextOutW(hdc, (int)((line_col - data->vis_col) * data->style.font.f_w), line_h, line->str + line_ch, 1);
 			}
 
-			size_t batch_size = line_batch - line_ch;
-
-			TextOutW(hdc, (int)(ch_pos * data->style.font.f_w), (int)(line_pos * data->style.font.f_h), line->str + line_ch, (int)batch_size);
-
-			ch_pos += batch_size;
-			line_ch = line_batch;
+			++line_col;
+			++line_ch;
 		}
 	}
 }
@@ -162,16 +177,16 @@ static void redraw_lines_nl(wnd_data_t * data, HDC hdc, RECT * rect) {
 	SelectFont(hdc, data->style.font.hf);
 	SetBkColor(hdc, ctx->style.cols[WaStyleColBg].cr);
 
-	{
+	if (data->vis_line < data->text.lines_size) {
+		size_t lines_to_draw = data->text.lines_size - data->vis_line;
+
 		size_t max_w = ((size_t)rect->right + data->style.font.f_w - 1) / data->style.font.f_w;
 		size_t max_h = ((size_t)rect->bottom + data->style.font.f_h - 1) / data->style.font.f_h;
 
-		LONG line_h_step = (LONG)data->style.font.f_h;
+		lines_to_draw = min(lines_to_draw, max_h);
 
-		for (size_t line_i = 0; line_i + data->vis_line < data->text.lines_size && line_i < max_h; ++line_i) {
-			gia_text_line_t * line = &data->text.lines[line_i + data->vis_line];
-
-			draw_line(data, hdc, line, line_i);
+		for (size_t line_i = 0; line_i < lines_to_draw; ++line_i) {
+			draw_line(data, hdc, line_i, max_w);
 		}
 	}
 }
@@ -203,13 +218,25 @@ static void redraw_lines_buf(wnd_data_t * data, HDC hdc) {
 	}
 }
 
+static void set_vis_pos(wnd_data_t * data, size_t vis_line, size_t vis_col) {
+	if (data->vis_line != vis_line
+		|| data->vis_col != vis_col) {
+		data->vis_line = vis_line;
+		data->vis_col = vis_col;
+
+		InvalidateRect(data->hw, NULL, FALSE);
+
+		redraw_caret_nl(data);
+	}
+}
+
 static void set_caret_pos_col(wnd_data_t * data, size_t caret_line, size_t caret_col) {
 	if (data->caret_line != caret_line
 		|| data->caret_col != caret_col) {
 		data->caret_line = caret_line;
 		data->caret_col = caret_col;
 
-		redraw_caret(data);
+		redraw_caret_nl(data);
 	}
 }
 static void set_caret_pos_ch(wnd_data_t * data, size_t caret_line, size_t caret_ch) {
@@ -220,6 +247,30 @@ static void set_caret_pos_ch(wnd_data_t * data, size_t caret_line, size_t caret_
 	size_t caret_col = convert_line_ch_to_col(data, &data->text.lines[caret_line], caret_ch);
 
 	set_caret_pos_col(data, caret_line, caret_col);
+}
+static size_t calc_vis_val(wnd_data_t * data, size_t caret_val, size_t vis_val, size_t vis_max) {
+	if (caret_val <= vis_val + VIS_SPACE) {
+		vis_val = max(caret_val, VIS_SPACE) - VIS_SPACE;
+	}
+	else if (caret_val + VIS_SPACE >= vis_val + vis_max) {
+		vis_val = caret_val - max(vis_max, VIS_SPACE) + VIS_SPACE;
+	}
+
+	return vis_val;
+}
+static void update_vis_to_caret(wnd_data_t * data, size_t caret_line, size_t caret_col) {
+	size_t vis_line = data->vis_line, vis_col = data->vis_col;
+
+	RECT rect;
+	GetClientRect(data->hw, &rect);
+	
+	size_t max_w = (size_t)rect.right / data->style.font.f_w;
+	size_t max_h = (size_t)rect.bottom / data->style.font.f_h;
+
+	vis_line = calc_vis_val(data, caret_line, vis_line, max_h);
+	vis_col = calc_vis_val(data, caret_col, vis_col, max_w);
+
+	set_vis_pos(data, vis_line, vis_col);
 }
 
 static void process_caret_keyd_wp_nl_back(wnd_data_t * data) {
@@ -364,7 +415,16 @@ static void process_caret_keyd_wp_nl_del(wnd_data_t * data) {
 		InvalidateRect(data->hw, NULL, FALSE);
 	}
 }
+static void process_caret_keyd_wp_nl_vis(wnd_data_t * data) {
+	gia_text_ch_pos_t pos = get_caret_ch_pos(data);
+
+	size_t caret_col = convert_line_ch_to_col(data, &data->text.lines[pos.line], pos.ch);
+
+	update_vis_to_caret(data, pos.line, caret_col);
+}
 static void process_caret_keyd_wp_nl(wnd_data_t * data, WPARAM wp) {
+	bool vis_update = true;
+	
 	switch (wp) {
 		case VK_BACK:
 			process_caret_keyd_wp_nl_back(data);
@@ -388,6 +448,13 @@ static void process_caret_keyd_wp_nl(wnd_data_t * data, WPARAM wp) {
 		case VK_DELETE:
 			process_caret_keyd_wp_nl_del(data);
 			break;
+		default:
+			vis_update = false;
+			break;
+	}
+
+	if (vis_update) {
+		process_caret_keyd_wp_nl_vis(data);
 	}
 }
 static void process_caret_keyd_wp(wnd_data_t * data, WPARAM wp) {
@@ -412,6 +479,10 @@ static void process_caret_ch_wp_nl(wnd_data_t * data, WPARAM wp) {
 		InvalidateRect(data->hw, NULL, FALSE);
 
 		set_caret_pos_ch(data, pos.line, pos.ch + 1);
+
+		size_t caret_col = convert_line_ch_to_col(data, &data->text.lines[pos.line], pos.ch + 1);
+
+		update_vis_to_caret(data, pos.line, caret_col);
 	}
 }
 static void process_caret_ch_wp(wnd_data_t * data, WPARAM wp) {
@@ -453,6 +524,59 @@ static void process_caret_cur_lp(wnd_data_t * data, WPARAM wp) {
 	}
 }
 
+
+static size_t process_vis_wheel_c_wp(wnd_data_t * data, int * wheel_c, size_t vis_val, size_t vis_val_max) {
+	int scroll_amount = *wheel_c / WHEEL_DELTA;
+	*wheel_c %= WHEEL_DELTA;
+
+	if (scroll_amount >= 0) {
+		vis_val_max = max(1, vis_val_max) - 1;
+		vis_val = min(vis_val_max, vis_val + (size_t)scroll_amount);
+	}
+	else {
+		vis_val -= min(vis_val, (size_t)-scroll_amount);
+	}
+
+	return vis_val;
+}
+static void process_vis_wheel_y_wp_nl(wnd_data_t * data, WPARAM wp) {
+	data->wheel_y += GET_WHEEL_DELTA_WPARAM(wp) * -VIS_WHEEL_MUL;
+
+	size_t vis_line = process_vis_wheel_c_wp(data, &data->wheel_y, data->vis_line, data->text.lines_size);
+
+	set_vis_pos(data, vis_line, data->vis_col);
+}
+static void process_vis_wheel_y_wp(wnd_data_t * data, WPARAM wp) {
+	EnterCriticalSection(&data->text.lock);
+
+	__try {
+		process_vis_wheel_y_wp_nl(data, wp);
+	}
+	__finally {
+		LeaveCriticalSection(&data->text.lock);
+	}
+}
+static void process_vis_wheel_x_wp_nl(wnd_data_t * data, WPARAM wp) {
+	data->wheel_x += GET_WHEEL_DELTA_WPARAM(wp) * VIS_WHEEL_MUL;
+
+	gia_text_ch_pos_t pos = get_caret_ch_pos(data);
+
+	gia_text_line_t * line = &data->text.lines[pos.line];
+
+	size_t vis_col = process_vis_wheel_c_wp(data, &data->wheel_x, data->vis_col, line->size);
+
+	set_vis_pos(data, data->vis_line, vis_col);
+}
+static void process_vis_wheel_x_wp(wnd_data_t * data, WPARAM wp) {
+	EnterCriticalSection(&data->text.lock);
+
+	__try {
+		process_vis_wheel_x_wp_nl(data, wp);
+	}
+	__finally {
+		LeaveCriticalSection(&data->text.lock);
+	}
+}
 
 static bool process_cd_args(wnd_data_t * data, wa_wnd_cd_t * cd) {
 	HWND hw = data->hw;
@@ -517,6 +641,7 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 			data->prev_fcs_hw = (HWND)wp;
 
 			CreateCaret(hw, NULL, 1, (int)data->style.font.f_h);
+			ShowCaret(hw);
 
 			redraw_caret(data);
 			break;
@@ -569,6 +694,12 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 			break;
 		case WM_LBUTTONUP:
 			process_caret_cur_lp(data, lp);
+			break;
+		case WM_MOUSEWHEEL:
+			process_vis_wheel_y_wp(data, wp);
+			return 0;
+		case WM_MOUSEHWHEEL:
+			process_vis_wheel_x_wp(data, wp);
 			break;
 	}
 
