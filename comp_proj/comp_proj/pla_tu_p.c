@@ -28,9 +28,10 @@ typedef struct bin_optr_info {
 	bin_optr_preced_t preced;
 } bin_optr_info_t;
 
-typedef struct asm_tu_p_ctx {
-	pla_lex_t * lex;
+typedef struct pla_tu_p_ctx {
 	ul_hs_t * tu_name;
+	pla_tu_p_get_tok_proc_t * get_tok_proc;
+	void * src_data;
 	pla_tu_t ** out;
 
 	tok_t tok;
@@ -105,26 +106,14 @@ static void report(ctx_t * ctx, const wchar_t * format, ...) {
 		fputwc(L'\n', stderr);
 	}
 }
-static void report_lex_err_stack(ctx_t * ctx) {
-	for (pla_lex_err_t * err = ctx->lex->err_stack, *err_end = err + ctx->lex->err_stack_pos; err != err_end; ++err) {
-		if (err->type == PlaLexErrSrc) {
-			continue;
-		}
-
-		report(ctx, L"lexer error: %s @%4ziC:%4ziL", pla_lex_err_strs[err->type].str, err->pos.line_ch, err->pos.line_num);
-	}
-}
 
 
 static bool next_tok(ctx_t * ctx) {
 	ctx->tok.type = PlaTokNone;
 
-	if (!pla_lex_get_tok(ctx->lex)) {
-		report_lex_err_stack(ctx);
+	if (!ctx->get_tok_proc(ctx->src_data, &ctx->tok)) {
 		return false;
 	}
-
-	ctx->tok = ctx->lex->tok;
 
 	return true;
 }
@@ -1316,8 +1305,8 @@ static bool parse_core(ctx_t * ctx) {
 
 	return true;
 }
-bool pla_tu_p_parse(pla_lex_t * lex, ul_hs_t * tu_name, pla_tu_t ** out) {
-	ctx_t ctx = { .lex = lex, .tu_name = tu_name, .out = out };
+bool pla_tu_p_parse(ul_hs_t * tu_name, pla_tu_p_get_tok_proc_t * get_tok_proc, void * src_data, pla_tu_t ** out) {
+	ctx_t ctx = { .tu_name = tu_name, .get_tok_proc = get_tok_proc, .src_data = src_data, .out = out };
 
 	bool res;
 
@@ -1346,14 +1335,26 @@ static bool get_file_ch(void * src_data, wchar_t * out) {
 
 	return true;
 }
+static bool get_tok(void * src_data, pla_tok_t * out) {
+	f_ctx_t * ctx = src_data;
+
+	if (!pla_lex_get_tok(&ctx->lex)) {
+		return false;
+	}
+
+	*out = ctx->lex.tok;
+
+	return true;
+}
 static bool parse_file_core(f_ctx_t * ctx) {
 	if (_wfopen_s(&ctx->file, ctx->file_name->str, L"r") != 0) {
 		return false;
 	}
 
-	pla_lex_init(&ctx->lex, ctx->hst, get_file_ch, ctx);
+	pla_lex_init(&ctx->lex, ctx->hst);
+	pla_lex_set_src(&ctx->lex, get_file_ch, ctx);
 
-	return pla_tu_p_parse(&ctx->lex, ctx->tu_name, ctx->out);
+	return pla_tu_p_parse(ctx->tu_name, get_tok, ctx, ctx->out);
 }
 bool pla_tu_p_parse_file(ul_hst_t * hst, ul_hs_t * file_name, ul_hs_t * tu_name, pla_tu_t ** out) {
 	f_ctx_t ctx = { .hst = hst, .file_name = file_name, .tu_name = tu_name, .out = out };
@@ -1373,4 +1374,3 @@ bool pla_tu_p_parse_file(ul_hst_t * hst, ul_hs_t * file_name, ul_hs_t * tu_name,
 
 	return res;
 }
-

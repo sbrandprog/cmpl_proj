@@ -47,7 +47,7 @@ struct pla_lex {
 	size_t err_stack_pos;
 };
 
-void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, pla_lex_get_src_ch_proc_t * get_src_ch_proc, void * src_data);
+void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst);
 void pla_lex_cleanup(pla_lex_t * lex);
 
 void pla_lex_update_src(pla_lex_t * lex, pla_lex_get_src_ch_proc_t * get_src_ch_proc, void * src_data);

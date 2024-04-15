@@ -12,8 +12,6 @@
 #define VIS_SPACE 3
 #define VIS_WHEEL_MUL 2
 
-#define LINE_INIT_STR_SIZE 64
-
 #define GKS_PRS_CHECK 0x8000
 
 typedef struct gia_edit_style {

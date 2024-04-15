@@ -6,10 +6,12 @@
 typedef bool ch_pred_t(wchar_t ch);
 typedef bool ch_proc_t(pla_lex_t * lex, wchar_t * out);
 
-void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, pla_lex_get_src_ch_proc_t * get_src_ch_proc, void * src_data) {
-	*lex = (pla_lex_t){ .hst = hst };
+static bool get_src_ch_proc_dflt(void * src_data, wchar_t * out) {
+	return false;
+}
 
-	pla_lex_set_src(lex, get_src_ch_proc, src_data);
+void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst) {
+	*lex = (pla_lex_t){ .hst = hst, .get_src_ch_proc = get_src_ch_proc_dflt };
 }
 void pla_lex_cleanup(pla_lex_t * lex) {
 	free(lex->str);
