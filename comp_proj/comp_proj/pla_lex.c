@@ -59,16 +59,16 @@ void pla_lex_update_src(pla_lex_t * lex, pla_lex_get_src_ch_proc_t * get_src_ch_
 		return;
 	}
 }
-void pla_lex_set_src(pla_lex_t * lex, pla_lex_get_src_ch_proc_t * get_src_ch_proc, void * src_data) {
+void pla_lex_set_src(pla_lex_t * lex, pla_lex_get_src_ch_proc_t * get_src_ch_proc, void * src_data, size_t line_num, size_t line_ch) {
 	lex->line_switch = false;
-	lex->line_ch = 0;
-	lex->line_num = 0;
+	lex->line_num = line_num;
+	lex->line_ch = line_ch;
 
 	pla_lex_update_src(lex, get_src_ch_proc, src_data);
 }
 
-static pla_lex_tok_pos_t get_tok_pos(pla_lex_t * lex) {
-	return (pla_lex_tok_pos_t) {
+static pla_tok_pos_t get_tok_pos(pla_lex_t * lex) {
+	return (pla_tok_pos_t) {
 		.line_num = lex->line_num, .line_ch = lex->line_ch
 	};
 }
@@ -176,7 +176,7 @@ static void get_tok_core(pla_lex_t * lex) {
 	}
 
 	while (true) {
-		lex->tok_start = get_tok_pos(lex);
+		lex->tok.pos_start = get_tok_pos(lex);
 
 		if (pla_tok_is_emp_ch(lex->ch)) {
 			do {
@@ -189,10 +189,20 @@ static void get_tok_core(pla_lex_t * lex) {
 		else if (pla_tok_is_punc_ch(lex->ch)) {
 			clear_str(lex);
 
-			pla_punc_t punc = PlaPuncNone;
-			size_t punc_len = 0, punc_len_old = 0;
+			push_str_ch(lex, lex->ch);
 
-			while (true) {
+			size_t punc_len;
+			pla_punc_t punc = pla_punc_fetch_best(lex->str_size, lex->str, &punc_len);
+
+			if (punc == PlaPuncNone) {
+				next_ch(lex);
+				report_lex(lex, PlaLexErrInvPunc);
+				return;
+			}
+
+			size_t punc_len_old = punc_len;
+
+			while (next_ch(lex) && pla_tok_is_punc_ch(lex->ch)) {
 				push_str_ch(lex, lex->ch);
 
 				punc = pla_punc_fetch_best(lex->str_size, lex->str, &punc_len);
@@ -201,16 +211,7 @@ static void get_tok_core(pla_lex_t * lex) {
 					break;
 				}
 
-				if (!next_ch(lex) || !pla_tok_is_punc_ch(lex->ch)) {
-					break;
-				}
-
 				punc_len_old = punc_len;
-			}
-
-			if (punc == PlaPuncNone) {
-				report_lex(lex, PlaLexErrInvPunc);
-				return;
 			}
 
 			lex->tok.type = PlaTokPunc;
@@ -322,6 +323,8 @@ bool pla_lex_get_tok(pla_lex_t * lex) {
 	}
 
 	ul_raise_assert(lex->tok.type != PlaTokNone);
+
+	lex->tok.pos_end = get_tok_pos(lex);
 
 	return true;
 }

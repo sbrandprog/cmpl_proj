@@ -1,6 +1,10 @@
 #pragma once
 #include "pla.h"
 
+struct pla_tok_pos {
+	size_t line_num;
+	size_t line_ch;
+};
 enum pla_tok_type {
 	PlaTokNone,
 	PlaTokPunc,
@@ -12,6 +16,9 @@ enum pla_tok_type {
 };
 struct pla_tok {
 	pla_tok_type_t type;
+
+	pla_tok_pos_t pos_start;
+	pla_tok_pos_t pos_end;
 
 	union {
 		pla_punc_t punc;

@@ -6,10 +6,10 @@ typedef enum pla_punc pla_punc_t;
 
 typedef enum pla_keyw pla_keyw_t;
 
+typedef struct pla_tok_pos pla_tok_pos_t;
 typedef enum pla_tok_type pla_tok_type_t;
 typedef struct pla_tok pla_tok_t;
 
-typedef struct pla_lex_tok_pos pla_lex_tok_pos_t;
 typedef enum pla_lex_err_type pla_lex_err_type_t;
 typedef struct pla_lex_err pla_lex_err_t;
 typedef struct pla_lex pla_lex_t;

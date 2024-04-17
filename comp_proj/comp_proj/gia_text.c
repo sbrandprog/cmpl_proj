@@ -40,52 +40,38 @@ void gia_text_cleanup(gia_text_t * text) {
 	memset(text, 0, sizeof(*text));
 }
 
-void gia_text_insert_ch_nl(gia_text_t * text, size_t line_pos, size_t ins_pos, wchar_t ch) {
+void gia_text_insert_str_nl(gia_text_t * text, size_t line_pos, size_t ins_pos, size_t str_size, wchar_t * str) {
 	ul_raise_assert(line_pos < text->lines_size);
-	
+
 	gia_text_line_t * line = &text->lines[line_pos];
 
 	ul_raise_assert(ins_pos <= line->size);
 
-	if (line->size + 1 > line->cap) {
-		ul_arr_grow(&line->cap, &line->str, sizeof(*line->str), 1);
+	if (line->size + str_size > line->cap) {
+		ul_arr_grow(&line->cap, &line->str, sizeof(*line->str), line->size + str_size - line->cap);
 	}
 
-	wmemmove_s(line->str + ins_pos + 1, line->cap - ins_pos, line->str + ins_pos, line->size - ins_pos);
-	line->str[ins_pos] = ch;
+	wmemmove_s(line->str + ins_pos + str_size, line->cap - ins_pos, line->str + ins_pos, line->size - ins_pos);
+	wmemcpy_s(line->str + ins_pos, line->cap - ins_pos, str, str_size);
 
-	++line->size;
+	line->size += str_size;
 }
-void gia_text_insert_ch(gia_text_t * text, size_t line_pos, size_t ins_pos, wchar_t ch) {
-	EnterCriticalSection(&text->lock);
-
-	__try {
-		gia_text_insert_ch_nl(text, line_pos, ins_pos, ch);
-	}
-	__finally {
-		LeaveCriticalSection(&text->lock);
-	}
+void gia_text_insert_ch_nl(gia_text_t * text, size_t line_pos, size_t ins_pos, wchar_t ch) {
+	gia_text_insert_str_nl(text, line_pos, ins_pos, 1, &ch);
 }
-void gia_text_remove_ch_nl(gia_text_t * text, size_t line_pos, size_t rem_pos) {
+void gia_text_remove_str_nl(gia_text_t * text, size_t line_pos, size_t rem_pos_start, size_t rem_pos_end) {
 	ul_raise_assert(line_pos < text->lines_size);
 
 	gia_text_line_t * line = &text->lines[line_pos];
 
-	ul_raise_assert(line->size > 0 && rem_pos < line->size);
+	ul_raise_assert(rem_pos_start <= rem_pos_end && rem_pos_end <= line->size);
 
-	wmemmove_s(line->str + rem_pos, line->cap - rem_pos, line->str + rem_pos + 1, line->size - rem_pos);
+	wmemmove_s(line->str + rem_pos_start, line->cap - rem_pos_start, line->str + rem_pos_end, line->size - rem_pos_end);
 
-	--line->size;
+	line->size -= rem_pos_end - rem_pos_start;
 }
-void gia_text_remove_ch(gia_text_t * text, size_t line_pos, size_t rem_pos) {
-	EnterCriticalSection(&text->lock);
-
-	__try {
-		gia_text_remove_ch_nl(text, line_pos, rem_pos);
-	}
-	__finally {
-		LeaveCriticalSection(&text->lock);
-	}
+void gia_text_remove_ch_nl(gia_text_t * text, size_t line_pos, size_t rem_pos) {
+	gia_text_remove_str_nl(text, line_pos, rem_pos, rem_pos + 1);
 }
 
 void gia_text_insert_line_nl(gia_text_t * text, size_t ins_pos) {
@@ -103,16 +89,6 @@ void gia_text_insert_line_nl(gia_text_t * text, size_t ins_pos) {
 
 	init_line(ins_it);
 }
-void gia_text_insert_line(gia_text_t * text, size_t ins_pos) {
-	EnterCriticalSection(&text->lock);
-
-	__try {
-		gia_text_insert_line_nl(text, ins_pos);
-	}
-	__finally {
-		LeaveCriticalSection(&text->lock);
-	}
-}
 void gia_text_remove_line_nl(gia_text_t * text, size_t rem_pos) {
 	ul_raise_assert(rem_pos < text->lines_size);
 
@@ -123,14 +99,4 @@ void gia_text_remove_line_nl(gia_text_t * text, size_t rem_pos) {
 	memmove_s(rem_it, (text->lines_cap - rem_pos) * sizeof(*rem_it), rem_it + 1, (text->lines_size - rem_pos) * sizeof(*rem_it));
 
 	--text->lines_size;
-}
-void gia_text_remove_line(gia_text_t * text, size_t rem_pos) {
-	EnterCriticalSection(&text->lock);
-
-	__try {
-		gia_text_remove_line_nl(text, rem_pos);
-	}
-	__finally {
-		LeaveCriticalSection(&text->lock);
-	}
 }

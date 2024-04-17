@@ -1352,7 +1352,7 @@ static bool parse_file_core(f_ctx_t * ctx) {
 	}
 
 	pla_lex_init(&ctx->lex, ctx->hst);
-	pla_lex_set_src(&ctx->lex, get_file_ch, ctx);
+	pla_lex_set_src(&ctx->lex, get_file_ch, ctx, 0, 0);
 
 	return pla_tu_p_parse(ctx->tu_name, get_tok, ctx, ctx->out);
 }

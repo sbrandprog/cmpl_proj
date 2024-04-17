@@ -105,8 +105,6 @@ static gia_text_ch_pos_t get_ch_pos(wnd_data_t * data, size_t line, size_t col) 
 
 	return (gia_text_ch_pos_t){ .line = line, .ch = ch };
 }
-
-
 static gia_text_ch_pos_t get_caret_ch_pos(wnd_data_t * data) {
 	return get_ch_pos(data, data->caret_line, data->caret_col);
 }
@@ -238,7 +236,9 @@ static void set_caret_pos_col(wnd_data_t * data, size_t caret_line, size_t caret
 	}
 }
 static void set_caret_pos_ch(wnd_data_t * data, size_t caret_line, size_t caret_ch) {
-	caret_line = min(caret_line, data->text.lines_size);
+	ul_raise_assert(data->text.lines_size > 0);
+
+	caret_line = min(caret_line, data->text.lines_size - 1);
 
 	caret_ch = min(caret_ch, data->text.lines[caret_line].size);
 
@@ -285,21 +285,15 @@ static void process_caret_keyd_wp_nl_back(wnd_data_t * data) {
 		gia_text_line_t * ins_line = &data->text.lines[pos.line - 1];
 		gia_text_line_t * rem_line = &data->text.lines[pos.line];
 
-		if (ins_line->size + rem_line->size > ins_line->cap) {
-			ul_arr_grow(&ins_line->cap, &ins_line->str, sizeof(*ins_line->str), ins_line->size + rem_line->size - ins_line->cap);
-		}
+		size_t new_caret_ch = ins_line->size;
 
-		wmemcpy_s(ins_line->str + ins_line->size, ins_line->cap - ins_line->size, rem_line->str, rem_line->size);
-
-		size_t caret_ch = ins_line->size;
-
-		ins_line->size += rem_line->size;
+		gia_text_insert_str_nl(&data->text, pos.line - 1, ins_line->size, rem_line->size, rem_line->str);
 
 		gia_text_remove_line_nl(&data->text, pos.line);
 
 		InvalidateRect(data->hw, NULL, FALSE);
 
-		set_caret_pos_ch(data, pos.line - 1, caret_ch);
+		set_caret_pos_ch(data, pos.line - 1, new_caret_ch);
 	}
 }
 static void process_caret_keyd_wp_nl_ret(wnd_data_t * data) {
@@ -310,14 +304,8 @@ static void process_caret_keyd_wp_nl_ret(wnd_data_t * data) {
 	gia_text_line_t * ins_line = &data->text.lines[pos.line + 1];
 	gia_text_line_t * src_line = &data->text.lines[pos.line];
 
-	if (src_line->size - pos.ch > ins_line->cap) {
-		ul_arr_grow(&ins_line->cap, &ins_line->str, sizeof(*ins_line->str), src_line->size - pos.ch - ins_line->cap);
-	}
-
-	wmemcpy_s(ins_line->str, ins_line->cap, src_line->str + pos.ch, src_line->size - pos.ch);
-	ins_line->size = src_line->size - pos.ch;
-
-	src_line->size = pos.ch;
+	gia_text_insert_str_nl(&data->text, pos.line + 1, 0, src_line->size - pos.ch, src_line->str + pos.ch);
+	gia_text_remove_str_nl(&data->text, pos.line, pos.ch, src_line->size);
 
 	InvalidateRect(data->hw, NULL, FALSE);
 
@@ -329,8 +317,12 @@ static void process_caret_keyd_wp_nl_cret(wnd_data_t * data) {
 	gia_text_insert_line_nl(&data->text, pos.line);
 
 	InvalidateRect(data->hw, NULL, FALSE);
+
+	set_caret_pos_ch(data, pos.line, pos.ch);
 }
 static void process_caret_keyd_wp_nl_nav(wnd_data_t * data, WPARAM wp) {
+	ul_raise_assert(data->text.lines_size > 0);
+
 	gia_text_ch_pos_t pos = get_caret_ch_pos(data);
 
 	size_t caret_line = pos.line, caret_col = data->caret_col, caret_ch = pos.ch;
@@ -401,12 +393,7 @@ static void process_caret_keyd_wp_nl_del(wnd_data_t * data) {
 	else if (pos.line + 1 < data->text.lines_size) {
 		gia_text_line_t * src_line = &data->text.lines[pos.line + 1];
 
-		if (line->size + src_line->size > line->cap) {
-			ul_arr_grow(&line->cap, &line->str, sizeof(*line->str), line->size + src_line->size - line->cap);
-		}
-
-		wmemcpy_s(line->str + line->size, line->cap - line->size, src_line->str, src_line->size);
-		line->size += src_line->size;
+		gia_text_insert_str_nl(&data->text, pos.line, line->size, src_line->size, src_line->str);
 
 		gia_text_remove_line_nl(&data->text, pos.line + 1);
 
@@ -595,7 +582,7 @@ static bool process_cd_args(wnd_data_t * data, wa_wnd_cd_t * cd) {
 	return true;
 }
 
-static void fill_test_data(wnd_data_t * data) {
+static void fill_test_data_nl(wnd_data_t * data) {
 	FILE * file;
 
 	(void)_wfopen_s(&file, L"test.pla", L"r");
@@ -611,14 +598,24 @@ static void fill_test_data(wnd_data_t * data) {
 			++line_num;
 			line_ch = 0;
 
-			gia_text_insert_line(&data->text, line_num);
+			gia_text_insert_line_nl(&data->text, line_num);
 		}
 		else {
-			gia_text_insert_ch(&data->text, line_num, line_ch++, (wchar_t)ch);
+			gia_text_insert_ch_nl(&data->text, line_num, line_ch++, (wchar_t)ch);
 		}
 	}
 
 	fclose(file);
+}
+static void fill_test_data(wnd_data_t * data) {
+	EnterCriticalSection(&data->text.lock);
+
+	__try {
+		fill_test_data_nl(data);
+	}
+	__finally {
+		LeaveCriticalSection(&data->text.lock);
+	}
 }
 
 static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) {
