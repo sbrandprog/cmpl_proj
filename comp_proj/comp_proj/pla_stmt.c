@@ -5,7 +5,7 @@
 pla_stmt_t * pla_stmt_create(pla_stmt_type_t type) {
 	pla_stmt_t * stmt = malloc(sizeof(*stmt));
 
-	ul_raise_check_mem_alloc(stmt);
+	ul_assert(stmt != NULL);
 
 	*stmt = (pla_stmt_t){ .type = type };
 
@@ -57,7 +57,7 @@ void pla_stmt_destroy(pla_stmt_t * stmt) {
 			pla_expr_destroy(stmt->ret.expr);
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	free(stmt);

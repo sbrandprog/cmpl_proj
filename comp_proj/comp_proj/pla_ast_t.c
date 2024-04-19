@@ -46,7 +46,7 @@ typedef struct pla_ast_t_ctx {
 static optr_t * create_optr(optr_type_t type) {
 	optr_t * optr = malloc(sizeof(*optr));
 
-	ul_raise_check_mem_alloc(optr);
+	ul_assert(optr != NULL);
 
 	*optr = (optr_t){ .type = type };
 
@@ -66,7 +66,7 @@ static void destroy_optr(optr_t * optr) {
 		case PlaAstTOptrBinInstPtrBool:
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	free(optr);
@@ -105,7 +105,7 @@ static optr_t * copy_optr(ctx_t * ctx, optr_t * src) {
 			optr->bin_inst_ptr_bool.int_cmp = src->bin_inst_ptr_bool.int_cmp;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return optr;
@@ -146,7 +146,7 @@ static bool is_optrs_equivalent(optr_t * first, optr_t * second) {
 			}
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return false;
@@ -220,7 +220,7 @@ bool pla_ast_t_get_optr_dt(pla_ast_t_ctx_t * ctx, pla_ast_t_optr_t * optr, ira_d
 			*out = &ctx->out->dt_bool;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -250,7 +250,7 @@ void pla_ast_t_pop_vse(pla_ast_t_ctx_t * ctx) {
 		case PlaAstTVseNspc:
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	ctx->vse = vse->prev;
@@ -260,7 +260,7 @@ pla_ast_t_vse_t * pla_ast_t_get_vse(pla_ast_t_ctx_t * ctx) {
 }
 
 ul_hs_t * pla_ast_t_get_pds(pla_ast_t_ctx_t * ctx, pla_pds_t pds) {
-	ul_raise_assert(pds < PlaPds_Count);
+	ul_assert(pds < PlaPds_Count);
 
 	return ctx->ast->pds[pds];
 }
@@ -278,7 +278,7 @@ void pla_ast_t_print_ts(pla_ast_t_ctx_t * ctx, FILE * file) {
 					dclr_name = dclr->name->str;
 				}
 				else {
-					ul_raise_assert(dclr->type == PlaDclrNspc);
+					ul_assert(dclr->type == PlaDclrNspc);
 					dclr_name = L"#root_nspc";
 				}
 
@@ -363,7 +363,7 @@ static optr_t ** get_optr_ins(ctx_t * ctx, pla_expr_type_t expr_type, optr_t * p
 static void register_bltn_optr_pred(ctx_t * ctx, pla_expr_type_t expr_type, optr_t * pred) {
 	optr_t ** ins = get_optr_ins(ctx, expr_type, pred);
 
-	ul_raise_assert(*ins == NULL);
+	ul_assert(*ins == NULL);
 
 	*ins = copy_optr(ctx, pred);
 }
@@ -428,7 +428,7 @@ static ira_lo_t ** get_vse_lo_ins(pla_ast_t_ctx_t * ctx, ul_hs_t * name) {
 	pla_ast_t_vse_t * vse = pla_ast_t_get_vse(ctx);
 
 	if (vse == NULL) {
-		ul_raise_assert(name == NULL);
+		ul_assert(name == NULL);
 
 		return &ctx->out->root;
 	}
@@ -449,7 +449,7 @@ static ira_lo_t ** get_vse_lo_ins(pla_ast_t_ctx_t * ctx, ul_hs_t * name) {
 			return ins;
 		}
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 
@@ -673,7 +673,7 @@ static bool translate_dclr_tse(ctx_t * ctx, pla_dclr_t * dclr) {
 			}
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -808,7 +808,7 @@ static bool translate_core(ctx_t * ctx) {
 
 	generate_full_names(ctx, ctx->out->root);
 
-	ul_raise_assert(ctx->tse == NULL && ctx->vse == NULL);
+	ul_assert(ctx->tse == NULL && ctx->vse == NULL);
 
 	return true;
 }

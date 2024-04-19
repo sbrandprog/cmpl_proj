@@ -8,7 +8,7 @@ static void init_line(gia_text_line_t * line) {
 
 	line->str = malloc(LINE_INIT_STR_SIZE * sizeof(*line->str));
 
-	ul_raise_check_mem_alloc(line->str);
+	ul_assert(line->str != NULL);
 
 	line->cap = LINE_INIT_STR_SIZE;
 }
@@ -41,11 +41,11 @@ void gia_text_cleanup(gia_text_t * text) {
 }
 
 void gia_text_insert_str_nl(gia_text_t * text, size_t line_pos, size_t ins_pos, size_t str_size, wchar_t * str) {
-	ul_raise_assert(line_pos < text->lines_size);
+	ul_assert(line_pos < text->lines_size);
 
 	gia_text_line_t * line = &text->lines[line_pos];
 
-	ul_raise_assert(ins_pos <= line->size);
+	ul_assert(ins_pos <= line->size);
 
 	if (line->size + str_size > line->cap) {
 		ul_arr_grow(&line->cap, &line->str, sizeof(*line->str), line->size + str_size - line->cap);
@@ -60,11 +60,11 @@ void gia_text_insert_ch_nl(gia_text_t * text, size_t line_pos, size_t ins_pos, w
 	gia_text_insert_str_nl(text, line_pos, ins_pos, 1, &ch);
 }
 void gia_text_remove_str_nl(gia_text_t * text, size_t line_pos, size_t rem_pos_start, size_t rem_pos_end) {
-	ul_raise_assert(line_pos < text->lines_size);
+	ul_assert(line_pos < text->lines_size);
 
 	gia_text_line_t * line = &text->lines[line_pos];
 
-	ul_raise_assert(rem_pos_start <= rem_pos_end && rem_pos_end <= line->size);
+	ul_assert(rem_pos_start <= rem_pos_end && rem_pos_end <= line->size);
 
 	wmemmove_s(line->str + rem_pos_start, line->cap - rem_pos_start, line->str + rem_pos_end, line->size - rem_pos_end);
 
@@ -75,7 +75,7 @@ void gia_text_remove_ch_nl(gia_text_t * text, size_t line_pos, size_t rem_pos) {
 }
 
 void gia_text_insert_line_nl(gia_text_t * text, size_t ins_pos) {
-	ul_raise_assert(ins_pos <= text->lines_size);
+	ul_assert(ins_pos <= text->lines_size);
 
 	if (text->lines_size + 1 > text->lines_cap) {
 		ul_arr_grow(&text->lines_cap, &text->lines, sizeof(*text->lines), 1);
@@ -90,7 +90,7 @@ void gia_text_insert_line_nl(gia_text_t * text, size_t ins_pos) {
 	init_line(ins_it);
 }
 void gia_text_remove_line_nl(gia_text_t * text, size_t rem_pos) {
-	ul_raise_assert(rem_pos < text->lines_size);
+	ul_assert(rem_pos < text->lines_size);
 
 	cleanup_line(&text->lines[rem_pos]);
 

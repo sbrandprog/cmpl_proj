@@ -119,11 +119,11 @@ static void prepare_bufs(ctx_t * ctx) {
 
 	ctx->sect_buf0 = malloc(ctx->sect_buf_size * sizeof(*ctx->sect_buf0));
 	
-	ul_raise_check_mem_alloc(ctx->sect_buf0);
+	ul_assert(ctx->sect_buf0 != NULL);
 	
 	ctx->sect_buf1 = malloc(ctx->sect_buf_size * sizeof(*ctx->sect_buf1));
 	
-	ul_raise_check_mem_alloc(ctx->sect_buf0);
+	ul_assert(ctx->sect_buf1 != NULL);
 
 	{
 		lnk_sect_t * sect = pe->sect;
@@ -172,7 +172,7 @@ static lnk_sect_t ** find_common_sects(ctx_t * ctx) {
 static sect_t * add_sect(ctx_t * ctx) {
 	sect_t * new_sect = malloc(sizeof(*new_sect));
 
-	ul_raise_check_mem_alloc(new_sect);
+	ul_assert(new_sect != NULL);
 
 	memset(new_sect, 0, sizeof(*new_sect));
 
@@ -268,14 +268,14 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 			return true;
 		}
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static bool form_sect(ctx_t * ctx, lnk_sect_t ** buf1_end) {
 	sect_t * new_sect = add_sect(ctx);
 
 	{
-		ul_raise_assert(buf1_end != ctx->sect_buf1);
+		ul_assert(buf1_end != ctx->sect_buf1);
 
 		lnk_sect_t * base_sect = *ctx->sect_buf1;
 
@@ -348,7 +348,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 
 	ctx->va64_fixups = malloc(ctx->va64_fixups_size * sizeof(*ctx->va64_fixups));
 	
-	ul_raise_check_mem_alloc(ctx->va64_fixups);
+	ul_assert(ctx->va64_fixups != NULL);
 
 	{
 		fixup_t ** cur = ctx->va64_fixups, ** cur_end = cur + ctx->va64_fixups_size;
@@ -356,7 +356,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 
 		for (; fixup != fixup_end; ++fixup) {
 			if (fixup->stype == LnkSectFixupVa64) {
-				ul_raise_assert(cur != cur_end);
+				ul_assert(cur != cur_end);
 
 				*cur++ = fixup;
 			}
@@ -568,7 +568,7 @@ static bool apply_fixups(ctx_t * ctx) {
 				*(uint64_t *)write_pos = (uint64_t)((lpos & 0x7FFFFFFFull) | (*(uint64_t *)write_pos & 0xFFFFFFFF80000000ull));
 				break;
 			default:
-				ul_raise_unreachable();
+				ul_assert_unreachable();
 		}
 	}
 
@@ -582,7 +582,7 @@ static bool apply_fixups(ctx_t * ctx) {
 static bool set_dir_info(ctx_t * ctx, IMAGE_NT_HEADERS64 * nt, DWORD dir_ent) {
 	lnk_sect_lp_stype_t start = dir_start_mark[dir_ent], end = dir_end_mark[dir_ent];
 
-	ul_raise_assert(start != LnkSectLpNone && end != LnkSectLpNone);
+	ul_assert(start != LnkSectLpNone && end != LnkSectLpNone);
 
 	mark_t * start_mark = &ctx->marks[start], * end_mark = &ctx->marks[end];
 
@@ -609,12 +609,12 @@ static void write_zeros(FILE * file, size_t size) {
 	for (size_t i = 0; i < div; ++i) {
 		size_t count = fwrite(zero_obj, sizeof(*zero_obj), _countof(zero_obj), file);
 
-		ul_raise_assert(count == _countof(zero_obj));
+		ul_assert(count == _countof(zero_obj));
 	}
 
 	size_t count = fwrite(zero_obj, sizeof(*zero_obj), mod, file);
 
-	ul_raise_assert(count == mod);
+	ul_assert(count == mod);
 }
 static bool write_file_core(ctx_t * ctx, FILE * file) {
 	lnk_pe_t * pe = ctx->pe;
@@ -627,7 +627,7 @@ static bool write_file_core(ctx_t * ctx, FILE * file) {
 
 		size_t count = fwrite(&dos, sizeof(dos), 1, file);
 
-		ul_raise_assert(count == 1);
+		ul_assert(count == 1);
 	}
 
 	{
@@ -671,7 +671,7 @@ static bool write_file_core(ctx_t * ctx, FILE * file) {
 
 		size_t count = fwrite(&nt, sizeof(nt), 1, file);
 
-		ul_raise_assert(count == 1);
+		ul_assert(count == 1);
 	}
 
 	for (sect_t * sect = ctx->sect; sect != NULL; sect = sect->next) {
@@ -690,7 +690,7 @@ static bool write_file_core(ctx_t * ctx, FILE * file) {
 
 		size_t count = fwrite(&sect_hdr, sizeof(sect_hdr), 1, file);
 
-		ul_raise_assert(count == 1);
+		ul_assert(count == 1);
 	}
 
 	write_zeros(file, ctx->hdrs_size - ctx->raw_hdrs_size);
@@ -698,7 +698,7 @@ static bool write_file_core(ctx_t * ctx, FILE * file) {
 	for (sect_t * sect = ctx->sect; sect != NULL; sect = sect->next) {
 		size_t count = fwrite(sect->data, sizeof(*sect->data), sect->data_size, file);
 
-		ul_raise_assert(count == sect->data_size);
+		ul_assert(count == sect->data_size);
 
 		write_zeros(file, sect->raw_size - sect->data_size);
 	}

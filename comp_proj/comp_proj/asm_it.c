@@ -65,7 +65,7 @@ static asm_it_lib_t * get_it_lib_nl(asm_it_t * it, ul_hs_t * name) {
 
 	asm_it_lib_t * new_lib = malloc(sizeof(*new_lib));
 
-	ul_raise_check_mem_alloc(new_lib);
+	ul_assert(new_lib != NULL);
 
 	*new_lib = (asm_it_lib_t){ .name = name };
 
@@ -102,7 +102,7 @@ static asm_it_sym_t * add_lib_sym_nl(asm_it_lib_t * lib, ul_hs_t * name, ul_hs_t
 
 	asm_it_sym_t * new_sym = malloc(sizeof(*new_sym));
 
-	ul_raise_check_mem_alloc(new_sym);
+	ul_assert(new_sym != NULL);
 
 	*new_sym = (asm_it_sym_t){ .name = name, .link_name = link_name };
 

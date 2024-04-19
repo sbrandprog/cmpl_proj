@@ -341,7 +341,7 @@ static bool validate_opds(asm_inst_t * inst) {
 			}
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	if (no_rex && (req_rex || use_ext)) {
@@ -363,7 +363,7 @@ static bool validate_inst(asm_inst_t * inst) {
 }
 
 static bool is_imm_match(asm_inst_t * inst, const inst_rec_t * rec, size_t imm_i) {
-	ul_raise_assert(imm_i == 0);
+	ul_assert(imm_i == 0);
 
 	switch (rec->imm0_type) {
 		case InstRecImm8:
@@ -380,7 +380,7 @@ static bool is_imm_match(asm_inst_t * inst, const inst_rec_t * rec, size_t imm_i
 			}
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -399,7 +399,7 @@ static bool is_reg_match(asm_inst_t * inst, const inst_rec_t * rec, size_t reg_i
 			reg_type = rec->reg1_type;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	const asm_reg_grps_t * reg_grps = &reg_type_to_grps[reg_type];
@@ -411,7 +411,7 @@ static bool is_reg_match(asm_inst_t * inst, const inst_rec_t * rec, size_t reg_i
 	return true;
 }
 static bool is_mem_match(asm_inst_t * inst, const inst_rec_t * rec, size_t mem_i) {
-	ul_raise_assert(mem_i == 0);
+	ul_assert(mem_i == 0);
 
 	if (rec->mem0_size == AsmSizeNone) {
 		return true;
@@ -453,7 +453,7 @@ static bool is_opds_match(asm_inst_t * inst, const inst_rec_t * rec) {
 				}
 				break;
 			default:
-				ul_raise_unreachable();
+				ul_assert_unreachable();
 		}
 	}
 
@@ -476,7 +476,7 @@ static const inst_rec_t * find_rec(asm_inst_t * inst) {
 }
 
 static void make_desc_imm(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_t * rec, size_t imm_i) {
-	ul_raise_assert(imm_i == 0);
+	ul_assert(imm_i == 0);
 
 	desc->imm0_size = imm_type_to_size[rec->imm0_type];
 
@@ -495,7 +495,7 @@ static void make_desc_imm(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_
 		case InstRecImm8_1:
 			break;
 		default:
-			ul_raise_unreachable()
+			ul_assert_unreachable()
 				;
 	}
 }
@@ -513,7 +513,7 @@ static void make_desc_reg(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_
 			reg_type = rec->reg1_type;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	const asm_reg_info_t * info = &asm_reg_infos[reg];
@@ -564,7 +564,7 @@ static void make_desc_reg(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_
 		case InstRecRegCx64:
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static void make_desc_disp_size(inst_desc_t * desc, asm_inst_t * inst, const asm_reg_info_t * base_info) {
@@ -582,7 +582,7 @@ static void make_desc_disp_size(inst_desc_t * desc, asm_inst_t * inst, const asm
 	else {
 		desc->disp_size = asm_inst_disp_type_to_size[inst->mem_disp_type];
 
-		ul_raise_assert(desc->disp_size != AsmSizeNone || base_info->enc != 0b101);
+		ul_assert(desc->disp_size != AsmSizeNone || base_info->enc != 0b101);
 	}
 
 	switch (desc->disp_size) {
@@ -596,7 +596,7 @@ static void make_desc_disp_size(inst_desc_t * desc, asm_inst_t * inst, const asm
 			desc->modrm_mod = 0b10;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static void make_desc_sib_scale(inst_desc_t * desc, asm_size_t scale) {
@@ -614,11 +614,11 @@ static void make_desc_sib_scale(inst_desc_t * desc, asm_size_t scale) {
 			desc->sib_scale = 0b11;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static void make_desc_mem(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_t * rec, size_t mem_i) {
-	ul_raise_assert(mem_i == 0);
+	ul_assert(mem_i == 0);
 
 	const asm_reg_info_t * base = &asm_reg_infos[inst->mem_base],
 		* index = &asm_reg_infos[inst->mem_index];
@@ -637,7 +637,7 @@ static void make_desc_mem(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_
 		desc->modrm_rm = 0b101;
 
 		desc->disp_size = AsmSize32;
-		ul_raise_assert(is_disp_32(inst->mem_disp_type));
+		ul_assert(is_disp_32(inst->mem_disp_type));
 
 		if (base->grps.s_32) {
 			desc->use_asize = true;
@@ -673,7 +673,7 @@ static void make_desc_mem(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_
 		make_desc_sib_scale(desc, inst->mem_scale);
 
 		desc->disp_size = AsmSize32;
-		ul_raise_assert(is_disp_32(inst->mem_disp_type));
+		ul_assert(is_disp_32(inst->mem_disp_type));
 
 		if (index->grps.s_32) {
 			desc->use_asize = true;
@@ -698,7 +698,7 @@ static void make_desc_mem(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_
 		}
 	}
 	else {
-		ul_raise_unreachable();
+		ul_assert_unreachable();
 	}
 }
 static void make_desc(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_t * rec) {
@@ -733,12 +733,12 @@ static void make_desc(inst_desc_t * desc, asm_inst_t * inst, const inst_rec_t * 
 				make_desc_mem(desc, inst, rec, mem_i++);
 				break;
 			default:
-				ul_raise_unreachable();
+				ul_assert_unreachable();
 		}
 	}
 
 	if (desc->ext_b || desc->ext_x || desc->ext_r || desc->ext_w || desc->req_rex) {
-		ul_raise_assert(!desc->no_rex);
+		ul_assert(!desc->no_rex);
 
 		desc->use_rex = true;
 	}

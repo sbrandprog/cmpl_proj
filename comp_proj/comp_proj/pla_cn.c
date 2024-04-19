@@ -4,7 +4,7 @@
 pla_cn_t * pla_cn_create() {
 	pla_cn_t * cn = malloc(sizeof(*cn));
 
-	ul_raise_check_mem_alloc(cn);
+	ul_assert(cn != NULL);
 
 	*cn = (pla_cn_t){ 0 };
 

@@ -239,7 +239,7 @@ static const int_cast_info_t int_cast_infos[IraInt_Count][IraInt_Count] = {
 };
 
 static void report(ctx_t * ctx, const wchar_t * format, ...) {
-	ul_raise_assert(ctx->trg < Trg_Count);
+	ul_assert(ctx->trg < Trg_Count);
 
 	if (!ctx->report_head_printed) {
 		fwprintf(stderr, L"reporting error in instruction processor [%s]\n", trg_to_str[ctx->trg]);
@@ -326,7 +326,7 @@ static void cleanup_inst(ctx_t * ctx, inst_t * inst) {
 				free(inst->opds[opd].vars);
 				break;
 			default:
-				ul_raise_unreachable();
+				ul_assert_unreachable();
 		}
 	}
 }
@@ -376,7 +376,7 @@ static bool define_var(ctx_t * ctx, ira_dt_t * dt, ira_dt_qual_t dt_qual, ul_hs_
 
 	var_t * new_var = malloc(sizeof(*new_var));
 
-	ul_raise_check_mem_alloc(new_var);
+	ul_assert(new_var != NULL);
 
 	size_t dt_size, dt_align;
 
@@ -413,7 +413,7 @@ static label_t * get_label(ctx_t * ctx, ul_hs_t * name) {
 
 	label_t * new_label = malloc(sizeof(*new_label));
 
-	ul_raise_check_mem_alloc(new_label);
+	ul_assert(new_label != NULL);
 
 	*new_label = (label_t){ .name = name };
 
@@ -479,7 +479,7 @@ static bool set_mmbr_acc_ptr_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt,
 		case IraDtFunc:
 			return false;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -505,7 +505,7 @@ static bool prepare_insts_opds_vars(ctx_t * ctx, inst_t * inst, size_t opd_size,
 
 	var_t ** vars = malloc(vars_size * sizeof(*vars));
 
-	ul_raise_check_mem_alloc(vars);
+	ul_assert(vars != NULL);
 
 	inst->opds[opd].vars = vars;
 
@@ -602,7 +602,7 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
 				inst->opds[opd].hss = ira_inst->opds[opd].hss;
 				break;
 			default:
-				ul_raise_unreachable();
+				ul_assert_unreachable();
 		}
 	}
 
@@ -665,7 +665,7 @@ static bool prepare_def_var_copy(ctx_t * ctx, inst_t * inst, const ira_inst_info
 
 	inst->def_var_copy.var = find_var(ctx, inst->opd0.hs);
 
-	ul_raise_assert(inst->def_var_copy.var != NULL);
+	ul_assert(inst->def_var_copy.var != NULL);
 
 	return true;
 }
@@ -1095,7 +1095,7 @@ static bool prepare_insts(ctx_t * ctx) {
 
 	ctx->insts = malloc(ctx->insts_size * sizeof(*ctx->insts));
 
-	ul_raise_check_mem_alloc(ctx->insts);
+	ul_assert(ctx->insts != NULL);
 
 	memset(ctx->insts, 0, ctx->insts_size * sizeof(*ctx->insts));
 
@@ -1121,7 +1121,7 @@ static bool prepare_insts(ctx_t * ctx) {
 					trg_comp = info->intrp_comp;
 					break;
 				default:
-					ul_raise_unreachable();
+					ul_assert_unreachable();
 			}
 
 			if (!trg_comp) {
@@ -1178,7 +1178,7 @@ static bool prepare_insts(ctx_t * ctx) {
 
 		prepare_proc_t * proc = prepare_insts_procs[ira_inst->type];
 
-		ul_raise_assert(proc != NULL);
+		ul_assert(proc != NULL);
 
 		if (!proc(ctx, inst, info)) {
 			return false;
@@ -1255,7 +1255,7 @@ static void save_stack_gpr(ctx_t * ctx, int32_t offset, asm_reg_t reg) {
 	asm_frag_push_inst(ctx->frag, &save);
 }
 static void save_stack_var_off(ctx_t * ctx, var_t * var, asm_reg_t reg, size_t offset) {
-	ul_raise_assert(asm_reg_infos[reg].grps.gpr
+	ul_assert(asm_reg_infos[reg].grps.gpr
 		&& asm_size_infos[asm_reg_get_size(reg)].bytes + offset <= var->size);
 
 	save_stack_gpr(ctx, (int32_t)(ctx->stack_vars_pos + var->pos + offset), reg);
@@ -1266,14 +1266,14 @@ static void save_stack_var(ctx_t * ctx, var_t * var, asm_reg_t reg) {
 static void load_int(ctx_t * ctx, asm_reg_t reg, int64_t imm) {
 	asm_inst_imm_type_t imm_type = asm_inst_imm_size_to_type[asm_reg_get_size(reg)];
 
-	ul_raise_assert(imm_type != AsmInstImmNone);
+	ul_assert(imm_type != AsmInstImmNone);
 
 	asm_inst_t load = { .type = AsmInstMov, .opds = AsmInstOpds_Reg_Imm, .reg0 = reg, .imm0_type = imm_type, .imm0 = imm };
 
 	asm_frag_push_inst(ctx->frag, &load);
 }
 static void load_label_off(ctx_t * ctx, asm_reg_t reg, ul_hs_t * label) {
-	ul_raise_assert(asm_reg_get_size(reg) == AsmSize64);
+	ul_assert(asm_reg_get_size(reg) == AsmSize64);
 
 	asm_inst_t lea = { .type = AsmInstLea, .opds = AsmInstOpds_Reg_Mem, .reg0 = reg, .mem_base = AsmRegRip, .mem_disp_type = AsmInstDispLabelRel32, .mem_disp_label = label };
 
@@ -1290,7 +1290,7 @@ static void load_stack_gpr(ctx_t * ctx, asm_reg_t reg, int32_t offset) {
 	asm_frag_push_inst(ctx->frag, &load);
 }
 static void load_stack_var_off(ctx_t * ctx, asm_reg_t reg, var_t * var, size_t offset) {
-	ul_raise_assert(asm_reg_infos[reg].grps.gpr
+	ul_assert(asm_reg_infos[reg].grps.gpr
 		&& asm_size_infos[asm_reg_get_size(reg)].bytes + offset <= var->size);
 
 	load_stack_gpr(ctx, reg, (int32_t)(ctx->stack_vars_pos + var->pos + offset));
@@ -1299,14 +1299,14 @@ static void load_stack_var(ctx_t * ctx, asm_reg_t reg, var_t * var) {
 	load_stack_var_off(ctx, reg, var, 0);
 }
 static void read_ptr_off(ctx_t * ctx, asm_reg_t reg, asm_reg_t ptr, size_t offset) {
-	ul_raise_assert(offset < INT32_MAX);
+	ul_assert(offset < INT32_MAX);
 
 	asm_inst_t mov = { .type = AsmInstMov, .opds = AsmInstOpds_Reg_Mem, .reg0 = reg, .mem_size = asm_reg_get_size(reg), .mem_base = ptr, .mem_disp_type = AsmInstDispAuto, .mem_disp = (int32_t)offset };
 
 	asm_frag_push_inst(ctx->frag, &mov);
 }
 static void write_ptr_off(ctx_t * ctx, asm_reg_t ptr, asm_reg_t reg, size_t offset) {
-	ul_raise_assert(offset < INT32_MAX);
+	ul_assert(offset < INT32_MAX);
 
 	asm_inst_t mov = { .type = AsmInstMov, .opds = AsmInstOpds_Mem_Reg, .mem_size = asm_reg_get_size(reg), .mem_base = ptr, .mem_disp_type = AsmInstDispAuto, .mem_disp = (int32_t)offset, .reg0 = reg };
 
@@ -1318,7 +1318,7 @@ static asm_reg_t get_gpr_reg_int(asm_reg_gpr_t gpr, ira_int_type_t int_type) {
 
 	asm_reg_t reg = asm_reg_gprs[gpr][reg_size];
 
-	ul_raise_assert(reg != AsmRegNone);
+	ul_assert(reg != AsmRegNone);
 
 	return reg;
 }
@@ -1336,18 +1336,18 @@ static asm_reg_t get_gpr_reg_dt(asm_reg_gpr_t gpr, ira_dt_t * dt) {
 			reg_size = AsmSize64;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	asm_reg_t reg = asm_reg_gprs[gpr][reg_size];
 
-	ul_raise_assert(reg != AsmRegNone);
+	ul_assert(reg != AsmRegNone);
 
 	return reg;
 }
 
 static asm_reg_t w64_get_arg_reg(ira_dt_t * dt, size_t arg) {
-	ul_raise_assert(arg < 4);
+	ul_assert(arg < 4);
 
 	asm_reg_t reg;
 
@@ -1362,7 +1362,7 @@ static asm_reg_t w64_get_arg_reg(ira_dt_t * dt, size_t arg) {
 			reg = w64_int_arg_to_reg[arg][IraIntU64];
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return reg;
@@ -1377,7 +1377,7 @@ static bool w64_load_callee_ret_link(ctx_t * ctx, var_t * var) {
 		case IraDtPtr:
 			return false;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg) {
@@ -1409,7 +1409,7 @@ static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg) {
 			}
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static void w64_save_callee_ret(ctx_t * ctx, var_t * var) {
@@ -1427,7 +1427,7 @@ static void w64_save_callee_ret(ctx_t * ctx, var_t * var) {
 			save_stack_var(ctx, var, reg);
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static bool w64_save_caller_ret_link(ctx_t * ctx) {
@@ -1440,13 +1440,13 @@ static bool w64_save_caller_ret_link(ctx_t * ctx) {
 		case IraDtPtr:
 			return false;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static void w64_save_caller_arg(ctx_t * ctx, ul_hs_t * arg_name, size_t arg) {
 	var_t * var = find_var(ctx, arg_name);
 
-	ul_raise_assert(var != NULL);
+	ul_assert(var != NULL);
 
 	ira_dt_t * var_dt = var->qdt.dt;
 
@@ -1476,7 +1476,7 @@ static void w64_save_caller_arg(ctx_t * ctx, ul_hs_t * arg_name, size_t arg) {
 			}
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static void w64_load_caller_ret(ctx_t * ctx, var_t * var) {
@@ -1496,7 +1496,7 @@ static void w64_load_caller_ret(ctx_t * ctx, var_t * var) {
 			break;
 		}
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 
@@ -1577,7 +1577,7 @@ static void div_int(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_out, va
 			reg2 = AsmRegRdx;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	load_stack_var(ctx, reg0, opd0);
@@ -1623,7 +1623,7 @@ static asm_inst_type_t get_set_inst_type(bool sign, ira_int_cmp_t int_cmp) {
 			case IraIntCmpNeq:
 				return AsmInstSetne;
 			default:
-				ul_raise_unreachable();
+				ul_assert_unreachable();
 		}
 	}
 	else {
@@ -1641,7 +1641,7 @@ static asm_inst_type_t get_set_inst_type(bool sign, ira_int_cmp_t int_cmp) {
 			case IraIntCmpNeq:
 				return AsmInstSetne;
 			default:
-				ul_raise_unreachable();
+				ul_assert_unreachable();
 		}
 	}
 }
@@ -1679,7 +1679,7 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 					save_stack_var(ctx, var, AsmRegRax);
 					break;
 				default:
-					ul_raise_unreachable();
+					ul_assert_unreachable();
 			}
 			break;
 		case IraValImmArr:
@@ -1687,12 +1687,12 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 			ul_hs_t * arr_label = NULL;
 
 			if (!ira_pec_c_compile_val_frag(ctx->c_ctx, val, &arr_label)) {
-				ul_raise_unreachable();
+				ul_assert_unreachable();
 			}
 
 			ira_dt_sd_t * sd = val->dt->arr.assoc_stct->stct.lo->dt_stct.sd;
 			
-			ul_raise_assert(sd != NULL);
+			ul_assert(sd != NULL);
 
 			size_t off;
 
@@ -1707,7 +1707,7 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 			break;
 		}
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static void compile_copy_impl(ctx_t * ctx, var_t * dst, var_t * src, size_t src_off) {
@@ -1729,7 +1729,7 @@ static void compile_copy_impl(ctx_t * ctx, var_t * dst, var_t * src, size_t src_
 		case IraDtArr:
 		{
 			ira_dt_sd_t * sd = dt->arr.assoc_stct->stct.lo->dt_stct.sd;
-			ul_raise_assert(sd != NULL);
+			ul_assert(sd != NULL);
 
 			size_t off;
 
@@ -1743,7 +1743,7 @@ static void compile_copy_impl(ctx_t * ctx, var_t * dst, var_t * src, size_t src_
 			break;
 		}
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static void compile_int_like_cmp(ctx_t * ctx, var_t * dst, var_t * src0, var_t * src1, ira_int_cmp_t int_cmp, bool cmp_sign) {
@@ -1891,7 +1891,7 @@ static void compile_unr_int(ctx_t * ctx, inst_t * inst) {
 			inst_type = AsmInstNeg;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	ira_int_type_t int_type = inst->opd0.var->qdt.dt->int_type;
@@ -1931,7 +1931,7 @@ static void compile_bin_int(ctx_t * ctx, inst_t * inst) {
 			inst_type = AsmInstOr;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	asm_reg_t reg0 = get_gpr_reg_int(AsmRegGprAx, int_type), reg1 = get_gpr_reg_int(AsmRegGprCx, int_type);
@@ -1974,7 +1974,7 @@ static void compile_shift_int(ctx_t * ctx, inst_t * inst) {
 			}
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	load_stack_var(ctx, get_gpr_reg_int(AsmRegGprCx, int_type), inst->opd2.var);
@@ -2017,7 +2017,7 @@ static void compile_cast_to_int(ctx_t * ctx, inst_t * inst, ira_dt_t * from, ira
 			compile_int_like_cast(ctx, inst->opd0.var, inst->opd1.var, IraIntU64, to->int_type);
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static void compile_cast_to_ptr(ctx_t * ctx, inst_t * inst, ira_dt_t * from, ira_dt_t * to) {
@@ -2030,7 +2030,7 @@ static void compile_cast_to_ptr(ctx_t * ctx, inst_t * inst, ira_dt_t * from, ira
 			save_stack_var(ctx, inst->opd0.var, AsmRegRax);
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static void compile_cast(ctx_t * ctx, inst_t * inst) {
@@ -2045,7 +2045,7 @@ static void compile_cast(ctx_t * ctx, inst_t * inst) {
 			compile_cast_to_ptr(ctx, inst, from, to);
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static void compile_call_func_ptr(ctx_t * ctx, inst_t * inst) {
@@ -2083,7 +2083,7 @@ static void compile_brc(ctx_t * ctx, inst_t * inst) {
 			jump_type = AsmInstJz;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	load_stack_var(ctx, AsmRegAl, inst->opd1.var);
@@ -2148,7 +2148,7 @@ static void compile_insts(ctx_t * ctx) {
 
 		compile_inst_proc_t * proc = compile_insts_procs[inst->base->type];
 
-		ul_raise_assert(proc != NULL);
+		ul_assert(proc != NULL);
 
 		proc(ctx, inst);
 	}
@@ -2246,7 +2246,7 @@ static bool get_size_from_val(ira_val_t * val, size_t * out) {
 					*out = (size_t)val->int_val.si64;
 					break;
 				default:
-					ul_raise_unreachable();
+					ul_assert_unreachable();
 			}
 			break;
 		case IraValImmVec:
@@ -2256,7 +2256,7 @@ static bool get_size_from_val(ira_val_t * val, size_t * out) {
 		case IraValImmArr:
 			return false;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -2337,7 +2337,7 @@ static bool execute_make_dt_stct(ctx_t * ctx, inst_t * inst) {
 
 	ira_dt_ndt_t * elems = _malloca(elems_size * sizeof(*elems));
 
-	ul_raise_check_mem_alloc(elems);
+	ul_assert(elems != NULL);
 
 	{
 		ira_dt_ndt_t * elem = elems;
@@ -2395,7 +2395,7 @@ static bool execute_make_dt_func(ctx_t * ctx, inst_t * inst) {
 
 	ira_dt_ndt_t * args = _malloca(args_size * sizeof(*args));
 
-	ul_raise_check_mem_alloc(args);
+	ul_assert(args != NULL);
 
 	{
 		ira_dt_ndt_t * arg = args;
@@ -2485,7 +2485,7 @@ static bool execute_insts(ctx_t * ctx) {
 
 		execute_inst_proc_t * proc = execute_insts_procs[inst->base->type];
 
-		ul_raise_assert(proc != NULL);
+		ul_assert(proc != NULL);
 
 		if (!proc(ctx, inst)) {
 			return false;

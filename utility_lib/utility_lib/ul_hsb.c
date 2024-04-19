@@ -27,7 +27,7 @@ size_t ul_hsb_format_nl_va(ul_hsb_t * hsb, const wchar_t * fmt, va_list args) {
 
 		va_end(new_args);
 
-		ul_raise_assert(res >= 0);
+		ul_assert(res >= 0);
 
 		str_size = (size_t)res;
 	}
@@ -47,7 +47,7 @@ size_t ul_hsb_format_nl_va(ul_hsb_t * hsb, const wchar_t * fmt, va_list args) {
 
 		va_end(new_args);
 
-		ul_raise_assert(res >= 0);
+		ul_assert(res >= 0);
 
 		return (size_t)res;
 	}

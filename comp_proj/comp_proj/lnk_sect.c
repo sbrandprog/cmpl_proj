@@ -4,7 +4,7 @@
 lnk_sect_t * lnk_sect_create() {
 	lnk_sect_t * sect = malloc(sizeof(*sect));
 
-	ul_raise_check_mem_alloc(sect);
+	ul_assert(sect != NULL);
 
 	*sect = (lnk_sect_t){ 0 };
 

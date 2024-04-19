@@ -5,7 +5,7 @@
 pla_tu_t * pla_tu_create(ul_hs_t * name) {
 	pla_tu_t * tu = malloc(sizeof(*tu));
 
-	ul_raise_check_mem_alloc(tu);
+	ul_assert(tu != NULL);
 
 	*tu = (pla_tu_t){ .name = name };
 

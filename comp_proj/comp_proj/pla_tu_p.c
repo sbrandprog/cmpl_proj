@@ -135,7 +135,7 @@ static bool consume_punc_exact(ctx_t * ctx, pla_punc_t punc) {
 	return false;
 }
 static bool consume_punc_exact_crit(ctx_t * ctx, pla_punc_t punc) {
-	ul_raise_assert(punc < PlaPunc_Count);
+	ul_assert(punc < PlaPunc_Count);
 
 	if (consume_punc_exact(ctx, punc)) {
 		return true;
@@ -160,7 +160,7 @@ static bool consume_keyw_exact(ctx_t * ctx, pla_keyw_t keyw) {
 	return false;
 }
 static bool consume_keyw_exact_crit(ctx_t * ctx, pla_keyw_t keyw) {
-	ul_raise_assert(keyw < PlaKeyw_Count);
+	ul_assert(keyw < PlaKeyw_Count);
 
 	if (consume_keyw_exact(ctx, keyw)) {
 		return true;
@@ -247,7 +247,7 @@ static ira_int_type_t get_int_type(pla_keyw_t keyw) {
 		case PlaKeywS64:
 			return IraIntS64;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 
@@ -1327,7 +1327,7 @@ static bool get_file_ch(void * src_data, wchar_t * out) {
 	wint_t ch = fgetwc(ctx->file);
 
 	if (ch == WEOF) {
-		ul_raise_assert(ferror(ctx->file) == 0);
+		ul_assert(ferror(ctx->file) == 0);
 		return false;
 	}
 

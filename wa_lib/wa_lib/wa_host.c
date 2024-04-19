@@ -80,7 +80,7 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 					HWND child = (HWND)lp;
 
 					if (wa_ctl_get_data(child) != NULL) {
-						ul_raise_assert(data->child == NULL);
+						ul_assert(data->child == NULL);
 
 						data->child = child;
 					}

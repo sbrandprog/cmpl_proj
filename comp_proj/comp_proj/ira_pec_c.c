@@ -54,7 +54,7 @@ static bool is_lo_compilable(ira_lo_t * lo) {
 		case IraLoRoVal:
 			return false;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -99,7 +99,7 @@ bool ira_pec_c_process_val_compl(ira_pec_c_ctx_t * ctx, ira_val_t * val) {
 			}
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -182,7 +182,7 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 			}
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 
@@ -324,7 +324,7 @@ static bool compile_lo(ctx_t * ctx, ira_lo_t * lo) {
 			}
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;

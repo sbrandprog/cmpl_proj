@@ -6,7 +6,7 @@
 pla_dclr_t * pla_dclr_create(pla_dclr_type_t type) {
 	pla_dclr_t * dclr = malloc(sizeof(*dclr));
 
-	ul_raise_check_mem_alloc(dclr);
+	ul_assert(dclr != NULL);
 
 	*dclr = (pla_dclr_t){ .type = type };
 
@@ -51,7 +51,7 @@ void pla_dclr_destroy(pla_dclr_t * dclr) {
 			pla_expr_destroy(dclr->ro_val.val_expr);
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	free(dclr);

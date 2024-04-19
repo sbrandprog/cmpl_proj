@@ -39,7 +39,7 @@ bool ira_dt_is_complete(ira_dt_t * dt) {
 			}
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -153,7 +153,7 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 			}
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -172,7 +172,7 @@ static bool is_castable_to_void(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -191,7 +191,7 @@ static bool is_castable_to_dt(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -214,7 +214,7 @@ static bool is_castable_to_bool(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -237,7 +237,7 @@ static bool is_castable_to_int(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -259,7 +259,7 @@ static bool is_castable_to_vec(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -282,7 +282,7 @@ static bool is_castable_to_ptr(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -304,7 +304,7 @@ static bool is_castable_to_stct(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -326,7 +326,7 @@ static bool is_castable_to_arr(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -344,7 +344,7 @@ static bool is_castable_to_func(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtFunc:
 			return false;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -401,7 +401,7 @@ bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to) {
 			}
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -431,7 +431,7 @@ bool ira_dt_get_qual(ira_dt_t * dt, ira_dt_qual_t * out) {
 			*out = ira_dt_qual_none;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -480,7 +480,7 @@ bool ira_dt_get_size(ira_dt_t * dt, size_t * out) {
 			*out = 0;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -523,7 +523,7 @@ bool ira_dt_get_align(ira_dt_t * dt, size_t * out) {
 			*out = 1;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -541,7 +541,7 @@ static void calc_sd_props(ira_dt_sd_t * sd) {
 		size_t elem_align;
 
 		if (!ira_dt_get_align(elem->dt, &elem_align)) {
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 		}
 
 		size = ul_align_to(size, elem_align);
@@ -549,7 +549,7 @@ static void calc_sd_props(ira_dt_sd_t * sd) {
 		size_t elem_size;
 
 		if (!ira_dt_get_size(elem->dt, &elem_size)) {
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 		}
 
 		size += elem_size;
@@ -571,13 +571,13 @@ bool ira_dt_create_sd(size_t elems_size, ira_dt_ndt_t * elems, ira_dt_sd_t ** ou
 
 	*out = malloc(sizeof(**out));
 
-	ul_raise_check_mem_alloc(*out);
+	ul_assert(*out != NULL);
 
 	**out = (ira_dt_sd_t){ .elems_size = elems_size };
 
 	ira_dt_ndt_t * new_elems = malloc(elems_size * sizeof(*new_elems));
 
-	ul_raise_check_mem_alloc(*out);
+	ul_assert(*out != NULL);
 
 	memcpy(new_elems, elems, elems_size * sizeof(*new_elems));
 
@@ -598,7 +598,7 @@ void ira_dt_destroy_sd(ira_dt_sd_t * sd) {
 }
 
 size_t ira_dt_get_sd_elem_off(ira_dt_sd_t * sd, size_t elem_ind) {
-	ul_raise_assert(elem_ind < sd->elems_size);
+	ul_assert(elem_ind < sd->elems_size);
 
 	size_t off = 0;
 
@@ -606,7 +606,7 @@ size_t ira_dt_get_sd_elem_off(ira_dt_sd_t * sd, size_t elem_ind) {
 		size_t elem_align;
 
 		if (!ira_dt_get_align(elem->dt, &elem_align)) {
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 		}
 
 		off = ul_align_to(off, elem_align);
@@ -614,7 +614,7 @@ size_t ira_dt_get_sd_elem_off(ira_dt_sd_t * sd, size_t elem_ind) {
 		size_t elem_size;
 
 		if (!ira_dt_get_size(elem->dt, &elem_size)) {
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 		}
 
 		off += elem_size;

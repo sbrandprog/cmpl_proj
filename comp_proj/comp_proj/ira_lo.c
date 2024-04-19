@@ -6,7 +6,7 @@
 ira_lo_t * ira_lo_create(ira_lo_type_t type, ul_hs_t * name) {
 	ira_lo_t * lo = malloc(sizeof(*lo));
 
-	ul_raise_check_mem_alloc(lo);
+	ul_assert(lo != NULL);
 
 	*lo = (ira_lo_t){ .type = type, .name = name };
 
@@ -44,7 +44,7 @@ void ira_lo_destroy(ira_lo_t * lo) {
 			ira_val_destroy(lo->ro_val.val);
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	free(lo);

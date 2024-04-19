@@ -71,7 +71,7 @@ static size_t get_ch_col_size(wnd_data_t * data, size_t line_col, wchar_t ch) {
 	return 1;
 }
 static size_t convert_line_ch_to_col(wnd_data_t * data, gia_text_line_t * line, size_t line_ch) {
-	ul_raise_assert(line_ch <= line->size);
+	ul_assert(line_ch <= line->size);
 
 	size_t line_col = 0;
 
@@ -97,7 +97,7 @@ static size_t convert_line_col_to_ch(wnd_data_t * data, gia_text_line_t * line, 
 
 
 static gia_text_ch_pos_t get_ch_pos(wnd_data_t * data, size_t line, size_t col) {
-	ul_raise_assert(data->text.lines_size > 0);
+	ul_assert(data->text.lines_size > 0);
 
 	line = min(line, data->text.lines_size - 1);
 
@@ -236,7 +236,7 @@ static void set_caret_pos_col(wnd_data_t * data, size_t caret_line, size_t caret
 	}
 }
 static void set_caret_pos_ch(wnd_data_t * data, size_t caret_line, size_t caret_ch) {
-	ul_raise_assert(data->text.lines_size > 0);
+	ul_assert(data->text.lines_size > 0);
 
 	caret_line = min(caret_line, data->text.lines_size - 1);
 
@@ -321,7 +321,7 @@ static void process_caret_keyd_wp_nl_cret(wnd_data_t * data) {
 	set_caret_pos_ch(data, pos.line, pos.ch);
 }
 static void process_caret_keyd_wp_nl_nav(wnd_data_t * data, WPARAM wp) {
-	ul_raise_assert(data->text.lines_size > 0);
+	ul_assert(data->text.lines_size > 0);
 
 	gia_text_ch_pos_t pos = get_caret_ch_pos(data);
 
@@ -377,7 +377,7 @@ static void process_caret_keyd_wp_nl_nav(wnd_data_t * data, WPARAM wp) {
 			set_caret_pos_col(data, caret_line, caret_col);
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 }
 static void process_caret_keyd_wp_nl_del(wnd_data_t * data) {
@@ -490,7 +490,7 @@ static void process_caret_cur_lp_nl(wnd_data_t * data, LPARAM lp) {
 
 	x += (int)(data->style.font.f_w / 2);
 
-	ul_raise_assert(data->text.lines_size > 0);
+	ul_assert(data->text.lines_size > 0);
 
 	gia_text_ch_pos_t pos = get_ch_pos(data,
 		data->vis_line + (size_t)y / data->style.font.f_h,
@@ -587,7 +587,7 @@ static void fill_test_data_nl(wnd_data_t * data) {
 
 	(void)_wfopen_s(&file, L"test.pla", L"r");
 
-	ul_raise_assert(file != NULL);
+	ul_assert(file != NULL);
 
 	size_t line_num = 0, line_ch = 0;
 

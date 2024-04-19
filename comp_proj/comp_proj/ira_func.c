@@ -6,7 +6,7 @@
 ira_func_t * ira_func_create(ira_dt_t * dt) {
 	ira_func_t * func = malloc(sizeof(*func));
 
-	ul_raise_check_mem_alloc(func);
+	ul_assert(func != NULL);
 
 	*func = (ira_func_t){ .dt = dt };
 

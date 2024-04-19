@@ -221,7 +221,7 @@ static void get_tok_core(pla_lex_t * lex) {
 		}
 		else if (pla_tok_is_first_ident_ch(lex->ch)) {
 			bool res = fetch_str(lex, pla_tok_is_ident_ch, NULL);
-			ul_raise_assert(res);
+			ul_assert(res);
 
 			pla_keyw_t keyw = pla_keyw_fetch_exact(lex->str_size, lex->str);
 
@@ -269,7 +269,7 @@ static void get_tok_core(pla_lex_t * lex) {
 			ul_hs_t * tag;
 
 			bool res = fadd_str(lex, pla_tok_is_tag_ch, NULL, &tag);
-			ul_raise_assert(res);
+			ul_assert(res);
 
 			lex->tok.type = PlaTokChStr;
 			lex->tok.ch_str.data = data;
@@ -281,7 +281,7 @@ static void get_tok_core(pla_lex_t * lex) {
 			ul_hs_t * data;
 
 			bool res = fadd_str(lex, pla_tok_is_num_str_ch, NULL, &data);
-			ul_raise_assert(res);
+			ul_assert(res);
 
 			if (!pla_tok_is_num_str_tag_intro_ch(lex->ch)) {
 				report_lex(lex, PlaLexErrInvNumStr);
@@ -301,7 +301,7 @@ static void get_tok_core(pla_lex_t * lex) {
 			ul_hs_t * tag;
 
 			res = fadd_str(lex, pla_tok_is_tag_ch, NULL, &tag);
-			ul_raise_assert(res);
+			ul_assert(res);
 
 			lex->tok.type = PlaTokNumStr;
 			lex->tok.num_str.data = data;
@@ -322,7 +322,7 @@ bool pla_lex_get_tok(pla_lex_t * lex) {
 		return false;
 	}
 
-	ul_raise_assert(lex->tok.type != PlaTokNone);
+	ul_assert(lex->tok.type != PlaTokNone);
 
 	lex->tok.pos_end = get_tok_pos(lex);
 

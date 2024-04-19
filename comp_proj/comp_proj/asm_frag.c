@@ -25,7 +25,7 @@ static const sect_info_t sect_infos[AsmFrag_Count] = {
 asm_frag_t * asm_frag_create(asm_frag_type_t type) {
 	asm_frag_t * frag = malloc(sizeof(*frag));
 
-	ul_raise_check_mem_alloc(frag);
+	ul_assert(frag != NULL);
 
 	*frag = (asm_frag_t){ .type = type };
 
@@ -94,7 +94,7 @@ static bool get_imm0_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
 		case AsmInstOpds_Mem_Imm:
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	switch (inst->imm0_type) {
@@ -117,7 +117,7 @@ static bool get_imm0_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
 			*out = LnkSectFixupRva32;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -137,7 +137,7 @@ static bool get_disp_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
 		case AsmInstOpds_Mem_Reg:
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	switch (inst->mem_disp_type) {
@@ -156,7 +156,7 @@ static bool get_disp_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
 			*out = LnkSectFixupRva32;
 			break;
 		default:
-			ul_raise_unreachable();
+			ul_assert_unreachable();
 	}
 
 	return true;
@@ -180,7 +180,7 @@ static bool build_special_inst(asm_frag_t * frag, asm_inst_t * inst, lnk_sect_t 
 
 			size_t align_amount = ul_align_to(out->data_size, (size_t)inst->imm0) - out->data_size;
 
-			ul_raise_assert(align_amount < LNK_PE_MAX_MODULE_SIZE);
+			ul_assert(align_amount < LNK_PE_MAX_MODULE_SIZE);
 
 			if (out->data_size + align_amount > out->data_cap) {
 				ul_arr_grow(&out->data_cap, &out->data, sizeof(*out->data), align_amount);

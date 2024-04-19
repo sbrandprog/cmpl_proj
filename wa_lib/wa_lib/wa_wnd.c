@@ -19,7 +19,7 @@ bool wa_wnd_check_cls(HWND hw, const wchar_t * cls_name) {
 
 	size_t cls_name_size = wcslen(cls_name);
 
-	ul_raise_assert(_countof(buf) > cls_name_size);
+	ul_assert(_countof(buf) > cls_name_size);
 
 	int res = GetClassNameW(hw, buf, _countof(buf));
 

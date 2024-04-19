@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "ul_raise.h"
+#include "ul_assert.h"
 #include "ul_hst.h"
 
 void ul_hst_init(ul_hst_t * hst) {
@@ -43,17 +43,14 @@ static ul_hs_t * ul_hst_add_nolock(ul_hst_t * hst, size_t str_size, const wchar_
 
 	wchar_t * new_node_str = malloc((str_size + 1) * sizeof(*new_node_str));
 
-	ul_raise_check_mem_alloc(new_node_str);
+	ul_assert(new_node_str != NULL);
 
 	wmemcpy(new_node_str, str, str_size);
 	new_node_str[str_size] = 0;
 
 	ul_hst_node_t * new_node = malloc(sizeof(*new_node));
 
-	if (new_node == NULL) {
-		free(new_node_str);
-		ul_raise_no_mem();
-	}
+	ul_assert(new_node != NULL);
 
 	*new_node = (ul_hst_node_t){ .hstr = { .size = str_size, .str = new_node_str, .hash = str_hash } };
 

@@ -27,7 +27,7 @@
     <ClCompile Include="utility_lib\ul_hs.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="utility_lib\ul_raise.c">
+    <ClCompile Include="utility_lib\ul_assert.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
@@ -56,10 +56,10 @@
     <ClInclude Include="utility_lib\ul_misc.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="utility_lib\ul_raise.h">
+    <ClInclude Include="utility_lib\utility_lib.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="utility_lib\utility_lib.h">
+    <ClInclude Include="utility_lib\ul_assert.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

@@ -3,7 +3,7 @@
 #include "ira_val.h"
 
 void ira_inst_cleanup(ira_inst_t * inst) {
-	ul_raise_assert(inst->type < IraInst_Count);
+	ul_assert(inst->type < IraInst_Count);
 
 	const ira_inst_info_t * info = &ira_inst_infos[inst->type];
 
@@ -27,7 +27,7 @@ void ira_inst_cleanup(ira_inst_t * inst) {
 				free(inst->opds[opd].hss);
 				break;
 			default:
-				ul_raise_unreachable();
+				ul_assert_unreachable();
 		}
 	}
 

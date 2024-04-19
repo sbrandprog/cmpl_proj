@@ -5,7 +5,7 @@
 pla_expr_t * pla_expr_create(pla_expr_type_t type) {
 	pla_expr_t * expr = malloc(sizeof(*expr));
 
-	ul_raise_check_mem_alloc(expr);
+	ul_assert(expr != NULL);
 
 	*expr = (pla_expr_t){ .type = type };
 
@@ -16,7 +16,7 @@ void pla_expr_destroy(pla_expr_t * expr) {
 		return;
 	}
 
-	ul_raise_assert(expr->type < PlaExpr_Count);
+	ul_assert(expr->type < PlaExpr_Count);
 
 	const pla_expr_info_t * info = &pla_expr_infos[expr->type];
 
@@ -45,7 +45,7 @@ void pla_expr_destroy(pla_expr_t * expr) {
 			case PlaExprOpdExprListLink:
 				break;
 			default:
-				ul_raise_unreachable();
+				ul_assert_unreachable();
 		}
 	}
 
