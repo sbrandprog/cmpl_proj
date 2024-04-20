@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "gia_tus.h"
 #include "gia_text.h"
 
 #define LINE_INIT_STR_SIZE 64
@@ -56,9 +57,6 @@ void gia_text_insert_str_nl(gia_text_t * text, size_t line_pos, size_t ins_pos, 
 
 	line->size += str_size;
 }
-void gia_text_insert_ch_nl(gia_text_t * text, size_t line_pos, size_t ins_pos, wchar_t ch) {
-	gia_text_insert_str_nl(text, line_pos, ins_pos, 1, &ch);
-}
 void gia_text_remove_str_nl(gia_text_t * text, size_t line_pos, size_t rem_pos_start, size_t rem_pos_end) {
 	ul_assert(line_pos < text->lines_size);
 
@@ -69,9 +67,6 @@ void gia_text_remove_str_nl(gia_text_t * text, size_t line_pos, size_t rem_pos_s
 	wmemmove_s(line->str + rem_pos_start, line->cap - rem_pos_start, line->str + rem_pos_end, line->size - rem_pos_end);
 
 	line->size -= rem_pos_end - rem_pos_start;
-}
-void gia_text_remove_ch_nl(gia_text_t * text, size_t line_pos, size_t rem_pos) {
-	gia_text_remove_str_nl(text, line_pos, rem_pos, rem_pos + 1);
 }
 
 void gia_text_insert_line_nl(gia_text_t * text, size_t ins_pos) {
@@ -99,4 +94,43 @@ void gia_text_remove_line_nl(gia_text_t * text, size_t rem_pos) {
 	memmove_s(rem_it, (text->lines_cap - rem_pos) * sizeof(*rem_it), rem_it + 1, (text->lines_size - rem_pos) * sizeof(*rem_it));
 
 	--text->lines_size;
+}
+
+void gia_text_from_tus_nl(gia_text_t * text, gia_tus_t * tus) {
+	size_t line = 0;
+
+	wchar_t * ch = tus->src, * ch_end = ch + tus->src_size;
+
+	while (true) {
+		wchar_t * nl_ch = ch;
+
+		while (nl_ch != ch_end && *nl_ch != L'\n') {
+			++nl_ch;
+		}
+
+		while (line >= text->lines_size) {
+			gia_text_insert_line_nl(text, text->lines_size);
+		}
+
+		gia_text_remove_str_nl(text, line, 0, text->lines[line].size);
+		gia_text_insert_str_nl(text, line, 0, nl_ch - ch, ch);
+
+		if (nl_ch == ch_end || nl_ch + 1 == ch_end) {
+			break;
+		}
+		else {
+			ch = nl_ch + 1;
+			++line;
+		}
+	}
+}
+void gia_text_to_tus_nl(gia_text_t * text, gia_tus_t * tus) {
+	tus->src_size = 0;
+
+	wchar_t nl_ch = L'\n';
+
+	for (gia_text_line_t * line = text->lines, *line_end = line + text->lines_size; line != line_end; ++line) {
+		gia_tus_insert_str_nl(tus, tus->src_size, line->size, line->str);
+		gia_tus_insert_str_nl(tus, tus->src_size, 1, &nl_ch);
+	}
 }

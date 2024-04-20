@@ -101,7 +101,11 @@
     <ClCompile Include="comp_proj\asm_pea_b.c" />
     <ClCompile Include="comp_proj\asm_reg.c" />
     <ClCompile Include="comp_proj\asm_size.c" />
+    <ClCompile Include="comp_proj\gia_prog.c" />
+    <ClCompile Include="comp_proj\gia_prog_b.c" />
+    <ClCompile Include="comp_proj\gia_prog_p.c" />
     <ClCompile Include="comp_proj\gia_text.c" />
+    <ClCompile Include="comp_proj\gia_tus.c" />
     <ClCompile Include="comp_proj\ira_func.c" />
     <ClCompile Include="comp_proj\ira_dt.c" />
     <ClCompile Include="comp_proj\ira_inst.c" />
@@ -121,7 +125,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="comp_proj\pla_ast.c" />
-    <ClCompile Include="comp_proj\pla_ast_p.c" />
     <ClCompile Include="comp_proj\pla_ast_t.c" />
     <ClCompile Include="comp_proj\pla_ast_t_s.c" />
     <ClCompile Include="comp_proj\pla_dclr.c" />
@@ -147,7 +150,11 @@
     <ClInclude Include="comp_proj\asm_reg.h" />
     <ClInclude Include="comp_proj\asm_size.h" />
     <ClInclude Include="comp_proj\gia.h" />
+    <ClInclude Include="comp_proj\gia_prog.h" />
+    <ClInclude Include="comp_proj\gia_prog_b.h" />
+    <ClInclude Include="comp_proj\gia_prog_p.h" />
     <ClInclude Include="comp_proj\gia_text.h" />
+    <ClInclude Include="comp_proj\gia_tus.h" />
     <ClInclude Include="comp_proj\ira.h" />
     <ClInclude Include="comp_proj\ira_func.h" />
     <ClInclude Include="comp_proj\ira_dt.h" />
@@ -166,7 +173,6 @@
     <ClInclude Include="comp_proj\pch.h" />
     <ClInclude Include="comp_proj\pla.h" />
     <ClInclude Include="comp_proj\pla_ast.h" />
-    <ClInclude Include="comp_proj\pla_ast_p.h" />
     <ClInclude Include="comp_proj\pla_ast_t.h" />
     <ClInclude Include="comp_proj\pla_ast_t_s.h" />
     <ClInclude Include="comp_proj\pla_dclr.h" />

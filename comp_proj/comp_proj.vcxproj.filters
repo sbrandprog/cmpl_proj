@@ -126,10 +126,19 @@
     <ClCompile Include="comp_proj\pla_tu_p.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="comp_proj\pla_ast_p.c">
+    <ClCompile Include="comp_proj\gia_text.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="comp_proj\gia_text.c">
+    <ClCompile Include="comp_proj\gia_prog.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="comp_proj\gia_tus.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="comp_proj\gia_prog_b.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="comp_proj\gia_prog_p.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
@@ -254,13 +263,22 @@
     <ClInclude Include="comp_proj\pla_tu_p.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="comp_proj\pla_ast_p.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
     <ClInclude Include="comp_proj\gia.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\gia_text.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="comp_proj\gia_prog.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="comp_proj\gia_tus.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="comp_proj\gia_prog_b.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="comp_proj\gia_prog_p.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

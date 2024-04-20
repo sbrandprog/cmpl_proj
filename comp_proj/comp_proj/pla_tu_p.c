@@ -37,17 +37,6 @@ typedef struct pla_tu_p_ctx {
 	tok_t tok;
 } ctx_t;
 
-typedef struct pla_tu_p_f_ctx {
-	ul_hst_t * hst;
-	ul_hs_t * file_name;
-	ul_hs_t * tu_name;
-	pla_tu_t ** out;
-
-	FILE * file;
-
-	pla_lex_t lex;
-} f_ctx_t;
-
 
 static const post_optr_info_t post_optr_infos[] = {
 	{ .punc = PlaPuncDot, .expr_type = PlaExprMmbrAcc },
@@ -1315,61 +1304,6 @@ bool pla_tu_p_parse(ul_hs_t * tu_name, pla_tu_p_get_tok_proc_t * get_tok_proc, v
 	}
 	__finally {
 
-	}
-
-	return res;
-}
-
-
-static bool get_file_ch(void * src_data, wchar_t * out) {
-	f_ctx_t * ctx = src_data;
-
-	wint_t ch = fgetwc(ctx->file);
-
-	if (ch == WEOF) {
-		ul_assert(ferror(ctx->file) == 0);
-		return false;
-	}
-
-	*out = (wchar_t)ch;
-
-	return true;
-}
-static bool get_tok(void * src_data, pla_tok_t * out) {
-	f_ctx_t * ctx = src_data;
-
-	if (!pla_lex_get_tok(&ctx->lex)) {
-		return false;
-	}
-
-	*out = ctx->lex.tok;
-
-	return true;
-}
-static bool parse_file_core(f_ctx_t * ctx) {
-	if (_wfopen_s(&ctx->file, ctx->file_name->str, L"r") != 0) {
-		return false;
-	}
-
-	pla_lex_init(&ctx->lex, ctx->hst);
-	pla_lex_set_src(&ctx->lex, get_file_ch, ctx, 0, 0);
-
-	return pla_tu_p_parse(ctx->tu_name, get_tok, ctx, ctx->out);
-}
-bool pla_tu_p_parse_file(ul_hst_t * hst, ul_hs_t * file_name, ul_hs_t * tu_name, pla_tu_t ** out) {
-	f_ctx_t ctx = { .hst = hst, .file_name = file_name, .tu_name = tu_name, .out = out };
-
-	bool res;
-
-	__try {
-		res = parse_file_core(&ctx);
-	}
-	__finally {
-		pla_lex_cleanup(&ctx.lex);
-
-		if (ctx.file != NULL) {
-			fclose(ctx.file);
-		}
 	}
 
 	return res;

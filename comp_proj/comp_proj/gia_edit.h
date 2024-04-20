@@ -4,6 +4,9 @@
 #define GIA_EDIT_WND_CLS_NAME L"gia_edit"
 
 #define gia_edit_prop_style_desc L"style_desc"
+#define gia_edit_prop_exe_name L"exe_name"
+#define gia_edit_prop_prog L"prog"
+#define gia_edit_prop_tus L"tus"
 
 enum gia_edit_col {
 	GiaEditColPlain,

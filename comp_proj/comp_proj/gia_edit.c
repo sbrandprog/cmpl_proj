@@ -2,9 +2,8 @@
 #include "wa_lib/wa_ctx.h"
 #include "wa_lib/wa_wnd.h"
 #include "wa_lib/wa_ctl.h"
-#include "pla_punc.h"
-#include "pla_keyw.h"
-#include "pla_dclr.h"
+#include "gia_tus.h"
+#include "gia_prog_b.h"
 #include "gia_text.h"
 #include "gia_edit.h"
 
@@ -25,6 +24,10 @@ typedef struct gia_edit_data {
 	wa_ctl_data_t ctl_data;
 	style_t style;
 
+	const wchar_t * exe_name;
+	gia_prog_t * prog;
+	gia_tus_t * tus;
+
 	gia_text_t text;
 
 	size_t vis_line;
@@ -38,6 +41,9 @@ typedef struct gia_edit_data {
 
 	int wheel_x;
 	int wheel_y;
+
+	PTP_WORK run_exe_work;
+	PTP_WORK build_work;
 } wnd_data_t;
 
 
@@ -60,6 +66,31 @@ static void cleanup_style(style_t * style) {
 	}
 
 	wa_style_font_cleanup(&style->font);
+}
+
+static void load_tus_data(wnd_data_t * data) {
+	EnterCriticalSection(&data->text.lock);
+	EnterCriticalSection(&data->tus->lock);
+
+	__try {
+		gia_text_from_tus_nl(&data->text, data->tus);
+	}
+	__finally {
+		LeaveCriticalSection(&data->text.lock);
+		LeaveCriticalSection(&data->tus->lock);
+	}
+}
+static void save_tus_data(wnd_data_t * data) {
+	EnterCriticalSection(&data->text.lock);
+	EnterCriticalSection(&data->tus->lock);
+
+	__try {
+		gia_text_to_tus_nl(&data->text, data->tus);
+	}
+	__finally {
+		LeaveCriticalSection(&data->text.lock);
+		LeaveCriticalSection(&data->tus->lock);
+	}
 }
 
 
@@ -563,6 +594,7 @@ static void process_vis_wheel_x_wp(wnd_data_t * data, WPARAM wp) {
 	}
 }
 
+
 static bool process_cd_args(wnd_data_t * data, wa_wnd_cd_t * cd) {
 	HWND hw = data->hw;
 
@@ -574,6 +606,35 @@ static bool process_cd_args(wnd_data_t * data, wa_wnd_cd_t * cd) {
 				return false;
 			}
 		}
+		else if (wcscmp(arg, gia_edit_prop_exe_name) == 0) {
+			const wchar_t * exe_name = va_arg(cd->args, const wchar_t *);
+
+			if (exe_name == NULL) {
+				return false;
+			}
+
+			data->exe_name = exe_name;
+		}
+		else if (wcscmp(arg, gia_edit_prop_prog) == 0) {
+			gia_prog_t * prog = va_arg(cd->args, gia_prog_t *);
+
+			if (prog == NULL) {
+				return false;
+			}
+
+			data->prog = prog;
+		}
+		else if (wcscmp(arg, gia_edit_prop_tus) == 0) {
+			gia_tus_t * tus = va_arg(cd->args, gia_tus_t *);
+
+			if (tus == NULL) {
+				return false;
+			}
+
+			data->tus = tus;
+
+			load_tus_data(data);
+		}
 		else {
 			return false;
 		}
@@ -582,40 +643,32 @@ static bool process_cd_args(wnd_data_t * data, wa_wnd_cd_t * cd) {
 	return true;
 }
 
-static void fill_test_data_nl(wnd_data_t * data) {
-	FILE * file;
+static VOID run_exe_worker(PTP_CALLBACK_INSTANCE itnc, PVOID user_data, PTP_WORK work) {
+	CallbackMayRunLong(itnc);
 
-	(void)_wfopen_s(&file, L"test.pla", L"r");
+	wnd_data_t * data = user_data;
 
-	ul_assert(file != NULL);
+	wprintf(L"running exe file\n");
 
-	size_t line_num = 0, line_ch = 0;
+	int ret_code = (int)_wspawnl(_P_WAIT, data->exe_name, data->exe_name, NULL);
 
-	wint_t ch;
-
-	while ((ch = fgetwc(file)) != WEOF) {
-		if (ch == L'\n') {
-			++line_num;
-			line_ch = 0;
-
-			gia_text_insert_line_nl(&data->text, line_num);
-		}
-		else {
-			gia_text_insert_ch_nl(&data->text, line_num, line_ch++, (wchar_t)ch);
-		}
-	}
-
-	fclose(file);
+	wprintf(L"program exit code: %d 0x%X\n", ret_code, ret_code);
 }
-static void fill_test_data(wnd_data_t * data) {
-	EnterCriticalSection(&data->text.lock);
+static VOID build_prog_worker(PTP_CALLBACK_INSTANCE itnc, PVOID user_data, PTP_WORK work) {
+	CallbackMayRunLong(itnc);
 
-	__try {
-		fill_test_data_nl(data);
-	}
-	__finally {
-		LeaveCriticalSection(&data->text.lock);
-	}
+	wnd_data_t * data = user_data;
+
+	wprintf(L"awaiting build lock\n");
+
+	EnterCriticalSection(&data->prog->lock);
+	LeaveCriticalSectionWhenCallbackReturns(itnc, &data->prog->lock);
+
+	wprintf(L"build started\n");
+
+	bool res = gia_prog_b_build_nl(data->prog);
+
+	wprintf(L"build status: %s\n", res ? L"success" : L"failure");
 }
 
 static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) {
@@ -627,8 +680,6 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 			if (!process_cd_args(data, wa_wnd_get_cd(lp))) {
 				return -1;
 			}
-
-			fill_test_data(data);
 
 			break;
 		case WM_SETFOCUS:
@@ -669,6 +720,34 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 					if (data->is_fcs) {
 						SetFocus(data->prev_fcs_hw);
 					}
+					break;
+				case VK_F5:
+					if (data->exe_name != NULL) {
+						SubmitThreadpoolWork(data->run_exe_work);
+					}
+					else {
+						wprintf(L"no exe_name");
+					}
+					break;
+				case VK_F6:
+					if (data->prog != NULL) {
+						SubmitThreadpoolWork(data->build_work);
+					}
+					else {
+						wprintf(L"no prog");
+					}
+					break;
+				case VK_F7:
+					if (data->tus != NULL) {
+						save_tus_data(data);
+						wprintf(L"saved text data to tu\n");
+					}
+					else {
+						wprintf(L"no tu\n");
+					}
+					break;
+				case VK_F8:
+					_wsystem(L"cls");
 					break;
 			}
 			break;
@@ -731,10 +810,32 @@ static LRESULT wnd_proc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
 				}
 
 				gia_text_init(&data->text);
+
+				data->run_exe_work = CreateThreadpoolWork(run_exe_worker, data, NULL);
+
+				if (data->run_exe_work == NULL) {
+					return FALSE;
+				}
+
+				data->build_work = CreateThreadpoolWork(build_prog_worker, data, NULL);
+
+				if (data->build_work == NULL) {
+					return FALSE;
+				}
 			}
 			break;
 		case WM_NCDESTROY:
 			if (data != NULL) {
+				if (data->run_exe_work != NULL) {
+					CloseThreadpoolWork(data->run_exe_work);
+				}
+
+				if (data->build_work != NULL) {
+					WaitForThreadpoolWorkCallbacks(data->build_work, FALSE);
+
+					CloseThreadpoolWork(data->build_work);
+				}
+
 				gia_text_cleanup(&data->text);
 
 				cleanup_style(&data->style);
