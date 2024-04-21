@@ -178,6 +178,8 @@ static void draw_line(wnd_data_t * data, HDC hdc, size_t line_pos, size_t line_m
 	int line_h = (int)(line_pos * data->style.font.f_h);
 	size_t line_col_max = line_max_w + data->vis_col;
 
+	size_t line_ch = 0, line_col = 0;
+
 	for (size_t line_ch = 0, line_col = 0; line_ch < line->size && line_col < line_col_max; ) {
 		wchar_t ch = line->str[line_ch];
 
@@ -186,12 +188,24 @@ static void draw_line(wnd_data_t * data, HDC hdc, size_t line_pos, size_t line_m
 			++line_ch;
 		}
 		else {
-			if (line_col >= data->vis_col) {
-				TextOutW(hdc, (int)((line_col - data->vis_col) * data->style.font.f_w), line_h, line->str + line_ch, 1);
+			size_t batch_size = 1;
+
+			while (line_ch + batch_size < line->size
+				&& line->str[line_ch + batch_size] != L'\t'
+				&& line_col < line_col_max) {
+				++batch_size;
 			}
 
-			++line_col;
-			++line_ch;
+			if (line_col >= data->vis_col) {
+				TextOutW(hdc, (int)((line_col - data->vis_col) * data->style.font.f_w), line_h, line->str + line_ch, (int)batch_size);
+			}
+			else if (line_col + batch_size >= data->vis_col) {
+				size_t offset = data->vis_col - line_col;
+				TextOutW(hdc, 0, line_h, line->str + line_ch + offset, (int)(batch_size - offset));
+			}
+
+			line_col += batch_size;
+			line_ch += batch_size;
 		}
 	}
 }
