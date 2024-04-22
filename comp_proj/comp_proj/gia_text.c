@@ -86,7 +86,9 @@ static void update_line_toks_nl(gia_text_t * text, size_t line_pos) {
 	line->toks_size = 0;
 
 	while (line_lex_ctx.ch != line_lex_ctx.ch_end) {
-		if (pla_lex_get_tok(&text->lex)) {
+		pla_lex_get_tok(&text->lex);
+
+		if (text->lex.tok.type != PlaTokNone) {
 			insert_line_tok(line, &text->lex.tok);
 		}
 	}

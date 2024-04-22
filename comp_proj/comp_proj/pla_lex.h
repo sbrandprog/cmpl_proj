@@ -20,6 +20,9 @@ struct pla_lex_err {
 };
 struct pla_lex {
 	ul_hst_t * hst;
+
+	ul_hs_t * emp_hs;
+
 	pla_lex_get_src_ch_proc_t * get_src_ch_proc;
 	void * src_data;
 

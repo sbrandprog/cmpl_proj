@@ -12,6 +12,10 @@ static bool get_src_ch_proc_dflt(void * src_data, wchar_t * out) {
 
 void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst) {
 	*lex = (pla_lex_t){ .hst = hst, .get_src_ch_proc = get_src_ch_proc_dflt };
+
+	static const ul_ros_t emp_str_raw = UL_ROS_MAKE(L"");
+
+	lex->emp_hs = ul_hst_hashadd(hst, emp_str_raw.size, emp_str_raw.str);
 }
 void pla_lex_cleanup(pla_lex_t * lex) {
 	free(lex->str);
@@ -19,7 +23,11 @@ void pla_lex_cleanup(pla_lex_t * lex) {
 	memset(lex, 0, sizeof(*lex));
 }
 
-static bool next_ch_fc(pla_lex_t * lex, bool first_ch) {
+static bool next_ch(pla_lex_t * lex) {
+	if (lex->ch_succ) {
+		++lex->line_ch;
+	}
+
 	lex->ch_succ = false;
 
 	if (!lex->get_src_ch_proc(lex->src_data, &lex->ch)) {
@@ -27,10 +35,6 @@ static bool next_ch_fc(pla_lex_t * lex, bool first_ch) {
 	}
 
 	lex->ch_succ = true;
-
-	if (!first_ch) {
-		++lex->line_ch;
-	}
 
 	if (lex->line_switch) {
 		lex->line_switch = false;
@@ -44,9 +48,6 @@ static bool next_ch_fc(pla_lex_t * lex, bool first_ch) {
 
 	return true;
 }
-static bool next_ch(pla_lex_t * lex) {
-	return next_ch_fc(lex, false);
-}
 
 void pla_lex_update_src(pla_lex_t * lex, pla_lex_get_src_ch_proc_t * get_src_ch_proc, void * src_data) {
 	lex->get_src_ch_proc = get_src_ch_proc;
@@ -55,7 +56,7 @@ void pla_lex_update_src(pla_lex_t * lex, pla_lex_get_src_ch_proc_t * get_src_ch_
 	lex->ch = 0;
 	lex->ch_succ = false;
 
-	if (!next_ch_fc(lex, true)) {
+	if (!next_ch(lex)) {
 		return;
 	}
 }
@@ -240,36 +241,37 @@ static void get_tok_core(pla_lex_t * lex) {
 			return;
 		}
 		else if (pla_tok_is_dqoute_ch(lex->ch)) {
-			if (!next_ch(lex)) {
-				report_lex(lex, PlaLexErrSrc);
-				return;
-			}
+			ul_hs_t * data = lex->emp_hs, * tag = lex->emp_hs;
 
-			ul_hs_t * data;
+			do {
+				if (!next_ch(lex)) {
+					report_lex(lex, PlaLexErrSrc);
+					break;
+				}
 
-			if (!fadd_str(lex, pla_tok_is_ch_str_ch, ch_str_ch_proc, &data)) {
-				return;
-			}
+				if (!fadd_str(lex, pla_tok_is_ch_str_ch, ch_str_ch_proc, &data)) {
+					break;
+				}
 
-			if (!pla_tok_is_dqoute_ch(lex->ch)) {
-				report_lex(lex, PlaLexErrInvChStr);
-				return;
-			}
-			
-			if (!next_ch(lex)) {
-				report_lex(lex, PlaLexErrSrc);
-				return;
-			}
-			
-			if (!pla_tok_is_tag_ch(lex->ch)) {
-				report_lex(lex, PlaLexErrInvChStr);
-				return;
-			}
+				if (!pla_tok_is_dqoute_ch(lex->ch)) {
+					report_lex(lex, PlaLexErrInvChStr);
+					break;
+				}
 
-			ul_hs_t * tag;
+				if (!next_ch(lex)) {
+					report_lex(lex, PlaLexErrSrc);
+					break;
+				}
 
-			bool res = fadd_str(lex, pla_tok_is_tag_ch, NULL, &tag);
-			ul_assert(res);
+				if (!pla_tok_is_tag_ch(lex->ch)) {
+					report_lex(lex, PlaLexErrInvChStr);
+					break;
+				}
+
+				bool res = fadd_str(lex, pla_tok_is_tag_ch, NULL, &tag);
+				ul_assert(res);
+
+			} while (false);
 
 			lex->tok.type = PlaTokChStr;
 			lex->tok.ch_str.data = data;
@@ -278,30 +280,31 @@ static void get_tok_core(pla_lex_t * lex) {
 			return;
 		}
 		else if (pla_tok_is_first_num_str_ch(lex->ch)) {
-			ul_hs_t * data;
+			ul_hs_t * data = lex->emp_hs, * tag = lex->emp_hs;
 
-			bool res = fadd_str(lex, pla_tok_is_num_str_ch, NULL, &data);
-			ul_assert(res);
+			do {
+				bool res = fadd_str(lex, pla_tok_is_num_str_ch, NULL, &data);
+				ul_assert(res);
 
-			if (!pla_tok_is_num_str_tag_intro_ch(lex->ch)) {
-				report_lex(lex, PlaLexErrInvNumStr);
-				return;
-			}
+				if (!pla_tok_is_num_str_tag_intro_ch(lex->ch)) {
+					report_lex(lex, PlaLexErrInvNumStr);
+					break;
+				}
 
-			if (!next_ch(lex)) {
-				report_lex(lex, PlaLexErrSrc);
-				return;
-			}
+				if (!next_ch(lex)) {
+					report_lex(lex, PlaLexErrSrc);
+					break;
+				}
 
-			if (!pla_tok_is_tag_ch(lex->ch)) {
-				report_lex(lex, PlaLexErrInvNumStr);
-				return;
-			}
+				if (!pla_tok_is_tag_ch(lex->ch)) {
+					report_lex(lex, PlaLexErrInvNumStr);
+					break;
+				}
 
-			ul_hs_t * tag;
+				res = fadd_str(lex, pla_tok_is_tag_ch, NULL, &tag);
+				ul_assert(res);
 
-			res = fadd_str(lex, pla_tok_is_tag_ch, NULL, &tag);
-			ul_assert(res);
+			} while (false);
 
 			lex->tok.type = PlaTokNumStr;
 			lex->tok.num_str.data = data;
@@ -318,13 +321,13 @@ static void get_tok_core(pla_lex_t * lex) {
 bool pla_lex_get_tok(pla_lex_t * lex) {
 	get_tok_core(lex);
 
+	lex->tok.pos_end = get_tok_pos(lex);
+
 	if (lex->err_stack_pos > 0) {
 		return false;
 	}
 
 	ul_assert(lex->tok.type != PlaTokNone);
-
-	lex->tok.pos_end = get_tok_pos(lex);
 
 	return true;
 }
