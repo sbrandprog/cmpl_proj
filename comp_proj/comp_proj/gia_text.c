@@ -4,6 +4,11 @@
 
 #define LINE_INIT_STR_SIZE 64
 
+typedef struct gia_text_line_lex_ctx {
+	wchar_t * ch;
+	wchar_t * ch_end;
+} line_lex_ctx_t;
+
 static void init_line(gia_text_line_t * line) {
 	*line = (gia_text_line_t){ 0 };
 
@@ -14,22 +19,39 @@ static void init_line(gia_text_line_t * line) {
 	line->cap = LINE_INIT_STR_SIZE;
 }
 static void cleanup_line(gia_text_line_t * line) {
+	free(line->toks);
 	free(line->str);
 
 	memset(line, 0, sizeof(*line));
+}
+
+static void insert_line_tok(gia_text_line_t * line, pla_tok_t * tok) {
+	if (line->toks_size + 1 > line->toks_cap) {
+		ul_arr_grow(&line->toks_cap, &line->toks, sizeof(*line->toks), 1);
+	}
+
+	line->toks[line->toks_size++] = *tok;
 }
 
 
 void gia_text_init(gia_text_t * text) {
 	*text = (gia_text_t){ 0 };
 
-	InitializeCriticalSection(&text->lock);
-
 	ul_arr_grow(&text->lines_cap, &text->lines, sizeof(*text->lines), 1);
 
 	init_line(&text->lines[text->lines_size++]);
+
+	InitializeCriticalSection(&text->lock);
+
+	ul_hst_init(&text->lex_hst);
+
+	pla_lex_init(&text->lex, &text->lex_hst);
 }
 void gia_text_cleanup(gia_text_t * text) {
+	pla_lex_cleanup(&text->lex);
+
+	ul_hst_cleanup(&text->lex_hst);
+	
 	DeleteCriticalSection(&text->lock);
 
 	for (gia_text_line_t * line = text->lines, *line_end = line + text->lines_size; line != line_end; ++line) {
@@ -39,6 +61,35 @@ void gia_text_cleanup(gia_text_t * text) {
 	free(text->lines);
 
 	memset(text, 0, sizeof(*text));
+}
+
+static bool get_line_ch(void * user_data, wchar_t * out) {
+	line_lex_ctx_t * line_lex_ctx = user_data;
+
+	if (line_lex_ctx->ch == line_lex_ctx->ch_end) {
+		return false;
+	}
+
+	*out = *line_lex_ctx->ch++;
+
+	return true;
+}
+static void update_line_toks_nl(gia_text_t * text, size_t line_pos) {
+	ul_assert(line_pos < text->lines_size);
+
+	gia_text_line_t * line = &text->lines[line_pos];
+
+	line_lex_ctx_t line_lex_ctx = { .ch = line->str, .ch_end = line->str + line->size };
+
+	pla_lex_set_src(&text->lex, get_line_ch, &line_lex_ctx, line_pos, 0);
+
+	line->toks_size = 0;
+
+	while (line_lex_ctx.ch != line_lex_ctx.ch_end) {
+		if (pla_lex_get_tok(&text->lex)) {
+			insert_line_tok(line, &text->lex.tok);
+		}
+	}
 }
 
 void gia_text_insert_str_nl(gia_text_t * text, size_t line_pos, size_t ins_pos, size_t str_size, wchar_t * str) {
@@ -56,6 +107,8 @@ void gia_text_insert_str_nl(gia_text_t * text, size_t line_pos, size_t ins_pos, 
 	wmemcpy_s(line->str + ins_pos, line->cap - ins_pos, str, str_size);
 
 	line->size += str_size;
+
+	update_line_toks_nl(text, line_pos);
 }
 void gia_text_remove_str_nl(gia_text_t * text, size_t line_pos, size_t rem_pos_start, size_t rem_pos_end) {
 	ul_assert(line_pos < text->lines_size);
@@ -67,6 +120,8 @@ void gia_text_remove_str_nl(gia_text_t * text, size_t line_pos, size_t rem_pos_s
 	wmemmove_s(line->str + rem_pos_start, line->cap - rem_pos_start, line->str + rem_pos_end, line->size - rem_pos_end);
 
 	line->size -= rem_pos_end - rem_pos_start;
+
+	update_line_toks_nl(text, line_pos);
 }
 
 void gia_text_insert_line_nl(gia_text_t * text, size_t ins_pos) {

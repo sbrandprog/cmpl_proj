@@ -1,4 +1,5 @@
 #pragma once
+#include "pla_lex.h"
 #include "gia.h"
 
 struct gia_text_ch_pos {
@@ -9,6 +10,10 @@ struct gia_text_line {
 	size_t cap;
 	wchar_t * str;
 	size_t size;
+
+	size_t toks_cap;
+	pla_tok_t * toks;
+	size_t toks_size;
 };
 struct gia_text {
 	CRITICAL_SECTION lock;
@@ -16,6 +21,9 @@ struct gia_text {
 	size_t lines_cap;
 	gia_text_line_t * lines;
 	size_t lines_size;
+
+	ul_hst_t lex_hst;
+	pla_lex_t lex;
 };
 
 void gia_text_init(gia_text_t * text);

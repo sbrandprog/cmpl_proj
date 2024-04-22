@@ -178,24 +178,22 @@ static void draw_line(wnd_data_t * data, HDC hdc, size_t line_pos, size_t line_m
 	int line_h = (int)(line_pos * data->style.font.f_h);
 	size_t line_col_max = line_max_w + data->vis_col;
 
-	size_t line_ch = 0, line_col = 0;
-
 	for (size_t line_ch = 0, line_col = 0; line_ch < line->size && line_col < line_col_max; ) {
 		wchar_t ch = line->str[line_ch];
-
+	
 		if (ch == L'\t') {
 			line_col += TAB_SIZE - line_col % TAB_SIZE;
 			++line_ch;
 		}
 		else {
 			size_t batch_size = 1;
-
+	
 			while (line_ch + batch_size < line->size
 				&& line->str[line_ch + batch_size] != L'\t'
 				&& line_col < line_col_max) {
 				++batch_size;
 			}
-
+	
 			if (line_col >= data->vis_col) {
 				TextOutW(hdc, (int)((line_col - data->vis_col) * data->style.font.f_w), line_h, line->str + line_ch, (int)batch_size);
 			}
@@ -203,11 +201,72 @@ static void draw_line(wnd_data_t * data, HDC hdc, size_t line_pos, size_t line_m
 				size_t offset = data->vis_col - line_col;
 				TextOutW(hdc, 0, line_h, line->str + line_ch + offset, (int)(batch_size - offset));
 			}
-
+	
 			line_col += batch_size;
 			line_ch += batch_size;
 		}
 	}
+
+	size_t line_ch = 0, line_col = 0;
+
+	for (size_t line_tok = 0; line_tok < line->toks_size && line_ch < line->size && line_col < line_col_max; ++line_tok) {
+		pla_tok_t * tok = &line->toks[line_tok];
+
+		ul_assert(tok->pos_start.line_ch <= tok->pos_end.line_ch
+			&& tok->pos_end.line_ch <= line->size);
+
+		while (line_ch < tok->pos_start.line_ch) {
+			wchar_t ch = line->str[line_ch];
+
+			if (ch == L'\t') {
+				line_col += TAB_SIZE - line_col % TAB_SIZE;
+				++line_ch;
+			}
+			else {
+				size_t batch_size = 1;
+
+				while (line_ch + batch_size < tok->pos_start.line_ch
+					&& line->str[line_ch + batch_size] != L'\t'
+					&& line_col < line_col_max) {
+					++batch_size;
+				}
+
+				line_col += batch_size;
+				line_ch += batch_size;
+			}
+		}
+
+		gia_edit_col_type_t text_col_type = GiaEditColPlain;
+
+		switch (tok->type) {
+			case PlaTokKeyw:
+				text_col_type = GiaEditColKeyw;
+				break;
+			case PlaTokChStr:
+				text_col_type = GiaEditColChStr;
+				break;
+			case PlaTokNumStr:
+				text_col_type = GiaEditColNumStr;
+				break;
+		}
+
+		SetTextColor(hdc, data->style.cols[text_col_type].cr);
+	
+		size_t batch_size = tok->pos_end.line_ch - tok->pos_start.line_ch;
+
+		if (line_col >= data->vis_col) {
+			TextOutW(hdc, (int)((line_col - data->vis_col) * data->style.font.f_w), line_h, line->str + line_ch, (int)batch_size);
+		}
+		else if (line_col + batch_size >= data->vis_col) {
+			size_t offset = data->vis_col - line_col;
+			TextOutW(hdc, 0, line_h, line->str + line_ch + offset, (int)(batch_size - offset));
+		}
+
+		line_col += batch_size;
+		line_ch += batch_size;
+	}
+
+	SetTextColor(hdc, data->style.cols[GiaEditColPlain].cr);
 }
 static void redraw_lines_nl(wnd_data_t * data, HDC hdc, RECT * rect) {
 	HWND hw = data->hw;
@@ -543,11 +602,11 @@ static void process_caret_cur_lp_nl(wnd_data_t * data, LPARAM lp) {
 
 	set_caret_pos_ch(data, pos.line, pos.ch);
 }
-static void process_caret_cur_lp(wnd_data_t * data, WPARAM wp) {
+static void process_caret_cur_lp(wnd_data_t * data, LPARAM lp) {
 	EnterCriticalSection(&data->text.lock);
 
 	__try {
-		process_caret_cur_lp_nl(data, wp);
+		process_caret_cur_lp_nl(data, lp);
 	}
 	__finally {
 		LeaveCriticalSection(&data->text.lock);
@@ -889,7 +948,9 @@ gia_edit_style_desc_t gia_edit_get_style_desc_dflt(wa_ctx_t * ctx) {
 	gia_edit_style_desc_t desc = {
 		.cols = {
 			[GiaEditColPlain] = RGB(0, 0, 0),
-			[GiaEditColKeyw] = RGB(0, 0, 255)
+			[GiaEditColKeyw] = RGB(0, 0, 255),
+			[GiaEditColChStr] = RGB(163, 21, 21),
+			[GiaEditColNumStr] = RGB(47, 79, 79),
 	},
 		.font = ctx->style.fonts[WaStyleFontFxd].lf
 	};

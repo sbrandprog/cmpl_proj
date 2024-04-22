@@ -11,6 +11,8 @@
 enum gia_edit_col {
 	GiaEditColPlain,
 	GiaEditColKeyw,
+	GiaEditColChStr,
+	GiaEditColNumStr,
 	GiaEditCol_Count
 };
 struct gia_edit_style_desc {
