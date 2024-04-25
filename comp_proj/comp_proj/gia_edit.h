@@ -10,6 +10,7 @@
 
 enum gia_edit_col {
 	GiaEditColPlain,
+	GiaEditColSel,
 	GiaEditColKeyw,
 	GiaEditColChStr,
 	GiaEditColNumStr,
