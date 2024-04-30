@@ -3,32 +3,46 @@
 #include "wa_lib/wa_wnd.h"
 #include "wa_lib/wa_host.h"
 #include "wa_lib/wa_wcr.h"
-#include "gia_prog.h"
+#include "gia_tus.h"
+#include "gia_pkg.h"
+#include "gia_repo.h"
+#include "gia_bs.h"
 #include "gia_edit.h"
 
-static const ul_ros_t files_to_parse[] = {
-	UL_ROS_MAKE(L"test.pla"),
-	UL_ROS_MAKE(L"pla_lib/std/io.pla"),
-	UL_ROS_MAKE(L"pla_lib/w64/kernel32.pla")
-};
-
-static const wchar_t * pla_name = L"test.pla";
 static const wchar_t * exe_name = L"test.exe";
 
 static ul_hst_t main_hst;
 static wa_ctx_t main_wa_ctx;
 static wa_wcr_t main_wcr;
-static gia_prog_t main_prog;
+static gia_repo_t main_repo;
 
-static bool main_init_prog() {
-	gia_prog_init(&main_prog);
+static bool main_fill_repo() {
+	gia_repo_init(&main_repo);
 
-	main_prog.out_file_name = exe_name;
+	main_repo.root = gia_pkg_create(NULL);
 
-	for (const ul_ros_t * file = files_to_parse, *file_end = file + _countof(files_to_parse); file != file_end; ++file) {
-		if (!gia_prog_add_tus_file_nl(&main_prog, file->str)) {
-			return false;
-		}
+	gia_pkg_t * pkg_pla_lib = gia_pkg_get_sub_pkg(main_repo.root, UL_HST_HASHADD_WS(&main_repo.hst, L"pla_lib"));
+
+	gia_pkg_t * pkg_w64 = gia_pkg_get_sub_pkg(pkg_pla_lib, UL_HST_HASHADD_WS(&main_repo.hst, L"w64"));
+
+	gia_tus_t * tus_kernel32 = gia_pkg_get_tus(pkg_w64, UL_HST_HASHADD_WS(&main_repo.hst, L"kernel32"));
+
+	if (!gia_tus_read_file_nl(tus_kernel32, L"pla_lib/w64/kernel32.pla")) {
+		return false;
+	}
+
+	gia_pkg_t * pkg_std = gia_pkg_get_sub_pkg(pkg_pla_lib, UL_HST_HASHADD_WS(&main_repo.hst, L"std"));
+
+	gia_tus_t * tus_io = gia_pkg_get_tus(pkg_std, UL_HST_HASHADD_WS(&main_repo.hst, L"io"));
+
+	if (!gia_tus_read_file_nl(tus_io, L"pla_lib/std/io.pla")) {
+		return false;
+	}
+
+	gia_tus_t * tus_test = gia_pkg_get_tus(main_repo.root, UL_HST_HASHADD_WS(&main_repo.hst, L"test"));
+
+	if (!gia_tus_read_file_nl(tus_test, L"test.pla")) {
+		return false;
 	}
 
 	return true;
@@ -58,13 +72,13 @@ static bool main_gui() {
 		return false;
 	}
 
-	gia_tus_t * edit_tus = gia_prog_get_tus_nl(&main_prog, ul_hst_hashadd(&main_prog.hst, wcslen(pla_name), pla_name));
+	gia_tus_t * edit_tus = gia_pkg_get_tus(main_repo.root, UL_HST_HASHADD_WS(&main_repo.hst, L"test"));
 
 	if (edit_tus == NULL) {
 		return false;
 	}
 
-	HWND pla_edit = wa_wnd_create(&main_wa_ctx, L"gia_edit", main_wnd, WS_CHILD | WS_VISIBLE, WS_EX_COMPOSITED, gia_edit_prop_exe_name, exe_name, gia_edit_prop_prog, &main_prog, gia_edit_prop_tus, edit_tus, NULL);
+	HWND pla_edit = wa_wnd_create(&main_wa_ctx, L"gia_edit", main_wnd, WS_CHILD | WS_VISIBLE, WS_EX_COMPOSITED, gia_edit_prop_exe_name, exe_name, gia_edit_prop_repo, &main_repo, gia_edit_prop_tus, edit_tus, NULL);
 
 	if (pla_edit == NULL) {
 		return false;
@@ -82,7 +96,7 @@ static bool main_gui() {
 static int main_core() {
 	ul_hst_init(&main_hst);
 
-	if (!main_init_prog()) {
+	if (!main_fill_repo()) {
 		return false;
 	}
 
@@ -104,7 +118,7 @@ int main() {
 
 		wa_ctx_cleanup(&main_wa_ctx);
 
-		gia_prog_cleanup(&main_prog);
+		gia_repo_cleanup(&main_repo);
 
 		ul_hst_cleanup(&main_hst);
 	}

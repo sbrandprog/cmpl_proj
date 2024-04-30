@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "pla_cn.h"
 #include "pla_dclr.h"
 #include "pla_tu.h"
 
@@ -14,6 +15,10 @@ pla_tu_t * pla_tu_create(ul_hs_t * name) {
 void pla_tu_destroy(pla_tu_t * tu) {
 	if (tu == NULL) {
 		return;
+	}
+
+	for (pla_tu_ref_t * ref = tu->refs, *ref_end = ref + tu->refs_size; ref != ref_end; ++ref) {
+		pla_cn_destroy(ref->cn);
 	}
 
 	free(tu->refs);
@@ -32,10 +37,14 @@ void pla_tu_destroy_chain(pla_tu_t * tu) {
 	}
 }
 
-void pla_tu_push_ref(pla_tu_t * tu, ul_hs_t * ref) {
+pla_tu_ref_t * pla_tu_push_ref(pla_tu_t * tu) {
 	if (tu->refs_size + 1 > tu->refs_cap) {
 		ul_arr_grow(&tu->refs_cap, (void **)&tu->refs, sizeof(*tu->refs), 1);
 	}
 
-	tu->refs[tu->refs_size++] = ref;
+	pla_tu_ref_t * ref = &tu->refs[tu->refs_size++];
+
+	*ref = (pla_tu_ref_t){ 0 };
+
+	return ref;
 }

@@ -3,7 +3,7 @@
 #include "wa_lib/wa_wnd.h"
 #include "wa_lib/wa_ctl.h"
 #include "gia_tus.h"
-#include "gia_prog_b.h"
+#include "gia_bs.h"
 #include "gia_text.h"
 #include "gia_edit.h"
 
@@ -28,7 +28,7 @@ typedef struct gia_edit_data {
 	style_t style;
 
 	const wchar_t * exe_name;
-	gia_prog_t * prog;
+	gia_repo_t * repo;
 	gia_tus_t * tus;
 
 	gia_text_t text;
@@ -840,14 +840,14 @@ static bool process_cd_args(wnd_data_t * data, wa_wnd_cd_t * cd) {
 
 			data->exe_name = exe_name;
 		}
-		else if (wcscmp(arg, gia_edit_prop_prog) == 0) {
-			gia_prog_t * prog = va_arg(cd->args, gia_prog_t *);
+		else if (wcscmp(arg, gia_edit_prop_repo) == 0) {
+			gia_repo_t * repo = va_arg(cd->args, gia_repo_t *);
 
-			if (prog == NULL) {
+			if (repo == NULL) {
 				return false;
 			}
 
-			data->prog = prog;
+			data->repo = repo;
 		}
 		else if (wcscmp(arg, gia_edit_prop_tus) == 0) {
 			gia_tus_t * tus = va_arg(cd->args, gia_tus_t *);
@@ -884,14 +884,9 @@ static VOID build_prog_worker(PTP_CALLBACK_INSTANCE itnc, PVOID user_data, PTP_W
 
 	wnd_data_t * data = user_data;
 
-	wprintf(L"awaiting build lock\n");
-
-	EnterCriticalSection(&data->prog->lock);
-	LeaveCriticalSectionWhenCallbackReturns(itnc, &data->prog->lock);
-
 	wprintf(L"build started\n");
 
-	bool res = gia_prog_b_build_nl(data->prog);
+	bool res = gia_bs_build(data->repo, data->tus->name, data->exe_name);
 
 	wprintf(L"build status: %s\n", res ? L"success" : L"failure");
 }
@@ -955,20 +950,20 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 					}
 					break;
 				case VK_F6:
-					if (data->prog != NULL) {
+					if (data->repo != NULL && data->tus != NULL && data->exe_name != NULL) {
 						SubmitThreadpoolWork(data->build_work);
 					}
 					else {
-						wprintf(L"no prog");
+						wprintf(L"no repo || no tus || no exe_name");
 					}
 					break;
 				case VK_F7:
 					if (data->tus != NULL) {
 						save_tus_data(data);
-						wprintf(L"saved text data to tu\n");
+						wprintf(L"saved text data to tus\n");
 					}
 					else {
-						wprintf(L"no tu\n");
+						wprintf(L"no tus\n");
 					}
 					break;
 				case VK_F8:

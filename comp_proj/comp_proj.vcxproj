@@ -103,9 +103,10 @@
     <ClCompile Include="comp_proj\asm_pea_b.c" />
     <ClCompile Include="comp_proj\asm_reg.c" />
     <ClCompile Include="comp_proj\asm_size.c" />
-    <ClCompile Include="comp_proj\gia_prog.c" />
-    <ClCompile Include="comp_proj\gia_prog_b.c" />
-    <ClCompile Include="comp_proj\gia_prog_p.c" />
+    <ClCompile Include="comp_proj\gia_bs.c" />
+    <ClCompile Include="comp_proj\gia_pkg.c" />
+    <ClCompile Include="comp_proj\gia_tus_p.c" />
+    <ClCompile Include="comp_proj\gia_repo.c" />
     <ClCompile Include="comp_proj\gia_text.c" />
     <ClCompile Include="comp_proj\gia_tus.c" />
     <ClCompile Include="comp_proj\ira_func.c" />
@@ -136,6 +137,7 @@
     <ClCompile Include="comp_proj\pla_keyw.c" />
     <ClCompile Include="comp_proj\pla_lex.c" />
     <ClCompile Include="comp_proj\pla_pds.c" />
+    <ClCompile Include="comp_proj\pla_pkg.c" />
     <ClCompile Include="comp_proj\pla_punc.c" />
     <ClCompile Include="comp_proj\pla_stmt.c" />
     <ClCompile Include="comp_proj\pla_tok.c" />
@@ -152,9 +154,10 @@
     <ClInclude Include="comp_proj\asm_reg.h" />
     <ClInclude Include="comp_proj\asm_size.h" />
     <ClInclude Include="comp_proj\gia.h" />
-    <ClInclude Include="comp_proj\gia_prog.h" />
-    <ClInclude Include="comp_proj\gia_prog_b.h" />
-    <ClInclude Include="comp_proj\gia_prog_p.h" />
+    <ClInclude Include="comp_proj\gia_bs.h" />
+    <ClInclude Include="comp_proj\gia_pkg.h" />
+    <ClInclude Include="comp_proj\gia_tus_p.h" />
+    <ClInclude Include="comp_proj\gia_repo.h" />
     <ClInclude Include="comp_proj\gia_text.h" />
     <ClInclude Include="comp_proj\gia_tus.h" />
     <ClInclude Include="comp_proj\ira.h" />
@@ -183,6 +186,7 @@
     <ClInclude Include="comp_proj\pla_keyw.h" />
     <ClInclude Include="comp_proj\pla_lex.h" />
     <ClInclude Include="comp_proj\pla_pds.h" />
+    <ClInclude Include="comp_proj\pla_pkg.h" />
     <ClInclude Include="comp_proj\pla_punc.h" />
     <ClInclude Include="comp_proj\pla_stmt.h" />
     <ClInclude Include="comp_proj\gia_edit.h" />

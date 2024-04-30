@@ -5,7 +5,7 @@
 struct pla_ast {
 	ul_hst_t * hst;
 
-	pla_tu_t * tu;
+	pla_pkg_t * root;
 
 	ul_hs_t * pds[PlaPds_Count];
 };

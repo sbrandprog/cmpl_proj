@@ -1,6 +1,6 @@
 #include "pch.h"
+#include "pla_pkg.h"
 #include "pla_ast.h"
-#include "pla_tu.h"
 
 void pla_ast_init(pla_ast_t * ast, ul_hst_t * hst) {
 	*ast = (pla_ast_t){ .hst = hst };
@@ -12,7 +12,7 @@ void pla_ast_init(pla_ast_t * ast, ul_hst_t * hst) {
 	}
 }
 void pla_ast_cleanup(pla_ast_t * ast) {
-	pla_tu_destroy_chain(ast->tu);
+	pla_pkg_destroy(ast->root);
 
 	memset(ast, 0, sizeof(*ast));
 }

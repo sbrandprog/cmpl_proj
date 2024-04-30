@@ -1,4 +1,4 @@
-tlaturef "pla_lib/std/io.pla"a;
+tlaturef pla_lib.std.io;
 
 function buf_io_test : $() -> void {
 	variable ch : u16;

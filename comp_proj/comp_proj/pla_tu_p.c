@@ -29,10 +29,9 @@ typedef struct bin_optr_info {
 } bin_optr_info_t;
 
 typedef struct pla_tu_p_ctx {
-	ul_hs_t * tu_name;
+	pla_tu_t * tu;
 	pla_tu_p_get_tok_proc_t * get_tok_proc;
 	void * src_data;
-	pla_tu_t ** out;
 
 	tok_t tok;
 } ctx_t;
@@ -1231,13 +1230,15 @@ static bool parse_tu_ref(ctx_t * ctx, pla_dclr_t ** ins) {
 		return false;
 	}
 
-	ul_hs_t * ref;
+	pla_tu_ref_t * ref = pla_tu_push_ref(ctx->tu);
 
-	if (!consume_ch_str_crit(ctx, &ref, NULL)) {
-		return false;
+	if (consume_punc_exact(ctx, PlaPuncDot)) {
+		ref->is_rel = true;
 	}
 
-	pla_tu_push_ref(*ctx->out, ref);
+	if (!parse_cn(ctx, PlaPuncDot, &ref->cn)) {
+		return false;
+	}
 
 	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
 		return false;
@@ -1278,15 +1279,19 @@ static bool parse_tu(ctx_t * ctx, pla_dclr_t ** ins) {
 }
 
 static bool parse_core(ctx_t * ctx) {
-	*ctx->out = pla_tu_create(ctx->tu_name);
+	pla_dclr_t ** root = &ctx->tu->root;
 
-	pla_dclr_t ** root = &(*ctx->out)->root;
+	if (*root == NULL) {
+		*root = pla_dclr_create(PlaDclrNspc);
 
-	*root = pla_dclr_create(PlaDclrNspc);
-
-	(*root)->name = NULL;
+		(*root)->name = NULL;
+	}
 
 	pla_dclr_t ** ins = &(*root)->nspc.body;
+
+	while (*ins != NULL) {
+		ins = &(*ins)->next;
+	}
 
 	if (!parse_tu(ctx, ins)) {
 		return false;
@@ -1294,8 +1299,8 @@ static bool parse_core(ctx_t * ctx) {
 
 	return true;
 }
-bool pla_tu_p_parse(ul_hs_t * tu_name, pla_tu_p_get_tok_proc_t * get_tok_proc, void * src_data, pla_tu_t ** out) {
-	ctx_t ctx = { .tu_name = tu_name, .get_tok_proc = get_tok_proc, .src_data = src_data, .out = out };
+bool pla_tu_p_parse(pla_tu_t * tu, pla_tu_p_get_tok_proc_t * get_tok_proc, void * src_data) {
+	ctx_t ctx = { .tu = tu, .get_tok_proc = get_tok_proc, .src_data = src_data };
 
 	bool res;
 

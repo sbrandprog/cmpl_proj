@@ -25,6 +25,15 @@ void gia_tus_destroy(gia_tus_t * tus) {
 
 	free(tus);
 }
+void gia_tus_destroy_chain(gia_tus_t * tus) {
+	while (tus != NULL) {
+		gia_tus_t * next = tus->next;
+
+		gia_tus_destroy(tus);
+
+		tus = next;
+	}
+}
 
 void gia_tus_insert_str_nl(gia_tus_t * tus, size_t ins_pos, size_t str_size, wchar_t * str) {
 	ul_assert(ins_pos <= tus->src_size);

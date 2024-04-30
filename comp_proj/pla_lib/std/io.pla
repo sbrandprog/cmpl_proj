@@ -1,4 +1,4 @@
-tlaturef "pla_lib/w64/kernel32.pla"a;
+tlaturef pla_lib.w64.kernel32;
 
 namespace std {
 	variable const con_handle_name := "CON"w;

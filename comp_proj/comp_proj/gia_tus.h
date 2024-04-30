@@ -3,6 +3,9 @@
 
 struct gia_tus {
 	ul_hs_t * name;
+	
+	gia_tus_t * next;
+	
 	CRITICAL_SECTION lock;
 
 	size_t src_cap;
@@ -12,6 +15,7 @@ struct gia_tus {
 
 gia_tus_t * gia_tus_create(ul_hs_t * name);
 void gia_tus_destroy(gia_tus_t * tus);
+void gia_tus_destroy_chain(gia_tus_t * tus);
 
 void gia_tus_insert_str_nl(gia_tus_t * tus, size_t ins_pos, size_t str_size, wchar_t * str);
 

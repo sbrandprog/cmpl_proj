@@ -1,10 +1,4 @@
 #include "pch.h"
-#include "pla_ast_t.h"
-#include "pla_ast_t_s.h"
-#include "pla_expr.h"
-#include "pla_stmt.h"
-#include "pla_dclr.h"
-#include "pla_tu.h"
 #include "ira_dt.h"
 #include "ira_val.h"
 #include "ira_inst.h"
@@ -12,7 +6,15 @@
 #include "ira_lo.h"
 #include "ira_pec.h"
 #include "ira_pec_ip.h"
+#include "pla_cn.h"
+#include "pla_expr.h"
+#include "pla_stmt.h"
+#include "pla_dclr.h"
+#include "pla_tu.h"
+#include "pla_pkg.h"
+#include "pla_ast_t_s.h"
 
+#define TU_FULL_NAME_DELIM L'.'
 #define LO_FULL_NAME_DELIM L'.'
 
 typedef pla_ast_t_optr_type_t optr_type_t;
@@ -23,6 +25,11 @@ typedef pla_ast_t_vse_t vse_t;
 
 typedef struct pla_ast_t_tu {
 	pla_tu_t * base;
+	
+	ul_hs_t * full_name;
+
+	ul_hs_t ** refs;
+
 	bool is_tlated;
 } tu_t;
 
@@ -695,11 +702,87 @@ static bool translate_dclr(ctx_t * ctx, pla_dclr_t * dclr) {
 	return res;
 }
 
+static ul_hs_t * cat_hs_delim(ctx_t * ctx, ul_hs_t * str1, wchar_t delim, ul_hs_t * str2) {
+	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%c%s", str1->str, delim, str2->str);
+}
+static ul_hs_t * convert_cn_to_hs(ctx_t * ctx, pla_cn_t * cn, wchar_t delim) {
+	ul_hs_t * res = cn->name;
+
+	cn = cn->sub_name;
+
+	while (cn != NULL) {
+		res = cat_hs_delim(ctx, res, delim, cn->name);
+
+		cn = cn->sub_name;
+	}
+
+	return res;
+}
+
 static bool translate_tu(ctx_t * ctx, tu_t * tu);
+
+static bool push_tu(ctx_t * ctx, pla_tu_t * base, ul_hs_t * parent_pkg_full_name) {
+	if (ctx->tus_size + 1 > ctx->tus_cap) {
+		ul_arr_grow(&ctx->tus_cap, &ctx->tus, sizeof(*ctx->tus), 1);
+	}
+
+	tu_t * tu = &ctx->tus[ctx->tus_size++];
+
+	*tu = (tu_t){ .base = base, .full_name = base->name };
+
+	if (parent_pkg_full_name != NULL) {
+		tu->full_name = cat_hs_delim(ctx, parent_pkg_full_name, TU_FULL_NAME_DELIM, tu->full_name);
+	}
+
+	tu->refs = malloc(base->refs_size * sizeof(*tu->refs));
+
+	ul_assert(tu->refs != NULL);
+
+	ul_hs_t ** ref = tu->refs;
+
+	for (pla_tu_ref_t * base_ref = base->refs, *base_ref_end = base_ref + base->refs_size; base_ref != base_ref_end; ++base_ref, ++ref) {
+		if (base_ref->cn == NULL) {
+			return false;
+		}
+		
+		ul_hs_t * base_ref_hs = convert_cn_to_hs(ctx, base_ref->cn, TU_FULL_NAME_DELIM);
+
+		if (base_ref->is_rel) {
+			base_ref_hs = cat_hs_delim(ctx, base_ref_hs, TU_FULL_NAME_DELIM, parent_pkg_full_name);
+		}
+
+		*ref = base_ref_hs;
+	}
+
+	return true;
+}
+static bool form_tus_list(ctx_t * ctx, pla_pkg_t * pkg, ul_hs_t * parent_pkg_full_name) {
+	ul_hs_t * pkg_full_name = pkg->name;
+
+	if (parent_pkg_full_name != NULL) {
+		ul_assert(pkg_full_name != NULL);
+
+		pkg_full_name = cat_hs_delim(ctx, parent_pkg_full_name, TU_FULL_NAME_DELIM, pkg_full_name);
+	}
+
+	for (pla_tu_t * tu = pkg->tu; tu != NULL; tu = tu->next) {
+		if (!push_tu(ctx, tu, pkg_full_name)) {
+			return false;
+		}
+	}
+
+	for (pla_pkg_t * sub_pkg = pkg->sub_pkg; sub_pkg != NULL; sub_pkg = sub_pkg->next) {
+		if (!form_tus_list(ctx, sub_pkg, pkg_full_name)) {
+			return false;
+		}
+	}
+
+	return true;
+}
 
 static tu_t * find_tu_ref(ctx_t * ctx, ul_hs_t * ref) {
 	for (tu_t * tu = ctx->tus, *tu_end = tu + ctx->tus_size; tu != tu_end; ++tu) {
-		if (tu->base->name == ref) {
+		if (tu->full_name == ref) {
 			return tu;
 		}
 	}
@@ -707,9 +790,7 @@ static tu_t * find_tu_ref(ctx_t * ctx, ul_hs_t * ref) {
 	return NULL;
 }
 static bool translate_tu_refs(ctx_t * ctx, tu_t * tu) {
-	pla_tu_t * base = tu->base;
-
-	for (ul_hs_t ** ref = base->refs, **ref_end = ref + base->refs_size; ref != ref_end; ++ref) {
+	for (ul_hs_t ** ref = tu->refs, **ref_end = ref + tu->base->refs_size; ref != ref_end; ++ref) {
 		tu_t * ref_tu = find_tu_ref(ctx, *ref);
 
 		if (ref_tu == NULL) {
@@ -748,17 +829,10 @@ static bool translate_tu(ctx_t * ctx, tu_t * tu) {
 	return true;
 }
 
-static void form_tus_list(ctx_t * ctx) {
-	for (pla_tu_t * tu = ctx->ast->tu; tu != NULL; tu = tu->next) {
-		if (ctx->tus_size + 1 >= ctx->tus_cap) {
-			ul_arr_grow(&ctx->tus_cap, &ctx->tus, sizeof(*ctx->tus), 1);
-		}
-
-		ctx->tus[ctx->tus_size++] = (tu_t){ .base = tu };
-	}
-}
 static bool translate_tus(ctx_t * ctx) {
-	form_tus_list(ctx);
+	if (!form_tus_list(ctx, ctx->ast->root, NULL)) {
+		return false;
+	}
 
 	for (tu_t * tu = ctx->tus, *tu_end = tu + ctx->tus_size; tu != tu_end; ++tu) {
 		if (tu->is_tlated) {
@@ -773,16 +847,12 @@ static bool translate_tus(ctx_t * ctx) {
 	return true;
 }
 
-static ul_hs_t * cat_hs_delim(ctx_t * ctx, ul_hs_t * str1, wchar_t delim, ul_hs_t * str2) {
-	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%c%s", str1->str, delim, str2->str);
-}
 static void generate_full_names(ctx_t * ctx, ira_lo_t * nspc) {
 	for (ira_lo_t * lo = nspc->nspc.body; lo != NULL; lo = lo->next) {
-		if (nspc->name == NULL) {
-			lo->full_name = lo->name;
-		}
-		else {
-			lo->full_name = cat_hs_delim(ctx, lo->name, LO_FULL_NAME_DELIM, nspc->name);
+		lo->full_name = lo->name;
+
+		if (nspc->full_name != NULL) {
+			lo->full_name = cat_hs_delim(ctx, lo->full_name, LO_FULL_NAME_DELIM, nspc->full_name);
 		}
 
 		if (lo->type == IraLoNspc) {
