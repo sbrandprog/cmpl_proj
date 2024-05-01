@@ -277,7 +277,7 @@ static bool parse_expr_stct_body(ctx_t * ctx, pla_expr_t ** elem_out) {
 	}
 
 	while (true) {
-		*elem_out = pla_expr_create(PlaExprDtFuncArg);
+		*elem_out = pla_expr_create(PlaExprDtStctElem);
 
 		if (!consume_ident_crit(ctx, &(*elem_out)->opd2.hs)) {
 			return false;

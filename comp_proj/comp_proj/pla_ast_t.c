@@ -891,6 +891,10 @@ bool pla_ast_t_translate(pla_ast_t * ast, ira_pec_t * out) {
 		res = translate_core(&ctx);
 	}
 	__finally {
+		for (tu_t * tu = ctx.tus, *tu_end = tu + ctx.tus_size; tu != tu_end; ++tu) {
+			free(tu->refs);
+		}
+
 		free(ctx.tus);
 
 		for (pla_expr_type_t expr_type = PlaExprNone; expr_type < PlaExpr_Count; ++expr_type) {
