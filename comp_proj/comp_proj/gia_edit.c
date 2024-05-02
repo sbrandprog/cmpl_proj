@@ -3,6 +3,7 @@
 #include "wa_lib/wa_wnd.h"
 #include "wa_lib/wa_ctl.h"
 #include "gia_tus.h"
+#include "gia_repo.h"
 #include "gia_bs.h"
 #include "gia_text.h"
 #include "gia_edit.h"
@@ -884,9 +885,14 @@ static VOID build_prog_worker(PTP_CALLBACK_INSTANCE itnc, PVOID user_data, PTP_W
 
 	wnd_data_t * data = user_data;
 
+	wprintf(L"awating build lock\n");
+
+	EnterCriticalSection(&data->repo->lock);
+	LeaveCriticalSectionWhenCallbackReturns(itnc, &data->repo->lock);
+
 	wprintf(L"build started\n");
 
-	bool res = gia_bs_build(data->repo, data->tus->name, data->exe_name);
+	bool res = gia_bs_build_nl(data->repo, data->tus->name, data->exe_name);
 
 	wprintf(L"build status: %s\n", res ? L"success" : L"failure");
 }

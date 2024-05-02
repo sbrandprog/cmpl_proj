@@ -104,6 +104,7 @@
     <ClCompile Include="comp_proj\asm_reg.c" />
     <ClCompile Include="comp_proj\asm_size.c" />
     <ClCompile Include="comp_proj\gia_bs.c" />
+    <ClCompile Include="comp_proj\gia_bs_p.c" />
     <ClCompile Include="comp_proj\gia_pkg.c" />
     <ClCompile Include="comp_proj\gia_tus_p.c" />
     <ClCompile Include="comp_proj\gia_repo.c" />
@@ -155,6 +156,7 @@
     <ClInclude Include="comp_proj\asm_size.h" />
     <ClInclude Include="comp_proj\gia.h" />
     <ClInclude Include="comp_proj\gia_bs.h" />
+    <ClInclude Include="comp_proj\gia_bs_p.h" />
     <ClInclude Include="comp_proj\gia_pkg.h" />
     <ClInclude Include="comp_proj\gia_tus_p.h" />
     <ClInclude Include="comp_proj\gia_repo.h" />
