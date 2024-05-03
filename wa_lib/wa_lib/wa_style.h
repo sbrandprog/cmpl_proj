@@ -31,6 +31,8 @@ struct wa_style_font {
 struct wa_style {
 	wa_style_col_t cols[WaStyleCol_Count];
 	wa_style_font_t fonts[WaStyleFont_Count];
+
+	size_t sep_size;
 };
 
 WA_SYMBOL bool wa_style_col_set(wa_style_col_t * col, COLORREF cr);

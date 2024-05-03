@@ -40,3 +40,19 @@ void wa_wnd_set_fp(HWND hw, void * fp) {
 void * wa_wnd_get_fp(HWND hw) {
 	return (void *)GetWindowLongPtrW(hw, 0);
 }
+
+void wa_wnd_paint_buf(HWND hw, HDC hdc, void * user_data, wa_wnd_paint_proc_t * paint_proc) {
+	RECT rect;
+
+	GetClientRect(hw, &rect);
+
+	HDC hdc_buf;
+
+	HPAINTBUFFER buf = BeginBufferedPaint(hdc, &rect, BPBF_COMPATIBLEBITMAP, NULL, &hdc_buf);
+
+	if (buf != NULL) {
+		paint_proc(user_data, hdc_buf, &rect);
+
+		EndBufferedPaint(buf, TRUE);
+	}
+}

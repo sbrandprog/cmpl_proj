@@ -72,15 +72,27 @@ static bool main_gui() {
 		return false;
 	}
 
+	HWND splt = wa_wnd_create(&main_wa_ctx, L"wa_splt", main_wnd, WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN, WS_EX_COMPOSITED, L"is_hors", true, NULL);
+
+	if (splt == NULL) {
+		return false;
+	}
+
 	gia_tus_t * edit_tus = gia_pkg_get_tus(main_repo.root, UL_HST_HASHADD_WS(&main_repo.hst, L"test"));
 
 	if (edit_tus == NULL) {
 		return false;
 	}
 
-	HWND pla_edit = wa_wnd_create(&main_wa_ctx, L"gia_edit", main_wnd, WS_CHILD | WS_VISIBLE, WS_EX_COMPOSITED, gia_edit_prop_exe_name, exe_name, gia_edit_prop_repo, &main_repo, gia_edit_prop_tus, edit_tus, NULL);
+	HWND pla_edit0 = wa_wnd_create(&main_wa_ctx, L"gia_edit", splt, WS_CHILD | WS_VISIBLE, WS_EX_COMPOSITED, gia_edit_prop_exe_name, exe_name, gia_edit_prop_repo, &main_repo, gia_edit_prop_tus, edit_tus, NULL);
 
-	if (pla_edit == NULL) {
+	if (pla_edit0 == NULL) {
+		return false;
+	}
+
+	HWND pla_edit1 = wa_wnd_create(&main_wa_ctx, L"gia_edit", splt, WS_CHILD | WS_VISIBLE, WS_EX_COMPOSITED, gia_edit_prop_exe_name, exe_name, gia_edit_prop_repo, &main_repo, gia_edit_prop_tus, edit_tus, NULL);
+
+	if (pla_edit1 == NULL) {
 		return false;
 	}
 

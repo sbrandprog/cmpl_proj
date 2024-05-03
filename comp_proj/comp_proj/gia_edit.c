@@ -171,22 +171,39 @@ static void redraw_caret_nl(wnd_data_t * data) {
 		return;
 	}
 
+	RECT rect;
+	
+	GetClientRect(data->hw, &rect);
+
+	size_t line_h = data->style.font.f_h, ch_w = data->style.font.f_w;
+
+	size_t vis_line_max = data->vis_line + rect.bottom / line_h,
+		vis_col_max = data->vis_col + rect.right / ch_w;
+
 	gia_text_ch_pos_t pos = get_caret_ch_pos(data);
 
 	size_t col = convert_line_ch_to_col(data, &data->text.lines[data->caret_line], pos.ch);
 
-	int x, y;
+	if (data->vis_line <= pos.line && pos.line <= vis_line_max
+		&& data->vis_col <= col && col <= vis_col_max) {
 
-	if (data->vis_line <= pos.line && data->vis_col <= col) {
-		x = (int)((col - data->vis_col) * data->style.font.f_w);
-		y = (int)((pos.line - data->vis_line) * data->style.font.f_h);
+		int caret_w = 1, caret_h = (int)line_h;
+
+		int x = (int)((col - data->vis_col) * ch_w);
+		int y = (int)((pos.line - data->vis_line) * line_h);
+		
+		caret_w -= max(0, x + caret_w - rect.right);
+		caret_h -= max(0, y + caret_h - rect.bottom);
+
+		CreateCaret(data->hw, NULL, caret_w, caret_h);
+
+		SetCaretPos(x, y);
+
+		ShowCaret(data->hw);
 	}
 	else {
-		x = -(int)data->style.font.f_w;
-		y = -(int)data->style.font.f_h;
+		DestroyCaret();
 	}
-
-	SetCaretPos(x, y);
 }
 static void redraw_caret(wnd_data_t * data) {
 	EnterCriticalSection(&data->text.lock);
@@ -304,7 +321,9 @@ static void redraw_lines_nl(wnd_data_t * data, HDC hdc, RECT * rect) {
 		line_rect.bottom += (int)line_h;
 	}
 }
-static void redraw_lines(wnd_data_t * data, HDC hdc, RECT * rect) {
+static void redraw_lines(void * user_data, HDC hdc, RECT * rect) {
+	wnd_data_t * data = user_data;
+
 	EnterCriticalSection(&data->text.lock);
 
 	__try {
@@ -912,9 +931,6 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 			data->is_fcs = true;
 			data->prev_fcs_hw = (HWND)wp;
 
-			CreateCaret(hw, NULL, 1, (int)data->style.font.f_h);
-			ShowCaret(hw);
-
 			redraw_caret(data);
 			break;
 		case WM_KILLFOCUS:
@@ -929,11 +945,11 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 
 			HDC hdc = BeginPaint(hw, &ps);
 
-			redraw_lines_buf(data, hdc);
+			wa_wnd_paint_buf(hw, hdc, data, redraw_lines);
 
 			EndPaint(hw, &ps);
 
-			return TRUE;
+			return 0;
 		}
 		case WM_ERASEBKGND:
 			return TRUE;

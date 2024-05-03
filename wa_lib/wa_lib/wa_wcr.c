@@ -1,10 +1,12 @@
 #include "pch.h"
 #include "wa_ctx.h"
 #include "wa_host.h"
+#include "wa_splt.h"
 #include "wa_wcr.h"
 
 static wa_wcr_wnd_cls_desc_proc_t * const wnd_cls_desc_procs[] = {
-	wa_host_get_wnd_cls_desc
+	wa_host_get_wnd_cls_desc,
+	wa_splt_get_wnd_cls_desc
 };
 
 static bool register_wnd_cls_nl(wa_wcr_t * wcr, WNDCLASSEXW * wnd_cls_desc) {

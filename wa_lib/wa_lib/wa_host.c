@@ -69,7 +69,7 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 
 			EndPaint(hw, &ps);
 
-			return TRUE;
+			return 0;
 		}
 		case WM_ERASEBKGND:
 			return TRUE;

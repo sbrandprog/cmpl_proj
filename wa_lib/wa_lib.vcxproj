@@ -98,6 +98,7 @@
     </ClCompile>
     <ClCompile Include="wa_lib\wa_ctl.c" />
     <ClCompile Include="wa_lib\wa_ctx.c" />
+    <ClCompile Include="wa_lib\wa_splt.c" />
     <ClCompile Include="wa_lib\wa_host.c" />
     <ClCompile Include="wa_lib\wa_style.c" />
     <ClCompile Include="wa_lib\wa_wcr.c" />
@@ -106,6 +107,7 @@
   <ItemGroup>
     <ClInclude Include="wa_lib\pch.h" />
     <ClInclude Include="wa_lib\wa.h" />
+    <ClInclude Include="wa_lib\wa_splt.h" />
     <ClInclude Include="wa_lib\wa_ctl.h" />
     <ClInclude Include="wa_lib\wa_ctx.h" />
     <ClInclude Include="wa_lib\wa_host.h" />

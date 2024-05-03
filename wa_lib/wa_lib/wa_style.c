@@ -103,6 +103,11 @@ static bool init_dflt_fonts(wa_style_t * style) {
 
 	return true;
 }
+static bool init_dflt_size_props(wa_style_t * style) {
+	style->sep_size = 5;
+
+	return true;
+}
 bool wa_style_init_dflt(wa_style_t * style) {
 	memset(style, 0, sizeof(*style));
 
@@ -111,6 +116,10 @@ bool wa_style_init_dflt(wa_style_t * style) {
 	}
 
 	if (!init_dflt_fonts(style)) {
+		return false;
+	}
+
+	if (!init_dflt_size_props(style)) {
 		return false;
 	}
 
