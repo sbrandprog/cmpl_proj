@@ -1146,3 +1146,11 @@ gia_edit_style_desc_t gia_edit_get_style_desc_dflt(wa_ctx_t * ctx) {
 
 	return desc;
 }
+
+void gia_edit_attach_ec(HWND hw, pla_ec_t * ec) {
+	ul_assert(wa_wnd_check_cls(hw, GIA_EDIT_WND_CLS_NAME));
+
+	wnd_data_t * data = wa_wnd_get_fp(hw);
+
+	pla_ec_buf_attach_rcvr(&data->text.ec_buf, ec);
+}

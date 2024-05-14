@@ -1,4 +1,5 @@
 #pragma once
+#include "pla_ec_buf.h"
 #include "pla_lex.h"
 #include "gia.h"
 
@@ -23,6 +24,7 @@ struct gia_text {
 	size_t lines_size;
 
 	ul_hst_t lex_hst;
+	pla_ec_buf_t ec_buf;
 	pla_lex_t lex;
 };
 

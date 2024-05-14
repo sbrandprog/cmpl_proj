@@ -25,14 +25,13 @@ static void cleanup_line(gia_text_line_t * line) {
 	memset(line, 0, sizeof(*line));
 }
 
-static void insert_line_tok(gia_text_line_t * line, pla_tok_t * tok) {
+static void push_line_tok(gia_text_line_t * line, pla_tok_t * tok) {
 	if (line->toks_size + 1 > line->toks_cap) {
 		ul_arr_grow(&line->toks_cap, &line->toks, sizeof(*line->toks), 1);
 	}
 
 	line->toks[line->toks_size++] = *tok;
 }
-
 
 void gia_text_init(gia_text_t * text) {
 	*text = (gia_text_t){ 0 };
@@ -41,18 +40,22 @@ void gia_text_init(gia_text_t * text) {
 
 	init_line(&text->lines[text->lines_size++]);
 
-	InitializeCriticalSection(&text->lock);
-
 	ul_hst_init(&text->lex_hst);
 
-	pla_lex_init(&text->lex, &text->lex_hst);
+	pla_ec_buf_init(&text->ec_buf);
+
+	pla_lex_init(&text->lex, &text->lex_hst, &text->ec_buf.ec);
+
+	InitializeCriticalSection(&text->lock);
 }
 void gia_text_cleanup(gia_text_t * text) {
+	DeleteCriticalSection(&text->lock);
+	
 	pla_lex_cleanup(&text->lex);
 
+	pla_ec_buf_cleanup(&text->ec_buf);
+
 	ul_hst_cleanup(&text->lex_hst);
-	
-	DeleteCriticalSection(&text->lock);
 
 	for (gia_text_line_t * line = text->lines, *line_end = line + text->lines_size; line != line_end; ++line) {
 		cleanup_line(line);
@@ -77,6 +80,8 @@ static bool get_line_ch(void * user_data, wchar_t * out) {
 static void update_line_toks_nl(gia_text_t * text, size_t line_pos) {
 	ul_assert(line_pos < text->lines_size);
 
+	pla_ec_clear_line(&text->ec_buf.ec, PLA_LEX_EC_GROUP, line_pos);
+
 	gia_text_line_t * line = &text->lines[line_pos];
 
 	line_lex_ctx_t line_lex_ctx = { .ch = line->str, .ch_end = line->str + line->size };
@@ -85,11 +90,11 @@ static void update_line_toks_nl(gia_text_t * text, size_t line_pos) {
 
 	line->toks_size = 0;
 
-	while (line_lex_ctx.ch != line_lex_ctx.ch_end) {
+	while (text->lex.ch_succ) {
 		pla_lex_get_tok(&text->lex);
 
 		if (text->lex.tok.type != PlaTokNone) {
-			insert_line_tok(line, &text->lex.tok);
+			push_line_tok(line, &text->lex.tok);
 		}
 	}
 }
@@ -133,22 +138,18 @@ void gia_text_insert_line_nl(gia_text_t * text, size_t ins_pos) {
 		ul_arr_grow(&text->lines_cap, &text->lines, sizeof(*text->lines), 1);
 	}
 
-	gia_text_line_t * ins_it = text->lines + ins_pos;
-
-	memmove_s(ins_it + 1, (text->lines_cap - ins_pos) * sizeof(*ins_it), ins_it, (text->lines_size - ins_pos) * sizeof(*ins_it));
+	memmove_s(text->lines + ins_pos + 1, (text->lines_cap - ins_pos) * sizeof(*text->lines), text->lines + ins_pos, (text->lines_size - ins_pos) * sizeof(*text->lines));
 
 	++text->lines_size;
 
-	init_line(ins_it);
+	init_line(&text->lines[ins_pos]);
 }
 void gia_text_remove_line_nl(gia_text_t * text, size_t rem_pos) {
 	ul_assert(rem_pos < text->lines_size);
 
 	cleanup_line(&text->lines[rem_pos]);
 
-	gia_text_line_t * rem_it = text->lines + rem_pos;
-
-	memmove_s(rem_it, (text->lines_cap - rem_pos) * sizeof(*rem_it), rem_it + 1, (text->lines_size - rem_pos) * sizeof(*rem_it));
+	memmove_s(text->lines + rem_pos, (text->lines_cap - rem_pos) * sizeof(*text->lines), text->lines + rem_pos + 1, (text->lines_size - rem_pos - 1) * sizeof(*text->lines));
 
 	--text->lines_size;
 }

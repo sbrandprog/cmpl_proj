@@ -150,6 +150,15 @@
     <ClCompile Include="comp_proj\gia_bs_p.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="comp_proj\pla_ec.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="comp_proj\gia_ecv.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="comp_proj\pla_ec_buf.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="comp_proj\pch.h">
@@ -297,6 +306,15 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\gia_bs_p.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="comp_proj\pla_ec.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="comp_proj\gia_ecv.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="comp_proj\pla_ec_buf.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

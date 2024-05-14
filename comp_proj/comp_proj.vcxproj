@@ -105,6 +105,7 @@
     <ClCompile Include="comp_proj\asm_size.c" />
     <ClCompile Include="comp_proj\gia_bs.c" />
     <ClCompile Include="comp_proj\gia_bs_p.c" />
+    <ClCompile Include="comp_proj\gia_ecv.c" />
     <ClCompile Include="comp_proj\gia_pkg.c" />
     <ClCompile Include="comp_proj\gia_tus_p.c" />
     <ClCompile Include="comp_proj\gia_repo.c" />
@@ -133,6 +134,8 @@
     <ClCompile Include="comp_proj\pla_ast_t_s.c" />
     <ClCompile Include="comp_proj\pla_dclr.c" />
     <ClCompile Include="comp_proj\gia_edit.c" />
+    <ClCompile Include="comp_proj\pla_ec.c" />
+    <ClCompile Include="comp_proj\pla_ec_buf.c" />
     <ClCompile Include="comp_proj\pla_expr.c" />
     <ClCompile Include="comp_proj\pla_cn.c" />
     <ClCompile Include="comp_proj\pla_keyw.c" />
@@ -157,6 +160,7 @@
     <ClInclude Include="comp_proj\gia.h" />
     <ClInclude Include="comp_proj\gia_bs.h" />
     <ClInclude Include="comp_proj\gia_bs_p.h" />
+    <ClInclude Include="comp_proj\gia_ecv.h" />
     <ClInclude Include="comp_proj\gia_pkg.h" />
     <ClInclude Include="comp_proj\gia_tus_p.h" />
     <ClInclude Include="comp_proj\gia_repo.h" />
@@ -183,6 +187,8 @@
     <ClInclude Include="comp_proj\pla_ast_t.h" />
     <ClInclude Include="comp_proj\pla_ast_t_s.h" />
     <ClInclude Include="comp_proj\pla_dclr.h" />
+    <ClInclude Include="comp_proj\pla_ec.h" />
+    <ClInclude Include="comp_proj\pla_ec_buf.h" />
     <ClInclude Include="comp_proj\pla_expr.h" />
     <ClInclude Include="comp_proj\pla_cn.h" />
     <ClInclude Include="comp_proj\pla_keyw.h" />

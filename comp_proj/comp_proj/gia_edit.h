@@ -1,4 +1,5 @@
 #pragma once
+#include "pla.h"
 #include "gia.h"
 
 #define GIA_EDIT_WND_CLS_NAME L"gia_edit"
@@ -24,3 +25,5 @@ struct gia_edit_style_desc {
 WNDCLASSEXW gia_edit_get_wnd_cls_desc();
 
 gia_edit_style_desc_t gia_edit_get_style_desc_dflt(wa_ctx_t * ctx);
+
+void gia_edit_attach_ec(HWND hw, pla_ec_t * ec);

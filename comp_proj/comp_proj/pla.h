@@ -2,11 +2,17 @@
 
 typedef enum pla_pds pla_pds_t;
 
+typedef struct pla_ec_pos pla_ec_pos_t;
+typedef struct pla_ec_err pla_ec_err_t;
+typedef struct pla_ec pla_ec_t;
+
+typedef struct pla_ec_buf_rcvr pla_ec_buf_rcvr_t;
+typedef struct pla_ec_buf pla_ec_buf_t;
+
 typedef enum pla_punc pla_punc_t;
 
 typedef enum pla_keyw pla_keyw_t;
 
-typedef struct pla_tok_pos pla_tok_pos_t;
 typedef enum pla_tok_type pla_tok_type_t;
 typedef struct pla_tok pla_tok_t;
 
