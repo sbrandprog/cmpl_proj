@@ -9,6 +9,8 @@ typedef struct pla_ec pla_ec_t;
 typedef struct pla_ec_buf_rcvr pla_ec_buf_rcvr_t;
 typedef struct pla_ec_buf pla_ec_buf_t;
 
+typedef struct pla_ec_fmtr pla_ec_fmtr_t;
+
 typedef enum pla_punc pla_punc_t;
 
 typedef enum pla_keyw pla_keyw_t;

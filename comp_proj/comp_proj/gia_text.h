@@ -1,5 +1,6 @@
 #pragma once
 #include "pla_ec_buf.h"
+#include "pla_ec_fmtr.h"
 #include "pla_lex.h"
 #include "gia.h"
 
@@ -25,6 +26,7 @@ struct gia_text {
 
 	ul_hst_t lex_hst;
 	pla_ec_buf_t ec_buf;
+	pla_ec_fmtr_t ec_fmtr;
 	pla_lex_t lex;
 };
 

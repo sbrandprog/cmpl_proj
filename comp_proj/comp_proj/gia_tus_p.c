@@ -42,7 +42,7 @@ static bool parse_core(ctx_t * ctx) {
 
 	pla_lex_set_src(ctx->lex, get_tus_src_ch, ctx, 0, 0);
 
-	if (!pla_tu_p_parse(ctx->out, get_tus_tok, ctx)) {
+	if (!pla_tu_p_parse(ctx->lex->ec_fmtr, ctx->out, get_tus_tok, ctx)) {
 		return false;
 	}
 

@@ -7,11 +7,9 @@ typedef bool pla_lex_get_src_ch_proc_t(void * src_data, wchar_t * out);
 
 struct pla_lex {
 	ul_hst_t * hst;
-	pla_ec_t * ec;
+	pla_ec_fmtr_t * ec_fmtr;
 
 	ul_hs_t * emp_hs;
-
-	ul_hsb_t hsb;
 
 	pla_lex_get_src_ch_proc_t * get_src_ch_proc;
 	void * src_data;
@@ -33,7 +31,7 @@ struct pla_lex {
 	bool is_rptd;
 };
 
-void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, pla_ec_t * ec);
+void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, pla_ec_fmtr_t * ec_fmtr);
 void pla_lex_cleanup(pla_lex_t * lex);
 
 void pla_lex_update_src(pla_lex_t * lex, pla_lex_get_src_ch_proc_t * get_src_ch_proc, void * src_data);

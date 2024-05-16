@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "pla_ec_fmtr.h"
 #include "pla_punc.h"
 #include "pla_keyw.h"
 #include "pla_lex.h"
@@ -10,18 +11,14 @@ static bool get_src_ch_proc_dflt(void * src_data, wchar_t * out) {
 	return false;
 }
 
-void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, pla_ec_t * ec) {
-	*lex = (pla_lex_t){ .hst = hst, .ec = ec, .get_src_ch_proc = get_src_ch_proc_dflt };
+void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, pla_ec_fmtr_t * ec_fmtr) {
+	*lex = (pla_lex_t){ .hst = hst, .ec_fmtr = ec_fmtr, .get_src_ch_proc = get_src_ch_proc_dflt };
 
 	static const ul_ros_t emp_str_raw = UL_ROS_MAKE(L"");
 
 	lex->emp_hs = ul_hst_hashadd(hst, emp_str_raw.size, emp_str_raw.str);
-
-	ul_hsb_init(&lex->hsb);
 }
 void pla_lex_cleanup(pla_lex_t * lex) {
-	ul_hsb_cleanup(&lex->hsb);
-
 	free(lex->str);
 
 	memset(lex, 0, sizeof(*lex));
@@ -87,7 +84,7 @@ static void report_lex(pla_lex_t * lex, const wchar_t * fmt, ...) {
 
 	va_start(args, fmt);
 
-	pla_ec_post(lex->ec, PLA_LEX_EC_GROUP, pos_start, pos_end, ul_hsb_formatadd_va(&lex->hsb, lex->hst, fmt, args));
+	pla_ec_fmtr_formatpost_va(lex->ec_fmtr, PLA_LEX_EC_GROUP, pos_start, pos_end, fmt, args);
 
 	va_end(args);
 }

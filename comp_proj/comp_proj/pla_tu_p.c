@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "pla_ec_fmtr.h"
 #include "pla_punc.h"
 #include "pla_keyw.h"
 #include "pla_tok.h"
@@ -29,6 +30,7 @@ typedef struct bin_optr_info {
 } bin_optr_info_t;
 
 typedef struct pla_tu_p_ctx {
+	pla_ec_fmtr_t * ec_fmtr;
 	pla_tu_t * tu;
 	pla_tu_p_get_tok_proc_t * get_tok_proc;
 	void * src_data;
@@ -81,18 +83,14 @@ static const bin_optr_info_t bin_optr_infos[] = {
 static const size_t bin_optr_infos_size = _countof(bin_optr_infos);
 
 
-static void report(ctx_t * ctx, const wchar_t * format, ...) {
-	{
-		va_list args;
+static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
+	va_list args;
 
-		va_start(args, format);
+	va_start(args, fmt);
 
-		vfwprintf(stderr, format, args);
+	pla_ec_fmtr_formatpost_va(ctx->ec_fmtr, PLA_TU_P_EC_GROUP, ctx->tok.pos_start, ctx->tok.pos_end, fmt, args);
 
-		va_end(args);
-
-		fputwc(L'\n', stderr);
-	}
+	va_end(args);
 }
 
 
@@ -1299,8 +1297,8 @@ static bool parse_core(ctx_t * ctx) {
 
 	return true;
 }
-bool pla_tu_p_parse(pla_tu_t * tu, pla_tu_p_get_tok_proc_t * get_tok_proc, void * src_data) {
-	ctx_t ctx = { .tu = tu, .get_tok_proc = get_tok_proc, .src_data = src_data };
+bool pla_tu_p_parse(pla_ec_fmtr_t * ec_fmtr, pla_tu_t * tu, pla_tu_p_get_tok_proc_t * get_tok_proc, void * src_data) {
+	ctx_t ctx = { .ec_fmtr = ec_fmtr, .tu = tu, .get_tok_proc = get_tok_proc, .src_data = src_data };
 
 	bool res;
 

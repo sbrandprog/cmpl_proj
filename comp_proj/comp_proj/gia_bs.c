@@ -3,6 +3,7 @@
 #include "asm_pea_b.h"
 #include "ira_pec_c.h"
 #include "pla_ec_buf.h"
+#include "pla_ec_fmtr.h"
 #include "pla_lex.h"
 #include "pla_ast_t.h"
 #include "gia_repo.h"
@@ -14,6 +15,7 @@ typedef struct gia_bs_ctx {
 	const wchar_t * file_name;
 
 	pla_ec_buf_t pla_ec_buf;
+	pla_ec_fmtr_t pla_ec_fmtr;
 	pla_lex_t pla_lex;
 	pla_ast_t pla_ast;
 	ira_pec_t ira_pec;
@@ -23,8 +25,10 @@ typedef struct gia_bs_ctx {
 
 static bool build_core(ctx_t * ctx) {
 	pla_ec_buf_init(&ctx->pla_ec_buf);
+
+	pla_ec_fmtr_init(&ctx->pla_ec_fmtr, &ctx->pla_ec_buf.ec, &ctx->repo->hst);
 	
-	pla_lex_init(&ctx->pla_lex, &ctx->repo->hst, &ctx->pla_ec_buf.ec);
+	pla_lex_init(&ctx->pla_lex, &ctx->repo->hst, &ctx->pla_ec_fmtr);
 
 	if (!gia_bs_p_form_ast_nl(ctx->repo, ctx->first_tus_name, &ctx->pla_lex, &ctx->pla_ast)) {
 		return false;
@@ -68,6 +72,8 @@ bool gia_bs_build_nl(gia_repo_t * repo, ul_hs_t * first_tus_name, const wchar_t 
 		pla_ast_cleanup(&ctx.pla_ast);
 
 		pla_lex_cleanup(&ctx.pla_lex);
+
+		pla_ec_fmtr_cleanup(&ctx.pla_ec_fmtr);
 
 		pla_ec_buf_cleanup(&ctx.pla_ec_buf);
 	}

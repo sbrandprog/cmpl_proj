@@ -44,7 +44,9 @@ void gia_text_init(gia_text_t * text) {
 
 	pla_ec_buf_init(&text->ec_buf);
 
-	pla_lex_init(&text->lex, &text->lex_hst, &text->ec_buf.ec);
+	pla_ec_fmtr_init(&text->ec_fmtr, &text->ec_buf.ec, &text->lex_hst);
+
+	pla_lex_init(&text->lex, &text->lex_hst, &text->ec_fmtr);
 
 	InitializeCriticalSection(&text->lock);
 }
@@ -52,6 +54,8 @@ void gia_text_cleanup(gia_text_t * text) {
 	DeleteCriticalSection(&text->lock);
 	
 	pla_lex_cleanup(&text->lex);
+
+	pla_ec_fmtr_cleanup(&text->ec_fmtr);
 
 	pla_ec_buf_cleanup(&text->ec_buf);
 
@@ -66,8 +70,8 @@ void gia_text_cleanup(gia_text_t * text) {
 	memset(text, 0, sizeof(*text));
 }
 
-static bool get_line_ch(void * user_data, wchar_t * out) {
-	line_lex_ctx_t * line_lex_ctx = user_data;
+static bool get_line_ch(void * src_data, wchar_t * out) {
+	line_lex_ctx_t * line_lex_ctx = src_data;
 
 	if (line_lex_ctx->ch == line_lex_ctx->ch_end) {
 		return false;

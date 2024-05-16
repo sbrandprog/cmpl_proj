@@ -37,10 +37,13 @@ void pla_ec_cleanup(pla_ec_t * ec);
 
 void pla_ec_post(pla_ec_t * ec, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end, ul_hs_t * msg);
 void pla_ec_clear(pla_ec_t * ec, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end);
-inline void pla_ec_clear_all(pla_ec_t * ec) {
+inline void pla_ec_clear_group(pla_ec_t * ec, size_t group) {
 	pla_ec_pos_t pos_start = { .line_num = 0, .line_ch = 0 }, pos_end = { .line_num = SIZE_MAX, .line_ch = SIZE_MAX };
 
-	pla_ec_clear(ec, PLA_EC_GROUP_ALL, pos_start, pos_end);
+	pla_ec_clear(ec, group, pos_start, pos_end);
+}
+inline void pla_ec_clear_all(pla_ec_t * ec) {
+	pla_ec_clear_group(ec, PLA_EC_GROUP_ALL);
 }
 inline void pla_ec_clear_line(pla_ec_t * ec, size_t group, size_t line_num) {
 	pla_ec_pos_t pos_start = { .line_num = line_num, .line_ch = 0 }, pos_end = { .line_num = line_num, .line_ch = SIZE_MAX };

@@ -998,7 +998,7 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 			break;
 		case WM_TIMER:
 			if (wp == SEL_SCROLL_TIMER_ID) {
-				process_sel_timer(data);
+					process_sel_timer(data);
 			}
 			break;
 		case WM_MOUSEMOVE:
