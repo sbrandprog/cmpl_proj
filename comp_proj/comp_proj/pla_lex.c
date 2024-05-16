@@ -245,7 +245,9 @@ static void get_tok_core(pla_lex_t * lex) {
 					break;
 				}
 
-				fadd_str(lex, pla_tok_is_ch_str_ch, ch_str_ch_proc, &data);
+				if (lex->ch_succ && !pla_tok_is_dqoute_ch(lex->ch)) {
+					fadd_str(lex, pla_tok_is_ch_str_ch, ch_str_ch_proc, &data);
+				}
 
 				if (!lex->ch_succ || !pla_tok_is_dqoute_ch(lex->ch)) {
 					report_lex(lex, L"invalid character string: no enclosing double-quote");

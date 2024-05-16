@@ -26,6 +26,13 @@ static void post_err_proc(void * user_data, size_t group, pla_ec_pos_t pos_start
 
 	InvalidateRect(data->hw, NULL, FALSE);
 }
+static void shift_lines_proc(void * user_data, size_t group, size_t start_line, size_t shift_size, bool shift_rev) {
+	wnd_data_t * data = user_data;
+
+	pla_ec_shift(&data->ec_buf.ec, group, start_line, shift_size, shift_rev);
+
+	InvalidateRect(data->hw, NULL, FALSE);
+}
 static void clear_errs_proc(void * user_data, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end) {
 	wnd_data_t * data = user_data;
 
@@ -136,7 +143,7 @@ static LRESULT wnd_proc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
 
 				pla_ec_buf_init(&data->ec_buf);
 
-				pla_ec_init(&data->ec, data, post_err_proc, clear_errs_proc);
+				pla_ec_init(&data->ec, data, post_err_proc, shift_lines_proc, clear_errs_proc);
 			}
 			break;
 		case WM_NCDESTROY:
