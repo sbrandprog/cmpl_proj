@@ -50,7 +50,7 @@ static bool next_ch(pla_lex_t * lex) {
 	return true;
 }
 
-void pla_lex_update_src(pla_lex_t * lex, pla_lex_get_src_ch_proc_t * get_src_ch_proc, void * src_data) {
+void pla_lex_update_src(pla_lex_t * lex, void * src_data, pla_lex_get_src_ch_proc_t * get_src_ch_proc) {
 	lex->get_src_ch_proc = get_src_ch_proc;
 	lex->src_data = src_data;
 
@@ -61,12 +61,15 @@ void pla_lex_update_src(pla_lex_t * lex, pla_lex_get_src_ch_proc_t * get_src_ch_
 		return;
 	}
 }
-void pla_lex_set_src(pla_lex_t * lex, pla_lex_get_src_ch_proc_t * get_src_ch_proc, void * src_data, size_t line_num, size_t line_ch) {
+void pla_lex_set_src(pla_lex_t * lex, void * src_data, pla_lex_get_src_ch_proc_t * get_src_ch_proc, size_t line_num, size_t line_ch) {
 	lex->line_switch = false;
 	lex->line_num = line_num;
 	lex->line_ch = line_ch;
 
-	pla_lex_update_src(lex, get_src_ch_proc, src_data);
+	pla_lex_update_src(lex, src_data, get_src_ch_proc);
+}
+void pla_lex_reset_src(pla_lex_t * lex) {
+	pla_lex_set_src(lex, NULL, get_src_ch_proc_dflt, 0, 0);
 }
 
 static pla_ec_pos_t get_ec_pos(pla_lex_t * lex) {

@@ -2,6 +2,7 @@
 #include "pla_ec_buf.h"
 #include "pla_ec_fmtr.h"
 #include "pla_lex.h"
+#include "pla_prsr.h"
 #include "gia.h"
 
 struct gia_text_ch_pos {
@@ -28,6 +29,9 @@ struct gia_text {
 	pla_ec_buf_t ec_buf;
 	pla_ec_fmtr_t ec_fmtr;
 	pla_lex_t lex;
+	pla_prsr_t prsr;
+
+	pla_tu_t * tu;
 };
 
 void gia_text_init(gia_text_t * text);

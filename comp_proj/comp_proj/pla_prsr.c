@@ -8,7 +8,8 @@
 #include "pla_expr.h"
 #include "pla_stmt.h"
 #include "pla_dclr.h"
-#include "pla_tu_p.h"
+#include "pla_tu.h"
+#include "pla_prsr.h"
 #include "ira_int.h"
 
 typedef enum pla_tok_type tok_type_t;
@@ -28,15 +29,6 @@ typedef struct bin_optr_info {
 	pla_expr_type_t expr_type;
 	bin_optr_preced_t preced;
 } bin_optr_info_t;
-
-typedef struct pla_tu_p_ctx {
-	pla_ec_fmtr_t * ec_fmtr;
-	pla_tu_t * tu;
-	pla_tu_p_get_tok_proc_t * get_tok_proc;
-	void * src_data;
-
-	tok_t tok;
-} ctx_t;
 
 
 static const post_optr_info_t post_optr_infos[] = {
@@ -82,22 +74,33 @@ static const bin_optr_info_t bin_optr_infos[] = {
 };
 static const size_t bin_optr_infos_size = _countof(bin_optr_infos);
 
+static bool get_src_tok_proc_dflt(void * src_data, pla_tok_t * out) {
+	return false;
+}
 
-static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
+void pla_prsr_init(pla_prsr_t * prsr, pla_ec_fmtr_t * ec_fmtr) {
+	*prsr = (pla_prsr_t){ .ec_fmtr = ec_fmtr, .get_tok_proc = get_src_tok_proc_dflt };
+}
+void pla_prsr_cleanup(pla_prsr_t * prsr) {
+	memset(prsr, 0, sizeof(*prsr));
+}
+
+
+static void report(pla_prsr_t * prsr, const wchar_t * fmt, ...) {
 	va_list args;
 
 	va_start(args, fmt);
 
-	pla_ec_fmtr_formatpost_va(ctx->ec_fmtr, PLA_TU_P_EC_GROUP, ctx->tok.pos_start, ctx->tok.pos_end, fmt, args);
+	pla_ec_fmtr_formatpost_va(prsr->ec_fmtr, PLA_PRSR_EC_GROUP, prsr->tok.pos_start, prsr->tok.pos_end, fmt, args);
 
 	va_end(args);
 }
 
 
-static bool next_tok(ctx_t * ctx) {
-	ctx->tok.type = PlaTokNone;
+static bool next_tok(pla_prsr_t * prsr) {
+	prsr->tok.type = PlaTokNone;
 
-	if (!ctx->get_tok_proc(ctx->src_data, &ctx->tok)) {
+	if (!prsr->get_tok_proc(prsr->src_data, &prsr->tok)) {
 		return false;
 	}
 
@@ -105,84 +108,84 @@ static bool next_tok(ctx_t * ctx) {
 }
 
 
-static pla_punc_t get_punc(ctx_t * ctx) {
-	if (ctx->tok.type == PlaTokPunc) {
-		return ctx->tok.punc;
+static pla_punc_t get_punc(pla_prsr_t * prsr) {
+	if (prsr->tok.type == PlaTokPunc) {
+		return prsr->tok.punc;
 	}
 
 	return PlaPuncNone;
 }
-static bool consume_punc_exact(ctx_t * ctx, pla_punc_t punc) {
-	if (get_punc(ctx) == punc) {
-		next_tok(ctx);
+static bool consume_punc_exact(pla_prsr_t * prsr, pla_punc_t punc) {
+	if (get_punc(prsr) == punc) {
+		next_tok(prsr);
 		return true;
 	}
 
 	return false;
 }
-static bool consume_punc_exact_crit(ctx_t * ctx, pla_punc_t punc) {
+static bool consume_punc_exact_crit(pla_prsr_t * prsr, pla_punc_t punc) {
 	ul_assert(punc < PlaPunc_Count);
 
-	if (consume_punc_exact(ctx, punc)) {
+	if (consume_punc_exact(prsr, punc)) {
 		return true;
 	}
 
-	report(ctx, L"failed to consume \'%s\'", pla_punc_strs[punc].str);
+	report(prsr, L"failed to consume \'%s\'", pla_punc_strs[punc].str);
 	return false;
 }
-static pla_keyw_t get_keyw(ctx_t * ctx) {
-	if (ctx->tok.type == PlaTokKeyw) {
-		return ctx->tok.keyw;
+static pla_keyw_t get_keyw(pla_prsr_t * prsr) {
+	if (prsr->tok.type == PlaTokKeyw) {
+		return prsr->tok.keyw;
 	}
 
 	return PlaKeywNone;
 }
-static bool consume_keyw_exact(ctx_t * ctx, pla_keyw_t keyw) {
-	if (get_keyw(ctx) == keyw) {
-		next_tok(ctx);
+static bool consume_keyw_exact(pla_prsr_t * prsr, pla_keyw_t keyw) {
+	if (get_keyw(prsr) == keyw) {
+		next_tok(prsr);
 		return true;
 	}
 
 	return false;
 }
-static bool consume_keyw_exact_crit(ctx_t * ctx, pla_keyw_t keyw) {
+static bool consume_keyw_exact_crit(pla_prsr_t * prsr, pla_keyw_t keyw) {
 	ul_assert(keyw < PlaKeyw_Count);
 
-	if (consume_keyw_exact(ctx, keyw)) {
+	if (consume_keyw_exact(prsr, keyw)) {
 		return true;
 	}
 
-	report(ctx, L"failed to consume \'%s\'", pla_keyw_strs[keyw].str);
+	report(prsr, L"failed to consume \'%s\'", pla_keyw_strs[keyw].str);
 	return false;
 }
-static bool consume_ident(ctx_t * ctx, ul_hs_t ** out) {
-	if (ctx->tok.type == PlaTokIdent) {
-		*out = ctx->tok.ident;
-		next_tok(ctx);
+static bool consume_ident(pla_prsr_t * prsr, ul_hs_t ** out) {
+	if (prsr->tok.type == PlaTokIdent) {
+		*out = prsr->tok.ident;
+		next_tok(prsr);
 		return true;
 	}
 
 	return false;
 }
-static bool consume_ident_crit(ctx_t * ctx, ul_hs_t ** out) {
-	if (consume_ident(ctx, out)) {
+static bool consume_ident_crit(pla_prsr_t * prsr, ul_hs_t ** out) {
+	if (consume_ident(prsr, out)) {
 		return true;
 	}
 
-	report(ctx, L"failed to consume an identifier");
+	report(prsr, L"failed to consume an identifier");
 	return false;
 }
-static bool consume_ch_str_crit(ctx_t * ctx, ul_hs_t ** out_data, ul_hs_t ** out_tag) {
-	if (ctx->tok.type == PlaTokChStr) {
-		*out_data = ctx->tok.ch_str.data;
+static bool consume_ch_str_crit(pla_prsr_t * prsr, ul_hs_t ** out_data, ul_hs_t ** out_tag) {
+	if (prsr->tok.type == PlaTokChStr) {
+		*out_data = prsr->tok.ch_str.data;
 		if (out_tag != NULL) {
-			*out_tag = ctx->tok.ch_str.tag;
+			*out_tag = prsr->tok.ch_str.tag;
 		}
-		next_tok(ctx);
+		next_tok(prsr);
 		return true;
 	}
 
-	report(ctx, L"failed to consume a character string");
+	report(prsr, L"failed to consume a character string");
 	return false;
 }
 
@@ -238,11 +241,22 @@ static ira_int_type_t get_int_type(pla_keyw_t keyw) {
 }
 
 
-static void parse_quals(ctx_t * ctx, ira_dt_qual_t * out) {
+void pla_prsr_set_src(pla_prsr_t * prsr, void * src_data, pla_prsr_get_tok_proc_t * get_tok_proc) {
+	prsr->src_data = src_data;
+	prsr->get_tok_proc = get_tok_proc;
+
+	next_tok(prsr);
+}
+void pla_prsr_reset_src(pla_prsr_t * prsr) {
+	pla_prsr_set_src(prsr, NULL, get_src_tok_proc_dflt);
+}
+
+
+static void parse_quals(pla_prsr_t * prsr, ira_dt_qual_t * out) {
 	*out = ira_dt_qual_none;
 
 	while (true) {
-		if (consume_keyw_exact(ctx, PlaKeywConst)) {
+		if (consume_keyw_exact(prsr, PlaKeywConst)) {
 			out->const_q = true;
 			continue;
 		}
@@ -252,48 +266,46 @@ static void parse_quals(ctx_t * ctx, ira_dt_qual_t * out) {
 }
 
 
-static bool parse_cn(ctx_t * ctx, pla_punc_t delim, pla_cn_t ** out) {
+bool pla_prsr_parse_cn(pla_prsr_t * prsr, pla_punc_t delim, pla_cn_t ** out) {
 	do {
 		*out = pla_cn_create();
 
-		if (!consume_ident_crit(ctx, &(*out)->name)) {
+		if (!consume_ident_crit(prsr, &(*out)->name)) {
 			return false;
 		}
 
 		out = &(*out)->sub_name;
-	} while (consume_punc_exact(ctx, delim));
+	} while (consume_punc_exact(prsr, delim));
 
 	return true;
 }
 
 
-static bool parse_expr(ctx_t * ctx, pla_expr_t ** out);
-
-static bool parse_expr_stct_body(ctx_t * ctx, pla_expr_t ** elem_out) {
-	if (!consume_punc_exact_crit(ctx, PlaPuncLeBrace)) {
+static bool parse_expr_stct_body(pla_prsr_t * prsr, pla_expr_t ** elem_out) {
+	if (!consume_punc_exact_crit(prsr, PlaPuncLeBrace)) {
 		return false;
 	}
 
 	while (true) {
 		*elem_out = pla_expr_create(PlaExprDtStctElem);
 
-		if (!consume_ident_crit(ctx, &(*elem_out)->opd2.hs)) {
+		if (!consume_ident_crit(prsr, &(*elem_out)->opd2.hs)) {
 			return false;
 		}
 
-		if (!consume_punc_exact_crit(ctx, PlaPuncColon)) {
+		if (!consume_punc_exact_crit(prsr, PlaPuncColon)) {
 			return false;
 		}
 
-		if (!parse_expr(ctx, &(*elem_out)->opd0.expr)) {
+		if (!pla_prsr_parse_expr(prsr, &(*elem_out)->opd0.expr)) {
 			return false;
 		}
 
-		if (consume_punc_exact(ctx, PlaPuncRiBrace)) {
+		if (consume_punc_exact(prsr, PlaPuncRiBrace)) {
 			break;
 		}
 		else {
-			if (!consume_punc_exact_crit(ctx, PlaPuncComma)) {
+			if (!consume_punc_exact_crit(prsr, PlaPuncComma)) {
 				return false;
 			}
 		}
@@ -304,32 +316,32 @@ static bool parse_expr_stct_body(ctx_t * ctx, pla_expr_t ** elem_out) {
 	return true;
 }
 
-static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
+static bool parse_expr_unit(pla_prsr_t * prsr, pla_expr_t ** out) {
 	while (true) {
 		bool success = true;
 
-		switch (ctx->tok.type) {
+		switch (prsr->tok.type) {
 			case PlaTokPunc:
 			{
-				const unr_optr_info_t * info = get_unr_optr_info(ctx->tok.punc);
+				const unr_optr_info_t * info = get_unr_optr_info(prsr->tok.punc);
 
 				if (info == NULL) {
 					success = false;
 					break;
 				}
 
-				next_tok(ctx);
+				next_tok(prsr);
 
 				*out = pla_expr_create(info->expr_type);
 
 				switch (info->expr_type) {
 					case PlaExprDtArr:
-						if (!consume_punc_exact(ctx, PlaPuncRiBrack)) {
-							if (!parse_expr(ctx, &(*out)->opd1.expr)) {
+						if (!consume_punc_exact(prsr, PlaPuncRiBrack)) {
+							if (!pla_prsr_parse_expr(prsr, &(*out)->opd1.expr)) {
 								return false;
 							}
 
-							if (!consume_punc_exact_crit(ctx, PlaPuncRiBrack)) {
+							if (!consume_punc_exact_crit(prsr, PlaPuncRiBrack)) {
 								return false;
 							}
 						}
@@ -339,15 +351,15 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 
 						break;
 					case PlaExprCast:
-						if (!consume_punc_exact_crit(ctx, PlaPuncLeBrack)) {
+						if (!consume_punc_exact_crit(prsr, PlaPuncLeBrack)) {
 							return false;
 						}
 
-						if (!parse_expr(ctx, &(*out)->opd1.expr)) {
+						if (!pla_prsr_parse_expr(prsr, &(*out)->opd1.expr)) {
 							return false;
 						}
 
-						if (!consume_punc_exact_crit(ctx, PlaPuncRiBrack)) {
+						if (!consume_punc_exact_crit(prsr, PlaPuncRiBrack)) {
 							return false;
 						}
 						break;
@@ -358,9 +370,9 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 				break;
 			}
 			case PlaTokKeyw:
-				switch (ctx->tok.keyw) {
+				switch (prsr->tok.keyw) {
 					case PlaKeywConst:
-						next_tok(ctx);
+						next_tok(prsr);
 
 						*out = pla_expr_create(PlaExprDtConst);
 
@@ -385,52 +397,52 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 
 	bool success = true;
 
-	switch (ctx->tok.type) {
+	switch (prsr->tok.type) {
 		case PlaTokPunc:
-			switch (ctx->tok.punc) {
+			switch (prsr->tok.punc) {
 				case PlaPuncLeParen:
-					next_tok(ctx);
+					next_tok(prsr);
 
-					if (!parse_expr(ctx, out)) {
+					if (!pla_prsr_parse_expr(prsr, out)) {
 						return false;
 					}
 
-					if (!consume_punc_exact_crit(ctx, PlaPuncRiParen)) {
+					if (!consume_punc_exact_crit(prsr, PlaPuncRiParen)) {
 						return false;
 					}
 					break;
 				case PlaPuncDolrSign:
-					next_tok(ctx);
+					next_tok(prsr);
 
-					if (!consume_punc_exact_crit(ctx, PlaPuncLeParen)) {
+					if (!consume_punc_exact_crit(prsr, PlaPuncLeParen)) {
 						return false;
 					}
 
 					*out = pla_expr_create(PlaExprDtFunc);
 
-					if (!consume_punc_exact(ctx, PlaPuncRiParen)) {
+					if (!consume_punc_exact(prsr, PlaPuncRiParen)) {
 						pla_expr_t ** arg = &(*out)->opd1.expr;
 
 						while (true) {
 							*arg = pla_expr_create(PlaExprDtFuncArg);
 
-							if (!consume_ident_crit(ctx, &(*arg)->opd2.hs)) {
+							if (!consume_ident_crit(prsr, &(*arg)->opd2.hs)) {
 								return false;
 							}
 
-							if (!consume_punc_exact_crit(ctx, PlaPuncColon)) {
+							if (!consume_punc_exact_crit(prsr, PlaPuncColon)) {
 								return false;
 							}
 
-							if (!parse_expr(ctx, &(*arg)->opd0.expr)) {
+							if (!pla_prsr_parse_expr(prsr, &(*arg)->opd0.expr)) {
 								return false;
 							}
 
-							if (consume_punc_exact(ctx, PlaPuncRiParen)) {
+							if (consume_punc_exact(prsr, PlaPuncRiParen)) {
 								break;
 							}
 							else {
-								if (!consume_punc_exact_crit(ctx, PlaPuncComma)) {
+								if (!consume_punc_exact_crit(prsr, PlaPuncComma)) {
 									return false;
 								}
 							}
@@ -439,8 +451,8 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 						}
 					}
 
-					if (consume_punc_exact(ctx, PlaPuncRiArrow)) {
-						if (!parse_expr(ctx, &(*out)->opd0.expr)) {
+					if (consume_punc_exact(prsr, PlaPuncRiArrow)) {
+						if (!pla_prsr_parse_expr(prsr, &(*out)->opd0.expr)) {
 							return false;
 						}
 					}
@@ -454,14 +466,14 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 			}
 			break;
 		case PlaTokKeyw:
-			switch (ctx->tok.keyw) {
+			switch (prsr->tok.keyw) {
 				case PlaKeywVoid:
 					*out = pla_expr_create(PlaExprDtVoid);
-					next_tok(ctx);
+					next_tok(prsr);
 					break;
 				case PlaKeywBool:
 					*out = pla_expr_create(PlaExprDtBool);
-					next_tok(ctx);
+					next_tok(prsr);
 					break;
 				case PlaKeywU8:
 				case PlaKeywU16:
@@ -472,47 +484,47 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 				case PlaKeywS32:
 				case PlaKeywS64:
 					*out = pla_expr_create(PlaExprDtInt);
-					(*out)->opd0.int_type = get_int_type(ctx->tok.keyw);
-					next_tok(ctx);
+					(*out)->opd0.int_type = get_int_type(prsr->tok.keyw);
+					next_tok(prsr);
 					break;
 				case PlaKeywStruct:
-					next_tok(ctx);
+					next_tok(prsr);
 
 					*out = pla_expr_create(PlaExprDtStct);
 
-					if (!parse_expr_stct_body(ctx, &(*out)->opd1.expr)) {
+					if (!parse_expr_stct_body(prsr, &(*out)->opd1.expr)) {
 						return false;
 					}
 					break;
 
 				case PlaKeywVoidval:
 					*out = pla_expr_create(PlaExprValVoid);
-					next_tok(ctx);
+					next_tok(prsr);
 					break;
 				case PlaKeywTrue:
 					*out = pla_expr_create(PlaExprValBool);
 					(*out)->opd0.boolean = true;
-					next_tok(ctx);
+					next_tok(prsr);
 					break;
 				case PlaKeywFalse:
 					*out = pla_expr_create(PlaExprValBool);
 					(*out)->opd0.boolean = false;
-					next_tok(ctx);
+					next_tok(prsr);
 					break;
 				case PlaKeywNullof:
 					*out = pla_expr_create(PlaExprNullofDt);
 
-					next_tok(ctx);
+					next_tok(prsr);
 
-					if (!consume_punc_exact_crit(ctx, PlaPuncLeBrack)) {
+					if (!consume_punc_exact_crit(prsr, PlaPuncLeBrack)) {
 						return false;
 					}
 
-					if (!parse_expr(ctx, &(*out)->opd0.expr)) {
+					if (!pla_prsr_parse_expr(prsr, &(*out)->opd0.expr)) {
 						return false;
 					}
 
-					if (!consume_punc_exact_crit(ctx, PlaPuncRiBrack)) {
+					if (!consume_punc_exact_crit(prsr, PlaPuncRiBrack)) {
 						return false;
 					}
 					break;
@@ -525,7 +537,7 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 		{
 			*out = pla_expr_create(PlaExprIdent);
 
-			if (!parse_cn(ctx, PlaPuncDcolon, &(*out)->opd0.cn)) {
+			if (!pla_prsr_parse_cn(prsr, PlaPuncDcolon, &(*out)->opd0.cn)) {
 				return false;
 			}
 
@@ -533,34 +545,34 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 		}
 		case PlaTokChStr:
 			*out = pla_expr_create(PlaExprChStr);
-			(*out)->opd0.hs = ctx->tok.ch_str.data;
-			(*out)->opd1.hs = ctx->tok.ch_str.tag;
-			next_tok(ctx);
+			(*out)->opd0.hs = prsr->tok.ch_str.data;
+			(*out)->opd1.hs = prsr->tok.ch_str.tag;
+			next_tok(prsr);
 			break;
 		case PlaTokNumStr:
 			*out = pla_expr_create(PlaExprNumStr);
-			(*out)->opd0.hs = ctx->tok.num_str.data;
-			(*out)->opd1.hs = ctx->tok.num_str.tag;
-			next_tok(ctx);
+			(*out)->opd0.hs = prsr->tok.num_str.data;
+			(*out)->opd1.hs = prsr->tok.num_str.tag;
+			next_tok(prsr);
 			break;
 		default:
 			success = false;
 	}
 
 	if (!success) {
-		report(ctx, L"failed to parse an unit-expression");
+		report(prsr, L"failed to parse an unit-expression");
 		return false;
 	}
 
 
 	while (true) {
-		const post_optr_info_t * info = get_post_optr_info(get_punc(ctx));
+		const post_optr_info_t * info = get_post_optr_info(get_punc(prsr));
 
 		if (info == NULL) {
 			break;
 		}
 
-		next_tok(ctx);
+		next_tok(prsr);
 
 		pla_expr_t * expr = pla_expr_create(info->expr_type);
 
@@ -569,26 +581,26 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 
 		switch (info->expr_type) {
 			case PlaExprMmbrAcc:
-				if (!consume_ident_crit(ctx, &(*out)->opd1.hs)) {
+				if (!consume_ident_crit(prsr, &(*out)->opd1.hs)) {
 					return false;
 				}
 				break;
 			case PlaExprCall:
-				if (!consume_punc_exact(ctx, PlaPuncRiParen)) {
+				if (!consume_punc_exact(prsr, PlaPuncRiParen)) {
 					pla_expr_t ** arg = &(*out)->opd1.expr;
 
 					while (true) {
 						*arg = pla_expr_create(PlaExprCallArg);
 
-						if (!parse_expr(ctx, &(*arg)->opd0.expr)) {
+						if (!pla_prsr_parse_expr(prsr, &(*arg)->opd0.expr)) {
 							return false;
 						}
 
-						if (consume_punc_exact(ctx, PlaPuncRiParen)) {
+						if (consume_punc_exact(prsr, PlaPuncRiParen)) {
 							break;
 						}
 						else {
-							if (!consume_punc_exact_crit(ctx, PlaPuncComma)) {
+							if (!consume_punc_exact_crit(prsr, PlaPuncComma)) {
 								return false;
 							}
 						}
@@ -598,11 +610,11 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 				}
 				break;
 			case PlaExprSubscr:
-				if (!parse_expr(ctx, &(*out)->opd1.expr)) {
+				if (!pla_prsr_parse_expr(prsr, &(*out)->opd1.expr)) {
 					return false;
 				}
 
-				if (!consume_punc_exact_crit(ctx, PlaPuncRiBrack)) {
+				if (!consume_punc_exact_crit(prsr, PlaPuncRiBrack)) {
 					return false;
 				}
 				break;
@@ -610,7 +622,7 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 			{
 				ul_hs_t * ident;
 
-				if (consume_ident(ctx, &ident)) {
+				if (consume_ident(prsr, &ident)) {
 					expr = pla_expr_create(PlaExprMmbrAcc);
 
 					expr->opd0.expr = *out;
@@ -625,7 +637,7 @@ static bool parse_expr_unit(ctx_t * ctx, pla_expr_t ** out) {
 
 	return true;
 }
-static bool parse_expr_bin_core(ctx_t * ctx, pla_expr_t ** out, const bin_optr_info_t ** info) {
+static bool parse_expr_bin_core(pla_prsr_t * prsr, pla_expr_t ** out, const bin_optr_info_t ** info) {
 	bin_optr_preced_t preced = (*info)->preced;
 
 	do {
@@ -634,18 +646,18 @@ static bool parse_expr_bin_core(ctx_t * ctx, pla_expr_t ** out, const bin_optr_i
 		expr->opd0.expr = *out;
 		*out = expr;
 
-		if (!parse_expr_unit(ctx, &(*out)->opd1.expr)) {
+		if (!parse_expr_unit(prsr, &(*out)->opd1.expr)) {
 			return false;
 		}
 
-		*info = get_bin_optr_info(get_punc(ctx));
+		*info = get_bin_optr_info(get_punc(prsr));
 
 		if (*info != NULL) {
-			next_tok(ctx);
+			next_tok(prsr);
 		}
 
 		while (*info != NULL && preced < (*info)->preced) {
-			if (!parse_expr_bin_core(ctx, &(*out)->opd1.expr, info)) {
+			if (!parse_expr_bin_core(prsr, &(*out)->opd1.expr, info)) {
 				return false;
 			}
 		}
@@ -653,16 +665,16 @@ static bool parse_expr_bin_core(ctx_t * ctx, pla_expr_t ** out, const bin_optr_i
 
 	return true;
 }
-static bool parse_expr_bin(ctx_t * ctx, pla_expr_t ** out) {
-	const bin_optr_info_t * info = get_bin_optr_info(get_punc(ctx));
+static bool parse_expr_bin(pla_prsr_t * prsr, pla_expr_t ** out) {
+	const bin_optr_info_t * info = get_bin_optr_info(get_punc(prsr));
 
 	if (info != NULL) {
-		if (!next_tok(ctx)) {
+		if (!next_tok(prsr)) {
 			return false;
 		}
 
 		do {
-			if (!parse_expr_bin_core(ctx, out, &info)) {
+			if (!parse_expr_bin_core(prsr, out, &info)) {
 				return false;
 			}
 		} while (info != NULL);
@@ -670,28 +682,28 @@ static bool parse_expr_bin(ctx_t * ctx, pla_expr_t ** out) {
 
 	return true;
 }
-static bool parse_expr_asgn(ctx_t * ctx, pla_expr_t ** out) {
+static bool parse_expr_asgn(pla_prsr_t * prsr, pla_expr_t ** out) {
 	while (true) {
-		if (!parse_expr_unit(ctx, out)) {
+		if (!parse_expr_unit(prsr, out)) {
 			return false;
 		}
 
 		pla_expr_type_t expr_type = PlaExprNone;
 
-		switch (get_punc(ctx)) {
+		switch (get_punc(prsr)) {
 			case PlaPuncAsgn:
 				expr_type = PlaExprAsgn;
 				break;
 		}
 
 		if (expr_type == PlaExprNone) {
-			if (!parse_expr_bin(ctx, out)) {
+			if (!parse_expr_bin(prsr, out)) {
 				return false;
 			}
 			break;
 		}
 
-		next_tok(ctx);
+		next_tok(prsr);
 
 		pla_expr_t * expr = pla_expr_create(expr_type);
 
@@ -702,22 +714,20 @@ static bool parse_expr_asgn(ctx_t * ctx, pla_expr_t ** out) {
 
 	return true;
 }
-static bool parse_expr(ctx_t * ctx, pla_expr_t ** out) {
-	return parse_expr_asgn(ctx, out);
+bool pla_prsr_parse_expr(pla_prsr_t * prsr, pla_expr_t ** out) {
+	return parse_expr_asgn(prsr, out);
 }
 
 
-static bool parse_stmt(ctx_t * ctx, pla_stmt_t ** out);
-
-static bool parse_stmt_blk(ctx_t * ctx, pla_stmt_t ** out) {
-	if (!consume_punc_exact_crit(ctx, PlaPuncLeBrace)) {
+static bool parse_stmt_blk(pla_prsr_t * prsr, pla_stmt_t ** out) {
+	if (!consume_punc_exact_crit(prsr, PlaPuncLeBrace)) {
 		return false;
 	}
 
 	*out = pla_stmt_create(PlaStmtBlk);
 
-	for (pla_stmt_t ** ins = &(*out)->blk.body; !consume_punc_exact(ctx, PlaPuncRiBrace); ) {
-		if (!parse_stmt(ctx, ins)) {
+	for (pla_stmt_t ** ins = &(*out)->blk.body; !consume_punc_exact(prsr, PlaPuncRiBrace); ) {
+		if (!pla_prsr_parse_stmt(prsr, ins)) {
 			return false;
 		}
 
@@ -729,65 +739,65 @@ static bool parse_stmt_blk(ctx_t * ctx, pla_stmt_t ** out) {
 	return true;
 }
 
-static bool parse_stmt_expr(ctx_t * ctx, pla_stmt_t ** out) {
+static bool parse_stmt_expr(pla_prsr_t * prsr, pla_stmt_t ** out) {
 	*out = pla_stmt_create(PlaStmtExpr);
 
-	if (!parse_expr(ctx, &(*out)->expr.expr)) {
+	if (!pla_prsr_parse_expr(prsr, &(*out)->expr.expr)) {
 		return false;
 	}
 
-	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+	if (!consume_punc_exact_crit(prsr, PlaPuncSemicolon)) {
 		return false;
 	}
 
 	return true;
 }
-static bool parse_stmt_var(ctx_t * ctx, pla_stmt_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywVariable)) {
+static bool parse_stmt_var(pla_prsr_t * prsr, pla_stmt_t ** out) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywVariable)) {
 		return false;
 	}
 
 	while (true) {
 		ira_dt_qual_t qual;
 
-		parse_quals(ctx, &qual);
+		parse_quals(prsr, &qual);
 
 		ul_hs_t * var_name;
 
-		if (!consume_ident_crit(ctx, &var_name)) {
+		if (!consume_ident_crit(prsr, &var_name)) {
 			return false;
 		}
 
-		if (consume_punc_exact(ctx, PlaPuncColon)) {
+		if (consume_punc_exact(prsr, PlaPuncColon)) {
 			*out = pla_stmt_create(PlaStmtVarDt);
 
 			(*out)->var_dt.name = var_name;
 			(*out)->var_dt.dt_qual = qual;
 
-			if (!parse_expr(ctx, &(*out)->var_dt.dt_expr)) {
+			if (!pla_prsr_parse_expr(prsr, &(*out)->var_dt.dt_expr)) {
 				return false;
 			}
 		}
-		else if (consume_punc_exact(ctx, PlaPuncColonAsgn)) {
+		else if (consume_punc_exact(prsr, PlaPuncColonAsgn)) {
 			*out = pla_stmt_create(PlaStmtVarVal);
 
 			(*out)->var_val.name = var_name;
 			(*out)->var_val.dt_qual = qual;
 
-			if (!parse_expr(ctx, &(*out)->var_val.val_expr)) {
+			if (!pla_prsr_parse_expr(prsr, &(*out)->var_val.val_expr)) {
 				return false;
 			}
 		}
 		else {
-			report(ctx, L"failed to consume a \':\' or \':=\'");
+			report(prsr, L"failed to consume a \':\' or \':=\'");
 			return false;
 		}
 
-		if (consume_punc_exact(ctx, PlaPuncComma)) {
+		if (consume_punc_exact(prsr, PlaPuncComma)) {
 			/* nothing */
 		}
 		else {
-			if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+			if (!consume_punc_exact_crit(prsr, PlaPuncSemicolon)) {
 				return false;
 			}
 
@@ -799,137 +809,137 @@ static bool parse_stmt_var(ctx_t * ctx, pla_stmt_t ** out) {
 
 	return true;
 }
-static bool parse_stmt_cond(ctx_t * ctx, pla_stmt_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywIf)) {
+static bool parse_stmt_cond(pla_prsr_t * prsr, pla_stmt_t ** out) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywIf)) {
 		return false;
 	}
 
 	*out = pla_stmt_create(PlaStmtCond);
 
-	if (!parse_expr(ctx, &(*out)->cond.cond_expr)) {
+	if (!pla_prsr_parse_expr(prsr, &(*out)->cond.cond_expr)) {
 		return false;
 	}
 
-	if (!parse_stmt_blk(ctx, &(*out)->cond.true_br)) {
+	if (!parse_stmt_blk(prsr, &(*out)->cond.true_br)) {
 		return false;
 	}
 
-	if (consume_keyw_exact(ctx, PlaKeywElse)) {
-		if (get_punc(ctx) == PlaPuncLeBrace) {
-			if (!parse_stmt_blk(ctx, &(*out)->cond.false_br)) {
+	if (consume_keyw_exact(prsr, PlaKeywElse)) {
+		if (get_punc(prsr) == PlaPuncLeBrace) {
+			if (!parse_stmt_blk(prsr, &(*out)->cond.false_br)) {
 				return false;
 			}
 		}
-		else if (get_keyw(ctx) == PlaKeywIf) {
-			if (!parse_stmt_cond(ctx, &(*out)->cond.false_br)) {
+		else if (get_keyw(prsr) == PlaKeywIf) {
+			if (!parse_stmt_cond(prsr, &(*out)->cond.false_br)) {
 				return false;
 			}
 		}
 		else {
-			report(ctx, L"expected an else or else-if clause");
+			report(prsr, L"expected an else or else-if clause");
 			return false;
 		}
 	}
 
 	return true;
 }
-static bool parse_stmt_pre_loop(ctx_t * ctx, pla_stmt_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywWhile)) {
+static bool parse_stmt_pre_loop(pla_prsr_t * prsr, pla_stmt_t ** out) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywWhile)) {
 		return false;
 	}
 
 	*out = pla_stmt_create(PlaStmtPreLoop);
 
-	if (consume_punc_exact(ctx, PlaPuncColon)) {
-		if (!consume_ident_crit(ctx, &(*out)->pre_loop.name)) {
+	if (consume_punc_exact(prsr, PlaPuncColon)) {
+		if (!consume_ident_crit(prsr, &(*out)->pre_loop.name)) {
 			return false;
 		}
 	}
 
-	if (!parse_expr(ctx, &(*out)->pre_loop.cond_expr)) {
+	if (!pla_prsr_parse_expr(prsr, &(*out)->pre_loop.cond_expr)) {
 		return false;
 	}
 
-	if (!parse_stmt_blk(ctx, &(*out)->pre_loop.body)) {
+	if (!parse_stmt_blk(prsr, &(*out)->pre_loop.body)) {
 		return false;
 	}
 
 	return true;
 }
-static bool parse_stmt_post_loop(ctx_t * ctx, pla_stmt_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywDo)) {
+static bool parse_stmt_post_loop(pla_prsr_t * prsr, pla_stmt_t ** out) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywDo)) {
 		return false;
 	}
 
 	*out = pla_stmt_create(PlaStmtPostLoop);
 
-	if (consume_punc_exact(ctx, PlaPuncColon)) {
-		if (!consume_ident_crit(ctx, &(*out)->post_loop.name)) {
+	if (consume_punc_exact(prsr, PlaPuncColon)) {
+		if (!consume_ident_crit(prsr, &(*out)->post_loop.name)) {
 			return false;
 		}
 	}
 
-	if (!parse_stmt_blk(ctx, &(*out)->post_loop.body)) {
+	if (!parse_stmt_blk(prsr, &(*out)->post_loop.body)) {
 		return false;
 	}
 
-	if (!consume_keyw_exact_crit(ctx, PlaKeywWhile)) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywWhile)) {
 		return false;
 	}
 
-	if (!parse_expr(ctx, &(*out)->post_loop.cond_expr)) {
+	if (!pla_prsr_parse_expr(prsr, &(*out)->post_loop.cond_expr)) {
 		return false;
 	}
 
-	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+	if (!consume_punc_exact_crit(prsr, PlaPuncSemicolon)) {
 		return false;
 	}
 
 	return true;
 }
-static bool parse_stmt_brk(ctx_t * ctx, pla_stmt_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywBreak)) {
+static bool parse_stmt_brk(pla_prsr_t * prsr, pla_stmt_t ** out) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywBreak)) {
 		return false;
 	}
 
 	*out = pla_stmt_create(PlaStmtBrk);
 
-	consume_ident(ctx, &(*out)->brk.name);
+	consume_ident(prsr, &(*out)->brk.name);
 
-	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+	if (!consume_punc_exact_crit(prsr, PlaPuncSemicolon)) {
 		return false;
 	}
 
 	return true;
 }
-static bool parse_stmt_cnt(ctx_t * ctx, pla_stmt_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywContinue)) {
+static bool parse_stmt_cnt(pla_prsr_t * prsr, pla_stmt_t ** out) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywContinue)) {
 		return false;
 	}
 
 	*out = pla_stmt_create(PlaStmtCnt);
 
-	consume_ident(ctx, &(*out)->cnt.name);
+	consume_ident(prsr, &(*out)->cnt.name);
 
-	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+	if (!consume_punc_exact_crit(prsr, PlaPuncSemicolon)) {
 		return false;
 	}
 
 	return true;
 }
-static bool parse_stmt_ret(ctx_t * ctx, pla_stmt_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywRet)) {
+static bool parse_stmt_ret(pla_prsr_t * prsr, pla_stmt_t ** out) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywRet)) {
 		return false;
 	}
 
 	*out = pla_stmt_create(PlaStmtRet);
 
-	if (!consume_punc_exact(ctx, PlaPuncSemicolon)) {
-		if (!parse_expr(ctx, &(*out)->ret.expr)) {
+	if (!consume_punc_exact(prsr, PlaPuncSemicolon)) {
+		if (!pla_prsr_parse_expr(prsr, &(*out)->ret.expr)) {
 			return false;
 		}
 
-		if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+		if (!consume_punc_exact_crit(prsr, PlaPuncSemicolon)) {
 			return false;
 		}
 	}
@@ -939,60 +949,58 @@ static bool parse_stmt_ret(ctx_t * ctx, pla_stmt_t ** out) {
 
 	return true;
 }
-static bool parse_stmt(ctx_t * ctx, pla_stmt_t ** out) {
-	switch (ctx->tok.type) {
+bool pla_prsr_parse_stmt(pla_prsr_t * prsr, pla_stmt_t ** out) {
+	switch (prsr->tok.type) {
 		case PlaTokPunc:
-			switch (ctx->tok.punc) {
+			switch (prsr->tok.punc) {
 				case PlaPuncSemicolon:
-					next_tok(ctx);
+					next_tok(prsr);
 					return true;
 			}
 			break;
 		case PlaTokKeyw:
-			switch (ctx->tok.keyw) {
+			switch (prsr->tok.keyw) {
 				case PlaKeywVariable:
-					return parse_stmt_var(ctx, out);
+					return parse_stmt_var(prsr, out);
 				case PlaKeywIf:
-					return parse_stmt_cond(ctx, out);
+					return parse_stmt_cond(prsr, out);
 				case PlaKeywWhile:
-					return parse_stmt_pre_loop(ctx, out);
+					return parse_stmt_pre_loop(prsr, out);
 				case PlaKeywDo:
-					return parse_stmt_post_loop(ctx, out);
+					return parse_stmt_post_loop(prsr, out);
 				case PlaKeywBreak:
-					return parse_stmt_brk(ctx, out);
+					return parse_stmt_brk(prsr, out);
 				case PlaKeywContinue:
-					return parse_stmt_cnt(ctx, out);
+					return parse_stmt_cnt(prsr, out);
 				case PlaKeywRet:
-					return parse_stmt_ret(ctx, out);
+					return parse_stmt_ret(prsr, out);
 			}
 			break;
 	}
 
-	return parse_stmt_expr(ctx, out);
+	return parse_stmt_expr(prsr, out);
 }
 
 
-static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out);
-
-static bool parse_dclr_nspc(ctx_t * ctx, pla_dclr_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywNamespace)) {
+static bool parse_dclr_nspc(pla_prsr_t * prsr, pla_dclr_t ** out) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywNamespace)) {
 		return false;
 	}
 
 	*out = pla_dclr_create(PlaDclrNspc);
 
-	if (!consume_ident_crit(ctx, &(*out)->name)) {
+	if (!consume_ident_crit(prsr, &(*out)->name)) {
 		return false;
 	}
 
-	if (!consume_punc_exact_crit(ctx, PlaPuncLeBrace)) {
+	if (!consume_punc_exact_crit(prsr, PlaPuncLeBrace)) {
 		return false;
 	}
 
 	pla_dclr_t ** ins = &(*out)->nspc.body;
 
-	while (!consume_punc_exact(ctx, PlaPuncRiBrace)) {
-		if (!parse_dclr(ctx, ins)) {
+	while (!consume_punc_exact(prsr, PlaPuncRiBrace)) {
+		if (!pla_prsr_parse_dclr(prsr, ins)) {
 			return false;
 		}
 
@@ -1003,118 +1011,118 @@ static bool parse_dclr_nspc(ctx_t * ctx, pla_dclr_t ** out) {
 
 	return true;
 }
-static bool parse_dclr_func(ctx_t * ctx, pla_dclr_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywFunction)) {
+static bool parse_dclr_func(pla_prsr_t * prsr, pla_dclr_t ** out) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywFunction)) {
 		return false;
 	}
 
 	*out = pla_dclr_create(PlaDclrFunc);
 
-	if (!consume_ident_crit(ctx, &(*out)->name)) {
+	if (!consume_ident_crit(prsr, &(*out)->name)) {
 		return false;
 	}
 
-	if (!consume_punc_exact_crit(ctx, PlaPuncColon)) {
+	if (!consume_punc_exact_crit(prsr, PlaPuncColon)) {
 		return false;
 	}
 
-	if (!parse_expr(ctx, &(*out)->func.dt_expr)) {
+	if (!pla_prsr_parse_expr(prsr, &(*out)->func.dt_expr)) {
 		return false;
 	}
 
-	if (!parse_stmt_blk(ctx, &(*out)->func.block)) {
+	if (!parse_stmt_blk(prsr, &(*out)->func.block)) {
 		return false;
 	}
 
 	return true;
 }
-static bool parse_dclr_impt(ctx_t * ctx, pla_dclr_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywImport)) {
+static bool parse_dclr_impt(pla_prsr_t * prsr, pla_dclr_t ** out) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywImport)) {
 		return false;
 	}
 
 	*out = pla_dclr_create(PlaDclrImpt);
 
-	if (!consume_ident_crit(ctx, &(*out)->name)) {
+	if (!consume_ident_crit(prsr, &(*out)->name)) {
 		return false;
 	}
 
-	if (!consume_punc_exact_crit(ctx, PlaPuncColon)) {
+	if (!consume_punc_exact_crit(prsr, PlaPuncColon)) {
 		return false;
 	}
 
-	if (!parse_expr(ctx, &(*out)->impt.dt_expr)) {
+	if (!pla_prsr_parse_expr(prsr, &(*out)->impt.dt_expr)) {
 		return false;
 	}
 
-	if (!consume_punc_exact_crit(ctx, PlaPuncColon)) {
+	if (!consume_punc_exact_crit(prsr, PlaPuncColon)) {
 		return false;
 	}
 
-	if (!consume_ch_str_crit(ctx, &(*out)->impt.lib_name, NULL)) {
+	if (!consume_ch_str_crit(prsr, &(*out)->impt.lib_name, NULL)) {
 		return false;
 	}
 
-	if (!consume_punc_exact_crit(ctx, PlaPuncComma)) {
+	if (!consume_punc_exact_crit(prsr, PlaPuncComma)) {
 		return false;
 	}
 
-	if (!consume_ch_str_crit(ctx, &(*out)->impt.sym_name, NULL)) {
+	if (!consume_ch_str_crit(prsr, &(*out)->impt.sym_name, NULL)) {
 		return false;
 	}
 
-	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+	if (!consume_punc_exact_crit(prsr, PlaPuncSemicolon)) {
 		return false;
 	}
 
 	return true;
 }
-static bool parse_dclr_var(ctx_t * ctx, pla_dclr_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywVariable)) {
+static bool parse_dclr_var(pla_prsr_t * prsr, pla_dclr_t ** out) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywVariable)) {
 		return false;
 	}
 
 	while (true) {
 		ira_dt_qual_t qual;
 
-		parse_quals(ctx, &qual);
+		parse_quals(prsr, &qual);
 
 		ul_hs_t * var_name;
 
-		if (!consume_ident_crit(ctx, &var_name)) {
+		if (!consume_ident_crit(prsr, &var_name)) {
 			return false;
 		}
 
-		if (consume_punc_exact(ctx, PlaPuncColon)) {
+		if (consume_punc_exact(prsr, PlaPuncColon)) {
 			*out = pla_dclr_create(PlaDclrVarDt);
 
 			(*out)->name = var_name;
 			(*out)->var_dt.dt_qual = qual;
 
-			if (!parse_expr(ctx, &(*out)->var_dt.dt_expr)) {
+			if (!pla_prsr_parse_expr(prsr, &(*out)->var_dt.dt_expr)) {
 				return false;
 			}
 		}
-		else if (consume_punc_exact(ctx, PlaPuncColonAsgn)) {
+		else if (consume_punc_exact(prsr, PlaPuncColonAsgn)) {
 			*out = pla_dclr_create(PlaDclrVarVal);
 
 			(*out)->name = var_name;
 			(*out)->var_val.dt_qual = qual;
 
-			if (!parse_expr(ctx, &(*out)->var_val.val_expr)) {
+			if (!pla_prsr_parse_expr(prsr, &(*out)->var_val.val_expr)) {
 				return false;
 			}
 		}
 		else {
-			report(ctx, L"failed to consume a \':\' or \':=\'");
+			report(prsr, L"failed to consume a \':\' or \':=\'");
 			return false;
 		}
 
-		if (consume_punc_exact(ctx, PlaPuncComma)) {
+		if (consume_punc_exact(prsr, PlaPuncComma)) {
 			/* nothing */
 		}
 		else {
-			if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+			if (!consume_punc_exact_crit(prsr, PlaPuncSemicolon)) {
 				return false;
 			}
 
@@ -1126,25 +1134,25 @@ static bool parse_dclr_var(ctx_t * ctx, pla_dclr_t ** out) {
 
 	return true;
 }
-static bool parse_dclr_stct(ctx_t * ctx, pla_dclr_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywStruct)) {
+static bool parse_dclr_stct(pla_prsr_t * prsr, pla_dclr_t ** out) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywStruct)) {
 		return false;
 	}
 
 	ul_hs_t * name;
 
-	if (!consume_ident_crit(ctx, &name)) {
+	if (!consume_ident_crit(prsr, &name)) {
 		return false;
 	}
 
-	if (get_punc(ctx) == PlaPuncLeBrace) {
+	if (get_punc(prsr) == PlaPuncLeBrace) {
 		*out = pla_dclr_create(PlaDclrDtStct);
 
 		(*out)->name = name;
 
 		(*out)->dt_stct.dt_stct_expr = pla_expr_create(PlaExprDtStct);
 
-		if (!parse_expr_stct_body(ctx, &(*out)->dt_stct.dt_stct_expr->opd1.expr)) {
+		if (!parse_expr_stct_body(prsr, &(*out)->dt_stct.dt_stct_expr->opd1.expr)) {
 			return false;
 		}
 	}
@@ -1154,37 +1162,37 @@ static bool parse_dclr_stct(ctx_t * ctx, pla_dclr_t ** out) {
 		(*out)->name = name;
 	}
 
-	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+	if (!consume_punc_exact_crit(prsr, PlaPuncSemicolon)) {
 		return false;
 	}
 
 	return true;
 }
-static bool parse_dclr_ro_val(ctx_t * ctx, pla_dclr_t ** out) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywReadonly)) {
+static bool parse_dclr_ro_val(pla_prsr_t * prsr, pla_dclr_t ** out) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywReadonly)) {
 		return false;
 	}
 
 	while (true) {
 		*out = pla_dclr_create(PlaDclrRoVal);
 
-		if (!consume_ident_crit(ctx, &(*out)->name)) {
+		if (!consume_ident_crit(prsr, &(*out)->name)) {
 			return false;
 		}
 
-		if (!consume_punc_exact_crit(ctx, PlaPuncColonAsgn)) {
+		if (!consume_punc_exact_crit(prsr, PlaPuncColonAsgn)) {
 			return false;
 		}
 
-		if (!parse_expr(ctx, &(*out)->ro_val.val_expr)) {
+		if (!pla_prsr_parse_expr(prsr, &(*out)->ro_val.val_expr)) {
 			return false;
 		}
 
-		if (consume_punc_exact(ctx, PlaPuncComma)) {
+		if (consume_punc_exact(prsr, PlaPuncComma)) {
 			/* nothing */
 		}
 		else {
-			if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+			if (!consume_punc_exact_crit(prsr, PlaPuncSemicolon)) {
 				return false;
 			}
 
@@ -1196,75 +1204,71 @@ static bool parse_dclr_ro_val(ctx_t * ctx, pla_dclr_t ** out) {
 
 	return true;
 }
-static bool parse_dclr(ctx_t * ctx, pla_dclr_t ** out) {
-	switch (ctx->tok.type) {
+bool pla_prsr_parse_dclr(pla_prsr_t * prsr, pla_dclr_t ** out) {
+	switch (prsr->tok.type) {
 		case PlaTokNone:
 			break;
 		case PlaTokKeyw:
-			switch (ctx->tok.keyw) {
+			switch (prsr->tok.keyw) {
 				case PlaKeywNamespace:
-					return parse_dclr_nspc(ctx, out);
+					return parse_dclr_nspc(prsr, out);
 				case PlaKeywFunction:
-					return parse_dclr_func(ctx, out);
+					return parse_dclr_func(prsr, out);
 				case PlaKeywImport:
-					return parse_dclr_impt(ctx, out);
+					return parse_dclr_impt(prsr, out);
 				case PlaKeywVariable:
-					return parse_dclr_var(ctx, out);
+					return parse_dclr_var(prsr, out);
 				case PlaKeywStruct:
-					return parse_dclr_stct(ctx, out);
+					return parse_dclr_stct(prsr, out);
 				case PlaKeywReadonly:
-					return parse_dclr_ro_val(ctx, out);
+					return parse_dclr_ro_val(prsr, out);
 			}
 			break;
 	}
 
-	report(ctx, L"expected a declarator");
+	report(prsr, L"expected a declarator");
 	return false;
 }
 
 
-static bool parse_tu_ref(ctx_t * ctx, pla_dclr_t ** ins) {
-	if (!consume_keyw_exact_crit(ctx, PlaKeywTlatuRef)) {
+static bool parse_tu_ref(pla_prsr_t * prsr, pla_tu_t * tu, pla_dclr_t ** ins) {
+	if (!consume_keyw_exact_crit(prsr, PlaKeywTlatuRef)) {
 		return false;
 	}
 
-	pla_tu_ref_t * ref = pla_tu_push_ref(ctx->tu);
+	pla_tu_ref_t * ref = pla_tu_push_ref(tu);
 
-	if (consume_punc_exact(ctx, PlaPuncDot)) {
+	if (consume_punc_exact(prsr, PlaPuncDot)) {
 		ref->is_rel = true;
 	}
 
-	if (!parse_cn(ctx, PlaPuncDot, &ref->cn)) {
+	if (!pla_prsr_parse_cn(prsr, PlaPuncDot, &ref->cn)) {
 		return false;
 	}
 
-	if (!consume_punc_exact_crit(ctx, PlaPuncSemicolon)) {
+	if (!consume_punc_exact_crit(prsr, PlaPuncSemicolon)) {
 		return false;
 	}
 
 	return true;
 }
-static bool parse_tu_item(ctx_t * ctx, pla_dclr_t ** ins) {
-	switch (ctx->tok.type) {
+static bool parse_tu_item(pla_prsr_t * prsr, pla_tu_t * tu, pla_dclr_t ** ins) {
+	switch (prsr->tok.type) {
 		case PlaTokNone:
 			break;
 		case PlaTokKeyw:
-			switch (ctx->tok.keyw) {
+			switch (prsr->tok.keyw) {
 				case PlaKeywTlatuRef:
-					return parse_tu_ref(ctx, ins);
+					return parse_tu_ref(prsr, tu, ins);
 			}
 			break;
 	}
 
-	return parse_dclr(ctx, ins);
+	return pla_prsr_parse_dclr(prsr, ins);
 }
-static bool parse_tu(ctx_t * ctx, pla_dclr_t ** ins) {
-	if (!next_tok(ctx)) {
-		return false;
-	}
-
-	while (ctx->tok.type != PlaTokNone) {
-		if (!parse_tu_item(ctx, ins)) {
+static bool parse_tu_body(pla_prsr_t * prsr, pla_tu_t * tu, pla_dclr_t ** ins) {
+	while (prsr->tok.type != PlaTokNone) {
+		if (!parse_tu_item(prsr, tu, ins)) {
 			return false;
 		}
 
@@ -1275,9 +1279,8 @@ static bool parse_tu(ctx_t * ctx, pla_dclr_t ** ins) {
 
 	return true;
 }
-
-static bool parse_core(ctx_t * ctx) {
-	pla_dclr_t ** root = &ctx->tu->root;
+bool pla_prsr_parse_tu(pla_prsr_t * prsr, pla_tu_t * tu) {
+	pla_dclr_t ** root = &tu->root;
 
 	if (*root == NULL) {
 		*root = pla_dclr_create(PlaDclrNspc);
@@ -1291,23 +1294,9 @@ static bool parse_core(ctx_t * ctx) {
 		ins = &(*ins)->next;
 	}
 
-	if (!parse_tu(ctx, ins)) {
+	if (!parse_tu_body(prsr, tu, ins)) {
 		return false;
 	}
 
 	return true;
-}
-bool pla_tu_p_parse(pla_ec_fmtr_t * ec_fmtr, pla_tu_t * tu, pla_tu_p_get_tok_proc_t * get_tok_proc, void * src_data) {
-	ctx_t ctx = { .ec_fmtr = ec_fmtr, .tu = tu, .get_tok_proc = get_tok_proc, .src_data = src_data };
-
-	bool res;
-
-	__try {
-		res = parse_core(&ctx);
-	}
-	__finally {
-
-	}
-
-	return res;
 }

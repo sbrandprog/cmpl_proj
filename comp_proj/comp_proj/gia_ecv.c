@@ -4,6 +4,7 @@
 #include "wa_lib/wa_ctl.h"
 #include "pla_ec_buf.h"
 #include "pla_lex.h"
+#include "pla_prsr.h"
 #include "gia_ecv.h"
 
 #define DISP_FONT WaStyleFontFxd
@@ -45,6 +46,8 @@ static wchar_t get_group_letter(size_t group) {
 	switch (group) {
 		case PLA_LEX_EC_GROUP:
 			return L'L';
+		case PLA_PRSR_EC_GROUP:
+			return L'P';
 		default:
 			return L'.';
 	}

@@ -123,9 +123,6 @@
     <ClCompile Include="comp_proj\pla_tu.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="comp_proj\pla_tu_p.c">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
     <ClCompile Include="comp_proj\gia_text.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
@@ -160,6 +157,9 @@
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="comp_proj\pla_ec_fmtr.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="comp_proj\pla_prsr.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
@@ -281,9 +281,6 @@
     <ClInclude Include="comp_proj\pla_tu.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="comp_proj\pla_tu_p.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
     <ClInclude Include="comp_proj\gia.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
@@ -321,6 +318,9 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\pla_ec_fmtr.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="comp_proj\pla_prsr.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

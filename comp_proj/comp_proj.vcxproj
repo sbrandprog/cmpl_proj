@@ -143,11 +143,11 @@
     <ClCompile Include="comp_proj\pla_lex.c" />
     <ClCompile Include="comp_proj\pla_pds.c" />
     <ClCompile Include="comp_proj\pla_pkg.c" />
+    <ClCompile Include="comp_proj\pla_prsr.c" />
     <ClCompile Include="comp_proj\pla_punc.c" />
     <ClCompile Include="comp_proj\pla_stmt.c" />
     <ClCompile Include="comp_proj\pla_tok.c" />
     <ClCompile Include="comp_proj\pla_tu.c" />
-    <ClCompile Include="comp_proj\pla_tu_p.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="comp_proj\asm.h" />
@@ -197,12 +197,12 @@
     <ClInclude Include="comp_proj\pla_lex.h" />
     <ClInclude Include="comp_proj\pla_pds.h" />
     <ClInclude Include="comp_proj\pla_pkg.h" />
+    <ClInclude Include="comp_proj\pla_prsr.h" />
     <ClInclude Include="comp_proj\pla_punc.h" />
     <ClInclude Include="comp_proj\pla_stmt.h" />
     <ClInclude Include="comp_proj\gia_edit.h" />
     <ClInclude Include="comp_proj\pla_tok.h" />
     <ClInclude Include="comp_proj\pla_tu.h" />
-    <ClInclude Include="comp_proj\pla_tu_p.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="pla_lib\std\io.pla" />
