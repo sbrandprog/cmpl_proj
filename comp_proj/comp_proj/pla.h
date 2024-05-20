@@ -41,6 +41,7 @@ typedef struct pla_dclr_info pla_dclr_info_t;
 typedef struct pla_tu_ref pla_tu_ref_t;
 typedef struct pla_tu pla_tu_t;
 
+typedef struct pla_prsr_rse pla_prsr_rse_t;
 typedef struct pla_prsr pla_prsr_t;
 
 typedef struct pla_pkg pla_pkg_t;

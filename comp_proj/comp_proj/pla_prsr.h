@@ -5,14 +5,24 @@
 
 typedef bool pla_prsr_get_tok_proc_t(void * src_data, pla_tok_t * out);
 
-typedef struct pla_prsr {
+struct pla_prsr_rse {
+	pla_prsr_rse_t * prev;
+	bool is_rptd;
+	bool get_next;
+};
+struct pla_prsr {
 	pla_ec_fmtr_t * ec_fmtr;
 
 	void * src_data;
 	pla_prsr_get_tok_proc_t * get_tok_proc;
 
 	pla_tok_t tok;
-} pla_psrs_t;
+	size_t tok_ind;
+	pla_ec_pos_t prev_tok_pos_end;
+
+	bool is_rptd;
+	pla_prsr_rse_t * rse;
+};
 
 void pla_prsr_init(pla_prsr_t * prsr, pla_ec_fmtr_t * ec_fmtr);
 void pla_prsr_cleanup(pla_prsr_t * prsr);

@@ -5,6 +5,7 @@
 #include "pla_ec_buf.h"
 #include "pla_ec_fmtr.h"
 #include "pla_lex.h"
+#include "pla_prsr.h"
 #include "pla_ast_t.h"
 #include "gia_repo.h"
 #include "gia_bs_p.h"
@@ -23,6 +24,24 @@ typedef struct gia_bs_ctx {
 	lnk_pe_t lnk_pe;
 } ctx_t;
 
+static wchar_t get_group_letter(size_t group) {
+	switch (group) {
+		case PLA_LEX_EC_GROUP:
+			return L'L';
+		case PLA_PRSR_EC_GROUP:
+			return L'P';
+		default:
+			return L'.';
+	}
+}
+static void print_ec_buf(ctx_t * ctx) {
+	for (pla_ec_err_t * err = ctx->pla_ec_buf.errs, *err_end = err + ctx->pla_ec_buf.errs_size; err != err_end; ++err) {
+		wchar_t group_letter = get_group_letter(err->group);
+
+		wprintf(L"%c %4zi:%4zi %s\n", group_letter, err->pos_start.line_num, err->pos_start.line_ch, err->msg->str);
+	}
+}
+
 static bool build_core(ctx_t * ctx) {
 	pla_ec_buf_init(&ctx->pla_ec_buf);
 
@@ -31,6 +50,7 @@ static bool build_core(ctx_t * ctx) {
 	pla_lex_init(&ctx->pla_lex, &ctx->repo->hst, &ctx->pla_ec_fmtr);
 
 	if (!gia_bs_p_form_ast_nl(ctx->repo, ctx->first_tus_name, &ctx->pla_lex, &ctx->pla_ast)) {
+		print_ec_buf(ctx);
 		return false;
 	}
 

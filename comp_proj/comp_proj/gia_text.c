@@ -194,6 +194,22 @@ void gia_text_remove_str_nl(gia_text_t * text, size_t line_pos, size_t rem_pos_s
 	update_text_tu_nl(text);
 }
 
+static void shift_lines_toks(gia_text_t * text, size_t start_pos, size_t shift_size, bool shift_rev) {
+	ul_assert(start_pos <= text->lines_size);
+
+	for (gia_text_line_t * line = text->lines + start_pos, *line_end = text->lines + text->lines_size; line != line_end; ++line) {
+		for (pla_tok_t * tok = line->toks, *tok_end = tok + line->toks_size; tok != tok_end; ++tok) {
+			if (shift_rev) {
+				tok->pos_start.line_num -= shift_size;
+				tok->pos_end.line_num -= shift_size;
+			}
+			else {
+				tok->pos_start.line_num += shift_size;
+				tok->pos_end.line_num += shift_size;
+			}
+		}
+	}
+}
 void gia_text_insert_line_nl(gia_text_t * text, size_t ins_pos) {
 	ul_assert(ins_pos <= text->lines_size);
 
@@ -207,6 +223,8 @@ void gia_text_insert_line_nl(gia_text_t * text, size_t ins_pos) {
 
 	init_line(&text->lines[ins_pos]);
 
+	shift_lines_toks(text, ins_pos, 1, false);
+
 	pla_ec_shift(&text->ec_buf.ec, PLA_EC_GROUP_ALL, ins_pos, 1, false);
 
 	update_text_tu_nl(text);
@@ -219,6 +237,8 @@ void gia_text_remove_line_nl(gia_text_t * text, size_t rem_pos) {
 	memmove_s(text->lines + rem_pos, (text->lines_cap - rem_pos) * sizeof(*text->lines), text->lines + rem_pos + 1, (text->lines_size - rem_pos - 1) * sizeof(*text->lines));
 
 	--text->lines_size;
+
+	shift_lines_toks(text, rem_pos, 1, true);
 
 	pla_ec_shift(&text->ec_buf.ec, PLA_EC_GROUP_ALL, rem_pos, 1, true);
 

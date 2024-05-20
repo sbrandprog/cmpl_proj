@@ -8,7 +8,7 @@ static void insert_err_sorted_nl(pla_ec_buf_t * buf, pla_ec_err_t * err) {
 
 	size_t ins_pos = 0;
 
-	while (ins_pos < buf->errs_size && pla_ec_err_is_less(&buf->errs[ins_pos], err)) {
+	while (ins_pos < buf->errs_size && !pla_ec_err_is_less(err, &buf->errs[ins_pos])) {
 		++ins_pos;
 	}
 
