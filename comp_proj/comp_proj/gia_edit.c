@@ -20,6 +20,7 @@
 typedef struct gia_edit_style {
 	wa_style_col_t cols[GiaEditCol_Count];
 	wa_style_font_t font;
+	float err_line_size;
 } style_t;
 
 typedef struct gia_edit_data {
@@ -67,6 +68,8 @@ static bool init_style(style_t * style, gia_edit_style_desc_t * desc) {
 		return false;
 	}
 
+	style->err_line_size = desc->err_line_size;
+
 	return true;
 }
 static void cleanup_style(style_t * style) {
@@ -75,6 +78,8 @@ static void cleanup_style(style_t * style) {
 	}
 
 	wa_style_font_cleanup(&style->font);
+
+	memset(style, 0, sizeof(*style));
 }
 
 static void load_tus_data(wnd_data_t * data) {
@@ -134,7 +139,6 @@ static size_t convert_line_col_to_ch(wnd_data_t * data, gia_text_line_t * line, 
 
 	return line_ch;
 }
-
 
 static gia_text_ch_pos_t get_ch_pos(wnd_data_t * data, size_t line, size_t col) {
 	ul_assert(data->text.lines_size > 0);
@@ -215,6 +219,10 @@ static void redraw_caret(wnd_data_t * data) {
 		LeaveCriticalSection(&data->text.lock);
 	}
 }
+static size_t clamp_line_ch_to_vis_col(wnd_data_t * data, gia_text_line_t * line, size_t line_ch) {
+	size_t line_col = convert_line_ch_to_col(data, line, line_ch);
+	return line_col - min(line_col, data->vis_col);
+}
 static void draw_line(wnd_data_t * data, HDC hdc, size_t line_pos, size_t line_max_w) {
 	gia_text_line_t * line = &data->text.lines[line_pos];
 
@@ -288,66 +296,82 @@ static void redraw_lines_nl(wnd_data_t * data, HDC hdc, RECT * rect) {
 
 	size_t line_i_max = min(data->text.lines_size, data->vis_line + max_h);
 
-
-	gia_text_ch_pos_t sel_start, sel_end;
-	get_sel_pos(data, &sel_start, &sel_end);
-
-
 	SelectFont(hdc, data->style.font.hf);
 	SetBkMode(hdc, TRANSPARENT);
 
-	RECT line_rect = { .left = 0, .top = 0, .right = 0, .bottom = (int)line_h };
+	{
+		gia_text_ch_pos_t sel_start, sel_end;
+		get_sel_pos(data, &sel_start, &sel_end);
 
-	for (size_t line_i = data->vis_line; line_i < line_i_max; ++line_i) {
-		gia_text_line_t * line = &data->text.lines[line_i];
+		RECT line_rect = { .top = 0, .bottom = (LONG)line_h };
 
-		if (data->is_sel && line_i >= sel_start.line && line_i <= sel_end.line) {
-			size_t start_col = convert_line_ch_to_col(data, line, line_i == sel_start.line ? sel_start.ch : 0);
-			size_t end_col = convert_line_ch_to_col(data, line, line_i == sel_end.line ? sel_end.ch : line->size);
+		for (size_t line_i = data->vis_line; line_i < line_i_max; ++line_i) {
+			gia_text_line_t * line = &data->text.lines[line_i];
 
-			RECT sel_rect = {
-				.left = (int)((start_col - min(start_col, data->vis_col)) * ch_w),
-				.top = line_rect.top,
-				.right = (int)((end_col - min(end_col, data->vis_col)) * ch_w),
-				.bottom = line_rect.bottom
-			};
+			if (data->is_sel && line_i >= sel_start.line && line_i <= sel_end.line) {
+				RECT sel_rect = {
+					.left = (LONG)(clamp_line_ch_to_vis_col(data, line, line_i == sel_start.line ? sel_start.ch : 0) * ch_w),
+					.top = line_rect.top,
+					.right = (LONG)(clamp_line_ch_to_vis_col(data, line, line_i == sel_end.line ? sel_end.ch : line->size) * ch_w),
+					.bottom = line_rect.bottom
+				};
 
-			FillRect(hdc, &sel_rect, data->style.cols[GiaEditColSel].hb);
+				FillRect(hdc, &sel_rect, data->style.cols[GiaEditColSel].hb);
+			}
+
+			draw_line(data, hdc, line_i, max_w);
+
+			line_rect.top += (LONG)line_h;
+			line_rect.bottom += (LONG)line_h;
 		}
+	}
 
-		draw_line(data, hdc, line_i, max_w);
+	{
+		LONG err_line_size = (LONG)(line_h * data->style.err_line_size);
 
-		line_rect.top = line_rect.bottom;
-		line_rect.bottom += (int)line_h;
+		for (pla_ec_err_t * err = data->text.ec_buf.errs, *err_end = err + data->text.ec_buf.errs_size; err != err_end; ++err) {
+			if (err->pos_end.line_num < data->vis_line) {
+				continue;
+			}
+
+			if (err->pos_start.line_num > data->vis_line + max_h) {
+				break;
+			}
+
+			size_t line_start = max(err->pos_start.line_num, data->vis_line);
+
+			LONG err_line_off_h = (LONG)((line_start - data->vis_line + 1) * line_h);
+
+			RECT err_rect = { .top = err_line_off_h - err_line_size, .bottom = err_line_off_h };
+
+			for (size_t line_i = line_start; line_i <= err->pos_end.line_num; ++line_i) {
+				gia_text_line_t * line = &data->text.lines[line_i];
+
+				if (line_i >= err->pos_start.line_num) {
+					err_rect.left = (LONG)(clamp_line_ch_to_vis_col(data, line, line_i == err->pos_start.line_num ? err->pos_start.line_ch : 0) * ch_w);
+					err_rect.right = (LONG)(clamp_line_ch_to_vis_col(data, line, line_i == err->pos_end.line_num ? err->pos_end.line_ch : line->size) * ch_w);
+
+					FillRect(hdc, &err_rect, data->style.cols[GiaEditColErr].hb);
+
+					err_rect.top += (LONG)line_h;
+					err_rect.bottom += (LONG)line_h;
+				}
+			}
+		}
 	}
 }
 static void redraw_lines(void * user_data, HDC hdc, RECT * rect) {
 	wnd_data_t * data = user_data;
 
 	EnterCriticalSection(&data->text.lock);
+	EnterCriticalSection(&data->text.ec_buf.lock);
 
 	__try {
 		redraw_lines_nl(data, hdc, rect);
 	}
 	__finally {
 		LeaveCriticalSection(&data->text.lock);
-	}
-}
-static void redraw_lines_buf(wnd_data_t * data, HDC hdc) {
-	HWND hw = data->hw;
-	wa_ctx_t * ctx = data->ctx;
-	RECT rect;
-
-	GetClientRect(hw, &rect);
-
-	HDC hdc_buf;
-
-	HPAINTBUFFER buf = BeginBufferedPaint(hdc, &rect, BPBF_COMPATIBLEBITMAP, NULL, &hdc_buf);
-
-	if (buf != NULL) {
-		redraw_lines(data, hdc_buf, &rect);
-
-		EndBufferedPaint(buf, TRUE);
+		LeaveCriticalSection(&data->text.ec_buf.lock);
 	}
 }
 
@@ -1135,11 +1159,13 @@ gia_edit_style_desc_t gia_edit_get_style_desc_dflt(wa_ctx_t * ctx) {
 		.cols = {
 			[GiaEditColPlain] = RGB(0, 0, 0),
 			[GiaEditColSel] = RGB(176, 220, 255),
+			[GiaEditColErr] = RGB(255, 0, 0),
 			[GiaEditColKeyw] = RGB(0, 0, 255),
 			[GiaEditColChStr] = RGB(163, 21, 21),
 			[GiaEditColNumStr] = RGB(47, 79, 79),
 	},
-	.font = ctx->style.fonts[WaStyleFontFxd].lf
+	.font = ctx->style.fonts[WaStyleFontFxd].lf,
+	.err_line_size = 0.125
 	};
 
 	desc.font.lfHeight = -16;

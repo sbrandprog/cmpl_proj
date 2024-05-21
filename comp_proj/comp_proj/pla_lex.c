@@ -87,7 +87,7 @@ static void report_lex(pla_lex_t * lex, const wchar_t * fmt, ...) {
 
 	va_start(args, fmt);
 
-	pla_ec_fmtr_formatpost_va(lex->ec_fmtr, PLA_LEX_EC_GROUP, pos_start, pos_end, fmt, args);
+	pla_ec_fmtr_formatpost_va(lex->ec_fmtr, PLA_LEX_EC_GROUP, lex->tok.pos_start, get_ec_pos(lex), fmt, args);
 
 	va_end(args);
 }

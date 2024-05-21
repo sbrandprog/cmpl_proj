@@ -12,6 +12,7 @@
 enum gia_edit_col {
 	GiaEditColPlain,
 	GiaEditColSel,
+	GiaEditColErr,
 	GiaEditColKeyw,
 	GiaEditColChStr,
 	GiaEditColNumStr,
@@ -20,6 +21,7 @@ enum gia_edit_col {
 struct gia_edit_style_desc {
 	COLORREF cols[GiaEditCol_Count];
 	LOGFONT font;
+	float err_line_size;
 };
 
 WNDCLASSEXW gia_edit_get_wnd_cls_desc();

@@ -18,6 +18,7 @@ struct pla_prsr {
 
 	pla_tok_t tok;
 	size_t tok_ind;
+	pla_ec_pos_t prev_tok_pos_start;
 	pla_ec_pos_t prev_tok_pos_end;
 
 	bool is_rptd;
