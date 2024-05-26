@@ -41,7 +41,7 @@ static void push_line_tok(gia_text_line_t * line, pla_tok_t * tok) {
 	line->toks[line->toks_size++] = *tok;
 }
 
-void gia_text_init(gia_text_t * text) {
+void gia_text_init(gia_text_t * text, ul_es_ctx_t * es_ctx) {
 	*text = (gia_text_t){ 0 };
 
 	ul_arr_grow(&text->lines_cap, &text->lines, sizeof(*text->lines), 1);
@@ -50,9 +50,9 @@ void gia_text_init(gia_text_t * text) {
 
 	ul_hst_init(&text->lex_hst);
 
-	pla_ec_buf_init(&text->ec_buf);
+	pla_ec_sndr_init(&text->ec_sndr, es_ctx);
 
-	pla_ec_fmtr_init(&text->ec_fmtr, &text->ec_buf.ec, &text->lex_hst);
+	pla_ec_fmtr_init(&text->ec_fmtr, &text->ec_sndr.ec, &text->lex_hst);
 
 	pla_lex_init(&text->lex, &text->lex_hst, &text->ec_fmtr);
 
@@ -71,7 +71,7 @@ void gia_text_cleanup(gia_text_t * text) {
 
 	pla_ec_fmtr_cleanup(&text->ec_fmtr);
 
-	pla_ec_buf_cleanup(&text->ec_buf);
+	pla_ec_sndr_cleanup(&text->ec_sndr);
 
 	ul_hst_cleanup(&text->lex_hst);
 
@@ -98,7 +98,7 @@ static bool get_line_ch(void * src_data, wchar_t * out) {
 static void update_line_toks_nl(gia_text_t * text, size_t line_pos) {
 	ul_assert(line_pos < text->lines_size);
 
-	pla_ec_clear_line(&text->ec_buf.ec, PLA_LEX_EC_GROUP, line_pos);
+	pla_ec_clear_line(&text->ec_sndr.ec, PLA_LEX_EC_GROUP, line_pos);
 
 	gia_text_line_t * line = &text->lines[line_pos];
 
@@ -141,7 +141,7 @@ static bool get_text_tok(void * src_data, pla_tok_t * out) {
 	return true;
 }
 static void update_text_tu_nl(gia_text_t * text) {
-	pla_ec_clear_group(&text->ec_buf.ec, PLA_PRSR_EC_GROUP);
+	pla_ec_clear_group(&text->ec_sndr.ec, PLA_PRSR_EC_GROUP);
 
 	if (text->tu != NULL) {
 		pla_tu_destroy(text->tu);
@@ -225,7 +225,7 @@ void gia_text_insert_line_nl(gia_text_t * text, size_t ins_pos) {
 
 	shift_lines_toks(text, ins_pos, 1, false);
 
-	pla_ec_shift(&text->ec_buf.ec, PLA_EC_GROUP_ALL, ins_pos, 1, false);
+	pla_ec_shift(&text->ec_sndr.ec, PLA_EC_GROUP_ALL, ins_pos, 1, false);
 
 	update_text_tu_nl(text);
 }
@@ -240,7 +240,7 @@ void gia_text_remove_line_nl(gia_text_t * text, size_t rem_pos) {
 
 	shift_lines_toks(text, rem_pos, 1, true);
 
-	pla_ec_shift(&text->ec_buf.ec, PLA_EC_GROUP_ALL, rem_pos, 1, true);
+	pla_ec_shift(&text->ec_sndr.ec, PLA_EC_GROUP_ALL, rem_pos, 1, true);
 
 	update_text_tu_nl(text);
 }

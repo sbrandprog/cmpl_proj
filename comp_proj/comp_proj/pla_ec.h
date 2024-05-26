@@ -6,7 +6,6 @@
 typedef void pla_ec_post_proc_t(void * user_data, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end, ul_hs_t * msg);
 typedef void pla_ec_shift_proc_t(void * user_data, size_t group, size_t start_line, size_t shift_size, bool shift_rev);
 typedef void pla_ec_clear_proc_t(void * user_data, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end);
-typedef void pla_ec_sndr_detach_proc_t(void * sndr_data, pla_ec_t * ec);
 
 struct pla_ec_pos {
 	size_t line_num;
@@ -26,9 +25,6 @@ struct pla_ec {
 	pla_ec_post_proc_t * post_proc;
 	pla_ec_shift_proc_t * shift_proc;
 	pla_ec_clear_proc_t * clear_proc;
-
-	void * sndr_data;
-	pla_ec_sndr_detach_proc_t * sndr_detach_proc;
 };
 
 bool pla_ec_pos_is_less(pla_ec_pos_t * first, pla_ec_pos_t * second);

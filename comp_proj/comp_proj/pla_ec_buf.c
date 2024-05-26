@@ -27,10 +27,6 @@ static void post_err_nl(pla_ec_buf_t * buf, size_t group, pla_ec_pos_t pos_start
 	pla_ec_err_t err = { .group = group, .pos_start = pos_start, .pos_end = pos_end, .msg = msg };
 
 	insert_err_sorted_nl(buf, &err);
-
-	for (pla_ec_buf_rcvr_t * rcvr = buf->rcvrs, *rcvr_end = rcvr + buf->rcvrs_size; rcvr != rcvr_end; ++rcvr) {
-		pla_ec_post(rcvr->ec, group, pos_start, pos_end, msg);
-	}
 }
 static void post_err_proc(void * user_data, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end, ul_hs_t * msg) {
 	pla_ec_buf_t * buf = user_data;
@@ -61,10 +57,6 @@ static void shift_lines_nl(pla_ec_buf_t * buf, size_t group, size_t start_line, 
 			}
 		}
 	}
-
-	for (pla_ec_buf_rcvr_t * rcvr = buf->rcvrs, *rcvr_end = rcvr + buf->rcvrs_size; rcvr != rcvr_end; ++rcvr) {
-		pla_ec_shift(rcvr->ec, group, start_line, shift_size, shift_rev);
-	}
 }
 static void shift_lines_proc(void * user_data, size_t group, size_t start_line, size_t shift_size, bool shift_rev) {
 	pla_ec_buf_t * buf = user_data;
@@ -94,10 +86,6 @@ static void clear_errs_nl(pla_ec_buf_t * buf, size_t group, pla_ec_pos_t pos_sta
 			++err_i;
 		}
 	}
-
-	for (pla_ec_buf_rcvr_t * rcvr = buf->rcvrs, *rcvr_end = rcvr + buf->rcvrs_size; rcvr != rcvr_end; ++rcvr) {
-		pla_ec_clear(rcvr->ec, group, pos_start, pos_end);
-	}
 }
 static void clear_errs_proc(void * user_data, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end) {
 	pla_ec_buf_t * buf = user_data;
@@ -124,79 +112,23 @@ void pla_ec_buf_cleanup(pla_ec_buf_t * buf) {
 
 	pla_ec_cleanup(&buf->ec);
 
-	for (pla_ec_buf_rcvr_t * rcvr = buf->rcvrs, *rcvr_end = rcvr + buf->rcvrs_size; rcvr != rcvr_end; ++rcvr) {
-		if (rcvr->ec->sndr_data == buf) {
-			rcvr->ec->sndr_data = NULL;
-			rcvr->ec->sndr_detach_proc = NULL;
-		}
-	}
-
-	free(buf->rcvrs);
-
 	free(buf->errs);
 
 	memset(buf, 0, sizeof(*buf));
 }
 
-static void detach_rcvr_nl(pla_ec_buf_t * buf, pla_ec_t * ec) {
-	for (pla_ec_buf_rcvr_t * rcvr = buf->rcvrs, *rcvr_end = rcvr + buf->rcvrs_size; rcvr != rcvr_end; ++rcvr) {
-		if (rcvr->ec == ec) {
-			memmove_s(rcvr, (buf->rcvrs + buf->rcvrs_cap - rcvr) * sizeof(*rcvr), rcvr + 1, (rcvr_end - rcvr - 1) * sizeof(*rcvr));
-
-			--buf->rcvrs_size;
-
-			break;
-		}
-	}
-}
-static void detach_rcvr(void * sndr_data, pla_ec_t * ec) {
-	pla_ec_buf_t * buf = sndr_data;
-
-	EnterCriticalSection(&buf->lock);
-
-	__try {
-		detach_rcvr_nl(buf, ec);
-	}
-	__finally {
-		LeaveCriticalSection(&buf->lock);
-	}
-}
-
-static void attach_rcvr_nl(pla_ec_buf_t * buf, pla_ec_t * ec) {
-	for (pla_ec_buf_rcvr_t * rcvr = buf->rcvrs, *rcvr_end = rcvr + buf->rcvrs_size; rcvr != rcvr_end; ++rcvr) {
-		if (rcvr->ec == ec) {
-			return;
-		}
-	}
-
-	if (buf->rcvrs_size + 1 > buf->rcvrs_cap) {
-		ul_arr_grow(&buf->rcvrs_cap, &buf->rcvrs, sizeof(*buf->rcvrs), 1);
-	}
-
-	pla_ec_buf_rcvr_t * rcvr = &buf->rcvrs[buf->rcvrs_size++];
-
-	*rcvr = (pla_ec_buf_rcvr_t){ .ec = ec };
-
-	pla_ec_clear_all(ec);
-
+static void repost_nl(pla_ec_buf_t * buf, pla_ec_t * ec) {
 	for (pla_ec_err_t * err = buf->errs, *err_end = err + buf->errs_size; err != err_end; ++err) {
 		pla_ec_post(ec, err->group, err->pos_start, err->pos_end, err->msg);
 	}
-
-	if (ec->sndr_data != buf) {
-		if (ec->sndr_data != NULL) {
-			ec->sndr_detach_proc(ec->sndr_data, ec);
-		}
-
-		ec->sndr_data = buf;
-		ec->sndr_detach_proc = detach_rcvr;
-	}
 }
-void pla_ec_buf_attach_rcvr(pla_ec_buf_t * buf, pla_ec_t * ec) {
+void pla_ec_buf_repost(pla_ec_buf_t * buf, pla_ec_t * ec) {
+	ul_assert(&buf->ec != ec);
+
 	EnterCriticalSection(&buf->lock);
 
 	__try {
-		attach_rcvr_nl(buf, ec);
+		repost_nl(buf, ec);
 	}
 	__finally {
 		LeaveCriticalSection(&buf->lock);

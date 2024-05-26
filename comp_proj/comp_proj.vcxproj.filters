@@ -162,6 +162,12 @@
     <ClCompile Include="comp_proj\pla_prsr.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="comp_proj\pla_ec_sndr.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="comp_proj\pla_ec_rcvr.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="comp_proj\pch.h">
@@ -321,6 +327,12 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\pla_prsr.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="comp_proj\pla_ec_sndr.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="comp_proj\pla_ec_rcvr.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

@@ -2,6 +2,7 @@
 #include "wa_style.h"
 
 struct wa_ctx {
+	ul_es_ctx_t * es_ctx;
 	ul_hst_t * hst;
 	ul_hsb_t hsb;
 
@@ -13,7 +14,7 @@ struct wa_ctx {
 	uint64_t twc;
 };
 
-WA_SYMBOL bool wa_ctx_init(wa_ctx_t * ctx, ul_hst_t * hst);
+WA_SYMBOL bool wa_ctx_init(wa_ctx_t * ctx, ul_es_ctx_t * es_ctx, ul_hst_t * hst);
 WA_SYMBOL void wa_ctx_cleanup(wa_ctx_t * ctx);
 
 WA_SYMBOL void wa_ctx_use_show_cmd(wa_ctx_t * ctx, HWND hw);

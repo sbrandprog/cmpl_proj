@@ -137,6 +137,8 @@
     <ClCompile Include="comp_proj\pla_ec.c" />
     <ClCompile Include="comp_proj\pla_ec_buf.c" />
     <ClCompile Include="comp_proj\pla_ec_fmtr.c" />
+    <ClCompile Include="comp_proj\pla_ec_rcvr.c" />
+    <ClCompile Include="comp_proj\pla_ec_sndr.c" />
     <ClCompile Include="comp_proj\pla_expr.c" />
     <ClCompile Include="comp_proj\pla_cn.c" />
     <ClCompile Include="comp_proj\pla_keyw.c" />
@@ -191,6 +193,8 @@
     <ClInclude Include="comp_proj\pla_ec.h" />
     <ClInclude Include="comp_proj\pla_ec_buf.h" />
     <ClInclude Include="comp_proj\pla_ec_fmtr.h" />
+    <ClInclude Include="comp_proj\pla_ec_rcvr.h" />
+    <ClInclude Include="comp_proj\pla_ec_sndr.h" />
     <ClInclude Include="comp_proj\pla_expr.h" />
     <ClInclude Include="comp_proj\pla_cn.h" />
     <ClInclude Include="comp_proj\pla_keyw.h" />

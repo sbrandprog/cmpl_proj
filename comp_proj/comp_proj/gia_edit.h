@@ -28,4 +28,4 @@ WNDCLASSEXW gia_edit_get_wnd_cls_desc();
 
 gia_edit_style_desc_t gia_edit_get_style_desc_dflt(wa_ctx_t * ctx);
 
-void gia_edit_attach_ec(HWND hw, pla_ec_t * ec);
+void gia_edit_attach_ec_rcvr(HWND hw, pla_ec_rcvr_t * ec_rcvr);

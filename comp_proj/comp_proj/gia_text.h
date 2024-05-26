@@ -1,5 +1,5 @@
 #pragma once
-#include "pla_ec_buf.h"
+#include "pla_ec_sndr.h"
 #include "pla_ec_fmtr.h"
 #include "pla_lex.h"
 #include "pla_prsr.h"
@@ -26,7 +26,7 @@ struct gia_text {
 	size_t lines_size;
 
 	ul_hst_t lex_hst;
-	pla_ec_buf_t ec_buf;
+	pla_ec_sndr_t ec_sndr;
 	pla_ec_fmtr_t ec_fmtr;
 	pla_lex_t lex;
 	pla_prsr_t prsr;
@@ -34,7 +34,7 @@ struct gia_text {
 	pla_tu_t * tu;
 };
 
-void gia_text_init(gia_text_t * text);
+void gia_text_init(gia_text_t * text, ul_es_ctx_t * es_ctx);
 void gia_text_cleanup(gia_text_t * text);
 
 void gia_text_insert_str_nl(gia_text_t * text, size_t line_pos, size_t ins_pos, size_t str_size, wchar_t * str);

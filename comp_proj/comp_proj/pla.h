@@ -6,10 +6,13 @@ typedef struct pla_ec_pos pla_ec_pos_t;
 typedef struct pla_ec_err pla_ec_err_t;
 typedef struct pla_ec pla_ec_t;
 
-typedef struct pla_ec_buf_rcvr pla_ec_buf_rcvr_t;
+typedef struct pla_ec_fmtr pla_ec_fmtr_t;
+
 typedef struct pla_ec_buf pla_ec_buf_t;
 
-typedef struct pla_ec_fmtr pla_ec_fmtr_t;
+typedef struct pla_ec_rcvr pla_ec_rcvr_t;
+
+typedef struct pla_ec_sndr pla_ec_sndr_t;
 
 typedef enum pla_punc pla_punc_t;
 

@@ -329,7 +329,7 @@ static void redraw_lines_nl(wnd_data_t * data, HDC hdc, RECT * rect) {
 	{
 		LONG err_line_size = (LONG)(line_h * data->style.err_line_size);
 
-		for (pla_ec_err_t * err = data->text.ec_buf.errs, *err_end = err + data->text.ec_buf.errs_size; err != err_end; ++err) {
+		for (pla_ec_err_t * err = data->text.ec_sndr.buf.errs, *err_end = err + data->text.ec_sndr.buf.errs_size; err != err_end; ++err) {
 			if (err->pos_end.line_num < data->vis_line) {
 				continue;
 			}
@@ -364,14 +364,14 @@ static void redraw_lines(void * user_data, HDC hdc, RECT * rect) {
 	wnd_data_t * data = user_data;
 
 	EnterCriticalSection(&data->text.lock);
-	EnterCriticalSection(&data->text.ec_buf.lock);
+	EnterCriticalSection(&data->text.ec_sndr.buf.lock);
 
 	__try {
 		redraw_lines_nl(data, hdc, rect);
 	}
 	__finally {
 		LeaveCriticalSection(&data->text.lock);
-		LeaveCriticalSection(&data->text.ec_buf.lock);
+		LeaveCriticalSection(&data->text.ec_sndr.buf.lock);
 	}
 }
 
@@ -1092,7 +1092,7 @@ static LRESULT wnd_proc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
 					}
 				}
 
-				gia_text_init(&data->text);
+				gia_text_init(&data->text, data->ctx->es_ctx);
 
 				data->run_exe_work = CreateThreadpoolWork(run_exe_worker, data, NULL);
 
@@ -1173,10 +1173,10 @@ gia_edit_style_desc_t gia_edit_get_style_desc_dflt(wa_ctx_t * ctx) {
 	return desc;
 }
 
-void gia_edit_attach_ec(HWND hw, pla_ec_t * ec) {
+void gia_edit_attach_ec_rcvr(HWND hw, pla_ec_rcvr_t * ec_rcvr) {
 	ul_assert(wa_wnd_check_cls(hw, GIA_EDIT_WND_CLS_NAME));
 
 	wnd_data_t * data = wa_wnd_get_fp(hw);
 
-	pla_ec_buf_attach_rcvr(&data->text.ec_buf, ec);
+	pla_ec_sndr_attach_rcvr(&data->text.ec_sndr, ec_rcvr);
 }

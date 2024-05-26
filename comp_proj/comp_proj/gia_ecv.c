@@ -3,6 +3,7 @@
 #include "wa_lib/wa_wnd.h"
 #include "wa_lib/wa_ctl.h"
 #include "pla_ec_buf.h"
+#include "pla_ec_rcvr.h"
 #include "pla_lex.h"
 #include "pla_prsr.h"
 #include "gia_ecv.h"
@@ -18,6 +19,7 @@ typedef struct gia_ecv_data {
 	pla_ec_buf_t ec_buf;
 
 	pla_ec_t ec;
+	pla_ec_rcvr_t ec_rcvr;
 } wnd_data_t;
 
 static void post_err_proc(void * user_data, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end, ul_hs_t * msg) {
@@ -147,10 +149,14 @@ static LRESULT wnd_proc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
 				pla_ec_buf_init(&data->ec_buf);
 
 				pla_ec_init(&data->ec, data, post_err_proc, shift_lines_proc, clear_errs_proc);
+
+				pla_ec_rcvr_init(&data->ec_rcvr, &data->ec, data->ctx->es_ctx);
 			}
 			break;
 		case WM_NCDESTROY:
 			if (data != NULL) {
+				pla_ec_rcvr_cleanup(&data->ec_rcvr);
+
 				pla_ec_cleanup(&data->ec);
 
 				pla_ec_buf_cleanup(&data->ec_buf);
@@ -185,10 +191,10 @@ WNDCLASSEX gia_ecv_get_wnd_cls_desc() {
 	return wnd_cls_desc;
 }
 
-pla_ec_t * gia_ecv_get_ec(HWND hw) {
+pla_ec_rcvr_t * gia_ecv_get_ec_rcvr(HWND hw) {
 	ul_assert(wa_wnd_check_cls(hw, GIA_ECV_WND_CLS_NAME));
 
 	wnd_data_t * data = wa_wnd_get_fp(hw);
 
-	return &data->ec;
+	return &data->ec_rcvr;
 }

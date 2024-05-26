@@ -95,6 +95,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="utility_lib\ul_assert.c" />
+    <ClCompile Include="utility_lib\ul_es.c" />
     <ClCompile Include="utility_lib\ul_hs.c" />
     <ClCompile Include="utility_lib\ul_hsb.c" />
     <ClCompile Include="utility_lib\ul_hst.c" />
@@ -104,6 +105,7 @@
     <ClInclude Include="utility_lib\ul.h" />
     <ClInclude Include="utility_lib\ul_arr.h" />
     <ClInclude Include="utility_lib\ul_assert.h" />
+    <ClInclude Include="utility_lib\ul_es.h" />
     <ClInclude Include="utility_lib\ul_hs.h" />
     <ClInclude Include="utility_lib\ul_hsb.h" />
     <ClInclude Include="utility_lib\ul_hst.h" />

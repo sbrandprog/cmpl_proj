@@ -12,6 +12,7 @@
 
 static const wchar_t * exe_name = L"test.exe";
 
+static ul_es_ctx_t main_es_ctx;
 static ul_hst_t main_hst;
 static wa_ctx_t main_wa_ctx;
 static wa_wcr_t main_wcr;
@@ -49,7 +50,7 @@ static bool main_fill_repo() {
 	return true;
 }
 static bool main_gui() {
-	if (!wa_ctx_init(&main_wa_ctx, &main_hst)) {
+	if (!wa_ctx_init(&main_wa_ctx, &main_es_ctx, &main_hst)) {
 		return false;
 	}
 
@@ -101,7 +102,7 @@ static bool main_gui() {
 		return false;
 	}
 
-	gia_edit_attach_ec(gia_edit, gia_ecv_get_ec(gia_ecv));
+	gia_edit_attach_ec_rcvr(gia_edit, gia_ecv_get_ec_rcvr(gia_ecv));
 
 	wa_ctx_use_show_cmd(&main_wa_ctx, main_wnd);
 
@@ -113,6 +114,8 @@ static bool main_gui() {
 }
 
 static int main_core() {
+	ul_es_init_ctx(&main_es_ctx);
+
 	ul_hst_init(&main_hst);
 
 	if (!main_fill_repo()) {
@@ -140,6 +143,8 @@ int main() {
 		gia_repo_cleanup(&main_repo);
 
 		ul_hst_cleanup(&main_hst);
+
+		ul_es_cleanup_ctx(&main_es_ctx);
 	}
 
 	_CrtDumpMemoryLeaks();

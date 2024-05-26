@@ -1,8 +1,8 @@
 #include "pch.h"
 #include "wa_ctx.h"
 
-bool wa_ctx_init(wa_ctx_t * ctx, ul_hst_t * hst) {
-	*ctx = (wa_ctx_t){ .hst = hst };
+bool wa_ctx_init(wa_ctx_t * ctx, ul_es_ctx_t * es_ctx, ul_hst_t * hst) {
+	*ctx = (wa_ctx_t){ .es_ctx = es_ctx, .hst = hst };
 
 	ul_hsb_init(&ctx->hsb);
 
