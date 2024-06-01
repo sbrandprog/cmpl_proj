@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "lnk_sect.h"
-#include "lnk_pe.h"
+#include "lnk_pel.h"
 #include "asm_it.h"
 
 #define SECT_NAME ".rdata"
@@ -12,7 +12,7 @@ typedef IMAGE_IMPORT_DESCRIPTOR impt_desc_t;
 typedef struct asm_it_ctx {
 	asm_it_t * it;
 	ul_hst_t * hst;
-	lnk_pe_t * out;
+	lnk_pel_t * out;
 
 	ul_hsb_t hsb;
 
@@ -128,7 +128,7 @@ asm_it_sym_t * asm_it_add_sym(asm_it_t * it, ul_hs_t * lib_name, ul_hs_t * sym_n
 }
 
 static lnk_sect_t * create_sects_sect(ctx_t * ctx) {
-	lnk_sect_t * sect = lnk_pe_push_new_sect(ctx->out);
+	lnk_sect_t * sect = lnk_pel_push_new_sect(ctx->out);
 
 	sect->name = SECT_NAME;
 
@@ -266,7 +266,7 @@ static bool build_core(ctx_t * ctx) {
 	return true;
 }
 
-bool asm_it_build(asm_it_t * it, ul_hst_t * hst, lnk_pe_t * out) {
+bool asm_it_build(asm_it_t * it, ul_hst_t * hst, lnk_pel_t * out) {
 	ctx_t ctx = { .it = it, .hst = hst, .out = out };
 
 	bool res;

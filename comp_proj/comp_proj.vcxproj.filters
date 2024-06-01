@@ -27,7 +27,7 @@
     <ClCompile Include="comp_proj\asm_reg.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="comp_proj\lnk_pe.c">
+    <ClCompile Include="comp_proj\lnk_pel.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="comp_proj\lnk_sect.c">
@@ -84,7 +84,7 @@
     <ClCompile Include="comp_proj\ira_pec_c.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="comp_proj\lnk_pe_l.c">
+    <ClCompile Include="comp_proj\lnk_pel_l.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="comp_proj\asm_pea_b.c">
@@ -185,7 +185,7 @@
     <ClInclude Include="comp_proj\lnk.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="comp_proj\lnk_pe.h">
+    <ClInclude Include="comp_proj\lnk_pel.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\lnk_sect.h">
@@ -251,7 +251,7 @@
     <ClInclude Include="comp_proj\ira_pec_c.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="comp_proj\lnk_pe_l.h">
+    <ClInclude Include="comp_proj\lnk_pel_l.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\asm_pea_b.h">

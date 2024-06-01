@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "lnk_pe_l.h"
+#include "lnk_pel_l.h"
 #include "asm_pea_b.h"
 #include "ira_pec_c.h"
 #include "pla_ec_buf.h"
@@ -21,7 +21,7 @@ typedef struct gia_bs_ctx {
 	pla_ast_t pla_ast;
 	ira_pec_t ira_pec;
 	asm_pea_t asm_pea;
-	lnk_pe_t lnk_pe;
+	lnk_pel_t lnk_pe;
 } ctx_t;
 
 static wchar_t get_group_letter(size_t group) {
@@ -68,7 +68,7 @@ static bool build_core(ctx_t * ctx) {
 
 	ctx->lnk_pe.file_name = ctx->file_name;
 
-	if (!lnk_pe_l_link(&ctx->lnk_pe)) {
+	if (!lnk_pel_l_link(&ctx->lnk_pe)) {
 		return false;
 	}
 
@@ -83,7 +83,7 @@ bool gia_bs_build_nl(gia_repo_t * repo, ul_hs_t * first_tus_name, const wchar_t 
 		res = build_core(&ctx);
 	}
 	__finally {
-		lnk_pe_cleanup(&ctx.lnk_pe);
+		lnk_pel_cleanup(&ctx.lnk_pe);
 
 		asm_pea_cleanup(&ctx.asm_pea);
 

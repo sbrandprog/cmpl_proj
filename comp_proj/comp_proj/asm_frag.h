@@ -27,4 +27,4 @@ void asm_frag_destroy_chain(asm_frag_t * frag);
 
 void asm_frag_push_inst(asm_frag_t * frag, asm_inst_t * inst);
 
-bool asm_frag_build(asm_frag_t * frag, lnk_pe_t * out);
+bool asm_frag_build(asm_frag_t * frag, lnk_pel_t * out);

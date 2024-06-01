@@ -1,9 +1,9 @@
 #pragma once
 #include "lnk.h"
 
-#define LNK_PE_MAX_MODULE_SIZE INT32_MAX
+#define LNK_PEL_MAX_MODULE_SIZE INT32_MAX
 
-struct lnk_pe_sett {
+struct lnk_pel_sett {
 	uint64_t image_base;
 	uint64_t sect_align, file_align;
 
@@ -20,20 +20,20 @@ struct lnk_pe_sett {
 	const char * base_reloc_name;
 };
 
-struct lnk_pe {
+struct lnk_pel {
 	lnk_sect_t * sect;
 
 	ul_hs_t * ep_name;
 
 	const wchar_t * file_name;
 
-	const lnk_pe_sett_t * sett;
+	const lnk_pel_sett_t * sett;
 };
 
-void lnk_pe_init(lnk_pe_t * pe);
-void lnk_pe_cleanup(lnk_pe_t * pe);
+void lnk_pel_init(lnk_pel_t * pel);
+void lnk_pel_cleanup(lnk_pel_t * pel);
 
-lnk_sect_t * lnk_pe_push_new_sect(lnk_pe_t * pe);
+lnk_sect_t * lnk_pel_push_new_sect(lnk_pel_t * pe);
 
-extern const lnk_pe_sett_t lnk_pe_sett_default;
-extern const wchar_t * lnk_pe_file_name_default;
+extern const lnk_pel_sett_t lnk_pel_sett_default;
+extern const wchar_t * lnk_pel_file_name_default;

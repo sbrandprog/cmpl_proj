@@ -1,17 +1,17 @@
 #include "pch.h"
-#include "lnk_pe.h"
+#include "lnk_pel.h"
 #include "lnk_sect.h"
 
-void lnk_pe_init(lnk_pe_t * pe) {
-	*pe = (lnk_pe_t){ 0 };
+void lnk_pel_init(lnk_pel_t * pe) {
+	*pe = (lnk_pel_t){ 0 };
 }
-void lnk_pe_cleanup(lnk_pe_t * pe) {
+void lnk_pel_cleanup(lnk_pel_t * pe) {
 	lnk_sect_destroy_chain(pe->sect);
 
 	memset(pe, 0, sizeof(*pe));
 }
 
-lnk_sect_t * lnk_pe_push_new_sect(lnk_pe_t * pe) {
+lnk_sect_t * lnk_pel_push_new_sect(lnk_pel_t * pe) {
 	lnk_sect_t * sect = lnk_sect_create();
 
 	lnk_sect_t * next;
@@ -25,7 +25,7 @@ lnk_sect_t * lnk_pe_push_new_sect(lnk_pe_t * pe) {
 	return sect;
 }
 
-const lnk_pe_sett_t lnk_pe_sett_default = {
+const lnk_pel_sett_t lnk_pel_sett_default = {
 	.image_base = 0x140000000,
 	.sect_align = 0x1000, .file_align = 0x200,
 
@@ -41,4 +41,4 @@ const lnk_pe_sett_t lnk_pe_sett_default = {
 	.make_base_reloc = true,
 	.base_reloc_name = ".reloc"
 };
-const wchar_t * lnk_pe_file_name_default = L"out.exe";
+const wchar_t * lnk_pel_file_name_default = L"out.exe";

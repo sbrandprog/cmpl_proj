@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "lnk_pe_l.h"
+#include "lnk_pel_l.h"
 #include "lnk_sect.h"
 
 #define PAGE_SIZE 4096
@@ -47,8 +47,8 @@ typedef struct br_fixup {
 	size_t target_page;
 } br_fixup_t;
 
-typedef struct lnk_pe_l_ctx {
-	lnk_pe_t * pe;
+typedef struct lnk_pel_l_ctx {
+	lnk_pel_t * pel;
 
 	size_t sect_buf_size;
 	lnk_sect_t ** sect_buf0;
@@ -111,9 +111,9 @@ static label_t * find_label(ctx_t * ctx, const ul_hs_t * name) {
 }
 
 static void prepare_bufs(ctx_t * ctx) {
-	lnk_pe_t * pe = ctx->pe;
+	lnk_pel_t * pel = ctx->pel;
 
-	for (lnk_sect_t * sect = pe->sect; sect != NULL; sect = sect->next) {
+	for (lnk_sect_t * sect = pel->sect; sect != NULL; sect = sect->next) {
 		++ctx->sect_buf_size;
 	}
 
@@ -126,7 +126,7 @@ static void prepare_bufs(ctx_t * ctx) {
 	ul_assert(ctx->sect_buf1 != NULL);
 
 	{
-		lnk_sect_t * sect = pe->sect;
+		lnk_sect_t * sect = pel->sect;
 		lnk_sect_t ** cur = ctx->sect_buf0;
 
 		for (; sect != NULL; sect = sect->next) {
@@ -369,7 +369,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 
 	sect_t * reloc = add_sect(ctx);
 
-	reloc->name = ctx->pe->sett->base_reloc_name;
+	reloc->name = ctx->pel->sett->base_reloc_name;
 	reloc->mem_r = true;
 	reloc->mem_disc = true;
 
@@ -465,7 +465,7 @@ static bool form_sects(ctx_t * ctx) {
 		remn_sects -= buf1_end - ctx->sect_buf1;
 	}
 
-	if (ctx->pe->sett->make_base_reloc && ctx->va64_fixups_size != 0) {
+	if (ctx->pel->sett->make_base_reloc && ctx->va64_fixups_size != 0) {
 		if (!form_base_reloc_sect(ctx)) {
 			return false;
 		}
@@ -479,24 +479,25 @@ static bool form_sects(ctx_t * ctx) {
 }
 
 static bool calculate_offsets(ctx_t * ctx) {
-	lnk_pe_t * pe = ctx->pe;
+	lnk_pel_t * pel = ctx->pel;
+	const lnk_pel_sett_t * sett = pel->sett;
 
 	ctx->raw_hdrs_size = sizeof(IMAGE_DOS_HEADER) + sizeof(IMAGE_NT_HEADERS64) + sizeof(IMAGE_SECTION_HEADER) * ctx->sect_count;
-	ctx->hdrs_size = ul_align_to(ctx->raw_hdrs_size, pe->sett->file_align);
-	ctx->first_sect_va = ul_align_to(ctx->hdrs_size, pe->sett->sect_align);
+	ctx->hdrs_size = ul_align_to(ctx->raw_hdrs_size, sett->file_align);
+	ctx->first_sect_va = ul_align_to(ctx->hdrs_size, sett->sect_align);
 
 	size_t next_raw_addr = ctx->hdrs_size, next_virt_addr = ctx->first_sect_va;
 
 	for (sect_t * sect = ctx->sect; sect != NULL; sect = sect->next) {
-		sect->raw_size = ul_align_to(sect->data_size, pe->sett->file_align);
+		sect->raw_size = ul_align_to(sect->data_size, sett->file_align);
 		sect->raw_addr = next_raw_addr;
-		sect->virt_size = ul_align_to(sect->raw_size, pe->sett->sect_align);
+		sect->virt_size = ul_align_to(sect->raw_size, sett->sect_align);
 		sect->virt_addr = next_virt_addr;
 
 		next_raw_addr += sect->raw_size;
 		next_virt_addr += sect->virt_size;
 
-		if (next_virt_addr >= LNK_PE_MAX_MODULE_SIZE) {
+		if (next_virt_addr >= LNK_PEL_MAX_MODULE_SIZE) {
 			return false;
 		}
 	}
@@ -504,7 +505,7 @@ static bool calculate_offsets(ctx_t * ctx) {
 	ctx->image_size = next_virt_addr;
 
 	{
-		label_t * ep_label = find_label(ctx, pe->ep_name);
+		label_t * ep_label = find_label(ctx, pel->ep_name);
 
 		if (ep_label == NULL) {
 			return false;
@@ -555,7 +556,7 @@ static bool apply_fixups(ctx_t * ctx) {
 				break;
 			}
 			case LnkSectFixupVa64:
-				*(uint64_t *)write_pos = (uint64_t)(lpos + ctx->pe->sett->image_base);
+				*(uint64_t *)write_pos = (uint64_t)(lpos + ctx->pel->sett->image_base);
 				break;
 			case LnkSectFixupRva32:
 				*(uint32_t *)write_pos = (uint32_t)lpos;
@@ -617,7 +618,7 @@ static void write_zeros(FILE * file, size_t size) {
 	ul_assert(count == mod);
 }
 static bool write_file_core(ctx_t * ctx, FILE * file) {
-	lnk_pe_t * pe = ctx->pe;
+	const lnk_pel_sett_t * sett = ctx->pel->sett;
 
 	{
 		IMAGE_DOS_HEADER dos = { 0 };
@@ -638,25 +639,25 @@ static bool write_file_core(ctx_t * ctx, FILE * file) {
 		nt.FileHeader.Machine = IMAGE_FILE_MACHINE_AMD64;
 		nt.FileHeader.NumberOfSections = (WORD)ctx->sect_count;
 		nt.FileHeader.SizeOfOptionalHeader = sizeof(nt.OptionalHeader);
-		nt.FileHeader.Characteristics = (WORD)pe->sett->chars;
+		nt.FileHeader.Characteristics = (WORD)sett->chars;
 
 		nt.OptionalHeader.Magic = IMAGE_NT_OPTIONAL_HDR64_MAGIC;
-		nt.OptionalHeader.ImageBase = (ULONGLONG)pe->sett->image_base;
-		nt.OptionalHeader.SectionAlignment = (DWORD)pe->sett->sect_align;
-		nt.OptionalHeader.FileAlignment = (DWORD)pe->sett->file_align;
+		nt.OptionalHeader.ImageBase = (ULONGLONG)sett->image_base;
+		nt.OptionalHeader.SectionAlignment = (DWORD)sett->sect_align;
+		nt.OptionalHeader.FileAlignment = (DWORD)sett->file_align;
 		nt.OptionalHeader.AddressOfEntryPoint = (DWORD)(ctx->ep_virt_addr);
-		nt.OptionalHeader.MajorOperatingSystemVersion = (WORD)pe->sett->os_major;
-		nt.OptionalHeader.MinorOperatingSystemVersion = (WORD)pe->sett->os_minor;
-		nt.OptionalHeader.MajorSubsystemVersion = (WORD)pe->sett->subsys_major;
-		nt.OptionalHeader.MinorSubsystemVersion = (WORD)pe->sett->subsys_minor;
+		nt.OptionalHeader.MajorOperatingSystemVersion = (WORD)sett->os_major;
+		nt.OptionalHeader.MinorOperatingSystemVersion = (WORD)sett->os_minor;
+		nt.OptionalHeader.MajorSubsystemVersion = (WORD)sett->subsys_major;
+		nt.OptionalHeader.MinorSubsystemVersion = (WORD)sett->subsys_minor;
 		nt.OptionalHeader.SizeOfImage = (DWORD)ctx->image_size;
 		nt.OptionalHeader.SizeOfHeaders = (DWORD)ctx->hdrs_size;
-		nt.OptionalHeader.Subsystem = (WORD)pe->sett->subsys;
-		nt.OptionalHeader.DllCharacteristics = (WORD)pe->sett->dll_chars;
-		nt.OptionalHeader.SizeOfStackReserve = (ULONGLONG)pe->sett->stack_res;
-		nt.OptionalHeader.SizeOfStackCommit = (ULONGLONG)pe->sett->stack_com;
-		nt.OptionalHeader.SizeOfHeapReserve = (ULONGLONG)pe->sett->heap_res;
-		nt.OptionalHeader.SizeOfHeapCommit = (ULONGLONG)pe->sett->heap_com;
+		nt.OptionalHeader.Subsystem = (WORD)sett->subsys;
+		nt.OptionalHeader.DllCharacteristics = (WORD)sett->dll_chars;
+		nt.OptionalHeader.SizeOfStackReserve = (ULONGLONG)sett->stack_res;
+		nt.OptionalHeader.SizeOfStackCommit = (ULONGLONG)sett->stack_com;
+		nt.OptionalHeader.SizeOfHeapReserve = (ULONGLONG)sett->heap_res;
+		nt.OptionalHeader.SizeOfHeapCommit = (ULONGLONG)sett->heap_com;
 		nt.OptionalHeader.NumberOfRvaAndSizes = IMAGE_NUMBEROF_DIRECTORY_ENTRIES;
 
 		if (!set_dir_info(ctx, &nt, IMAGE_DIRECTORY_ENTRY_IMPORT)) {
@@ -708,7 +709,7 @@ static bool write_file_core(ctx_t * ctx, FILE * file) {
 static bool write_file(ctx_t * ctx) {
 	FILE * file;
 
-	if (_wfopen_s(&file, ctx->pe->file_name, L"wb") != 0) {
+	if (_wfopen_s(&file, ctx->pel->file_name, L"wb") != 0) {
 		return false;
 	}
 
@@ -738,8 +739,8 @@ static bool link_core(ctx_t * ctx) {
 
 	return true;
 }
-bool lnk_pe_l_link(lnk_pe_t * pe) {
-	ctx_t ctx = { .pe = pe };
+bool lnk_pel_l_link(lnk_pel_t * pel) {
+	ctx_t ctx = { .pel = pel };
 
 	bool res;
 	

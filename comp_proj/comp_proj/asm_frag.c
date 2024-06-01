@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "lnk_sect.h"
-#include "lnk_pe.h"
+#include "lnk_pel.h"
 #include "asm_size.h"
 #include "asm_reg.h"
 #include "asm_inst.h"
@@ -180,7 +180,7 @@ static bool build_special_inst(asm_frag_t * frag, asm_inst_t * inst, lnk_sect_t 
 
 			size_t align_amount = ul_align_to(out->data_size, (size_t)inst->imm0) - out->data_size;
 
-			ul_assert(align_amount < LNK_PE_MAX_MODULE_SIZE);
+			ul_assert(align_amount < LNK_PEL_MAX_MODULE_SIZE);
 
 			if (out->data_size + align_amount > out->data_cap) {
 				ul_arr_grow(&out->data_cap, &out->data, sizeof(*out->data), align_amount);
@@ -243,8 +243,8 @@ static bool build_core(asm_frag_t * frag, lnk_sect_t * out) {
 	return true;
 }
 
-bool asm_frag_build(asm_frag_t * frag, lnk_pe_t * out) {
-	lnk_sect_t * sect = lnk_pe_push_new_sect(out);
+bool asm_frag_build(asm_frag_t * frag, lnk_pel_t * out) {
+	lnk_sect_t * sect = lnk_pel_push_new_sect(out);
 
 	return build_core(frag, sect);
 }

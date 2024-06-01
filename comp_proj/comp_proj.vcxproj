@@ -121,8 +121,8 @@
     <ClCompile Include="comp_proj\ira_pec_c.c" />
     <ClCompile Include="comp_proj\ira_pec_ip.c" />
     <ClCompile Include="comp_proj\ira_val.c" />
-    <ClCompile Include="comp_proj\lnk_pe.c" />
-    <ClCompile Include="comp_proj\lnk_pe_l.c" />
+    <ClCompile Include="comp_proj\lnk_pel.c" />
+    <ClCompile Include="comp_proj\lnk_pel_l.c" />
     <ClCompile Include="comp_proj\lnk_sect.c" />
     <ClCompile Include="comp_proj\main.c" />
     <ClCompile Include="comp_proj\pch.c">
@@ -181,8 +181,8 @@
     <ClInclude Include="comp_proj\ira_pec_ip.h" />
     <ClInclude Include="comp_proj\ira_val.h" />
     <ClInclude Include="comp_proj\lnk.h" />
-    <ClInclude Include="comp_proj\lnk_pe.h" />
-    <ClInclude Include="comp_proj\lnk_pe_l.h" />
+    <ClInclude Include="comp_proj\lnk_pel.h" />
+    <ClInclude Include="comp_proj\lnk_pel_l.h" />
     <ClInclude Include="comp_proj\lnk_sect.h" />
     <ClInclude Include="comp_proj\pch.h" />
     <ClInclude Include="comp_proj\pla.h" />
