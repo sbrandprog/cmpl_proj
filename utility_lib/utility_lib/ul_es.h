@@ -23,7 +23,7 @@ UL_SYMBOL void ul_es_destroy_node(ul_es_node_t * node);
 
 
 UL_SYMBOL void ul_es_link_nl(ul_es_node_t * first, ul_es_node_t * second);
-inline ul_es_link(ul_es_node_t * first, ul_es_node_t * second) {
+inline void ul_es_link(ul_es_node_t * first, ul_es_node_t * second) {
 	ul_assert(first->ctx == second->ctx);
 
 	AcquireSRWLockExclusive(&first->ctx->lock);
@@ -36,7 +36,7 @@ inline ul_es_link(ul_es_node_t * first, ul_es_node_t * second) {
 	}
 }
 UL_SYMBOL void ul_es_unlink_nl(ul_es_node_t * first, ul_es_node_t * second);
-inline ul_es_unlink(ul_es_node_t * first, ul_es_node_t * second) {
+inline void ul_es_unlink(ul_es_node_t * first, ul_es_node_t * second) {
 	ul_assert(first->ctx == second->ctx);
 
 	AcquireSRWLockExclusive(&first->ctx->lock);

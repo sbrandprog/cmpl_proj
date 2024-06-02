@@ -30,17 +30,6 @@ bool wa_wnd_check_cls(HWND hw, const wchar_t * cls_name) {
 	return wcscmp(buf, cls_name) == 0 ? true : false;
 }
 
-wa_wnd_cd_t * wa_wnd_get_cd(LPARAM lp) {
-	return ((LPCREATESTRUCTW)lp)->lpCreateParams;
-}
-
-void wa_wnd_set_fp(HWND hw, void * fp) {
-	SetWindowLongPtrW(hw, 0, (LONG_PTR)fp);
-}
-void * wa_wnd_get_fp(HWND hw) {
-	return (void *)GetWindowLongPtrW(hw, 0);
-}
-
 void wa_wnd_paint_buf(HWND hw, HDC hdc, void * user_data, wa_wnd_paint_proc_t * paint_proc) {
 	RECT rect;
 

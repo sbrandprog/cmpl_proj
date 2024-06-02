@@ -9,7 +9,7 @@ static wa_wcr_wnd_cls_desc_proc_t * const wnd_cls_desc_procs[] = {
 	wa_splt_get_wnd_cls_desc
 };
 
-static bool register_wnd_cls_nl(wa_wcr_t * wcr, WNDCLASSEXW * wnd_cls_desc) {
+static bool register_d_nl(wa_wcr_t * wcr, WNDCLASSEXW * wnd_cls_desc) {
 	ATOM wnd_cls = RegisterClassExW(wnd_cls_desc);
 
 	if (wnd_cls == 0) {
@@ -24,7 +24,7 @@ static bool register_wnd_cls_nl(wa_wcr_t * wcr, WNDCLASSEXW * wnd_cls_desc) {
 
 	return true;
 }
-static bool register_wnd_cls_p_nl(wa_wcr_t * wcr, wa_wcr_wnd_cls_desc_proc_t * proc) {
+static bool register_p_nl(wa_wcr_t * wcr, wa_wcr_wnd_cls_desc_proc_t * proc) {
 	WNDCLASSEXW wnd_cls_desc = proc();
 
 	wnd_cls_desc.cbSize = sizeof(wnd_cls_desc);
@@ -37,7 +37,7 @@ static bool register_wnd_cls_p_nl(wa_wcr_t * wcr, wa_wcr_wnd_cls_desc_proc_t * p
 		wnd_cls_desc.hCursor = LoadCursorW(NULL, IDC_ARROW);
 	}
 
-	if (!register_wnd_cls_nl(wcr, &wnd_cls_desc)) {
+	if (!register_d_nl(wcr, &wnd_cls_desc)) {
 		return false;
 	}
 
@@ -46,7 +46,7 @@ static bool register_wnd_cls_p_nl(wa_wcr_t * wcr, wa_wcr_wnd_cls_desc_proc_t * p
 
 static bool register_dflt_clss(wa_wcr_t * wcr) {
 	for (wa_wcr_wnd_cls_desc_proc_t * const * proc = wnd_cls_desc_procs, * const * proc_end = proc + _countof(wnd_cls_desc_procs); proc != proc_end; ++proc) {
-		if (!register_wnd_cls_p_nl(wcr, *proc)) {
+		if (!register_p_nl(wcr, *proc)) {
 			return false;
 		}
 	}
@@ -73,10 +73,6 @@ void wa_wcr_cleanup(wa_wcr_t * wcr) {
 
 	free(wcr->wnd_clss);
 
-	wcr->wnd_clss_cap = 0;
-	wcr->wnd_clss = NULL;
-	wcr->wnd_clss_size = 0;
-
 	memset(wcr, 0, sizeof(*wcr));
 }
 
@@ -86,7 +82,7 @@ bool wa_wcr_register_d(wa_wcr_t * wcr, WNDCLASSEXW * wnd_cls_desc) {
 	bool res;
 
 	__try {
-		res = register_wnd_cls_nl(wcr, wnd_cls_desc);
+		res = register_d_nl(wcr, wnd_cls_desc);
 	}
 	__finally {
 		LeaveCriticalSection(&wcr->lock);
@@ -100,7 +96,7 @@ bool wa_wcr_register_p(wa_wcr_t * wcr, wa_wcr_wnd_cls_desc_proc_t * proc) {
 	bool res;
 
 	__try {
-		res = register_wnd_cls_p_nl(wcr, proc);
+		res = register_p_nl(wcr, proc);
 	}
 	__finally {
 		LeaveCriticalSection(&wcr->lock);
