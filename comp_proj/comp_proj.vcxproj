@@ -107,6 +107,8 @@
     <ClCompile Include="comp_proj\gia_bs_p.c" />
     <ClCompile Include="comp_proj\gia_ecv.c" />
     <ClCompile Include="comp_proj\gia_pkg.c" />
+    <ClCompile Include="comp_proj\gia_repo_lsnr.c" />
+    <ClCompile Include="comp_proj\gia_repo_view.c" />
     <ClCompile Include="comp_proj\gia_tus_p.c" />
     <ClCompile Include="comp_proj\gia_repo.c" />
     <ClCompile Include="comp_proj\gia_text.c" />
@@ -165,6 +167,8 @@
     <ClInclude Include="comp_proj\gia_bs_p.h" />
     <ClInclude Include="comp_proj\gia_ecv.h" />
     <ClInclude Include="comp_proj\gia_pkg.h" />
+    <ClInclude Include="comp_proj\gia_repo_lsnr.h" />
+    <ClInclude Include="comp_proj\gia_repo_view.h" />
     <ClInclude Include="comp_proj\gia_tus_p.h" />
     <ClInclude Include="comp_proj\gia_repo.h" />
     <ClInclude Include="comp_proj\gia_text.h" />
