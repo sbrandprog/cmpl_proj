@@ -39,7 +39,7 @@ void gia_tus_insert_str_nl(gia_tus_t * tus, size_t ins_pos, size_t str_size, wch
 	ul_assert(ins_pos <= tus->src_size);
 
 	if (tus->src_size + str_size > tus->src_cap) {
-		ul_arr_grow(&tus->src_cap, &tus->src, sizeof(*tus->src), str_size);
+		ul_arr_grow(&tus->src_cap, &tus->src, sizeof(*tus->src), tus->src_size + str_size - tus->src_cap);
 	}
 
 	wmemmove_s(tus->src + ins_pos + str_size, tus->src_cap - ins_pos, tus->src + ins_pos, tus->src_size - ins_pos);

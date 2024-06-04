@@ -297,8 +297,8 @@ static bool form_sect(ctx_t * ctx, lnk_sect_t ** buf1_end) {
 
 		size_t sect_start = ul_align_to(new_sect->data_size, align);
 
-		if (new_sect->data_size + sect_start + sect->data_size > new_sect->data_cap) {
-			ul_arr_grow(&new_sect->data_cap, &new_sect->data, sizeof(uint8_t), sect_start + sect->data_size);
+		if (sect_start + sect->data_size > new_sect->data_cap) {
+			ul_arr_grow(&new_sect->data_cap, &new_sect->data, sizeof(uint8_t), sect_start + sect->data_size - new_sect->data_cap);
 		}
 
 		memset(new_sect->data + new_sect->data_size, sect->data_align_byte, sect_start - new_sect->data_size);
@@ -395,7 +395,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 		}
 
 		if (block_start + block_size > reloc->data_cap) {
-			ul_arr_grow(&reloc->data_cap, &reloc->data, sizeof(*reloc->data), block_start - reloc->data_size + block_size);
+			ul_arr_grow(&reloc->data_cap, &reloc->data, sizeof(*reloc->data), block_start + block_size - reloc->data_cap);
 		}
 
 		memset(reloc->data + reloc->data_size, 0, block_start - reloc->data_size);

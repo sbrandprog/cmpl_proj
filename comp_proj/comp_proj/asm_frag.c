@@ -183,7 +183,7 @@ static bool build_special_inst(asm_frag_t * frag, asm_inst_t * inst, lnk_sect_t 
 			ul_assert(align_amount < LNK_PEL_MAX_MODULE_SIZE);
 
 			if (out->data_size + align_amount > out->data_cap) {
-				ul_arr_grow(&out->data_cap, &out->data, sizeof(*out->data), align_amount);
+				ul_arr_grow(&out->data_cap, &out->data, sizeof(*out->data), out->data_size + align_amount - out->data_cap);
 			}
 
 			memset(out->data + out->data_size, out->data_align_byte, align_amount);
@@ -217,7 +217,7 @@ static bool build_core(asm_frag_t * frag, lnk_sect_t * out) {
 		}
 
 		if (out->data_size + inst_size > out->data_cap) {
-			ul_arr_grow(&out->data_cap, &out->data, sizeof(*out->data), inst_size);
+			ul_arr_grow(&out->data_cap, &out->data, sizeof(*out->data), out->data_size + inst_size - out->data_cap);
 		}
 
 		size_t inst_start = out->data_size;

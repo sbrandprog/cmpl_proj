@@ -150,7 +150,7 @@ static ul_hs_t * get_unq_label_name(ctx_t * ctx) {
 }
 static void write_data(lnk_sect_t * sect, size_t data_size, void * data) {
 	if (sect->data_size + data_size > sect->data_cap) {
-		ul_arr_grow(&sect->data_cap, &sect->data, sizeof(*sect->data), data_size);
+		ul_arr_grow(&sect->data_cap, &sect->data, sizeof(*sect->data), sect->data_size + data_size - sect->data_cap);
 	}
 
 	memcpy(sect->data + sect->data_size, data, data_size);
@@ -160,7 +160,7 @@ static bool write_ascii_str(lnk_sect_t * sect, ul_hs_t * str) {
 	size_t str_size = ul_align_to(str->size + 1, NAME_ALIGN);
 
 	if (sect->data_size + str_size > sect->data_cap) {
-		ul_arr_grow(&sect->data_cap, &sect->data, sizeof(*sect->data), sect->data_cap + str_size - sect->data_cap);
+		ul_arr_grow(&sect->data_cap, &sect->data, sizeof(*sect->data), sect->data_size + str_size - sect->data_cap);
 	}
 
 	uint8_t * cur = sect->data + sect->data_size;
