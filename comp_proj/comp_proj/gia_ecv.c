@@ -22,24 +22,10 @@ typedef struct gia_ecv_data {
 	pla_ec_rcvr_t ec_rcvr;
 } wnd_data_t;
 
-static void post_err_proc(void * user_data, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end, ul_hs_t * msg) {
+static void process_actn_proc(void * user_data, pla_ec_actn_t * actn) {
 	wnd_data_t * data = user_data;
 
-	pla_ec_post(&data->ec_buf.ec, group, pos_start, pos_end, msg);
-
-	InvalidateRect(data->hw, NULL, FALSE);
-}
-static void shift_lines_proc(void * user_data, size_t group, size_t start_line, size_t shift_size, bool shift_rev) {
-	wnd_data_t * data = user_data;
-
-	pla_ec_shift(&data->ec_buf.ec, group, start_line, shift_size, shift_rev);
-
-	InvalidateRect(data->hw, NULL, FALSE);
-}
-static void clear_errs_proc(void * user_data, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end) {
-	wnd_data_t * data = user_data;
-
-	pla_ec_clear(&data->ec_buf.ec, group, pos_start, pos_end);
+	pla_ec_do_actn(&data->ec_buf.ec, actn);
 
 	InvalidateRect(data->hw, NULL, FALSE);
 }
@@ -148,7 +134,7 @@ static LRESULT wnd_proc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
 
 				pla_ec_buf_init(&data->ec_buf);
 
-				pla_ec_init(&data->ec, data, post_err_proc, shift_lines_proc, clear_errs_proc);
+				pla_ec_init(&data->ec, data, process_actn_proc);
 
 				pla_ec_rcvr_init(&data->ec_rcvr, &data->ec, data->ctx->es_ctx);
 			}

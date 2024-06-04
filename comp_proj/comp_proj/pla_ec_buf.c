@@ -19,65 +19,39 @@ static void insert_err_sorted_nl(pla_ec_buf_t * buf, pla_ec_err_t * err) {
 	++buf->errs_size;
 }
 
-static void post_err_nl(pla_ec_buf_t * buf, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end, ul_hs_t * msg) {
-	if (group == PLA_EC_GROUP_ALL) {
+static void post_err_nl(pla_ec_buf_t * buf, pla_ec_actn_t * actn) {
+	if (actn->group == PLA_EC_GROUP_ALL) {
 		return;
 	}
 	
-	pla_ec_err_t err = { .group = group, .pos_start = pos_start, .pos_end = pos_end, .msg = msg };
+	pla_ec_err_t err = { .group = actn->group, .pos_start = actn->pos_start, .pos_end = actn->pos_end, .msg = actn->msg };
 
 	insert_err_sorted_nl(buf, &err);
 }
-static void post_err_proc(void * user_data, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end, ul_hs_t * msg) {
-	pla_ec_buf_t * buf = user_data;
-
-	EnterCriticalSection(&buf->lock);
-
-	__try {
-		post_err_nl(buf, group, pos_start, pos_end, msg);
-	}
-	__finally {
-		LeaveCriticalSection(&buf->lock);
-	}
-}
-
-static void shift_lines_nl(pla_ec_buf_t * buf, size_t group, size_t start_line, size_t shift_size, bool shift_rev) {
+static void shift_lines_nl(pla_ec_buf_t * buf, pla_ec_actn_t * actn) {
 	for (size_t err_i = 0; err_i < buf->errs_size; ++err_i) {
 		pla_ec_err_t * err = &buf->errs[err_i];
 
-		if ((group == PLA_EC_GROUP_ALL || err->group == group)
-			&& err->pos_start.line_num >= start_line) {
-			if (shift_rev) {
-				err->pos_start.line_num -= min(err->pos_start.line_num, shift_size);
-				err->pos_end.line_num -= min(err->pos_end.line_num, shift_size);
+		if ((actn->group == PLA_EC_GROUP_ALL || err->group == actn->group)
+			&& err->pos_start.line_num >= actn->start_line) {
+			if (actn->shift_rev) {
+				err->pos_start.line_num -= min(err->pos_start.line_num, actn->shift_size);
+				err->pos_end.line_num -= min(err->pos_end.line_num, actn->shift_size);
 			}
 			else {
-				err->pos_start.line_num += shift_size;
-				err->pos_end.line_num += shift_size;
+				err->pos_start.line_num += actn->shift_size;
+				err->pos_end.line_num += actn->shift_size;
 			}
 		}
 	}
 }
-static void shift_lines_proc(void * user_data, size_t group, size_t start_line, size_t shift_size, bool shift_rev) {
-	pla_ec_buf_t * buf = user_data;
-
-	EnterCriticalSection(&buf->lock);
-
-	__try {
-		shift_lines_nl(buf, group, start_line, shift_size, shift_rev);
-	}
-	__finally {
-		LeaveCriticalSection(&buf->lock);
-	}
-}
-
-static void clear_errs_nl(pla_ec_buf_t * buf, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end) {
+static void clear_errs_nl(pla_ec_buf_t * buf, pla_ec_actn_t * actn) {
 	for (size_t err_i = 0; err_i < buf->errs_size; ) {
 		pla_ec_err_t * err = &buf->errs[err_i];
 
-		if ((group == PLA_EC_GROUP_ALL || err->group == group)
-			&& !pla_ec_pos_is_less(&err->pos_start, &pos_start)
-			&& !pla_ec_pos_is_less(&pos_end, &err->pos_start)) {
+		if ((actn->group == PLA_EC_GROUP_ALL || err->group == actn->group)
+			&& !pla_ec_pos_is_less(&err->pos_start, &actn->pos_start)
+			&& !pla_ec_pos_is_less(&actn->pos_end, &err->pos_start)) {
 			memmove_s(err, (buf->errs_cap - err_i) * sizeof(*buf->errs), err + 1, (buf->errs_size - err_i - 1) * sizeof(*buf->errs));
 
 			--buf->errs_size;
@@ -87,13 +61,29 @@ static void clear_errs_nl(pla_ec_buf_t * buf, size_t group, pla_ec_pos_t pos_sta
 		}
 	}
 }
-static void clear_errs_proc(void * user_data, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end) {
+
+static void process_actn_nl(pla_ec_buf_t * buf, pla_ec_actn_t * actn) {
+	switch (actn->type) {
+		case PlaEcActnPost:
+			post_err_nl(buf, actn);
+			break;
+		case PlaEcActnShift:
+			shift_lines_nl(buf, actn);
+			break;
+		case PlaEcActnClear:
+			clear_errs_nl(buf, actn);
+			break;
+		default:
+			ul_assert_unreachable();
+	}
+}
+static void process_actn_proc(void * user_data, pla_ec_actn_t * actn) {
 	pla_ec_buf_t * buf = user_data;
 
 	EnterCriticalSection(&buf->lock);
 
 	__try {
-		clear_errs_nl(buf, group, pos_start, pos_end);
+		process_actn_nl(buf, actn);
 	}
 	__finally {
 		LeaveCriticalSection(&buf->lock);
@@ -103,7 +93,7 @@ static void clear_errs_proc(void * user_data, size_t group, pla_ec_pos_t pos_sta
 void pla_ec_buf_init(pla_ec_buf_t * buf) {
 	*buf = (pla_ec_buf_t){ 0 };
 
-	pla_ec_init(&buf->ec, buf, post_err_proc, shift_lines_proc, clear_errs_proc);
+	pla_ec_init(&buf->ec, buf, process_actn_proc);
 
 	InitializeCriticalSection(&buf->lock);
 }

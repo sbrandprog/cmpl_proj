@@ -3,6 +3,9 @@
 typedef enum pla_pds pla_pds_t;
 
 typedef struct pla_ec_pos pla_ec_pos_t;
+typedef enum pla_ec_actn_type pla_ec_actn_type_t;
+typedef struct pla_ec_actn pla_ec_actn_t;
+typedef void pla_ec_do_actn_proc_t(void * user_data, pla_ec_actn_t * actn);
 typedef struct pla_ec_err pla_ec_err_t;
 typedef struct pla_ec pla_ec_t;
 
