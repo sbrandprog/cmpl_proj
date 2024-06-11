@@ -17,5 +17,6 @@
 #include <Windows.h>
 #include <windowsx.h>
 #include <Uxtheme.h>
+#include <Shlwapi.h>
 
 #include <utility_lib/utility_lib.h>

@@ -17,3 +17,6 @@ void gia_pkg_destroy_chain(gia_pkg_t * pkg);
 
 gia_pkg_t * gia_pkg_get_sub_pkg(gia_pkg_t * pkg, ul_hs_t * sub_pkg_name);
 gia_tus_t * gia_pkg_get_tus(gia_pkg_t * pkg, ul_hs_t * tus_name);
+
+bool gia_pkg_fill_from_dir(gia_pkg_t * pkg, ul_hst_t * hst, const wchar_t * dir_path);
+bool gia_pkg_fill_from_list(gia_pkg_t * pkg, ul_hst_t * hst, ...);

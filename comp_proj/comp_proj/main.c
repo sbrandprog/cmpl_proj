@@ -21,27 +21,7 @@ static gia_repo_t main_repo;
 static bool main_fill_repo_nl() {
 	main_repo.root = gia_pkg_create(NULL);
 
-	gia_pkg_t * pkg_pla_lib = gia_pkg_get_sub_pkg(main_repo.root, UL_HST_HASHADD_WS(&main_repo.hst, L"pla_lib"));
-
-	gia_pkg_t * pkg_w64 = gia_pkg_get_sub_pkg(pkg_pla_lib, UL_HST_HASHADD_WS(&main_repo.hst, L"w64"));
-
-	gia_tus_t * tus_kernel32 = gia_pkg_get_tus(pkg_w64, UL_HST_HASHADD_WS(&main_repo.hst, L"kernel32"));
-
-	if (!gia_tus_read_file_nl(tus_kernel32, L"pla_lib/w64/kernel32.pla")) {
-		return false;
-	}
-
-	gia_pkg_t * pkg_std = gia_pkg_get_sub_pkg(pkg_pla_lib, UL_HST_HASHADD_WS(&main_repo.hst, L"std"));
-
-	gia_tus_t * tus_io = gia_pkg_get_tus(pkg_std, UL_HST_HASHADD_WS(&main_repo.hst, L"io"));
-
-	if (!gia_tus_read_file_nl(tus_io, L"pla_lib/std/io.pla")) {
-		return false;
-	}
-
-	gia_tus_t * tus_test = gia_pkg_get_tus(main_repo.root, UL_HST_HASHADD_WS(&main_repo.hst, L"test"));
-
-	if (!gia_tus_read_file_nl(tus_test, L"test.pla")) {
+	if (!gia_pkg_fill_from_list(main_repo.root, &main_repo.hst, L"pla_lib", L"test.pla", NULL)) {
 		return false;
 	}
 
