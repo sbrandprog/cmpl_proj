@@ -225,6 +225,7 @@ static size_t clamp_line_ch_to_vis_col(wnd_data_t * data, gia_text_line_t * line
 }
 static void draw_line(wnd_data_t * data, HDC hdc, size_t line_pos, size_t line_max_w) {
 	gia_text_line_t * line = &data->text.lines[line_pos];
+	gia_text_tok_line_t * tok_line = &data->text.anlzr.tok_lines[line_pos];
 
 	int line_h = (int)((line_pos - data->vis_line) * data->style.font.f_h);
 	size_t line_col_max = line_max_w + data->vis_col;
@@ -240,11 +241,11 @@ static void draw_line(wnd_data_t * data, HDC hdc, size_t line_pos, size_t line_m
 			size_t batch_size = 1;
 			gia_edit_col_type_t text_col_type = GiaEditColPlain;
 
-			if (line_tok >= line->toks_size || line_ch < line->toks[line_tok].pos_start.line_ch) {
+			if (line_tok >= tok_line->size || line_ch < tok_line->toks[line_tok].base.pos_start.line_ch) {
 				size_t line_ch_max = line->size;
 
-				if (line_tok < line->toks_size) {
-					line_ch_max = line->toks[line_tok].pos_start.line_ch;
+				if (line_tok < tok_line->size) {
+					line_ch_max = tok_line->toks[line_tok].base.pos_start.line_ch;
 				}
 
 				while (line_ch + batch_size < line_ch_max
@@ -254,11 +255,11 @@ static void draw_line(wnd_data_t * data, HDC hdc, size_t line_pos, size_t line_m
 				}
 			}
 			else {
-				pla_tok_t * tok = &line->toks[line_tok++];
+				gia_text_tok_t * tok = &tok_line->toks[line_tok++];
 
-				batch_size = tok->pos_end.line_ch - tok->pos_start.line_ch;
+				batch_size = tok->base.pos_end.line_ch - tok->base.pos_start.line_ch;
 
-				switch (tok->type) {
+				switch (tok->base.type) {
 					case PlaTokKeyw:
 						text_col_type = GiaEditColKeyw;
 						break;
@@ -329,7 +330,7 @@ static void redraw_lines_nl(wnd_data_t * data, HDC hdc, RECT * rect) {
 	{
 		LONG err_line_size = (LONG)(line_h * data->style.err_line_size);
 
-		for (pla_ec_err_t * err = data->text.ec_sndr.buf.errs, *err_end = err + data->text.ec_sndr.buf.errs_size; err != err_end; ++err) {
+		for (pla_ec_err_t * err = data->text.anlzr.ec_sndr.buf.errs, *err_end = err + data->text.anlzr.ec_sndr.buf.errs_size; err != err_end; ++err) {
 			if (err->pos_end.line_num < data->vis_line) {
 				continue;
 			}
@@ -364,14 +365,14 @@ static void redraw_lines(void * user_data, HDC hdc, RECT * rect) {
 	wnd_data_t * data = user_data;
 
 	EnterCriticalSection(&data->text.lock);
-	EnterCriticalSection(&data->text.ec_sndr.buf.lock);
+	EnterCriticalSection(&data->text.anlzr.ec_sndr.buf.lock);
 
 	__try {
 		redraw_lines_nl(data, hdc, rect);
 	}
 	__finally {
 		LeaveCriticalSection(&data->text.lock);
-		LeaveCriticalSection(&data->text.ec_sndr.buf.lock);
+		LeaveCriticalSection(&data->text.anlzr.ec_sndr.buf.lock);
 	}
 }
 
@@ -1178,5 +1179,5 @@ void gia_edit_attach_ec_rcvr(HWND hw, pla_ec_rcvr_t * ec_rcvr) {
 
 	wnd_data_t * data = wa_wnd_get_fp(hw);
 
-	pla_ec_sndr_attach_rcvr(&data->text.ec_sndr, ec_rcvr);
+	pla_ec_sndr_attach_rcvr(&data->text.anlzr.ec_sndr, ec_rcvr);
 }

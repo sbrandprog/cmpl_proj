@@ -13,10 +13,27 @@ struct gia_text_line {
 	size_t cap;
 	wchar_t * str;
 	size_t size;
+};
+struct gia_text_tok {
+	pla_tok_t base;
+};
+struct gia_text_tok_line {
+	size_t cap;
+	gia_text_tok_t * toks;
+	size_t size;
+};
+struct gia_text_anlzr {
+	ul_hst_t hst;
+	pla_ec_sndr_t ec_sndr;
+	pla_ec_fmtr_t ec_fmtr;
 
-	size_t toks_cap;
-	pla_tok_t * toks;
-	size_t toks_size;
+	pla_lex_t lex;
+	size_t tok_lines_cap;
+	gia_text_tok_line_t * tok_lines;
+	size_t tok_lines_size;
+
+	pla_prsr_t prsr;
+	pla_tu_t * tu;
 };
 struct gia_text {
 	CRITICAL_SECTION lock;
@@ -25,13 +42,7 @@ struct gia_text {
 	gia_text_line_t * lines;
 	size_t lines_size;
 
-	ul_hst_t lex_hst;
-	pla_ec_sndr_t ec_sndr;
-	pla_ec_fmtr_t ec_fmtr;
-	pla_lex_t lex;
-	pla_prsr_t prsr;
-
-	pla_tu_t * tu;
+	gia_text_anlzr_t anlzr;
 };
 
 void gia_text_init(gia_text_t * text, ul_es_ctx_t * es_ctx);
