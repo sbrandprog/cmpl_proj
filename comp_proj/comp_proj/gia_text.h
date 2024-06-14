@@ -52,13 +52,10 @@ void gia_text_insert_str_nl(gia_text_t * text, size_t line_pos, size_t ins_pos, 
 inline void gia_text_insert_ch_nl(gia_text_t * text, size_t line_pos, size_t ins_pos, wchar_t ch) {
 	gia_text_insert_str_nl(text, line_pos, ins_pos, 1, &ch);
 }
-void gia_text_remove_str_nl(gia_text_t * text, size_t line_pos, size_t rem_pos_start, size_t rem_pos_end);
+void gia_text_remove_str_nl(gia_text_t * text, size_t start_line_pos, size_t start_ch_pos, size_t end_line_pos, size_t end_ch_pos);
 inline void gia_text_remove_ch_nl(gia_text_t * text, size_t line_pos, size_t rem_pos) {
-	gia_text_remove_str_nl(text, line_pos, rem_pos, rem_pos + 1);
+	gia_text_remove_str_nl(text, line_pos, rem_pos, line_pos, rem_pos + 1);
 }
-
-void gia_text_insert_line_nl(gia_text_t * text, size_t ins_pos);
-void gia_text_remove_line_nl(gia_text_t * text, size_t rem_pos);
 
 void gia_text_from_tus_nl(gia_text_t * text, gia_tus_t * tus);
 void gia_text_to_tus_nl(gia_text_t * text, gia_tus_t * tus);

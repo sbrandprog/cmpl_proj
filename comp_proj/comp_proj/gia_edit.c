@@ -438,19 +438,7 @@ static void remove_sel_text_nl(wnd_data_t * data) {
 
 	get_sel_pos(data, &sel_start, &sel_end);
 
-	if (sel_start.line == sel_end.line) {
-		gia_text_remove_str_nl(&data->text, sel_start.line, sel_start.ch, sel_end.ch);
-	}
-	else {
-		gia_text_line_t * sel_end_line = &data->text.lines[sel_end.line];
-
-		gia_text_remove_str_nl(&data->text, sel_start.line, sel_start.ch, data->text.lines[sel_start.line].size);
-		gia_text_insert_str_nl(&data->text, sel_start.line, sel_start.ch, sel_end_line->size - sel_end.ch, sel_end_line->str + sel_end.ch);
-
-		for (size_t line_i = sel_start.line + 1; line_i <= sel_end.line; ++line_i) {
-			gia_text_remove_line_nl(&data->text, sel_start.line + 1);
-		}
-	}
+	gia_text_remove_str_nl(&data->text, sel_start.line, sel_start.ch, sel_end.line, sel_end.ch);
 
 	set_caret_pos_ch(data, sel_start.line, sel_start.ch);
 }
@@ -474,14 +462,9 @@ static void process_caret_keyd_wp_nl_back(wnd_data_t * data) {
 			InvalidateRect(data->hw, NULL, FALSE);
 		}
 		else if (pos.line > 0) {
-			gia_text_line_t * ins_line = &data->text.lines[pos.line - 1];
-			gia_text_line_t * rem_line = &data->text.lines[pos.line];
+			size_t new_caret_ch = data->text.lines[pos.line - 1].size;
 
-			size_t new_caret_ch = ins_line->size;
-
-			gia_text_insert_str_nl(&data->text, pos.line - 1, ins_line->size, rem_line->size, rem_line->str);
-
-			gia_text_remove_line_nl(&data->text, pos.line);
+			gia_text_remove_str_nl(&data->text, pos.line - 1, SIZE_MAX, pos.line, 0);
 
 			set_caret_pos_ch(data, pos.line - 1, new_caret_ch);
 
@@ -498,13 +481,7 @@ static void process_caret_keyd_wp_nl_ret(wnd_data_t * data) {
 
 	gia_text_ch_pos_t pos = get_caret_ch_pos(data);
 
-	gia_text_insert_line_nl(&data->text, pos.line + 1);
-
-	gia_text_line_t * ins_line = &data->text.lines[pos.line + 1];
-	gia_text_line_t * src_line = &data->text.lines[pos.line];
-
-	gia_text_insert_str_nl(&data->text, pos.line + 1, 0, src_line->size - pos.ch, src_line->str + pos.ch);
-	gia_text_remove_str_nl(&data->text, pos.line, pos.ch, src_line->size);
+	gia_text_insert_ch_nl(&data->text, pos.line, pos.ch, L'\n');
 
 	set_caret_pos_ch(data, pos.line + 1, 0);
 
@@ -519,7 +496,7 @@ static void process_caret_keyd_wp_nl_cret(wnd_data_t * data) {
 
 	gia_text_ch_pos_t pos = get_caret_ch_pos(data);
 
-	gia_text_insert_line_nl(&data->text, pos.line);
+	gia_text_insert_ch_nl(&data->text, pos.line, 0, L'\n');
 
 	set_caret_pos_ch(data, pos.line, pos.ch);
 
@@ -630,11 +607,7 @@ static void process_caret_keyd_wp_nl_del(wnd_data_t * data) {
 			InvalidateRect(data->hw, NULL, FALSE);
 		}
 		else if (pos.line + 1 < data->text.lines_size) {
-			gia_text_line_t * src_line = &data->text.lines[pos.line + 1];
-
-			gia_text_insert_str_nl(&data->text, pos.line, line->size, src_line->size, src_line->str);
-
-			gia_text_remove_line_nl(&data->text, pos.line + 1);
+			gia_text_remove_str_nl(&data->text, pos.line, SIZE_MAX, pos.line + 1, 0);
 
 			InvalidateRect(data->hw, NULL, FALSE);
 		}

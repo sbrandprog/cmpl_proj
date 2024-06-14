@@ -20,10 +20,6 @@ typedef struct gia_text_prsr_ctx {
 typedef enum gia_text_actn_type {
 	ActnInsStr,
 	ActnRemStr,
-	ActnInsLine,
-	ActnRemLine,
-	ActnReadTus,
-	ActnWriteTus,
 	Actn_Count
 } actn_type_t;
 typedef struct gia_text_actn {
@@ -36,6 +32,7 @@ typedef struct gia_text_actn {
 			wchar_t * str;
 		} ins_str;
 		struct {
+			size_t line_pos_end;
 			size_t ch_pos_end;
 		} rem_str;
 		gia_tus_t * tus;
@@ -55,6 +52,26 @@ static void cleanup_line(gia_text_line_t * line) {
 	free(line->str);
 
 	memset(line, 0, sizeof(*line));
+}
+
+static void insert_line_str(gia_text_line_t * line, size_t pos, size_t str_size, wchar_t * str) {
+	ul_assert(pos <= line->size);
+
+	if (line->size + str_size > line->cap) {
+		ul_arr_grow(&line->cap, &line->str, sizeof(*line->str), line->size + str_size - line->cap);
+	}
+
+	wmemmove_s(line->str + pos + str_size, line->cap - pos, line->str + pos, line->size - pos);
+	wmemcpy_s(line->str + pos, line->cap - pos, str, str_size);
+
+	line->size += str_size;
+}
+static void remove_line_str(gia_text_line_t * line, size_t pos_start, size_t pos_end) {
+	ul_assert(pos_start <= pos_end && pos_end <= line->size);
+
+	wmemmove_s(line->str + pos_start, line->cap - pos_start, line->str + pos_end, line->size - pos_end);
+
+	line->size -= pos_end - pos_start;
 }
 
 
@@ -213,8 +230,28 @@ static void update_anlzr_tu_nl(gia_text_t * text) {
 	pla_prsr_reset_src(&anlzr->prsr);
 }
 
-static void process_anlzr_actn_blank_nl(gia_text_t * text, actn_t * actn) {}
 static void process_anlzr_actn_ins_str_nl(gia_text_t * text, actn_t * actn) {
+	const size_t line_pos = actn->line_pos;
+	gia_text_anlzr_t * const anlzr = &text->anlzr;
+
+	if (text->lines_size > anlzr->tok_lines_size) {
+		size_t ins_size = text->lines_size - anlzr->tok_lines_size;
+
+		if (anlzr->tok_lines_size + ins_size > anlzr->tok_lines_cap) {
+			ul_arr_grow(&anlzr->tok_lines_cap, &anlzr->tok_lines, sizeof(*anlzr->tok_lines), anlzr->tok_lines_size + ins_size - anlzr->tok_lines_cap);
+		}
+
+		memmove_s(anlzr->tok_lines + line_pos + 1 + ins_size, (anlzr->tok_lines_cap - line_pos - 1 - ins_size) * sizeof(*anlzr->tok_lines), anlzr->tok_lines + line_pos + 1, (anlzr->tok_lines_size - line_pos - 1) * sizeof(*anlzr->tok_lines));
+
+		for (size_t tok_line_i = line_pos + 1, tok_line_i_end = tok_line_i + ins_size; tok_line_i < tok_line_i_end; ++tok_line_i) {
+			init_tok_line(&anlzr->tok_lines[tok_line_i]);
+
+			++anlzr->tok_lines_size;
+
+			update_anlzr_tok_line(text, tok_line_i);
+		}
+	}
+
 	ul_assert(text->lines_size == text->anlzr.tok_lines_size);
 
 	update_anlzr_tok_line(text, actn->line_pos);
@@ -222,69 +259,28 @@ static void process_anlzr_actn_ins_str_nl(gia_text_t * text, actn_t * actn) {
 	update_anlzr_tu_nl(text);
 }
 static void process_anlzr_actn_rem_str_nl(gia_text_t * text, actn_t * actn) {
+	const size_t start_line_pos = actn->line_pos, end_line_pos = actn->rem_str.line_pos_end;
+	gia_text_anlzr_t * const anlzr = &text->anlzr;
+
+	if (start_line_pos != end_line_pos) {
+		size_t line_i_start = start_line_pos + 1, line_i_end = min(end_line_pos + 1, anlzr->tok_lines_size);
+
+		for (size_t line_i = line_i_start; line_i < line_i_end; ++line_i) {
+			cleanup_tok_line(&anlzr->tok_lines[line_i]);
+		}
+
+		memmove_s(anlzr->tok_lines + line_i_start, (anlzr->tok_lines_cap - line_i_start) * sizeof(*anlzr->tok_lines), anlzr->tok_lines + line_i_end, (anlzr->tok_lines_size - line_i_end) * sizeof(*anlzr->tok_lines));
+
+		size_t lines_count = line_i_end - line_i_start;
+
+		anlzr->tok_lines_size -= lines_count;
+
+		shift_lines_toks(text, start_line_pos + 1, lines_count, true);
+	}
+
 	ul_assert(text->lines_size == text->anlzr.tok_lines_size);
 
-	update_anlzr_tok_line(text, actn->line_pos);
-
-	update_anlzr_tu_nl(text);
-}
-static void process_anlzr_actn_ins_line_nl(gia_text_t * text, actn_t * actn) {
-	const size_t ins_pos = actn->line_pos;
-	gia_text_anlzr_t * const anlzr = &text->anlzr;
-
-	if (anlzr->tok_lines_size + 1 > anlzr->tok_lines_cap) {
-		ul_arr_grow(&anlzr->tok_lines_cap, &anlzr->tok_lines, sizeof(*anlzr->tok_lines), 1);
-	}
-
-	memmove_s(anlzr->tok_lines + ins_pos + 1, (anlzr->tok_lines_cap - ins_pos) * sizeof(*anlzr->tok_lines), anlzr->tok_lines + ins_pos, (anlzr->tok_lines_size - ins_pos) * sizeof(*anlzr->tok_lines));
-	
-	++anlzr->tok_lines_size;
-
-	init_tok_line(&anlzr->tok_lines[ins_pos]);
-
-	ul_assert(text->lines_size == anlzr->tok_lines_size);
-
-	shift_lines_toks(text, ins_pos + 1, 1, false);
-
-	update_anlzr_tu_nl(text);
-}
-static void process_anlzr_actn_rem_line_nl(gia_text_t * text, actn_t * actn) {
-	const size_t rem_pos = actn->line_pos;
-	gia_text_anlzr_t * const anlzr = &text->anlzr;
-
-	if (anlzr->tok_lines_size > 1) {
-		cleanup_tok_line(&anlzr->tok_lines[rem_pos]);
-
-		memmove_s(anlzr->tok_lines + rem_pos, (anlzr->tok_lines_cap - rem_pos) * sizeof(*anlzr->tok_lines), anlzr->tok_lines + rem_pos + 1, (anlzr->tok_lines_size - rem_pos - 1) * sizeof(*anlzr->tok_lines));
-
-		--anlzr->tok_lines_size;
-
-		ul_assert(text->lines_size == anlzr->tok_lines_size);
-
-		shift_lines_toks(text, rem_pos, 1, true);
-
-		update_anlzr_tu_nl(text);
-	}
-}
-static void process_anlzr_actn_read_tus_nl(gia_text_t * text, actn_t * actn) {
-	gia_text_anlzr_t * const anlzr = &text->anlzr;
-
-	if (text->lines_size > anlzr->tok_lines_size) {
-		ul_arr_grow(&anlzr->tok_lines_cap, &anlzr->tok_lines, sizeof(*anlzr->tok_lines), text->lines_size - anlzr->tok_lines_cap);
-
-		while (anlzr->tok_lines_size < text->lines_size) {
-			init_tok_line(&anlzr->tok_lines[anlzr->tok_lines_size++]);
-		}
-	}
-	else {
-		while (anlzr->tok_lines_size > text->lines_size) {
-			cleanup_tok_line(&anlzr->tok_lines[--anlzr->tok_lines_size]);
-		}
-	}
-
-	for (size_t line_i = 0; line_i < text->lines_size; ++line_i) {
-		update_anlzr_tok_line(text, line_i);
-	}
+	update_anlzr_tok_line(text, start_line_pos);
 
 	update_anlzr_tu_nl(text);
 }
@@ -293,11 +289,7 @@ static void process_anlzr_actn_nl(gia_text_t * text, actn_t * actn) {
 
 	static do_actn_proc_t * const procs[Actn_Count] = {
 		[ActnInsStr] = process_anlzr_actn_ins_str_nl,
-		[ActnRemStr] = process_anlzr_actn_rem_str_nl,
-		[ActnInsLine] = process_anlzr_actn_ins_line_nl,
-		[ActnRemLine] = process_anlzr_actn_rem_line_nl,
-		[ActnReadTus] = process_anlzr_actn_read_tus_nl,
-		[ActnWriteTus] = process_anlzr_actn_blank_nl,
+		[ActnRemStr] = process_anlzr_actn_rem_str_nl
 	};
 
 	do_actn_proc_t * proc = procs[actn->type];
@@ -338,59 +330,94 @@ static void process_actn_ins_str_nl(gia_text_t * text, actn_t * actn) {
 	wchar_t * const str = actn->ins_str.str;
 
 	ul_assert(line_pos < text->lines_size);
+	
+	size_t line_i = line_pos, line_i_ins = ins_pos;
+	wchar_t * cur = str, * cur_end = cur + str_size;
 
-	gia_text_line_t * line = &text->lines[line_pos];
+	while (true) {
+		wchar_t * cur_nl = wmemchr(cur, L'\n', cur_end - cur);
 
-	ul_assert(ins_pos <= line->size);
+		if (cur_nl == NULL) {
+			cur_nl = cur_end;
+		}
 
-	if (line->size + str_size > line->cap) {
-		ul_arr_grow(&line->cap, &line->str, sizeof(*line->str), line->size + str_size - line->cap);
+		size_t cur_size = cur_nl - cur;
+
+		{
+			gia_text_line_t * line = &text->lines[line_i++];
+
+			line_i_ins = min(line_i_ins, line->size);
+
+			insert_line_str(line, line_i_ins, cur_size, cur);
+		}
+
+		if (cur_nl == cur_end) {
+			break;
+		}
+
+		if (text->lines_size + 1 > text->lines_cap) {
+			ul_arr_grow(&text->lines_cap, &text->lines, sizeof(*text->lines), 1);
+		}
+
+		memmove_s(text->lines + line_i + 1, (text->lines_cap - line_i) * sizeof(*text->lines), text->lines + line_i, (text->lines_size - line_i) * sizeof(*text->lines));
+
+		++text->lines_size;
+
+		{		
+			gia_text_line_t * prev_line = &text->lines[line_i - 1];
+			gia_text_line_t * line = &text->lines[line_i];
+
+			init_line(&text->lines[line_i]);
+
+			insert_line_str(line, 0, prev_line->size - cur_size - line_i_ins, prev_line->str + cur_size + line_i_ins);
+			remove_line_str(prev_line, cur_size + line_i_ins, prev_line->size);
+
+			line_i_ins = 0;
+		}
+
+		if (cur_nl + 1 == cur_end) {
+			break;
+		}
+
+		cur = cur_nl + 1;
 	}
-
-	wmemmove_s(line->str + ins_pos + str_size, line->cap - ins_pos, line->str + ins_pos, line->size - ins_pos);
-	wmemcpy_s(line->str + ins_pos, line->cap - ins_pos, str, str_size);
-
-	line->size += str_size;
 }
 static void process_actn_rem_str_nl(gia_text_t * text, actn_t * actn) {
-	const size_t line_pos = actn->line_pos, rem_pos_start = actn->ch_pos, rem_pos_end = actn->rem_str.ch_pos_end;
+	const size_t start_line_pos = actn->line_pos, start_ch_pos = actn->ch_pos, end_line_pos = actn->rem_str.line_pos_end, end_ch_pos = actn->rem_str.ch_pos_end;
 
-	ul_assert(line_pos < text->lines_size);
+	ul_assert(start_line_pos < end_line_pos || start_line_pos == end_line_pos && start_ch_pos <= end_ch_pos);
 
-	gia_text_line_t * line = &text->lines[line_pos];
-
-	ul_assert(rem_pos_start <= rem_pos_end && rem_pos_end <= line->size);
-
-	wmemmove_s(line->str + rem_pos_start, line->cap - rem_pos_start, line->str + rem_pos_end, line->size - rem_pos_end);
-
-	line->size -= rem_pos_end - rem_pos_start;
-}
-static void process_actn_ins_line_nl(gia_text_t * text, actn_t * actn) {
-	const size_t ins_pos = actn->line_pos;
-
-	ul_assert(ins_pos <= text->lines_size);
-
-	if (text->lines_size + 1 > text->lines_cap) {
-		ul_arr_grow(&text->lines_cap, &text->lines, sizeof(*text->lines), 1);
+	if (start_line_pos >= text->lines_size) {
+		return;
 	}
 
-	memmove_s(text->lines + ins_pos + 1, (text->lines_cap - ins_pos) * sizeof(*text->lines), text->lines + ins_pos, (text->lines_size - ins_pos) * sizeof(*text->lines));
+	if (start_line_pos == end_line_pos) {
+		gia_text_line_t * line = &text->lines[start_line_pos];
 
-	++text->lines_size;
+		remove_line_str(line, min(start_ch_pos, line->size), min(end_ch_pos, line->size));
+	}
+	else {
+		gia_text_line_t * line = &text->lines[start_line_pos];
 
-	init_line(&text->lines[ins_pos]);
-}
-static void process_actn_rem_line_nl(gia_text_t * text, actn_t * actn) {
-	const size_t rem_pos = actn->line_pos;
+		remove_line_str(line, min(start_ch_pos, line->size), line->size);
 
-	ul_assert(rem_pos < text->lines_size);
+		if (end_line_pos < text->lines_size) {
+			gia_text_line_t * last_line = &text->lines[end_line_pos];
 
-	if (text->lines_size > 1) {
-		cleanup_line(&text->lines[rem_pos]);
+			size_t ins_size = min(end_ch_pos, last_line->size);
 
-		memmove_s(text->lines + rem_pos, (text->lines_cap - rem_pos) * sizeof(*text->lines), text->lines + rem_pos + 1, (text->lines_size - rem_pos - 1) * sizeof(*text->lines));
+			insert_line_str(line, line->size, last_line->size - ins_size, last_line->str + ins_size);
+		}
 
-		--text->lines_size;
+		size_t line_i_start = start_line_pos + 1, line_i_end = min(end_line_pos + 1, text->lines_size);
+		
+		for (size_t line_i = line_i_start; line_i < line_i_end; ++line_i) {
+			cleanup_line(&text->lines[line_i]);
+		}
+
+		memmove_s(text->lines + line_i_start, (text->lines_cap - line_i_start) * sizeof(*text->lines), text->lines + line_i_end, (text->lines_size - line_i_end) * sizeof(*text->lines));
+
+		text->lines_size -= line_i_end - line_i_start;
 	}
 }
 static void process_actn_read_tus_nl(gia_text_t * text, actn_t * actn) {
@@ -437,22 +464,10 @@ static void process_actn_read_tus_nl(gia_text_t * text, actn_t * actn) {
 		++line_i;
 	}
 
-	if (line_i > 0) {
-		while (line_i < text->lines_size) {
-			cleanup_line(&text->lines[--text->lines_size]);
-		}
-	}
-}
-static void process_actn_write_tus_nl(gia_text_t * text, actn_t * actn) {
-	gia_tus_t * const tus = actn->tus;
+	++line_i;
 
-	tus->src_size = 0;
-
-	wchar_t nl_ch = L'\n';
-
-	for (gia_text_line_t * line = text->lines, *line_end = line + text->lines_size; line != line_end; ++line) {
-		gia_tus_insert_str_nl(tus, tus->src_size, line->size, line->str);
-		gia_tus_insert_str_nl(tus, tus->src_size, 1, &nl_ch);
+	while (line_i < text->lines_size) {
+		cleanup_line(&text->lines[--text->lines_size]);
 	}
 }
 static void process_actn_nl(gia_text_t * text, actn_t * actn) {
@@ -460,11 +475,7 @@ static void process_actn_nl(gia_text_t * text, actn_t * actn) {
 
 	static do_actn_proc_t * const procs[Actn_Count] = {
 		[ActnInsStr] = process_actn_ins_str_nl,
-		[ActnRemStr] = process_actn_rem_str_nl,
-		[ActnInsLine] = process_actn_ins_line_nl,
-		[ActnRemLine] = process_actn_rem_line_nl,
-		[ActnReadTus] = process_actn_read_tus_nl,
-		[ActnWriteTus] = process_actn_write_tus_nl
+		[ActnRemStr] = process_actn_rem_str_nl
 	};
 
 	do_actn_proc_t * proc = procs[actn->type];
@@ -481,30 +492,23 @@ void gia_text_insert_str_nl(gia_text_t * text, size_t line_pos, size_t ins_pos, 
 
 	process_actn_nl(text, &actn);
 }
-void gia_text_remove_str_nl(gia_text_t * text, size_t line_pos, size_t rem_pos_start, size_t rem_pos_end) {
-	actn_t actn = { .type = ActnRemStr, .line_pos = line_pos, .ch_pos = rem_pos_start, .rem_str.ch_pos_end = rem_pos_end };
-
-	process_actn_nl(text, &actn);
-}
-
-void gia_text_insert_line_nl(gia_text_t * text, size_t ins_pos) {
-	actn_t actn = { .type = ActnInsLine, .line_pos = ins_pos };
-
-	process_actn_nl(text, &actn);
-}
-void gia_text_remove_line_nl(gia_text_t * text, size_t rem_pos) {
-	actn_t actn = { .type = ActnRemLine, .line_pos = rem_pos };
+void gia_text_remove_str_nl(gia_text_t * text, size_t start_line_pos, size_t start_ch_pos, size_t end_line_pos, size_t end_ch_pos) {
+	actn_t actn = { .type = ActnRemStr, .line_pos = start_line_pos, .ch_pos = start_ch_pos, .rem_str = { .line_pos_end = end_line_pos, .ch_pos_end = end_ch_pos } };
 
 	process_actn_nl(text, &actn);
 }
 
 void gia_text_from_tus_nl(gia_text_t * text, gia_tus_t * tus) {
-	actn_t actn = { .type = ActnReadTus, .tus = tus };
-
-	process_actn_nl(text, &actn);
+	gia_text_remove_str_nl(text, 0, 0, text->lines_size, SIZE_MAX);
+	gia_text_insert_str_nl(text, 0, 0, tus->src_size, tus->src);
 }
 void gia_text_to_tus_nl(gia_text_t * text, gia_tus_t * tus) {
-	actn_t actn = { .type = ActnWriteTus, .tus = tus };
+	tus->src_size = 0;
 
-	process_actn_nl(text, &actn);
+	wchar_t nl_ch = L'\n';
+
+	for (gia_text_line_t * line = text->lines, *line_end = line + text->lines_size; line != line_end; ++line) {
+		gia_tus_insert_str_nl(tus, tus->src_size, line->size, line->str);
+		gia_tus_insert_str_nl(tus, tus->src_size, 1, &nl_ch);
+	}
 }

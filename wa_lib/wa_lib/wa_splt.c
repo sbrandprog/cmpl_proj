@@ -63,7 +63,7 @@ static void resize_ctls_rect(wnd_data_t * data, RECT * rect) {
 		int x = (int)(data->is_hors ? 0 : sep_rect.right);
 		int y = (int)(data->is_hors ? sep_rect.bottom : 0);
 
-		SetWindowPos(data->second, NULL, x, y, rect->right, rect->bottom, SWP_NOZORDER);
+		SetWindowPos(data->second, NULL, x, y, rect->right - x, rect->bottom - y, SWP_NOZORDER);
 	}
 
 	InvalidateRect(data->hw, NULL, FALSE);
