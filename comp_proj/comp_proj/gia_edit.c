@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "wa_lib/wa_accel.h"
 #include "wa_lib/wa_ctx.h"
 #include "wa_lib/wa_wnd.h"
 #include "wa_lib/wa_ctl.h"
@@ -16,6 +17,23 @@
 #define SEL_SCROLL_TIMER_ELPS 10
 
 #define GKS_PRS_CHECK 0x8000
+
+typedef enum gia_edit_cmd_type {
+	CmdExit,
+	CmdRunExe,
+	CmdBuildExe,
+	CmdClearCmdWin,
+	CmdSaveTus,
+	Cmd_Count
+} cmd_type_t;
+typedef enum gia_edit_accel_type {
+	AccelEsc,
+	AccelF5,
+	AccelF6,
+	AccelF7,
+	AccelCtrlS,
+	Accel_Count
+} accel_type_t;
 
 typedef struct gia_edit_style {
 	wa_style_col_t cols[GiaEditCol_Count];
@@ -55,6 +73,15 @@ typedef struct gia_edit_data {
 	PTP_WORK run_exe_work;
 	PTP_WORK build_work;
 } wnd_data_t;
+
+
+static const ACCEL accel_table[Accel_Count] = {
+	[AccelEsc] = { .fVirt = FVIRTKEY, .key = VK_ESCAPE, .cmd = CmdExit },
+	[AccelF5] = { .fVirt = FVIRTKEY, .key = VK_F5, .cmd = CmdRunExe },
+	[AccelF6] = { .fVirt = FVIRTKEY, .key = VK_F6, .cmd = CmdBuildExe },
+	[AccelF7] = { .fVirt = FVIRTKEY, .key = VK_F7, .cmd = CmdClearCmdWin },
+	[AccelCtrlS] = { .fVirt = FCONTROL | FVIRTKEY, .key = 'S', .cmd = CmdSaveTus }
+};
 
 
 static bool init_style(style_t * style, gia_edit_style_desc_t * desc) {
@@ -838,6 +865,47 @@ static void process_sel_timer(wnd_data_t * data) {
 }
 
 
+static void process_cmd_wp(wnd_data_t * data, WPARAM wp) {
+	switch (LOWORD(wp)) {
+		case CmdExit:
+			if (data->is_fcs) {
+				SetFocus(data->prev_fcs_hw);
+			}
+			break;
+		case CmdRunExe:
+			if (data->exe_name != NULL) {
+				SubmitThreadpoolWork(data->run_exe_work);
+			}
+			else {
+				wprintf(L"no exe_name");
+			}
+			break;
+		case CmdBuildExe:
+			if (data->repo != NULL && data->tus != NULL && data->exe_name != NULL) {
+				SubmitThreadpoolWork(data->build_work);
+			}
+			else {
+				wprintf(L"no repo || no tus || no exe_name");
+			}
+			break;
+		case CmdClearCmdWin:
+			_wsystem(L"cls");
+			break;
+		case CmdSaveTus:
+			if (data->tus != NULL) {
+				save_tus_data(data);
+				wprintf(L"saved text data to tus\n");
+			}
+			else {
+				wprintf(L"no tus\n");
+			}
+			break;
+		default:
+			ul_assert_unreachable();
+	}
+}
+
+
 static bool process_cd_args(wnd_data_t * data, wa_wnd_cd_t * cd) {
 	HWND hw = data->hw;
 
@@ -954,45 +1022,11 @@ static LRESULT wnd_proc_data(wnd_data_t * data, UINT msg, WPARAM wp, LPARAM lp) 
 		case WM_KEYDOWN:
 			process_caret_keyd_wp(data, wp);
 			break;
-		case WM_KEYUP:
-			switch (wp) {
-				case VK_ESCAPE:
-					if (data->is_fcs) {
-						SetFocus(data->prev_fcs_hw);
-					}
-					break;
-				case VK_F5:
-					if (data->exe_name != NULL) {
-						SubmitThreadpoolWork(data->run_exe_work);
-					}
-					else {
-						wprintf(L"no exe_name");
-					}
-					break;
-				case VK_F6:
-					if (data->repo != NULL && data->tus != NULL && data->exe_name != NULL) {
-						SubmitThreadpoolWork(data->build_work);
-					}
-					else {
-						wprintf(L"no repo || no tus || no exe_name");
-					}
-					break;
-				case VK_F7:
-					if (data->tus != NULL) {
-						save_tus_data(data);
-						wprintf(L"saved text data to tus\n");
-					}
-					else {
-						wprintf(L"no tus\n");
-					}
-					break;
-				case VK_F8:
-					_wsystem(L"cls");
-					break;
-			}
-			break;
 		case WM_CHAR:
 			process_caret_ch_wp(data, wp);
+			break;
+		case WM_COMMAND:
+			process_cmd_wp(data, wp);
 			break;
 		case WM_TIMER:
 			if (wp == SEL_SCROLL_TIMER_ID) {
@@ -1079,10 +1113,16 @@ static LRESULT wnd_proc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
 				if (data->build_work == NULL) {
 					return FALSE;
 				}
+
+				if (!wa_accel_load(hw, _countof(accel_table), accel_table)) {
+					return FALSE;
+				}
 			}
 			break;
 		case WM_NCDESTROY:
 			if (data != NULL) {
+				wa_accel_unload(hw);
+				
 				if (data->run_exe_work != NULL) {
 					CloseThreadpoolWork(data->run_exe_work);
 				}

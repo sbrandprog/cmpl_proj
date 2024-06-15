@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "wa_accel.h"
 #include "wa_ctx.h"
 
 bool wa_ctx_init(wa_ctx_t * ctx, ul_es_ctx_t * es_ctx, ul_hst_t * hst) {
@@ -38,16 +39,14 @@ void wa_ctx_use_show_cmd(wa_ctx_t * ctx, HWND hw) {
 
 void wa_ctx_run_msg_loop(wa_ctx_t * ctx) {
 	MSG msg;
-	BOOL res;
 
-	while ((res = GetMessageW(&msg, NULL, 0, 0)) != 0) {
-		if (res < 0) {
-			break;
+	while (GetMessageW(&msg, NULL, 0, 0) > 0) {
+		HACCEL ha = wa_accel_get(msg.hwnd);
+
+		if (ha == NULL || TranslateAcceleratorW(msg.hwnd, ha, &msg) == 0) {
+			TranslateMessage(&msg);
+			DispatchMessageW(&msg);
 		}
-
-		TranslateMessage(&msg);
-
-		DispatchMessageW(&msg);
 	}
 }
 
