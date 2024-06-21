@@ -80,6 +80,8 @@ static bool fill_sect_info(asm_frag_t * frag, lnk_sect_t * out) {
 }
 
 static bool get_imm0_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
+	*out = LnkSectLpFixupNone;
+
 	switch (inst->opds) {
 		case AsmInstOpds_None:
 		case AsmInstOpds_Label:
@@ -88,13 +90,13 @@ static bool get_imm0_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
 		case AsmInstOpds_Reg_Reg:
 		case AsmInstOpds_Reg_Mem:
 		case AsmInstOpds_Mem_Reg:
-			return false;
+			return true;
 		case AsmInstOpds_Imm:
 		case AsmInstOpds_Reg_Imm:
 		case AsmInstOpds_Mem_Imm:
 			break;
 		default:
-			ul_assert_unreachable();
+			return false;
 	}
 
 	switch (inst->imm0_type) {
@@ -103,26 +105,28 @@ static bool get_imm0_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
 		case AsmInstImm16:
 		case AsmInstImm32:
 		case AsmInstImm64:
-			return false;
+			return true;
 		case AsmInstImmLabelRel8:
-			*out = LnkSectFixupRel8;
+			*out = LnkSectLpFixupRel8;
 			break;
 		case AsmInstImmLabelRel32:
-			*out = LnkSectFixupRel32;
+			*out = LnkSectLpFixupRel32;
 			break;
 		case AsmInstImmLabelVa64:
-			*out = LnkSectFixupVa64;
+			*out = LnkSectLpFixupVa64;
 			break;
 		case AsmInstImmLabelRva32:
-			*out = LnkSectFixupRva32;
+			*out = LnkSectLpFixupRva32;
 			break;
 		default:
-			ul_assert_unreachable();
+			return false;
 	}
 
 	return true;
 }
 static bool get_disp_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
+	*out = LnkSectLpFixupNone;
+
 	switch (inst->opds) {
 		case AsmInstOpds_None:
 		case AsmInstOpds_Label:
@@ -130,14 +134,14 @@ static bool get_disp_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
 		case AsmInstOpds_Reg:
 		case AsmInstOpds_Reg_Imm:
 		case AsmInstOpds_Reg_Reg:
-			return false;
+			return true;
 		case AsmInstOpds_Mem:
 		case AsmInstOpds_Mem_Imm:
 		case AsmInstOpds_Reg_Mem:
 		case AsmInstOpds_Mem_Reg:
 			break;
 		default:
-			ul_assert_unreachable();
+			return false;
 	}
 
 	switch (inst->mem_disp_type) {
@@ -145,18 +149,18 @@ static bool get_disp_fixup_stype(asm_inst_t * inst, lnk_sect_lp_stype_t * out) {
 		case AsmInstDispNone:
 		case AsmInstDisp8:
 		case AsmInstDisp32:
-			return false;
+			return true;
 		case AsmInstDispLabelRel8:
-			*out = LnkSectFixupRel8;
+			*out = LnkSectLpFixupRel8;
 			break;
 		case AsmInstDispLabelRel32:
-			*out = LnkSectFixupRel32;
+			*out = LnkSectLpFixupRel32;
 			break;
 		case AsmInstDispLabelRva32:
-			*out = LnkSectFixupRva32;
+			*out = LnkSectLpFixupRva32;
 			break;
 		default:
-			ul_assert_unreachable();
+			return false;
 	}
 
 	return true;
@@ -169,7 +173,7 @@ static bool build_special_inst(asm_frag_t * frag, asm_inst_t * inst, lnk_sect_t 
 				return false;
 			}
 
-			lnk_sect_add_lp(out, LnkSectLpLabel, LnkSectLabelNone, inst->label, out->data_size);
+			lnk_sect_add_lp(out, LnkSectLpLabel, LnkSectLpLabelNone, inst->label, out->data_size);
 
 			break;
 		case AsmInstAlign:
@@ -178,17 +182,21 @@ static bool build_special_inst(asm_frag_t * frag, asm_inst_t * inst, lnk_sect_t 
 				return false;
 			}
 
-			size_t align_amount = ul_align_to(out->data_size, (size_t)inst->imm0) - out->data_size;
+			size_t cur_size = out->data_size;
 
-			ul_assert(align_amount < LNK_PEL_MAX_MODULE_SIZE);
+			size_t aligned_size = ul_align_to(cur_size, (size_t)inst->imm0);
 
-			if (out->data_size + align_amount > out->data_cap) {
-				ul_arr_grow(&out->data_cap, &out->data, sizeof(*out->data), out->data_size + align_amount - out->data_cap);
+			if (aligned_size >= LNK_PEL_MODULE_MAX_SIZE) {
+				return false;
 			}
 
-			memset(out->data + out->data_size, out->data_align_byte, align_amount);
+			if (aligned_size > out->data_cap) {
+				ul_arr_grow(&out->data_cap, &out->data, sizeof(*out->data), aligned_size - out->data_cap);
+			}
 
-			out->data_size += align_amount;
+			memset(out->data + out->data_size, out->data_align_byte, aligned_size - cur_size);
+
+			out->data_size = aligned_size;
 
 			break;
 		}
@@ -225,17 +233,19 @@ static bool build_core(asm_frag_t * frag, lnk_sect_t * out) {
 		memcpy(out->data + out->data_size, inst_bs, inst_size);
 		out->data_size += inst_size;
 
-		if (inst->type == AsmInstLabel && inst->opds == AsmInstOpds_Label) {
-			lnk_sect_add_lp(out, LnkSectLpLabel, LnkSectLabelNone, inst->label, inst_start);
-		}
-
 		lnk_sect_lp_stype_t stype;
 
-		if (get_imm0_fixup_stype(inst, &stype)) {
+		if (!get_imm0_fixup_stype(inst, &stype)) {
+			return false;
+		}
+		else if (stype != LnkSectLpFixupNone) {
 			lnk_sect_add_lp(out, LnkSectLpFixup, stype, inst->imm0_label, inst_start + inst_offs.off[AsmInstOffImm]);
 		}
 
-		if (get_disp_fixup_stype(inst, &stype)) {
+		if (!get_disp_fixup_stype(inst, &stype)) {
+			return false;
+		}
+		else if (stype != LnkSectLpFixupNone) {
 			lnk_sect_add_lp(out, LnkSectLpFixup, stype, inst->mem_disp_label, inst_start + inst_offs.off[AsmInstOffDisp]);
 		}
 	}
@@ -243,8 +253,8 @@ static bool build_core(asm_frag_t * frag, lnk_sect_t * out) {
 	return true;
 }
 
-bool asm_frag_build(asm_frag_t * frag, lnk_pel_t * out) {
-	lnk_sect_t * sect = lnk_pel_push_new_sect(out);
+bool asm_frag_build(asm_frag_t * frag, lnk_sect_t ** out) {
+	*out = lnk_sect_create();
 
-	return build_core(frag, sect);
+	return build_core(frag, *out);
 }

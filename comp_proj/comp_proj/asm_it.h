@@ -13,7 +13,6 @@ struct asm_it_lib {
 	asm_it_sym_t * sym;
 };
 struct asm_it {
-	CRITICAL_SECTION lock;
 	asm_it_lib_t * lib;
 };
 

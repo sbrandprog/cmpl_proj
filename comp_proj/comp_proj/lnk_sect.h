@@ -9,25 +9,25 @@ enum lnk_sect_lp_type {
 	LnkSectLp_Count
 };
 enum lnk_sect_lp_stype {
-	LnkSectLabelNone = 0,
-	LnkSectLabel_Count = 0,
+	LnkSectLpLabelNone = 0,
+	LnkSectLpLabel_Count,
 
-	LnkSectFixupNone = 0,
-	LnkSectFixupRel8,
-	LnkSectFixupRel32,
-	LnkSectFixupVa64,
-	LnkSectFixupRva32,
-	LnkSectFixupRva31of64,
-	LnkSectFixup_Count,
+	LnkSectLpFixupNone = 0,
+	LnkSectLpFixupRel8,
+	LnkSectLpFixupRel32,
+	LnkSectLpFixupVa64,
+	LnkSectLpFixupRva32,
+	LnkSectLpFixupRva31of64,
+	LnkSectLpFixup_Count,
 
-	LnkSectMarkNone = 0,
-	LnkSectMarkImpStart,
-	LnkSectMarkImpEnd,
-	LnkSectMarkImpTabStart,
-	LnkSectMarkImpTabEnd,
-	LnkSectMarkRelocStart,
-	LnkSectMarkRelocEnd,
-	LnkSectMark_Count
+	LnkSectLpMarkNone = 0,
+	LnkSectLpMarkImpStart,
+	LnkSectLpMarkImpEnd,
+	LnkSectLpMarkImpTabStart,
+	LnkSectLpMarkImpTabEnd,
+	LnkSectLpMarkRelocStart,
+	LnkSectLpMarkRelocEnd,
+	LnkSectLpMark_Count
 };
 struct lnk_sect_lp {
 	lnk_sect_lp_type_t type;
@@ -62,4 +62,4 @@ void lnk_sect_destroy_chain(lnk_sect_t * sect);
 
 void lnk_sect_add_lp(lnk_sect_t * sect, lnk_sect_lp_type_t type, lnk_sect_lp_stype_t stype, ul_hs_t * label_name, size_t offset);
 
-const size_t lnk_sect_fixups_size[LnkSectFixup_Count];
+const size_t lnk_sect_fixups_size[LnkSectLpFixup_Count];

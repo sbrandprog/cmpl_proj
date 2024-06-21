@@ -1,7 +1,7 @@
 #pragma once
 #include "lnk.h"
 
-#define LNK_PEL_MAX_MODULE_SIZE INT32_MAX
+#define LNK_PEL_MODULE_MAX_SIZE INT32_MAX
 
 struct lnk_pel_sett {
 	uint64_t image_base;
@@ -33,7 +33,5 @@ struct lnk_pel {
 void lnk_pel_init(lnk_pel_t * pel);
 void lnk_pel_cleanup(lnk_pel_t * pel);
 
-lnk_sect_t * lnk_pel_push_new_sect(lnk_pel_t * pe);
-
-extern const lnk_pel_sett_t lnk_pel_sett_default;
-extern const wchar_t * lnk_pel_file_name_default;
+extern const lnk_pel_sett_t lnk_pel_dflt_sett;
+extern const wchar_t * lnk_pel_dflt_file_name;

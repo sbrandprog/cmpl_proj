@@ -11,7 +11,7 @@
 
 #define ARR_UNQ_PREFIX L"#arr"
 
-#define COMPILE_LO_WORKER_TIMEOUT 5000
+#define COMPILE_LO_WORKER_TIMEOUT 1000
 #define COMPILE_LO_WORKER_COUNT 4
 
 typedef struct ira_pec_c_ctx_cl_elem {
@@ -27,15 +27,46 @@ typedef struct ira_pec_c_ctx {
 
 	size_t str_unq_index;
 
-	CRITICAL_SECTION cl_lock;
 	size_t cl_elems_cap;
 	cl_elem_t * cl_elems;
 	size_t cl_elems_size;
+
+	PTP_WORK cl_work;
+	CRITICAL_SECTION cl_lock;
 	CONDITION_VARIABLE cl_cv;
 	size_t cl_elems_cur;
 	size_t cl_wips;
 	bool cl_err_flag;
+
+	CRITICAL_SECTION cl_out_it_lock;
+	CRITICAL_SECTION cl_frag_lock;
+	asm_frag_t * cl_frag;
+	asm_frag_t ** cl_frag_ins;
 } ctx_t;
+
+static asm_frag_t * get_frag_nl(ctx_t * ctx, asm_frag_type_t frag_type) {
+	*ctx->cl_frag_ins = asm_frag_create(frag_type);
+
+	asm_frag_t * frag = *ctx->cl_frag_ins;
+
+	ctx->cl_frag_ins = &frag->next;
+
+	return frag;
+}
+asm_frag_t * ira_pec_c_get_frag(ira_pec_c_ctx_t * ctx, asm_frag_type_t frag_type) {
+	EnterCriticalSection(&ctx->cl_frag_lock);
+
+	asm_frag_t * res;
+
+	__try {
+		res = get_frag_nl(ctx, frag_type);
+	}
+	__finally {
+		LeaveCriticalSection(&ctx->cl_frag_lock);
+	}
+
+	return res;
+}
 
 static ul_hs_t * get_unq_arr_label(ctx_t * ctx) {
 	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%zi", ARR_UNQ_PREFIX, ctx->str_unq_index++);
@@ -189,7 +220,7 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 	return true;
 }
 bool ira_pec_c_compile_val_frag(ira_pec_c_ctx_t * ctx, ira_val_t * val, ul_hs_t ** out_label) {
-	asm_frag_t * frag = asm_pea_push_new_frag(ctx->out, AsmFragRoData);
+	asm_frag_t * frag = ira_pec_c_get_frag(ctx, AsmFragRoData);
 
 	ul_hs_t * frag_label = get_unq_arr_label(ctx);
 
@@ -216,9 +247,6 @@ ul_hst_t * ira_pec_c_get_hst(ira_pec_c_ctx_t * ctx) {
 }
 ira_pec_t * ira_pec_c_get_pec(ira_pec_c_ctx_t * ctx) {
 	return ctx->pec;
-}
-asm_pea_t * ira_pec_c_get_pea(ira_pec_c_ctx_t * ctx) {
-	return ctx->out;
 }
 
 static void push_cl_elem_nl(ctx_t * ctx, ira_lo_t * lo) {
@@ -248,7 +276,14 @@ void ira_pec_c_push_cl_elem(ira_pec_c_ctx_t * ctx, ira_lo_t * lo) {
 }
 
 static bool compile_lo_impt(ctx_t * ctx, ira_lo_t * lo) {
-	asm_it_add_sym(&ctx->out->it, lo->impt.lib_name, lo->impt.sym_name, lo->full_name);
+	EnterCriticalSection(&ctx->cl_out_it_lock);
+
+	__try {
+		asm_it_add_sym(&ctx->out->it, lo->impt.lib_name, lo->impt.sym_name, lo->full_name);
+	}
+	__finally {
+		LeaveCriticalSection(&ctx->cl_out_it_lock);
+	}
 
 	return true;
 }
@@ -259,7 +294,7 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 
 	asm_frag_type_t frag_type = lo->var.qdt.qual.const_q ? AsmFragRoData : AsmFragWrData;
 
-	asm_frag_t * frag = asm_pea_push_new_frag(ctx->out, frag_type);
+	asm_frag_t * frag = ira_pec_c_get_frag(ctx, frag_type);
 
 	{
 		asm_inst_t label = { .type = AsmInstLabel, .opds = AsmInstOpds_Label, .label = lo->full_name };
@@ -359,12 +394,7 @@ static bool get_cl_elem(ctx_t * ctx, cl_elem_t * out) {
 static bool process_cl_elem(ctx_t * ctx, cl_elem_t * elem) {
 	bool res = true;
 
-	__try {
-		if (!compile_lo(ctx, elem->lo)) {
-			res = false;
-		}
-	}
-	__except (exception_code() == STATUS_NO_MEMORY) {
+	if (!compile_lo(ctx, elem->lo)) {
 		res = false;
 	}
 
@@ -397,12 +427,14 @@ static ira_lo_t * find_lo(ira_lo_t * nspc, ul_hs_t * name) {
 	return NULL;
 }
 
-static bool compile_core(ctx_t * ctx) {
+static bool prepare_data(ctx_t * ctx) {
 	ira_lo_t * ep_lo = find_lo(ctx->pec->root, ctx->pec->ep_name);
 
 	if (ep_lo == NULL) {
 		return false;
 	}
+
+	push_cl_elem_nl(ctx, ep_lo);
 
 	ctx->hst = ctx->pec->hst;
 
@@ -410,29 +442,56 @@ static bool compile_core(ctx_t * ctx) {
 
 	asm_pea_init(ctx->out, ctx->hst);
 
+	ctx->out->ep_name = ctx->pec->ep_name;
+
 	InitializeCriticalSection(&ctx->cl_lock);
 
 	InitializeConditionVariable(&ctx->cl_cv);
 
-	PTP_WORK work = CreateThreadpoolWork(compile_lo_worker, ctx, NULL);
+	InitializeCriticalSection(&ctx->cl_out_it_lock);
 
-	if (work == NULL) {
+	InitializeCriticalSection(&ctx->cl_frag_lock);
+
+	ctx->cl_frag_ins = &ctx->cl_frag;
+
+	return true;
+}
+static bool do_work(ctx_t * ctx) {
+	ctx->cl_work = CreateThreadpoolWork(compile_lo_worker, ctx, NULL);
+
+	if (ctx->cl_work == NULL) {
 		return false;
 	}
 
-	push_cl_elem_nl(ctx, ep_lo);
-
 	for (size_t i = 0; i < COMPILE_LO_WORKER_COUNT; ++i) {
-		SubmitThreadpoolWork(work);
+		SubmitThreadpoolWork(ctx->cl_work);
 	}
 
-	WaitForThreadpoolWorkCallbacks(work, FALSE);
+	WaitForThreadpoolWorkCallbacks(ctx->cl_work, FALSE);
 
-	CloseThreadpoolWork(work);
+	CloseThreadpoolWork(ctx->cl_work);
 
-	ctx->out->ep_name = ctx->pec->ep_name;
+	ctx->cl_work = NULL;
 
 	return !ctx->cl_err_flag;
+}
+static void move_frags(ctx_t * ctx) {
+	ctx->out->frag = ctx->cl_frag;
+
+	ctx->cl_frag = NULL;
+}
+static bool compile_core(ctx_t * ctx) {
+	if (!prepare_data(ctx)) {
+		return false;
+	}
+
+	if (!do_work(ctx)) {
+		return false;
+	}
+
+	move_frags(ctx);
+
+	return true;
 }
 bool ira_pec_c_compile(ira_pec_t * pec, asm_pea_t * out) {
 	ctx_t ctx = { .pec = pec, .out = out };
@@ -443,6 +502,16 @@ bool ira_pec_c_compile(ira_pec_t * pec, asm_pea_t * out) {
 		res = compile_core(&ctx);
 	}
 	__finally {
+		if (ctx.cl_work != NULL) {
+			CloseThreadpoolWork(ctx.cl_work);
+		}
+
+		DeleteCriticalSection(&ctx.cl_frag_lock);
+
+		asm_frag_destroy_chain(ctx.cl_frag);
+
+		DeleteCriticalSection(&ctx.cl_out_it_lock);
+
 		DeleteCriticalSection(&ctx.cl_lock);
 
 		free(ctx.cl_elems);

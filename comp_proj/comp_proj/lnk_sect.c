@@ -38,11 +38,11 @@ void lnk_sect_add_lp(lnk_sect_t * sect, lnk_sect_lp_type_t type, lnk_sect_lp_sty
 	sect->lps[sect->lps_size++] = (lnk_sect_lp_t){ .type = type, .stype = stype, .label_name = label_name, .offset = offset };
 }
 
-const size_t lnk_sect_fixups_size[LnkSectFixup_Count] = {
-	[LnkSectFixupNone] = 0,
-	[LnkSectFixupRel8] = sizeof(uint8_t),
-	[LnkSectFixupRel32] = sizeof(uint32_t),
-	[LnkSectFixupVa64] = sizeof(uint64_t),
-	[LnkSectFixupRva32] = sizeof(uint32_t),
-	[LnkSectFixupRva31of64] = sizeof(uint64_t)
+const size_t lnk_sect_fixups_size[LnkSectLpFixup_Count] = {
+	[LnkSectLpFixupNone] = 0,
+	[LnkSectLpFixupRel8] = sizeof(uint8_t),
+	[LnkSectLpFixupRel32] = sizeof(uint32_t),
+	[LnkSectLpFixupVa64] = sizeof(uint64_t),
+	[LnkSectLpFixupRva32] = sizeof(uint32_t),
+	[LnkSectLpFixupRva31of64] = sizeof(uint64_t)
 };

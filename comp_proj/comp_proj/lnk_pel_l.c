@@ -68,7 +68,7 @@ typedef struct lnk_pel_l_ctx {
 	fixup_t * fixups;
 	size_t fixups_cap;
 
-	mark_t marks[LnkSectMark_Count];
+	mark_t marks[LnkSectLpMark_Count];
 
 
 	size_t va64_fixups_size;
@@ -90,14 +90,14 @@ typedef struct lnk_pel_l_ctx {
 } ctx_t;
 
 static const lnk_sect_lp_stype_t dir_start_mark[IMAGE_NUMBEROF_DIRECTORY_ENTRIES] = {
-	[IMAGE_DIRECTORY_ENTRY_IMPORT] = LnkSectMarkImpStart,
-	[IMAGE_DIRECTORY_ENTRY_BASERELOC] = LnkSectMarkRelocStart,
-	[IMAGE_DIRECTORY_ENTRY_IAT] = LnkSectMarkImpTabStart
+	[IMAGE_DIRECTORY_ENTRY_IMPORT] = LnkSectLpMarkImpStart,
+	[IMAGE_DIRECTORY_ENTRY_BASERELOC] = LnkSectLpMarkRelocStart,
+	[IMAGE_DIRECTORY_ENTRY_IAT] = LnkSectLpMarkImpTabStart
 };
 static const lnk_sect_lp_stype_t dir_end_mark[IMAGE_NUMBEROF_DIRECTORY_ENTRIES] = {
-	[IMAGE_DIRECTORY_ENTRY_IMPORT] = LnkSectMarkImpEnd,
-	[IMAGE_DIRECTORY_ENTRY_BASERELOC] = LnkSectMarkRelocEnd,
-	[IMAGE_DIRECTORY_ENTRY_IAT] = LnkSectMarkImpTabEnd
+	[IMAGE_DIRECTORY_ENTRY_IMPORT] = LnkSectLpMarkImpEnd,
+	[IMAGE_DIRECTORY_ENTRY_BASERELOC] = LnkSectLpMarkRelocEnd,
+	[IMAGE_DIRECTORY_ENTRY_IAT] = LnkSectLpMarkImpTabEnd
 };
 
 static label_t * find_label(ctx_t * ctx, const ul_hs_t * name) {
@@ -199,11 +199,11 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 			return true;
 		case LnkSectLpMark:
 		{
-			if (lp->stype == LnkSectMarkNone) {
+			if (lp->stype == LnkSectLpMarkNone) {
 				return true;
 			}
 
-			if (lp->stype >= LnkSectMark_Count) {
+			if (lp->stype >= LnkSectLpMark_Count) {
 				return false;
 			}
 
@@ -236,11 +236,11 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 		}
 		case LnkSectLpFixup:
 		{
-			if (lp->stype == LnkSectFixupNone) {
+			if (lp->stype == LnkSectLpFixupNone) {
 				return true;
 			}
 
-			if (lp->stype >= LnkSectFixup_Count) {
+			if (lp->stype >= LnkSectLpFixup_Count) {
 				return false;
 			}
 
@@ -261,7 +261,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 			fixup->sect = sect;
 			fixup->offset = lp->offset + offset;
 
-			if (fixup->stype == LnkSectFixupVa64) {
+			if (fixup->stype == LnkSectLpFixupVa64) {
 				++ctx->va64_fixups_size;
 			}
 
@@ -342,7 +342,7 @@ static int base_reloc_cmp(void * ctx_ptr, const void * first_ptr, const void * s
 	return 0;
 }
 static bool form_base_reloc_sect(ctx_t * ctx) {
-	if (ctx->marks[LnkSectMarkRelocStart].sect != NULL || ctx->marks[LnkSectMarkRelocEnd].sect != NULL) {
+	if (ctx->marks[LnkSectLpMarkRelocStart].sect != NULL || ctx->marks[LnkSectLpMarkRelocEnd].sect != NULL) {
 		return false;
 	}
 
@@ -355,7 +355,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 		fixup_t * fixup = ctx->fixups, * fixup_end = fixup + ctx->fixups_size;
 
 		for (; fixup != fixup_end; ++fixup) {
-			if (fixup->stype == LnkSectFixupVa64) {
+			if (fixup->stype == LnkSectLpFixupVa64) {
 				ul_assert(cur != cur_end);
 
 				*cur++ = fixup;
@@ -441,8 +441,8 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 
 	ctx->reloc_sect = reloc;
 
-	ctx->marks[LnkSectMarkRelocStart] = (mark_t){ .sect = reloc, .offset = 0 };
-	ctx->marks[LnkSectMarkRelocEnd] = (mark_t){ .sect = reloc, .offset = reloc->data_size };
+	ctx->marks[LnkSectLpMarkRelocStart] = (mark_t){ .sect = reloc, .offset = 0 };
+	ctx->marks[LnkSectLpMarkRelocEnd] = (mark_t){ .sect = reloc, .offset = reloc->data_size };
 
 	return true;
 }
@@ -497,7 +497,7 @@ static bool calculate_offsets(ctx_t * ctx) {
 		next_raw_addr += sect->raw_size;
 		next_virt_addr += sect->virt_size;
 
-		if (next_virt_addr >= LNK_PEL_MAX_MODULE_SIZE) {
+		if (next_virt_addr >= LNK_PEL_MODULE_MAX_SIZE) {
 			return false;
 		}
 	}
@@ -531,9 +531,9 @@ static bool apply_fixups(ctx_t * ctx) {
 		void * write_pos = fixup->sect->data + fixup->offset;
 
 		switch (fixup->stype) {
-			case LnkSectFixupNone:
+			case LnkSectLpFixupNone:
 				break;
-			case LnkSectFixupRel8:
+			case LnkSectLpFixupRel8:
 			{
 				int64_t var = (int64_t)(lpos - fpos - sizeof(uint8_t));
 
@@ -544,7 +544,7 @@ static bool apply_fixups(ctx_t * ctx) {
 				*(int8_t *)write_pos = (int8_t)var;
 				break;
 			}
-			case LnkSectFixupRel32:
+			case LnkSectLpFixupRel32:
 			{
 				int64_t var = (int64_t)(lpos - fpos - sizeof(uint32_t));
 
@@ -555,13 +555,13 @@ static bool apply_fixups(ctx_t * ctx) {
 				*(int32_t *)write_pos = (int32_t)var;
 				break;
 			}
-			case LnkSectFixupVa64:
+			case LnkSectLpFixupVa64:
 				*(uint64_t *)write_pos = (uint64_t)(lpos + ctx->pel->sett->image_base);
 				break;
-			case LnkSectFixupRva32:
+			case LnkSectLpFixupRva32:
 				*(uint32_t *)write_pos = (uint32_t)lpos;
 				break;
-			case LnkSectFixupRva31of64:
+			case LnkSectLpFixupRva31of64:
 				if ((lpos & ~0x7FFFFFFFull) != 0) {
 					return false;
 				}

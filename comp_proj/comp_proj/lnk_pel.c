@@ -11,21 +11,7 @@ void lnk_pel_cleanup(lnk_pel_t * pe) {
 	memset(pe, 0, sizeof(*pe));
 }
 
-lnk_sect_t * lnk_pel_push_new_sect(lnk_pel_t * pe) {
-	lnk_sect_t * sect = lnk_sect_create();
-
-	lnk_sect_t * next;
-
-	do {
-		next = pe->sect;
-
-		sect->next = pe->sect;
-	} while (InterlockedCompareExchangePointer(&pe->sect, sect, next) != next);
-
-	return sect;
-}
-
-const lnk_pel_sett_t lnk_pel_sett_default = {
+const lnk_pel_sett_t lnk_pel_dflt_sett = {
 	.image_base = 0x140000000,
 	.sect_align = 0x1000, .file_align = 0x200,
 
@@ -41,4 +27,4 @@ const lnk_pel_sett_t lnk_pel_sett_default = {
 	.make_base_reloc = true,
 	.base_reloc_name = ".reloc"
 };
-const wchar_t * lnk_pel_file_name_default = L"out.exe";
+const wchar_t * lnk_pel_dflt_file_name = L"out.exe";

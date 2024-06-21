@@ -2163,7 +2163,7 @@ static bool compile_core(ctx_t * ctx) {
 	ctx->hst = ira_pec_c_get_hst(ctx->c_ctx);
 	ctx->pec = ira_pec_c_get_pec(ctx->c_ctx);
 
-	ctx->frag = asm_pea_push_new_frag(ira_pec_c_get_pea(ctx->c_ctx), AsmFragProc);
+	ctx->frag = ira_pec_c_get_frag(ctx->c_ctx, AsmFragProc);
 
 	push_label(ctx, ctx->c_lo->full_name);
 

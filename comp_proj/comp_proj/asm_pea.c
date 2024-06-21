@@ -14,17 +14,3 @@ void asm_pea_cleanup(asm_pea_t * pea) {
 
 	memset(pea, 0, sizeof(*pea));
 }
-
-asm_frag_t * asm_pea_push_new_frag(asm_pea_t * pea, asm_frag_type_t frag_type) {
-	asm_frag_t * frag = asm_frag_create(frag_type);
-
-	asm_frag_t * next;
-
-	do {
-		next = pea->frag;
-
-		frag->next = next;
-	} while (InterlockedCompareExchangePointer(&pea->frag, frag, next) != next);
-
-	return frag;
-}
