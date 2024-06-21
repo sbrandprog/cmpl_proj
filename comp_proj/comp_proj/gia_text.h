@@ -28,9 +28,9 @@ struct gia_text_anlzr {
 	pla_ec_fmtr_t ec_fmtr;
 
 	pla_lex_t lex;
-	size_t tok_lines_cap;
-	gia_text_tok_line_t * tok_lines;
 	size_t tok_lines_size;
+	gia_text_tok_line_t * tok_lines;
+	size_t tok_lines_cap;
 
 	pla_prsr_t prsr;
 	pla_tu_t * tu;
@@ -38,9 +38,9 @@ struct gia_text_anlzr {
 struct gia_text {
 	CRITICAL_SECTION lock;
 
-	size_t lines_cap;
-	gia_text_line_t * lines;
 	size_t lines_size;
+	gia_text_line_t * lines;
+	size_t lines_cap;
 
 	gia_text_anlzr_t anlzr;
 };

@@ -27,9 +27,9 @@ typedef struct ira_pec_c_ctx {
 
 	size_t str_unq_index;
 
-	size_t cl_elems_cap;
-	cl_elem_t * cl_elems;
 	size_t cl_elems_size;
+	cl_elem_t * cl_elems;
+	size_t cl_elems_cap;
 
 	PTP_WORK cl_work;
 	CRITICAL_SECTION cl_lock;

@@ -12,9 +12,9 @@ struct pla_tu {
 	
 	pla_dclr_t * root;
 
-	size_t refs_cap;
-	pla_tu_ref_t * refs;
 	size_t refs_size;
+	pla_tu_ref_t * refs;
+	size_t refs_cap;
 };
 
 pla_tu_t * pla_tu_create(ul_hs_t * name);

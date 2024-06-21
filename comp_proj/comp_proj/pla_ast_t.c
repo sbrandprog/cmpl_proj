@@ -42,9 +42,9 @@ typedef struct pla_ast_t_ctx {
 
 	pla_ast_t_optr_t * optrs[PlaExpr_Count];
 
-	size_t tus_cap;
-	tu_t * tus;
 	size_t tus_size;
+	tu_t * tus;
+	size_t tus_cap;
 
 	tse_t * tse;
 	vse_t * vse;

@@ -4,9 +4,9 @@
 struct pla_ec_buf {
 	CRITICAL_SECTION lock;
 
-	size_t errs_cap;
-	pla_ec_err_t * errs;
 	size_t errs_size;
+	pla_ec_err_t * errs;
+	size_t errs_cap;
 
 	pla_ec_t ec;
 };

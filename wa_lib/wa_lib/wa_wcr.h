@@ -4,9 +4,9 @@
 struct wa_wcr {
 	wa_ctx_t * ctx;
 	CRITICAL_SECTION lock;
-	size_t wnd_clss_cap;
-	ATOM * wnd_clss;
 	size_t wnd_clss_size;
+	ATOM * wnd_clss;
+	size_t wnd_clss_cap;
 };
 
 WA_SYMBOL bool wa_wcr_init(wa_wcr_t * wcr, wa_ctx_t * ctx);

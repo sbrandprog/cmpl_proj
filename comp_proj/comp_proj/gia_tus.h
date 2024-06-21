@@ -8,9 +8,9 @@ struct gia_tus {
 	
 	CRITICAL_SECTION lock;
 
-	size_t src_cap;
-	wchar_t * src;
 	size_t src_size;
+	wchar_t * src;
+	size_t src_cap;
 };
 
 gia_tus_t * gia_tus_create(ul_hs_t * name);

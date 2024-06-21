@@ -34,9 +34,9 @@ typedef struct gia_bs_p_ctx {
 
 	pkg_t * root;
 
-	size_t tuss_cap;
-	tus_t * tuss;
 	size_t tuss_size;
+	tus_t * tuss;
+	size_t tuss_cap;
 } ctx_t;
 
 static void destroy_pkg_chain(pkg_t * pkg);

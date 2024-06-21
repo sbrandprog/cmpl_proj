@@ -15,9 +15,9 @@ typedef struct asm_pea_b_ctx {
 	asm_pea_t * pea;
 	lnk_pel_t * out;
 
-	size_t frags_cap;
-	frag_t * frags;
 	size_t frags_size;
+	frag_t * frags;
+	size_t frags_cap;
 
 	PTP_WORK build_work;
 	size_t frags_cur;
