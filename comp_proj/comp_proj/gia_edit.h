@@ -9,13 +9,9 @@
 #define gia_edit_prop_repo L"repo"
 #define gia_edit_prop_tus L"tus"
 
-enum gia_edit_col {
+enum gia_edit_col_type {
 	GiaEditColPlain,
 	GiaEditColSel,
-	GiaEditColErr,
-	GiaEditColKeyw,
-	GiaEditColChStr,
-	GiaEditColNumStr,
 	GiaEditCol_Count
 };
 struct gia_edit_style_desc {
@@ -27,5 +23,3 @@ struct gia_edit_style_desc {
 WNDCLASSEXW gia_edit_get_wnd_cls_desc();
 
 gia_edit_style_desc_t gia_edit_get_style_desc_dflt(wa_ctx_t * ctx);
-
-void gia_edit_attach_ec_rcvr(HWND hw, pla_ec_rcvr_t * ec_rcvr);

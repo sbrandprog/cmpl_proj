@@ -4,7 +4,6 @@
 #include "wa_lib/wa_host.h"
 #include "wa_lib/wa_wcr.h"
 #include "gia_tus.h"
-#include "gia_ecv.h"
 #include "gia_pkg.h"
 #include "gia_repo_view.h"
 #include "gia_bs.h"
@@ -55,7 +54,6 @@ static bool main_gui_register_clss() {
 	}
 
 	static wa_wcr_wnd_cls_desc_proc_t * const procs[] = {
-		gia_ecv_get_wnd_cls_desc,
 		gia_repo_view_get_wnd_cls_desc,
 		gia_edit_get_wnd_cls_desc
 	};
@@ -103,31 +101,17 @@ static bool main_gui() {
 
 	gia_repo_attach_lsnr(&main_repo, gia_repo_view_get_lsnr(repo_view));
 
-	HWND splt1 = wa_wnd_create(&main_wa_ctx, L"wa_splt", splt0, WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN, WS_EX_COMPOSITED, L"is_hors", true, NULL);
-
-	if (splt1 == NULL) {
-		return false;
-	}
-
 	gia_tus_t * edit_tus = gia_pkg_get_tus(main_repo.root, UL_HST_HASHADD_WS(&main_repo.hst, L"test"));
 
 	if (edit_tus == NULL) {
 		return false;
 	}
 
-	HWND gia_edit = wa_wnd_create(&main_wa_ctx, L"gia_edit", splt1, WS_CHILD | WS_VISIBLE, WS_EX_COMPOSITED, gia_edit_prop_exe_name, exe_name, gia_edit_prop_repo, &main_repo, gia_edit_prop_tus, edit_tus, NULL);
+	HWND gia_edit = wa_wnd_create(&main_wa_ctx, L"gia_edit", splt0, WS_CHILD | WS_VISIBLE, WS_EX_COMPOSITED, gia_edit_prop_exe_name, exe_name, gia_edit_prop_repo, &main_repo, gia_edit_prop_tus, edit_tus, NULL);
 
 	if (gia_edit == NULL) {
 		return false;
 	}
-
-	HWND gia_ecv = wa_wnd_create(&main_wa_ctx, L"gia_ecv", splt1, WS_CHILD | WS_VISIBLE, WS_EX_COMPOSITED, NULL);
-
-	if (gia_ecv == NULL) {
-		return false;
-	}
-
-	gia_edit_attach_ec_rcvr(gia_edit, gia_ecv_get_ec_rcvr(gia_ecv));
 
 	wa_ctx_use_show_cmd(&main_wa_ctx, main_wnd);
 

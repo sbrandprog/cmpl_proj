@@ -105,13 +105,11 @@
     <ClCompile Include="comp_proj\asm_size.c" />
     <ClCompile Include="comp_proj\gia_bs.c" />
     <ClCompile Include="comp_proj\gia_bs_p.c" />
-    <ClCompile Include="comp_proj\gia_ecv.c" />
     <ClCompile Include="comp_proj\gia_pkg.c" />
     <ClCompile Include="comp_proj\gia_repo_lsnr.c" />
     <ClCompile Include="comp_proj\gia_repo_view.c" />
     <ClCompile Include="comp_proj\gia_tus_p.c" />
     <ClCompile Include="comp_proj\gia_repo.c" />
-    <ClCompile Include="comp_proj\gia_text.c" />
     <ClCompile Include="comp_proj\gia_tus.c" />
     <ClCompile Include="comp_proj\ira_func.c" />
     <ClCompile Include="comp_proj\ira_dt.c" />
@@ -165,13 +163,11 @@
     <ClInclude Include="comp_proj\gia.h" />
     <ClInclude Include="comp_proj\gia_bs.h" />
     <ClInclude Include="comp_proj\gia_bs_p.h" />
-    <ClInclude Include="comp_proj\gia_ecv.h" />
     <ClInclude Include="comp_proj\gia_pkg.h" />
     <ClInclude Include="comp_proj\gia_repo_lsnr.h" />
     <ClInclude Include="comp_proj\gia_repo_view.h" />
     <ClInclude Include="comp_proj\gia_tus_p.h" />
     <ClInclude Include="comp_proj\gia_repo.h" />
-    <ClInclude Include="comp_proj\gia_text.h" />
     <ClInclude Include="comp_proj\gia_tus.h" />
     <ClInclude Include="comp_proj\ira.h" />
     <ClInclude Include="comp_proj\ira_func.h" />
