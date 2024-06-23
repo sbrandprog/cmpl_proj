@@ -25,16 +25,12 @@ typedef enum gia_edit_cmd_type {
 	CmdBuildExe,
 	CmdClearCmdWin,
 	CmdSaveTus,
+	CmdCutSel,
+	CmdCopySel,
+	CmdPasteData,
+	CmdSelectAll,
 	Cmd_Count
 } cmd_type_t;
-typedef enum gia_edit_accel_type {
-	AccelEsc,
-	AccelF5,
-	AccelF6,
-	AccelF7,
-	AccelCtrlS,
-	Accel_Count
-} accel_type_t;
 
 typedef struct gia_edit_style {
 	wa_style_col_t cols[GiaEditCol_Count];
@@ -115,12 +111,16 @@ typedef struct gia_edit_data {
 } wnd_data_t;
 
 
-static const ACCEL accel_table[Accel_Count] = {
-	[AccelEsc] = { .fVirt = FVIRTKEY, .key = VK_ESCAPE, .cmd = CmdExit },
-	[AccelF5] = { .fVirt = FVIRTKEY, .key = VK_F5, .cmd = CmdRunExe },
-	[AccelF6] = { .fVirt = FVIRTKEY, .key = VK_F6, .cmd = CmdBuildExe },
-	[AccelF7] = { .fVirt = FVIRTKEY, .key = VK_F7, .cmd = CmdClearCmdWin },
-	[AccelCtrlS] = { .fVirt = FCONTROL | FVIRTKEY, .key = 'S', .cmd = CmdSaveTus }
+static const ACCEL accel_table[] = {
+	{ .fVirt = FVIRTKEY, .key = VK_ESCAPE, .cmd = CmdExit },
+	{ .fVirt = FVIRTKEY, .key = VK_F5, .cmd = CmdRunExe },
+	{ .fVirt = FVIRTKEY, .key = VK_F6, .cmd = CmdBuildExe },
+	{ .fVirt = FVIRTKEY, .key = VK_F7, .cmd = CmdClearCmdWin },
+	{ .fVirt = FCONTROL | FVIRTKEY, .key = 'S', .cmd = CmdSaveTus },
+	{ .fVirt = FCONTROL | FVIRTKEY, .key = 'X', .cmd = CmdCutSel },
+	{ .fVirt = FCONTROL | FVIRTKEY, .key = 'C', .cmd = CmdCopySel },
+	{ .fVirt = FCONTROL | FVIRTKEY, .key = 'V', .cmd = CmdPasteData },
+	{ .fVirt = FCONTROL | FVIRTKEY, .key = 'A', .cmd = CmdSelectAll }
 };
 
 
@@ -1091,6 +1091,173 @@ static void process_sel_timer(wnd_data_t * data) {
 }
 
 
+static void copy_text_nl(wnd_data_t * data) {
+	if (!data->is_sel) {
+		return;
+	}
+
+	text_ch_pos_t sel_start, sel_end;
+
+	get_sel_pos(data, &sel_start, &sel_end);
+
+	size_t str_size = 0;
+
+	for (size_t line_i = sel_start.line; line_i <= sel_end.line; ++line_i) {
+		text_line_t * line = &data->text.lines[line_i];
+
+		size_t start_ch = line_i == sel_start.line ? sel_start.ch : 0;
+		size_t end_ch = line_i == sel_end.line ? sel_end.ch : line->size;
+
+		str_size += end_ch - start_ch;
+
+		if (line_i != sel_end.line) {
+			str_size += 2;
+		}
+	}
+
+	++str_size;
+
+	HGLOBAL hg = GlobalAlloc(GMEM_MOVEABLE, str_size * sizeof(wchar_t));
+
+	if (hg != NULL) {
+		wchar_t * hg_str = GlobalLock(hg);
+
+		if (hg_str != NULL) {
+			wchar_t * hg_str_end = hg_str + str_size;
+
+			wchar_t * cur = hg_str;
+
+			static const wchar_t new_line_str[2] = { L'\r', L'\n' };
+
+			for (size_t line_i = sel_start.line; line_i <= sel_end.line; ++line_i) {
+				text_line_t * line = &data->text.lines[line_i];
+
+				size_t start_ch = line_i == sel_start.line ? sel_start.ch : 0;
+				size_t end_ch = line_i == sel_end.line ? sel_end.ch : line->size;
+
+				wmemcpy_s(cur, hg_str_end - cur, line->str + start_ch, end_ch - start_ch);
+				cur += end_ch - start_ch;
+
+				if (line_i != sel_end.line) {
+					wmemcpy_s(cur, hg_str_end - cur, new_line_str, _countof(new_line_str));
+					cur += _countof(new_line_str);
+				}
+			}
+
+			*cur++ = 0;
+
+			ul_assert(cur == hg_str_end);
+
+			GlobalUnlock(hg);
+
+			EmptyClipboard();
+
+			if (SetClipboardData(CF_UNICODETEXT, hg) == NULL) {
+				GlobalFree(hg);
+			}
+		}
+		else {
+			GlobalFree(hg);
+		}
+	}
+}
+static void paste_text_nl(wnd_data_t * data) {
+	HGLOBAL hg = GetClipboardData(CF_UNICODETEXT);
+
+	if (hg != NULL) {
+		wchar_t * hg_str = GlobalLock(hg);
+
+		if (hg_str != NULL) {
+			text_ch_pos_t pos = get_caret_ch_pos(data);
+
+			insert_text_str_nl(data, pos.line, pos.ch, wcslen(hg_str), hg_str, true);
+
+			GlobalUnlock(hg);
+		}
+	}
+}
+
+static void process_cmd_cut_sel_nl(wnd_data_t * data) {
+	if (!data->is_sel) {
+		return;
+	}
+
+	copy_text_nl(data);
+
+	remove_text_sel_nl(data);
+}
+static void process_cmd_cut_sel(wnd_data_t * data) {
+	if (OpenClipboard(data->hw) != 0) {
+		EnterCriticalSection(&data->text.lock);
+
+		__try {
+			process_cmd_cut_sel_nl(data);
+		}
+		__finally {
+			LeaveCriticalSection(&data->text.lock);
+			CloseClipboard();
+		}
+	}
+}
+static void process_cmd_copy_sel(wnd_data_t * data) {
+	if (OpenClipboard(data->hw) != 0) {
+		EnterCriticalSection(&data->text.lock);
+
+		__try {
+			copy_text_nl(data);
+		}
+		__finally {
+			LeaveCriticalSection(&data->text.lock);
+			CloseClipboard();
+		}
+	}
+}
+static void process_cmd_paste_data_nl(wnd_data_t * data) {
+	if (!IsClipboardFormatAvailable(CF_UNICODETEXT)) {
+		return;
+	}
+
+	if (data->is_sel) {
+		remove_text_sel_nl(data);
+	}
+
+	paste_text_nl(data);
+}
+static void process_cmd_paste_data(wnd_data_t * data) {
+	if (OpenClipboard(data->hw) != 0) {
+		EnterCriticalSection(&data->text.lock);
+
+		__try {
+			process_cmd_paste_data_nl(data);
+		}
+		__finally {
+			LeaveCriticalSection(&data->text.lock);
+			CloseClipboard();
+		}
+	}
+}
+static void process_cmd_select_all_nl(wnd_data_t * data) {
+	data->is_sel = true;
+
+	data->sel_start_line = 0;
+	data->sel_start_col = 0;
+
+	text_ch_pos_t pos = get_ch_pos(data, SIZE_MAX, SIZE_MAX);
+
+	set_caret_pos_ch(data, pos.line, pos.ch);
+
+	update_vis_to_caret(data);
+}
+static void process_cmd_select_all(wnd_data_t * data) {
+	EnterCriticalSection(&data->text.lock);
+
+	__try {
+		process_cmd_select_all_nl(data);
+	}
+	__finally {
+		LeaveCriticalSection(&data->text.lock);
+	}
+}
 static void process_cmd_wp(wnd_data_t * data, WPARAM wp) {
 	switch (LOWORD(wp)) {
 		case CmdExit:
@@ -1125,6 +1292,18 @@ static void process_cmd_wp(wnd_data_t * data, WPARAM wp) {
 			else {
 				wprintf(L"no tus\n");
 			}
+			break;
+		case CmdCutSel:
+			process_cmd_cut_sel(data);
+			break;
+		case CmdCopySel:
+			process_cmd_copy_sel(data);
+			break;
+		case CmdPasteData:
+			process_cmd_paste_data(data);
+			break;
+		case CmdSelectAll:
+			process_cmd_select_all(data);
 			break;
 		default:
 			ul_assert_unreachable();
