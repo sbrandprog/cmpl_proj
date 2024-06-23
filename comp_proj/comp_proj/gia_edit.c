@@ -58,16 +58,15 @@ typedef enum gia_edit_text_actn_type {
 } text_actn_type_t;
 typedef struct gia_edit_text_actn {
 	text_actn_type_t type;
-	size_t line_pos;
-	size_t ch_pos;
+	text_ch_pos_t pos;
 	union {
 		struct {
 			size_t str_size;
 			wchar_t * str;
+			text_ch_pos_t pos_end_out;
 		} ins_str;
 		struct {
-			size_t line_pos_end;
-			size_t ch_pos_end;
+			text_ch_pos_t pos_end;
 		} rem_str;
 		gia_tus_t * tus;
 	};
@@ -208,65 +207,84 @@ static void text_cleanup(text_t * text) {
 	memset(text, 0, sizeof(*text));
 }
 
+static void insert_text_line_nl(text_t * text, size_t ins_pos) {
+	if (text->lines_size + 1 > text->lines_cap) {
+		ul_arr_grow(&text->lines_cap, &text->lines, sizeof(*text->lines), 1);
+	}
+
+	memmove_s(text->lines + ins_pos + 1, (text->lines_cap - ins_pos) * sizeof(*text->lines), text->lines + ins_pos, (text->lines_size - ins_pos) * sizeof(*text->lines));
+
+	++text->lines_size;
+
+	init_line(&text->lines[ins_pos]);
+}
+
 static void process_text_actn_ins_str_nl(text_t * text, text_actn_t * actn) {
-	const size_t line_pos = actn->line_pos, ins_pos = actn->ch_pos, str_size = actn->ins_str.str_size;
+	const size_t line_pos = actn->pos.line, ins_pos = actn->pos.ch, str_size = actn->ins_str.str_size;
 	wchar_t * const str = actn->ins_str.str;
 
 	ul_assert(line_pos < text->lines_size);
 
-	size_t line_i = line_pos, line_i_ins = ins_pos;
+	size_t line_i = line_pos, line_i_ch_ins = ins_pos;
 	wchar_t * cur = str, * cur_end = cur + str_size;
 
 	while (true) {
-		wchar_t * cur_nl = wmemchr(cur, L'\n', cur_end - cur);
+		wchar_t * cur_nl = cur;
 
-		if (cur_nl == NULL) {
-			cur_nl = cur_end;
+		while (cur_nl != cur_end && *cur_nl != L'\r' && *cur_nl != L'\n') {
+			++cur_nl;
 		}
 
 		size_t cur_size = cur_nl - cur;
 
 		{
-			text_line_t * line = &text->lines[line_i++];
+			text_line_t * line = &text->lines[line_i];
 
-			line_i_ins = min(line_i_ins, line->size);
+			line_i_ch_ins = min(line_i_ch_ins, line->size);
 
-			insert_line_str(line, line_i_ins, cur_size, cur);
+			insert_line_str(line, line_i_ch_ins, cur_size, cur);
+
+			actn->ins_str.pos_end_out = (text_ch_pos_t){ .line = line_i, .ch = line_i_ch_ins + cur_size };
 		}
 
 		if (cur_nl == cur_end) {
 			break;
 		}
 
-		if (text->lines_size + 1 > text->lines_cap) {
-			ul_arr_grow(&text->lines_cap, &text->lines, sizeof(*text->lines), 1);
-		}
-
-		memmove_s(text->lines + line_i + 1, (text->lines_cap - line_i) * sizeof(*text->lines), text->lines + line_i, (text->lines_size - line_i) * sizeof(*text->lines));
-
-		++text->lines_size;
+		insert_text_line_nl(text, line_i + 1);
 
 		{
-			text_line_t * prev_line = &text->lines[line_i - 1];
 			text_line_t * line = &text->lines[line_i];
+			text_line_t * next_line = &text->lines[line_i + 1];
 
-			init_line(&text->lines[line_i]);
+			insert_line_str(next_line, 0, line->size - cur_size - line_i_ch_ins, line->str + cur_size + line_i_ch_ins);
+			remove_line_str(line, cur_size + line_i_ch_ins, line->size);
 
-			insert_line_str(line, 0, prev_line->size - cur_size - line_i_ins, prev_line->str + cur_size + line_i_ins);
-			remove_line_str(prev_line, cur_size + line_i_ins, prev_line->size);
+			++line_i;
+			line_i_ch_ins = 0;
 
-			line_i_ins = 0;
+			actn->ins_str.pos_end_out = (text_ch_pos_t){ .line = line_i, .ch = line_i_ch_ins };
 		}
 
-		if (cur_nl + 1 == cur_end) {
+		bool is_cr = *cur_nl == L'\r';
+
+		if (++cur_nl == cur_end) {
 			break;
 		}
 
-		cur = cur_nl + 1;
+		if (is_cr && *cur_nl == L'\n') {
+			++cur_nl;
+
+			if (cur_nl == cur_end) {
+				break;
+			}
+		}
+
+		cur = cur_nl;
 	}
 }
 static void process_text_actn_rem_str_nl(text_t * text, text_actn_t * actn) {
-	const size_t start_line_pos = actn->line_pos, start_ch_pos = actn->ch_pos, end_line_pos = actn->rem_str.line_pos_end, end_ch_pos = actn->rem_str.ch_pos_end;
+	const size_t start_line_pos = actn->pos.line, start_ch_pos = actn->pos.ch, end_line_pos = actn->rem_str.pos_end.line, end_ch_pos = actn->rem_str.pos_end.ch;
 
 	ul_assert(start_line_pos < end_line_pos || start_line_pos == end_line_pos && start_ch_pos <= end_ch_pos);
 
@@ -369,61 +387,6 @@ static void process_text_actn_nl(text_t * text, text_actn_t * actn) {
 }
 
 
-static void insert_text_str_nl(wnd_data_t * data, size_t line_pos, size_t ins_pos, size_t str_size, wchar_t * str) {
-	text_actn_t actn = { .type = TextActnInsStr, .line_pos = line_pos, .ch_pos = ins_pos, .ins_str = { .str_size = str_size, .str = str } };
-
-	process_text_actn_nl(&data->text, &actn);
-
-	data->is_redraw_req = true;
-}
-static void insert_text_ch_nl(wnd_data_t * data, size_t line_pos, size_t ins_pos, wchar_t ch) {
-	insert_text_str_nl(data, line_pos, ins_pos, 1, &ch);
-}
-static void remove_text_str_nl(wnd_data_t * data, size_t start_line_pos, size_t start_ch_pos, size_t end_line_pos, size_t end_ch_pos) {
-	text_actn_t actn = { .type = TextActnRemStr, .line_pos = start_line_pos, .ch_pos = start_ch_pos, .rem_str = { .line_pos_end = end_line_pos, .ch_pos_end = end_ch_pos } };
-
-	process_text_actn_nl(&data->text, &actn);
-
-	data->is_redraw_req = true;
-}
-static void remove_text_ch_nl(wnd_data_t * data, size_t line_pos, size_t rem_pos) {
-	remove_text_str_nl(data, line_pos, rem_pos, line_pos, rem_pos + 1);
-}
-
-static void read_text_from_tus(wnd_data_t * data) {
-	EnterCriticalSection(&data->text.lock);
-	EnterCriticalSection(&data->tus->lock);
-
-	__try {
-		remove_text_str_nl(data, 0, 0, data->text.lines_size, SIZE_MAX);
-		insert_text_str_nl(data, 0, 0, data->tus->src_size, data->tus->src);
-	}
-	__finally {
-		LeaveCriticalSection(&data->text.lock);
-		LeaveCriticalSection(&data->tus->lock);
-	}
-}
-static void write_text_to_tus(wnd_data_t * data) {
-	EnterCriticalSection(&data->text.lock);
-	EnterCriticalSection(&data->tus->lock);
-
-	__try {
-		data->tus->src_size = 0;
-
-		wchar_t nl_ch = L'\n';
-
-		for (text_line_t * line = data->text.lines, *line_end = line + data->text.lines_size; line != line_end; ++line) {
-			gia_tus_insert_str_nl(data->tus, data->tus->src_size, line->size, line->str);
-			gia_tus_insert_str_nl(data->tus, data->tus->src_size, 1, &nl_ch);
-		}
-	}
-	__finally {
-		LeaveCriticalSection(&data->text.lock);
-		LeaveCriticalSection(&data->tus->lock);
-	}
-}
-
-
 static size_t get_ch_col_size(wnd_data_t * data, size_t line_col, wchar_t ch) {
 	if (ch == L'\t') {
 		return TAB_SIZE - line_col % TAB_SIZE;
@@ -485,6 +448,7 @@ static void get_sel_pos(wnd_data_t * data, text_ch_pos_t * out_start, text_ch_po
 		*out_end = sel_pos1;
 	}
 }
+
 
 static void redraw_caret_nl(wnd_data_t * data) {
 	if (!data->is_fcs) {
@@ -633,6 +597,7 @@ static void redraw_lines(void * user_data, HDC hdc, RECT * rect) {
 	}
 }
 
+
 static void set_vis_pos(wnd_data_t * data, size_t vis_line, size_t vis_col) {
 	if (data->vis_line != vis_line
 		|| data->vis_col != vis_col) {
@@ -678,7 +643,7 @@ static size_t calc_vis_val(wnd_data_t * data, size_t caret_val, size_t vis_val, 
 
 	return vis_val;
 }
-static void update_vis_to_caret(wnd_data_t * data, size_t caret_line, size_t caret_col) {
+static void update_vis_to_caret(wnd_data_t * data) {
 	size_t vis_line = data->vis_line, vis_col = data->vis_col;
 
 	RECT rect;
@@ -687,64 +652,130 @@ static void update_vis_to_caret(wnd_data_t * data, size_t caret_line, size_t car
 	size_t max_w = (size_t)rect.right / data->style.font.f_w;
 	size_t max_h = (size_t)rect.bottom / data->style.font.f_h;
 
-	vis_line = calc_vis_val(data, caret_line, vis_line, max_h);
-	vis_col = calc_vis_val(data, caret_col, vis_col, max_w);
+	vis_line = calc_vis_val(data, data->caret_line, vis_line, max_h);
+	vis_col = calc_vis_val(data, data->caret_col, vis_col, max_w);
 
 	set_vis_pos(data, vis_line, vis_col);
 }
 
-static void remove_sel_text_nl(wnd_data_t * data) {
+
+static void insert_text_str_nl(wnd_data_t * data, size_t line_pos, size_t ins_pos, size_t str_size, wchar_t * str, bool set_caret) {
+	ul_assert(line_pos < data->text.lines_size && ins_pos <= data->text.lines[line_pos].size);
+	
+	text_actn_t actn = { .type = TextActnInsStr, .pos = { .line = line_pos, .ch = ins_pos }, .ins_str = { .str_size = str_size, .str = str } };
+
+	process_text_actn_nl(&data->text, &actn);
+
+	data->is_redraw_req = true;
+
+	if (set_caret) {
+		set_caret_pos_ch(data, actn.ins_str.pos_end_out.line, actn.ins_str.pos_end_out.ch);
+	}
+}
+static void insert_text_ch_nl(wnd_data_t * data, size_t line_pos, size_t ins_pos, wchar_t ch, bool set_caret) {
+	insert_text_str_nl(data, line_pos, ins_pos, 1, &ch, set_caret);
+}
+static void remove_text_str_nl(wnd_data_t * data, size_t start_line_pos, size_t start_ch_pos, size_t end_line_pos, size_t end_ch_pos, bool set_caret) {
+	ul_assert(data->text.lines_size > 0);
+
+	text_actn_t actn = { .type = TextActnRemStr, .pos = { .line = start_line_pos, .ch = start_ch_pos }, .rem_str = { .pos_end = { .line = end_line_pos, .ch = end_ch_pos } } };
+
+	process_text_actn_nl(&data->text, &actn);
+
+	data->is_redraw_req = true;
+
+	if (set_caret) {
+		size_t caret_line = min(start_line_pos, data->text.lines_size - 1);
+
+		text_line_t * line = &data->text.lines[caret_line];
+
+		size_t caret_ch = caret_line == start_line_pos ? min(start_ch_pos, line->size) : line->size;
+
+		set_caret_pos_ch(data, caret_line, caret_ch);
+	}
+}
+static void remove_text_ch_nl(wnd_data_t * data, size_t line_pos, size_t rem_pos, bool set_caret) {
+	remove_text_str_nl(data, line_pos, rem_pos, line_pos, rem_pos + 1, set_caret);
+}
+
+static void read_text_from_tus(wnd_data_t * data) {
+	EnterCriticalSection(&data->text.lock);
+	EnterCriticalSection(&data->tus->lock);
+
+	__try {
+		remove_text_str_nl(data, 0, 0, data->text.lines_size, SIZE_MAX, true);
+		insert_text_str_nl(data, 0, 0, data->tus->src_size, data->tus->src, false);
+	}
+	__finally {
+		LeaveCriticalSection(&data->text.lock);
+		LeaveCriticalSection(&data->tus->lock);
+	}
+}
+static void write_text_to_tus(wnd_data_t * data) {
+	EnterCriticalSection(&data->text.lock);
+	EnterCriticalSection(&data->tus->lock);
+
+	__try {
+		data->tus->src_size = 0;
+
+		wchar_t nl_ch = L'\n';
+
+		for (text_line_t * line = data->text.lines, *line_end = line + data->text.lines_size; line != line_end; ++line) {
+			gia_tus_insert_str_nl(data->tus, data->tus->src_size, line->size, line->str);
+			gia_tus_insert_str_nl(data->tus, data->tus->src_size, 1, &nl_ch);
+		}
+	}
+	__finally {
+		LeaveCriticalSection(&data->text.lock);
+		LeaveCriticalSection(&data->tus->lock);
+	}
+}
+
+static void remove_text_sel_nl(wnd_data_t * data) {
 	text_ch_pos_t sel_start, sel_end;
 
 	get_sel_pos(data, &sel_start, &sel_end);
 
-	remove_text_str_nl(data, sel_start.line, sel_start.ch, sel_end.line, sel_end.ch);
-
-	set_caret_pos_ch(data, sel_start.line, sel_start.ch);
+	remove_text_str_nl(data, sel_start.line, sel_start.ch, sel_end.line, sel_end.ch, true);
 
 	data->is_sel = false;
 }
+
 
 static void process_caret_keyd_wp_nl_back(wnd_data_t * data) {
 	text_ch_pos_t pos = get_caret_ch_pos(data);
 
 	if (data->is_sel) {
-		remove_sel_text_nl(data);
+		remove_text_sel_nl(data);
 	}
 	else {
 		if (pos.ch > 0) {
-			remove_text_ch_nl(data, pos.line, pos.ch - 1);
-
-			set_caret_pos_ch(data, pos.line, pos.ch - 1);
+			remove_text_ch_nl(data, pos.line, pos.ch - 1, true);
 		}
 		else if (pos.line > 0) {
 			size_t new_caret_ch = data->text.lines[pos.line - 1].size;
 
-			remove_text_str_nl(data, pos.line - 1, SIZE_MAX, pos.line, 0);
-
-			set_caret_pos_ch(data, pos.line - 1, new_caret_ch);
+			remove_text_str_nl(data, pos.line - 1, new_caret_ch, pos.line, 0, true);
 		}
 	}
 }
 static void process_caret_keyd_wp_nl_ret(wnd_data_t * data) {
 	if (data->is_sel) {
-		remove_sel_text_nl(data);
+		remove_text_sel_nl(data);
 	}
 
 	text_ch_pos_t pos = get_caret_ch_pos(data);
 
-	insert_text_ch_nl(data, pos.line, pos.ch, L'\n');
-
-	set_caret_pos_ch(data, pos.line + 1, 0);
+	insert_text_ch_nl(data, pos.line, pos.ch, L'\n', true);
 }
 static void process_caret_keyd_wp_nl_cret(wnd_data_t * data) {
 	if (data->is_sel) {
-		remove_sel_text_nl(data);
+		remove_text_sel_nl(data);
 	}
 
 	text_ch_pos_t pos = get_caret_ch_pos(data);
 
-	insert_text_ch_nl(data, pos.line, 0, L'\n');
+	insert_text_ch_nl(data, pos.line, 0, L'\n', false);
 
 	set_caret_pos_ch(data, pos.line, pos.ch);
 }
@@ -834,7 +865,7 @@ static void process_caret_keyd_wp_nl_nav(wnd_data_t * data, WPARAM wp) {
 }
 static void process_caret_keyd_wp_nl_del(wnd_data_t * data) {
 	if (data->is_sel) {
-		remove_sel_text_nl(data);
+		remove_text_sel_nl(data);
 	}
 	else {
 		text_ch_pos_t pos = get_caret_ch_pos(data);
@@ -842,19 +873,15 @@ static void process_caret_keyd_wp_nl_del(wnd_data_t * data) {
 		text_line_t * line = &data->text.lines[pos.line];
 
 		if (pos.ch < line->size) {
-			remove_text_ch_nl(data, pos.line, pos.ch);
+			remove_text_ch_nl(data, pos.line, pos.ch, false);
 		}
 		else if (pos.line + 1 < data->text.lines_size) {
-			remove_text_str_nl(data, pos.line, SIZE_MAX, pos.line + 1, 0);
+			remove_text_str_nl(data, pos.line, SIZE_MAX, pos.line + 1, 0, false);
 		}
 	}
 }
 static void process_caret_keyd_wp_nl_vis(wnd_data_t * data) {
-	text_ch_pos_t pos = get_caret_ch_pos(data);
-
-	size_t caret_col = convert_line_ch_to_col(data, &data->text.lines[pos.line], pos.ch);
-
-	update_vis_to_caret(data, pos.line, caret_col);
+	update_vis_to_caret(data);
 }
 static void process_caret_keyd_wp_nl(wnd_data_t * data, WPARAM wp) {
 	bool vis_update = true;
@@ -907,18 +934,14 @@ static void process_caret_ch_wp_nl(wnd_data_t * data, WPARAM wp) {
 
 	if (iswprint(ch) || ch == L'\t') {
 		if (data->is_sel) {
-			remove_sel_text_nl(data);
+			remove_text_sel_nl(data);
 		}
 
 		text_ch_pos_t pos = get_caret_ch_pos(data);
 
-		insert_text_ch_nl(data, pos.line, pos.ch, ch);
+		insert_text_ch_nl(data, pos.line, pos.ch, ch, true);
 
-		set_caret_pos_ch(data, pos.line, pos.ch + 1);
-
-		size_t caret_col = convert_line_ch_to_col(data, &data->text.lines[pos.line], pos.ch + 1);
-
-		update_vis_to_caret(data, pos.line, caret_col);
+		update_vis_to_caret(data);
 	}
 }
 static void process_caret_ch_wp(wnd_data_t * data, WPARAM wp) {
