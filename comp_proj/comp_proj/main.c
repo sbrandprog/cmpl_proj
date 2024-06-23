@@ -31,14 +31,9 @@ static bool main_fill_repo() {
 
 	EnterCriticalSection(&main_repo.lock);
 
-	bool res;
+	bool res = main_fill_repo_nl();
 
-	__try {
-		res = main_fill_repo_nl();
-	}
-	__finally {
-		LeaveCriticalSection(&main_repo.lock);
-	}
+	LeaveCriticalSection(&main_repo.lock);
 
 	if (!res) {
 		return false;
@@ -141,22 +136,17 @@ static int main_core() {
 }
 
 int main() {
-	int res;
-	
-	__try {
-		res = main_core();
-	}
-	__finally {
-		wa_wcr_cleanup(&main_wcr);
+	int res = main_core();
 
-		wa_ctx_cleanup(&main_wa_ctx);
+	wa_wcr_cleanup(&main_wcr);
 
-		gia_repo_cleanup(&main_repo);
+	wa_ctx_cleanup(&main_wa_ctx);
 
-		ul_hst_cleanup(&main_hst);
+	gia_repo_cleanup(&main_repo);
 
-		ul_es_cleanup_ctx(&main_es_ctx);
-	}
+	ul_hst_cleanup(&main_hst);
+
+	ul_es_cleanup_ctx(&main_es_ctx);
 
 	_CrtDumpMemoryLeaks();
 

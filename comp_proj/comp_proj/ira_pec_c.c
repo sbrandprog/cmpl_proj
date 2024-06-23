@@ -56,14 +56,9 @@ static asm_frag_t * get_frag_nl(ctx_t * ctx, asm_frag_type_t frag_type) {
 asm_frag_t * ira_pec_c_get_frag(ira_pec_c_ctx_t * ctx, asm_frag_type_t frag_type) {
 	EnterCriticalSection(&ctx->cl_frag_lock);
 
-	asm_frag_t * res;
+	asm_frag_t * res = get_frag_nl(ctx, frag_type);
 
-	__try {
-		res = get_frag_nl(ctx, frag_type);
-	}
-	__finally {
-		LeaveCriticalSection(&ctx->cl_frag_lock);
-	}
+	LeaveCriticalSection(&ctx->cl_frag_lock);
 
 	return res;
 }
@@ -265,12 +260,9 @@ static void push_cl_elem_nl(ctx_t * ctx, ira_lo_t * lo) {
 void ira_pec_c_push_cl_elem(ira_pec_c_ctx_t * ctx, ira_lo_t * lo) {
 	EnterCriticalSection(&ctx->cl_lock);
 
-	__try {
-		push_cl_elem_nl(ctx, lo);
-	}
-	__finally {
-		LeaveCriticalSection(&ctx->cl_lock);
-	}
+	push_cl_elem_nl(ctx, lo);
+
+	LeaveCriticalSection(&ctx->cl_lock);
 
 	WakeConditionVariable(&ctx->cl_cv);
 }
@@ -278,12 +270,9 @@ void ira_pec_c_push_cl_elem(ira_pec_c_ctx_t * ctx, ira_lo_t * lo) {
 static bool compile_lo_impt(ctx_t * ctx, ira_lo_t * lo) {
 	EnterCriticalSection(&ctx->cl_out_it_lock);
 
-	__try {
-		asm_it_add_sym(&ctx->out->it, lo->impt.lib_name, lo->impt.sym_name, lo->full_name);
-	}
-	__finally {
-		LeaveCriticalSection(&ctx->cl_out_it_lock);
-	}
+	asm_it_add_sym(&ctx->out->it, lo->impt.lib_name, lo->impt.sym_name, lo->full_name);
+
+	LeaveCriticalSection(&ctx->cl_out_it_lock);
 
 	return true;
 }
@@ -496,28 +485,23 @@ static bool compile_core(ctx_t * ctx) {
 bool ira_pec_c_compile(ira_pec_t * pec, asm_pea_t * out) {
 	ctx_t ctx = { .pec = pec, .out = out };
 
-	bool res;
+	bool res = compile_core(&ctx);
 
-	__try {
-		res = compile_core(&ctx);
+	if (ctx.cl_work != NULL) {
+		CloseThreadpoolWork(ctx.cl_work);
 	}
-	__finally {
-		if (ctx.cl_work != NULL) {
-			CloseThreadpoolWork(ctx.cl_work);
-		}
 
-		DeleteCriticalSection(&ctx.cl_frag_lock);
+	DeleteCriticalSection(&ctx.cl_frag_lock);
 
-		asm_frag_destroy_chain(ctx.cl_frag);
+	asm_frag_destroy_chain(ctx.cl_frag);
 
-		DeleteCriticalSection(&ctx.cl_out_it_lock);
+	DeleteCriticalSection(&ctx.cl_out_it_lock);
 
-		DeleteCriticalSection(&ctx.cl_lock);
+	DeleteCriticalSection(&ctx.cl_lock);
 
-		free(ctx.cl_elems);
+	free(ctx.cl_elems);
 
-		ul_hsb_cleanup(&ctx.hsb);
-	}
+	ul_hsb_cleanup(&ctx.hsb);
 
 	return res;
 }

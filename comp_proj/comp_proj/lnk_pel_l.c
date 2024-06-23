@@ -706,29 +706,24 @@ static bool link_core(ctx_t * ctx) {
 bool lnk_pel_l_link(lnk_pel_t * pel) {
 	ctx_t ctx = { .pel = pel };
 
-	bool res;
-	
-	__try {
-		res = link_core(&ctx);
+	bool res = link_core(&ctx);
+
+	free(ctx.br_fixups);
+	free(ctx.va64_fixups);
+
+	free(ctx.labels);
+	free(ctx.fixups);
+
+	for (sect_t * sect = ctx.sect; sect != NULL;) {
+		sect_t * next = sect->next;
+
+		free(sect->data);
+		free(sect);
+
+		sect = next;
 	}
-	__finally {
-		free(ctx.br_fixups);
-		free(ctx.va64_fixups);
 
-		free(ctx.labels);
-		free(ctx.fixups);
-
-		for (sect_t * sect = ctx.sect; sect != NULL;) {
-			sect_t * next = sect->next;
-
-			free(sect->data);
-			free(sect);
-
-			sect = next;
-		}
-
-		free(ctx.iss);
-	}
+	free(ctx.iss);
 
 	return res;
 }

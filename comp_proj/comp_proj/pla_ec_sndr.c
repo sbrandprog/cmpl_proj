@@ -20,12 +20,9 @@ static void process_actn_proc(void * user_data, pla_ec_actn_t * actn) {
 
 	AcquireSRWLockShared(&sndr->es_node->ctx->lock);
 
-	__try {
-		process_actn_nl(sndr, actn);
-	}
-	__finally {
-		ReleaseSRWLockShared(&sndr->es_node->ctx->lock);
-	}
+	process_actn_nl(sndr, actn);
+
+	ReleaseSRWLockShared(&sndr->es_node->ctx->lock);
 }
 
 void pla_ec_sndr_init(pla_ec_sndr_t * sndr, ul_es_ctx_t * es_ctx) {

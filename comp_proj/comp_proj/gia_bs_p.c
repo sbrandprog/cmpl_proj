@@ -176,16 +176,11 @@ static bool form_core(ctx_t * ctx) {
 bool gia_bs_p_form_ast_nl(gia_repo_t * repo, ul_hs_t * first_tus_name, pla_lex_t * lex, pla_ast_t * out) {
 	ctx_t ctx = { .repo = repo, .first_tus_name = first_tus_name, .lex = lex, .out = out };
 
-	bool res;
+	bool res = form_core(&ctx);
 
-	__try {
-		res = form_core(&ctx);
-	}
-	__finally {
-		free(ctx.tuss);
+	free(ctx.tuss);
 
-		destroy_pkg(ctx.root);
-	}
+	destroy_pkg(ctx.root);
 
 	return res;
 }

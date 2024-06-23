@@ -492,12 +492,9 @@ static void redraw_caret_nl(wnd_data_t * data) {
 static void redraw_caret(wnd_data_t * data) {
 	EnterCriticalSection(&data->text.lock);
 
-	__try {
-		redraw_caret_nl(data);
-	}
-	__finally {
-		LeaveCriticalSection(&data->text.lock);
-	}
+	redraw_caret_nl(data);
+
+	LeaveCriticalSection(&data->text.lock);
 }
 static size_t clamp_line_ch_to_vis_col(wnd_data_t * data, text_line_t * line, size_t line_ch) {
 	size_t line_col = convert_line_ch_to_col(data, line, line_ch);
@@ -589,12 +586,9 @@ static void redraw_lines(void * user_data, HDC hdc, RECT * rect) {
 
 	EnterCriticalSection(&data->text.lock);
 
-	__try {
-		redraw_lines_nl(data, hdc, rect);
-	}
-	__finally {
-		LeaveCriticalSection(&data->text.lock);
-	}
+	redraw_lines_nl(data, hdc, rect);
+
+	LeaveCriticalSection(&data->text.lock);
 }
 
 
@@ -702,33 +696,27 @@ static void read_text_from_tus(wnd_data_t * data) {
 	EnterCriticalSection(&data->text.lock);
 	EnterCriticalSection(&data->tus->lock);
 
-	__try {
-		remove_text_str_nl(data, 0, 0, data->text.lines_size, SIZE_MAX, true);
-		insert_text_str_nl(data, 0, 0, data->tus->src_size, data->tus->src, false);
-	}
-	__finally {
-		LeaveCriticalSection(&data->text.lock);
-		LeaveCriticalSection(&data->tus->lock);
-	}
+	remove_text_str_nl(data, 0, 0, data->text.lines_size, SIZE_MAX, true);
+	insert_text_str_nl(data, 0, 0, data->tus->src_size, data->tus->src, false);
+
+	LeaveCriticalSection(&data->text.lock);
+	LeaveCriticalSection(&data->tus->lock);
 }
 static void write_text_to_tus(wnd_data_t * data) {
 	EnterCriticalSection(&data->text.lock);
 	EnterCriticalSection(&data->tus->lock);
 
-	__try {
-		data->tus->src_size = 0;
+	data->tus->src_size = 0;
 
-		wchar_t nl_ch = L'\n';
+	wchar_t nl_ch = L'\n';
 
-		for (text_line_t * line = data->text.lines, *line_end = line + data->text.lines_size; line != line_end; ++line) {
-			gia_tus_insert_str_nl(data->tus, data->tus->src_size, line->size, line->str);
-			gia_tus_insert_str_nl(data->tus, data->tus->src_size, 1, &nl_ch);
-		}
+	for (text_line_t * line = data->text.lines, *line_end = line + data->text.lines_size; line != line_end; ++line) {
+		gia_tus_insert_str_nl(data->tus, data->tus->src_size, line->size, line->str);
+		gia_tus_insert_str_nl(data->tus, data->tus->src_size, 1, &nl_ch);
 	}
-	__finally {
-		LeaveCriticalSection(&data->text.lock);
-		LeaveCriticalSection(&data->tus->lock);
-	}
+
+	LeaveCriticalSection(&data->text.lock);
+	LeaveCriticalSection(&data->tus->lock);
 }
 
 static void remove_text_sel_nl(wnd_data_t * data) {
@@ -921,12 +909,9 @@ static void process_caret_keyd_wp_nl(wnd_data_t * data, WPARAM wp) {
 static void process_caret_keyd_wp(wnd_data_t * data, WPARAM wp) {
 	EnterCriticalSection(&data->text.lock);
 
-	__try {
-		process_caret_keyd_wp_nl(data, wp);
-	}
-	__finally {
-		LeaveCriticalSection(&data->text.lock);
-	}
+	process_caret_keyd_wp_nl(data, wp);
+
+	LeaveCriticalSection(&data->text.lock);
 }
 
 static void process_caret_ch_wp_nl(wnd_data_t * data, WPARAM wp) {
@@ -947,12 +932,9 @@ static void process_caret_ch_wp_nl(wnd_data_t * data, WPARAM wp) {
 static void process_caret_ch_wp(wnd_data_t * data, WPARAM wp) {
 	EnterCriticalSection(&data->text.lock);
 
-	__try {
-		process_caret_ch_wp_nl(data, wp);
-	}
-	__finally {
-		LeaveCriticalSection(&data->text.lock);
-	}
+	process_caret_ch_wp_nl(data, wp);
+
+	LeaveCriticalSection(&data->text.lock);
 }
 
 static void process_caret_cur_pos_nl(wnd_data_t * data, int x, int y) {
@@ -971,12 +953,9 @@ static void process_caret_cur_pos_nl(wnd_data_t * data, int x, int y) {
 static void process_caret_cur_lp(wnd_data_t * data, LPARAM lp) {
 	EnterCriticalSection(&data->text.lock);
 
-	__try {
-		process_caret_cur_pos_nl(data, GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
-	}
-	__finally {
-		LeaveCriticalSection(&data->text.lock);
-	}
+	process_caret_cur_pos_nl(data, GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
+
+	LeaveCriticalSection(&data->text.lock);
 }
 
 
@@ -1006,12 +985,9 @@ static void process_vis_wheel_y_nl(wnd_data_t * data, int wheel_delta) {
 static void process_vis_wheel_y(wnd_data_t * data, int wheel_delta) {
 	EnterCriticalSection(&data->text.lock);
 
-	__try {
-		process_vis_wheel_y_nl(data, wheel_delta);
-	}
-	__finally {
-		LeaveCriticalSection(&data->text.lock);
-	}
+	process_vis_wheel_y_nl(data, wheel_delta);
+
+	LeaveCriticalSection(&data->text.lock);
 }
 static void process_vis_wheel_x_nl(wnd_data_t * data, int wheel_delta) {
 	data->wheel_x += wheel_delta * VIS_WHEEL_MUL;
@@ -1027,12 +1003,9 @@ static void process_vis_wheel_x_nl(wnd_data_t * data, int wheel_delta) {
 static void process_vis_wheel_x(wnd_data_t * data, int wheel_delta) {
 	EnterCriticalSection(&data->text.lock);
 
-	__try {
-		process_vis_wheel_x_nl(data, wheel_delta);
-	}
-	__finally {
-		LeaveCriticalSection(&data->text.lock);
-	}
+	process_vis_wheel_x_nl(data, wheel_delta);
+
+	LeaveCriticalSection(&data->text.lock);
 }
 
 
@@ -1082,12 +1055,9 @@ static void process_sel_timer_nl(wnd_data_t * data) {
 static void process_sel_timer(wnd_data_t * data) {
 	EnterCriticalSection(&data->text.lock);
 
-	__try {
-		process_sel_timer_nl(data);
-	}
-	__finally {
-		LeaveCriticalSection(&data->text.lock);
-	}
+	process_sel_timer_nl(data);
+
+	LeaveCriticalSection(&data->text.lock);
 }
 
 
@@ -1190,26 +1160,20 @@ static void process_cmd_cut_sel(wnd_data_t * data) {
 	if (OpenClipboard(data->hw) != 0) {
 		EnterCriticalSection(&data->text.lock);
 
-		__try {
-			process_cmd_cut_sel_nl(data);
-		}
-		__finally {
-			LeaveCriticalSection(&data->text.lock);
-			CloseClipboard();
-		}
+		process_cmd_cut_sel_nl(data);
+
+		LeaveCriticalSection(&data->text.lock);
+		CloseClipboard();
 	}
 }
 static void process_cmd_copy_sel(wnd_data_t * data) {
 	if (OpenClipboard(data->hw) != 0) {
 		EnterCriticalSection(&data->text.lock);
 
-		__try {
-			copy_text_nl(data);
-		}
-		__finally {
-			LeaveCriticalSection(&data->text.lock);
-			CloseClipboard();
-		}
+		copy_text_nl(data);
+
+		LeaveCriticalSection(&data->text.lock);
+		CloseClipboard();
 	}
 }
 static void process_cmd_paste_data_nl(wnd_data_t * data) {
@@ -1227,13 +1191,10 @@ static void process_cmd_paste_data(wnd_data_t * data) {
 	if (OpenClipboard(data->hw) != 0) {
 		EnterCriticalSection(&data->text.lock);
 
-		__try {
-			process_cmd_paste_data_nl(data);
-		}
-		__finally {
-			LeaveCriticalSection(&data->text.lock);
-			CloseClipboard();
-		}
+		process_cmd_paste_data_nl(data);
+
+		LeaveCriticalSection(&data->text.lock);
+		CloseClipboard();
 	}
 }
 static void process_cmd_select_all_nl(wnd_data_t * data) {
@@ -1251,12 +1212,9 @@ static void process_cmd_select_all_nl(wnd_data_t * data) {
 static void process_cmd_select_all(wnd_data_t * data) {
 	EnterCriticalSection(&data->text.lock);
 
-	__try {
-		process_cmd_select_all_nl(data);
-	}
-	__finally {
-		LeaveCriticalSection(&data->text.lock);
-	}
+	process_cmd_select_all_nl(data);
+
+	LeaveCriticalSection(&data->text.lock);
 }
 static void process_cmd_wp(wnd_data_t * data, WPARAM wp) {
 	switch (LOWORD(wp)) {

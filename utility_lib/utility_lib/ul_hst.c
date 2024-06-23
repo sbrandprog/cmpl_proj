@@ -59,16 +59,11 @@ static ul_hs_t * ul_hst_add_nolock(ul_hst_t * hst, size_t str_size, const wchar_
 	return &new_node->hstr;
 }
 ul_hs_t * ul_hst_add(ul_hst_t * hst, size_t str_size, const wchar_t * str, ul_hs_hash_t str_hash) {
-	ul_hs_t * res = NULL;
-
 	EnterCriticalSection(&hst->lock);
 
-	__try {
-		res = ul_hst_add_nolock(hst, str_size, str, str_hash);
-	}
-	__finally {
-		LeaveCriticalSection(&hst->lock);
-	}
+	ul_hs_t * res = ul_hst_add_nolock(hst, str_size, str, str_hash);
+
+	LeaveCriticalSection(&hst->lock);
 
 	return res;
 }

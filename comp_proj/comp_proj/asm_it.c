@@ -260,18 +260,13 @@ static bool build_core(ctx_t * ctx) {
 bool asm_it_build(asm_it_t * it, ul_hst_t * hst, lnk_pel_t * out) {
 	ctx_t ctx = { .it = it, .hst = hst, .out = out };
 
-	bool res;
-	
-	__try {
-		res = build_core(&ctx);
-	}
-	__finally {
-		ul_hsb_cleanup(&ctx.hsb);
+	bool res = build_core(&ctx);
 
-		lnk_sect_destroy(ctx.dir_sect);
-		lnk_sect_destroy(ctx.addr_sect);
-		lnk_sect_destroy(ctx.hnt_sect);
-	}
+	ul_hsb_cleanup(&ctx.hsb);
+
+	lnk_sect_destroy(ctx.dir_sect);
+	lnk_sect_destroy(ctx.addr_sect);
+	lnk_sect_destroy(ctx.hnt_sect);
 
 	return res;
 }

@@ -60,16 +60,11 @@ bool gia_tus_p_parse(pla_lex_t * lex, gia_tus_t * tus, pla_tu_t * out) {
 
 	EnterCriticalSection(&tus->lock);
 
-	bool res;
+	bool res = parse_core(&ctx);
 
-	__try {
-		res = parse_core(&ctx);
-	}
-	__finally {
-		pla_prsr_cleanup(&ctx.prsr);
+	pla_prsr_cleanup(&ctx.prsr);
 
-		LeaveCriticalSection(&tus->lock);
-	}
+	LeaveCriticalSection(&tus->lock);
 
 	return res;
 }

@@ -89,14 +89,9 @@ static bool process_path_pkg(gia_pkg_t * pkg, ul_hst_t * hst, const wchar_t * pa
 static bool read_tus_file(gia_tus_t * tus, const wchar_t * path) {
 	EnterCriticalSection(&tus->lock);
 	
-	bool res = false;
-	
-	__try {
-		res = gia_tus_read_file_nl(tus, path);
-	}
-	__finally {
-		LeaveCriticalSection(&tus->lock);
-	}
+	bool res = gia_tus_read_file_nl(tus, path);
+
+	LeaveCriticalSection(&tus->lock);
 
 	return res;
 }

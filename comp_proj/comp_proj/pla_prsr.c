@@ -311,12 +311,9 @@ static void parse_cn(pla_prsr_t * prsr, pla_punc_t delim, pla_cn_t ** out) {
 
 	push_rse(prsr, &rse);
 
-	__try {
-		parse_cn_rse(prsr, delim, out);
-	}
-	__finally {
-		pop_rse(prsr);
-	}
+	parse_cn_rse(prsr, delim, out);
+
+	pop_rse(prsr);
 }
 bool pla_prsr_parse_cn(pla_prsr_t * prsr, pla_punc_t delim, pla_cn_t ** out) {
 	prsr->is_rptd = false;
@@ -701,12 +698,9 @@ static void parse_expr(pla_prsr_t * prsr, pla_expr_t ** out) {
 
 	push_rse(prsr, &rse);
 
-	__try {
-		parse_expr_rse(prsr, out);
-	}
-	__finally {
-		pop_rse(prsr);
-	}
+	parse_expr_rse(prsr, out);
+
+	pop_rse(prsr);
 }
 bool pla_prsr_parse_expr(pla_prsr_t * prsr, pla_expr_t ** out) {
 	prsr->is_rptd = false;
@@ -919,12 +913,9 @@ static void parse_stmt(pla_prsr_t * prsr, pla_stmt_t ** out) {
 
 	push_rse(prsr, &rse);
 
-	__try {
-		parse_stmt_rse(prsr, out);
-	}
-	__finally {
-		pop_rse(prsr);
-	}
+	parse_stmt_rse(prsr, out);
+
+	pop_rse(prsr);
 }
 bool pla_prsr_parse_stmt(pla_prsr_t * prsr, pla_stmt_t ** out) {
 	prsr->is_rptd = false;
@@ -1123,12 +1114,9 @@ static void parse_dclr(pla_prsr_t * prsr, pla_dclr_t ** out) {
 
 	push_rse(prsr, &rse);
 
-	__try {
-		parse_dclr_rse(prsr, out);
-	}
-	__finally {
-		pop_rse(prsr);
-	}
+	parse_dclr_rse(prsr, out);
+	
+	pop_rse(prsr);
 }
 
 bool pla_prsr_parse_dclr(pla_prsr_t * prsr, pla_dclr_t ** out) {
@@ -1173,12 +1161,9 @@ static void parse_tu_item(pla_prsr_t * prsr, pla_tu_t * tu, pla_dclr_t ** ins) {
 
 	push_rse(prsr, &rse);
 
-	__try {
-		parse_tu_item_rse(prsr, tu, ins);
-	}
-	__finally {
-		pop_rse(prsr);
-	}
+	parse_tu_item_rse(prsr, tu, ins);
+	
+	pop_rse(prsr);
 }
 static void parse_tu_body(pla_prsr_t * prsr, pla_tu_t * tu, pla_dclr_t ** ins) {
 	size_t tok_ind = prsr->tok_ind;

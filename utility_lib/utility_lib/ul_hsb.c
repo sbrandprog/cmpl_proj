@@ -72,14 +72,9 @@ static ul_hs_t * ul_hsb_formatadd_nl_va(ul_hsb_t * hsb, ul_hst_t * hst, const wc
 ul_hs_t * ul_hsb_formatadd_va(ul_hsb_t * hsb, ul_hst_t * hst, const wchar_t * fmt, va_list args) {
 	EnterCriticalSection(&hsb->lock);
 
-	ul_hs_t * res = NULL;
-
-	__try {
-		res = ul_hsb_formatadd_nl_va(hsb, hst, fmt, args);
-	}
-	__finally {
-		LeaveCriticalSection(&hsb->lock);
-	}
+	ul_hs_t * res = ul_hsb_formatadd_nl_va(hsb, hst, fmt, args);
+	
+	LeaveCriticalSection(&hsb->lock);
 
 	return res;
 }

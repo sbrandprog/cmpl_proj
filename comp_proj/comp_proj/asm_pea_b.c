@@ -127,22 +127,17 @@ static bool build_core(ctx_t * ctx) {
 bool asm_pea_b_build(asm_pea_t * pea, lnk_pel_t * out) {
 	ctx_t ctx = { .pea = pea, .out = out };
 
-	bool res;
-	
-	__try {
-		res = build_core(&ctx);
-	}
-	__finally {
-		if (ctx.build_work != NULL) {
-			CloseThreadpoolWork(ctx.build_work);
-		}
+	bool res = build_core(&ctx);
 
-		for (frag_t * frag = ctx.frags, *frag_end = frag + ctx.frags_size; frag != frag_end; ++frag) {
-			lnk_sect_destroy(frag->sect);
-		}
-
-		free(ctx.frags);
+	if (ctx.build_work != NULL) {
+		CloseThreadpoolWork(ctx.build_work);
 	}
+
+	for (frag_t * frag = ctx.frags, *frag_end = frag + ctx.frags_size; frag != frag_end; ++frag) {
+		lnk_sect_destroy(frag->sect);
+	}
+
+	free(ctx.frags);
 
 	return res;
 }

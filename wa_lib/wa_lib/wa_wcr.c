@@ -79,28 +79,18 @@ void wa_wcr_cleanup(wa_wcr_t * wcr) {
 bool wa_wcr_register_d(wa_wcr_t * wcr, WNDCLASSEXW * wnd_cls_desc) {
 	EnterCriticalSection(&wcr->lock);
 
-	bool res;
+	bool res = register_d_nl(wcr, wnd_cls_desc);
 
-	__try {
-		res = register_d_nl(wcr, wnd_cls_desc);
-	}
-	__finally {
-		LeaveCriticalSection(&wcr->lock);
-	}
+	LeaveCriticalSection(&wcr->lock);
 
 	return res;
 }
 bool wa_wcr_register_p(wa_wcr_t * wcr, wa_wcr_wnd_cls_desc_proc_t * proc) {
 	EnterCriticalSection(&wcr->lock);
 
-	bool res;
-
-	__try {
-		res = register_p_nl(wcr, proc);
-	}
-	__finally {
-		LeaveCriticalSection(&wcr->lock);
-	}
+	bool res = register_p_nl(wcr, proc);
+	
+	LeaveCriticalSection(&wcr->lock);
 
 	return res;
 }

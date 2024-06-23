@@ -82,12 +82,9 @@ static void process_actn_proc(void * user_data, pla_ec_actn_t * actn) {
 
 	EnterCriticalSection(&buf->lock);
 
-	__try {
-		process_actn_nl(buf, actn);
-	}
-	__finally {
-		LeaveCriticalSection(&buf->lock);
-	}
+	process_actn_nl(buf, actn);
+
+	LeaveCriticalSection(&buf->lock);
 }
 
 void pla_ec_buf_init(pla_ec_buf_t * buf) {
@@ -117,10 +114,7 @@ void pla_ec_buf_repost(pla_ec_buf_t * buf, pla_ec_t * ec) {
 
 	EnterCriticalSection(&buf->lock);
 
-	__try {
-		repost_nl(buf, ec);
-	}
-	__finally {
-		LeaveCriticalSection(&buf->lock);
-	}
+	repost_nl(buf, ec);
+
+	LeaveCriticalSection(&buf->lock);
 }

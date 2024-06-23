@@ -77,26 +77,21 @@ static bool build_core(ctx_t * ctx) {
 bool gia_bs_build_nl(gia_repo_t * repo, ul_hs_t * first_tus_name, const wchar_t * file_name) {
 	ctx_t ctx = { .repo = repo, .first_tus_name = first_tus_name, .file_name = file_name };
 
-	bool res;
+	bool res = build_core(&ctx);
 
-	__try {
-		res = build_core(&ctx);
-	}
-	__finally {
-		lnk_pel_cleanup(&ctx.lnk_pe);
+	lnk_pel_cleanup(&ctx.lnk_pe);
 
-		asm_pea_cleanup(&ctx.asm_pea);
+	asm_pea_cleanup(&ctx.asm_pea);
 
-		ira_pec_cleanup(&ctx.ira_pec);
+	ira_pec_cleanup(&ctx.ira_pec);
 
-		pla_ast_cleanup(&ctx.pla_ast);
+	pla_ast_cleanup(&ctx.pla_ast);
 
-		pla_lex_cleanup(&ctx.pla_lex);
+	pla_lex_cleanup(&ctx.pla_lex);
 
-		pla_ec_fmtr_cleanup(&ctx.pla_ec_fmtr);
+	pla_ec_fmtr_cleanup(&ctx.pla_ec_fmtr);
 
-		pla_ec_buf_cleanup(&ctx.pla_ec_buf);
-	}
+	pla_ec_buf_cleanup(&ctx.pla_ec_buf);
 
 	return res;
 }

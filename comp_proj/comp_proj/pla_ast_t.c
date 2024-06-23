@@ -326,14 +326,9 @@ bool pla_ast_t_calculate_expr(pla_ast_t_ctx_t * ctx, pla_expr_t * expr, ira_val_
 
 	ira_func_t * func = NULL;
 
-	bool res;
+	bool res = calculate_expr_guard(ctx, &blk, &func, out);
 
-	__try {
-		res = calculate_expr_guard(ctx, &blk, &func, out);
-	}
-	__finally {
-		ira_func_destroy(func);
-	}
+	ira_func_destroy(func);
 
 	return res;
 }
@@ -482,14 +477,9 @@ static bool translate_dclr_nspc(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 
 	pla_ast_t_push_vse(ctx, &vse);
 
-	bool res;
+	bool res = translate_dclr_nspc_vse(ctx, dclr, out);
 
-	__try {
-		res = translate_dclr_nspc_vse(ctx, dclr, out);
-	}
-	__finally {
-		pla_ast_t_pop_vse(ctx);
-	}
+	pla_ast_t_pop_vse(ctx);
 
 	return res;
 }
@@ -690,14 +680,9 @@ static bool translate_dclr(ctx_t * ctx, pla_dclr_t * dclr) {
 
 	pla_ast_t_push_tse(ctx, &tse);
 
-	bool res;
+	bool res = translate_dclr_tse(ctx, dclr);
 
-	__try {
-		res = translate_dclr_tse(ctx, dclr);
-	}
-	__finally {
-		pla_ast_t_pop_tse(ctx);
-	}
+	pla_ast_t_pop_tse(ctx);
 
 	return res;
 }
@@ -885,24 +870,19 @@ static bool translate_core(ctx_t * ctx) {
 bool pla_ast_t_translate(pla_ast_t * ast, ira_pec_t * out) {
 	ctx_t ctx = { .ast = ast, .out = out };
 
-	bool res;
+	bool res = translate_core(&ctx);
 
-	__try {
-		res = translate_core(&ctx);
+	for (tu_t * tu = ctx.tus, *tu_end = tu + ctx.tus_size; tu != tu_end; ++tu) {
+		free(tu->refs);
 	}
-	__finally {
-		for (tu_t * tu = ctx.tus, *tu_end = tu + ctx.tus_size; tu != tu_end; ++tu) {
-			free(tu->refs);
-		}
 
-		free(ctx.tus);
+	free(ctx.tus);
 
-		for (pla_expr_type_t expr_type = PlaExprNone; expr_type < PlaExpr_Count; ++expr_type) {
-			destroy_optr_chain(ctx.optrs[expr_type]);
-		}
-
-		ul_hsb_cleanup(&ctx.hsb);
+	for (pla_expr_type_t expr_type = PlaExprNone; expr_type < PlaExpr_Count; ++expr_type) {
+		destroy_optr_chain(ctx.optrs[expr_type]);
 	}
+
+	ul_hsb_cleanup(&ctx.hsb);
 
 	return res;
 }

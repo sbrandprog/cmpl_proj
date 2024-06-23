@@ -2186,14 +2186,9 @@ static bool compile_core(ctx_t * ctx) {
 bool ira_pec_ip_compile(ira_pec_c_ctx_t * c_ctx, ira_lo_t * lo) {
 	ctx_t ctx = { .trg = TrgCompl, .c_ctx = c_ctx, .c_lo = lo };
 
-	bool res;
-	
-	__try {
-		res = compile_core(&ctx);
-	}
-	__finally {
-		ctx_cleanup(&ctx);
-	}
+	bool res = compile_core(&ctx);
+
+	ctx_cleanup(&ctx);
 
 	return res;
 }
@@ -2517,14 +2512,9 @@ static bool interpret_core(ctx_t * ctx) {
 bool ira_pec_ip_interpret(ira_pec_t * pec, ira_func_t * func, ira_val_t ** out) {
 	ctx_t ctx = { .trg = TrgIntrp, .pec = pec, .func = func, .i_out = out };
 
-	bool res;
-	
-	__try {
-		res = interpret_core(&ctx);
-	}
-	__finally {
-		ctx_cleanup(&ctx);
-	}
+	bool res = interpret_core(&ctx);
+
+	ctx_cleanup(&ctx);
 
 	return res;
 }

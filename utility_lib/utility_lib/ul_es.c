@@ -39,12 +39,9 @@ void ul_es_destroy_node(ul_es_node_t * node) {
 	
 	AcquireSRWLockExclusive(&ctx->lock);
 
-	__try {
-		destroy_node_nl(node);
-	}
-	__finally {
-		ReleaseSRWLockExclusive(&ctx->lock);
-	}
+	destroy_node_nl(node);
+	
+	ReleaseSRWLockExclusive(&ctx->lock);
 }
 
 

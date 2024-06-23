@@ -28,12 +28,9 @@ inline void ul_es_link(ul_es_node_t * first, ul_es_node_t * second) {
 
 	AcquireSRWLockExclusive(&first->ctx->lock);
 
-	__try {
-		ul_es_link_nl(first, second);
-	}
-	__finally {
-		ReleaseSRWLockExclusive(&first->ctx->lock);
-	}
+	ul_es_link_nl(first, second);
+	
+	ReleaseSRWLockExclusive(&first->ctx->lock);
 }
 UL_SYMBOL void ul_es_unlink_nl(ul_es_node_t * first, ul_es_node_t * second);
 inline void ul_es_unlink(ul_es_node_t * first, ul_es_node_t * second) {
@@ -41,10 +38,7 @@ inline void ul_es_unlink(ul_es_node_t * first, ul_es_node_t * second) {
 
 	AcquireSRWLockExclusive(&first->ctx->lock);
 
-	__try {
-		ul_es_unlink_nl(first, second);
-	}
-	__finally {
-		ReleaseSRWLockExclusive(&first->ctx->lock);
-	}
+	ul_es_unlink_nl(first, second);
+	
+	ReleaseSRWLockExclusive(&first->ctx->lock);
 }

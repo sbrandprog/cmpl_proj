@@ -39,13 +39,10 @@ void gia_repo_broadcast_upd(gia_repo_t * repo) {
 	EnterCriticalSection(&repo->lock);
 	AcquireSRWLockShared(&repo->es_node->ctx->lock);
 
-	__try {
-		broadcast_upd_nl(repo);
-	}
-	__finally {
-		LeaveCriticalSection(&repo->lock);
-		ReleaseSRWLockShared(&repo->es_node->ctx->lock);
-	}
+	broadcast_upd_nl(repo);
+	
+	LeaveCriticalSection(&repo->lock);
+	ReleaseSRWLockShared(&repo->es_node->ctx->lock);
 }
 
 static void attach_lsnr_nl(gia_repo_t * repo, gia_repo_lsnr_t * lsnr) {
@@ -56,10 +53,7 @@ static void attach_lsnr_nl(gia_repo_t * repo, gia_repo_lsnr_t * lsnr) {
 void gia_repo_attach_lsnr(gia_repo_t * repo, gia_repo_lsnr_t * lsnr) {
 	EnterCriticalSection(&repo->lock);
 
-	__try {
-		attach_lsnr_nl(repo, lsnr);
-	}
-	__finally {
-		LeaveCriticalSection(&repo->lock);
-	}
+	attach_lsnr_nl(repo, lsnr);
+
+	LeaveCriticalSection(&repo->lock);
 }
