@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "wa_err.h"
 #include "wa_ctx.h"
 #include "wa_wnd.h"
 
@@ -42,6 +43,11 @@ void wa_wnd_paint_buf(HWND hw, HDC hdc, void * user_data, wa_wnd_paint_proc_t * 
 	if (buf != NULL) {
 		paint_proc(user_data, hdc_buf, &rect);
 
-		EndBufferedPaint(buf, TRUE);
+		if (EndBufferedPaint(buf, TRUE) != S_OK) {
+			wa_err_check();
+		}
+	}
+	else {
+		wa_err_check();
 	}
 }

@@ -42,6 +42,9 @@
     <ClCompile Include="wa_lib\wa_accel.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="wa_lib\wa_err.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="wa_lib\pch.h">
@@ -72,6 +75,9 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="wa_lib\wa_accel.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="wa_lib\wa_err.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

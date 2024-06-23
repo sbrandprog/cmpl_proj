@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "wa_lib/wa_err.h"
 #include "wa_lib/wa_accel.h"
 #include "wa_lib/wa_ctx.h"
 #include "wa_lib/wa_wnd.h"
@@ -1118,11 +1119,15 @@ static void copy_text_nl(wnd_data_t * data) {
 
 			ul_assert(cur == hg_str_end);
 
-			GlobalUnlock(hg);
+			if (GlobalUnlock(hg) != 0) {
+				ul_assert_unreachable();
+			}
+			else {
+				wa_err_check_fatal();
+			}
 
-			EmptyClipboard();
-
-			if (SetClipboardData(CF_UNICODETEXT, hg) == NULL) {
+			if (EmptyClipboard() == 0 || SetClipboardData(CF_UNICODETEXT, hg) == NULL) {
+				wa_err_check();
 				GlobalFree(hg);
 			}
 		}
@@ -1142,7 +1147,12 @@ static void paste_text_nl(wnd_data_t * data) {
 
 			insert_text_str_nl(data, pos.line, pos.ch, wcslen(hg_str), hg_str, true);
 
-			GlobalUnlock(hg);
+			if (GlobalUnlock(hg) != 0) {
+				ul_assert_unreachable();
+			}
+			else {
+				wa_err_check();
+			}
 		}
 	}
 }
@@ -1163,7 +1173,10 @@ static void process_cmd_cut_sel(wnd_data_t * data) {
 		process_cmd_cut_sel_nl(data);
 
 		LeaveCriticalSection(&data->text.lock);
-		CloseClipboard();
+		
+		if (CloseClipboard() == 0) {
+			wa_err_check_fatal();
+		}
 	}
 }
 static void process_cmd_copy_sel(wnd_data_t * data) {
@@ -1173,7 +1186,10 @@ static void process_cmd_copy_sel(wnd_data_t * data) {
 		copy_text_nl(data);
 
 		LeaveCriticalSection(&data->text.lock);
-		CloseClipboard();
+		
+		if (CloseClipboard() == 0) {
+			wa_err_check_fatal();
+		}
 	}
 }
 static void process_cmd_paste_data_nl(wnd_data_t * data) {
@@ -1194,7 +1210,10 @@ static void process_cmd_paste_data(wnd_data_t * data) {
 		process_cmd_paste_data_nl(data);
 
 		LeaveCriticalSection(&data->text.lock);
-		CloseClipboard();
+		
+		if (CloseClipboard() == 0) {
+			wa_err_check_fatal();
+		}
 	}
 }
 static void process_cmd_select_all_nl(wnd_data_t * data) {
