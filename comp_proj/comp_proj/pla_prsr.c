@@ -74,12 +74,9 @@ static const bin_optr_info_t bin_optr_infos[] = {
 };
 static const size_t bin_optr_infos_size = _countof(bin_optr_infos);
 
-static bool get_src_tok_proc_dflt(void * src_data, pla_tok_t * out) {
-	return false;
-}
 
 void pla_prsr_init(pla_prsr_t * prsr, pla_ec_fmtr_t * ec_fmtr) {
-	*prsr = (pla_prsr_t){ .ec_fmtr = ec_fmtr, .get_tok_proc = get_src_tok_proc_dflt };
+	*prsr = (pla_prsr_t){ .ec_fmtr = ec_fmtr };
 }
 void pla_prsr_cleanup(pla_prsr_t * prsr) {
 	memset(prsr, 0, sizeof(*prsr));
@@ -121,7 +118,7 @@ static void report(pla_prsr_t * prsr, const wchar_t * fmt, ...) {
 
 	va_start(args, fmt);
 
-	pla_ec_fmtr_formatpost_va(prsr->ec_fmtr, PLA_PRSR_EC_GROUP, prsr->prev_tok_pos_start, prsr->prev_tok_pos_end, fmt, args);
+	pla_ec_fmtr_formatpost_va(prsr->ec_fmtr, PLA_PRSR_EC_GROUP, (prsr->src != NULL ? prsr->src->name : NULL), prsr->prev_tok_pos_start, prsr->prev_tok_pos_end, fmt, args);
 
 	va_end(args);
 }
@@ -135,7 +132,7 @@ static bool next_tok(pla_prsr_t * prsr) {
 
 	prsr->tok.type = PlaTokNone;
 
-	if (!prsr->get_tok_proc(prsr->src_data, &prsr->tok)) {
+	if (prsr->src == NULL || !prsr->src->get_tok_proc(prsr->src->data, &prsr->tok)) {
 		return false;
 	}
 
@@ -268,18 +265,14 @@ static ira_int_type_t get_int_type(pla_keyw_t keyw) {
 }
 
 
-void pla_prsr_set_src(pla_prsr_t * prsr, void * src_data, pla_prsr_get_tok_proc_t * get_tok_proc) {
-	prsr->src_data = src_data;
-	prsr->get_tok_proc = get_tok_proc;
+void pla_prsr_set_src(pla_prsr_t * prsr, const pla_prsr_src_t * src) {
+	prsr->src = src;
 
 	next_tok(prsr);
 
 	prsr->prev_tok_pos_start = (pla_ec_pos_t){ .line_num = 0, .line_ch = 0 };
 	prsr->prev_tok_pos_end = (pla_ec_pos_t){ .line_num = 0, .line_ch = 0 };
 	prsr->tok_ind = 0;
-}
-void pla_prsr_reset_src(pla_prsr_t * prsr) {
-	pla_prsr_set_src(prsr, NULL, get_src_tok_proc_dflt);
 }
 
 

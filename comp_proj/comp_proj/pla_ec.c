@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "pla_ec.h"
 
-bool pla_ec_pos_is_less(pla_ec_pos_t * first, pla_ec_pos_t * second) {
+bool pla_ec_pos_is_less(const pla_ec_pos_t * first, const pla_ec_pos_t * second) {
 	if (first->line_num < second->line_num) {
 		return true;
 	}
@@ -13,7 +13,7 @@ bool pla_ec_pos_is_less(pla_ec_pos_t * first, pla_ec_pos_t * second) {
 
 	return false;
 }
-bool pla_ec_err_is_less(pla_ec_err_t * first, pla_ec_err_t * second) {
+bool pla_ec_err_is_less(const pla_ec_err_t * first, const pla_ec_err_t * second) {
 	return pla_ec_pos_is_less(&first->pos_start, &second->pos_start);
 }
 

@@ -7,12 +7,8 @@
 typedef bool ch_pred_t(wchar_t ch);
 typedef void ch_proc_t(pla_lex_t * lex, wchar_t * out);
 
-static bool get_src_ch_proc_dflt(void * src_data, wchar_t * out) {
-	return false;
-}
-
 void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, pla_ec_fmtr_t * ec_fmtr) {
-	*lex = (pla_lex_t){ .hst = hst, .ec_fmtr = ec_fmtr, .get_src_ch_proc = get_src_ch_proc_dflt };
+	*lex = (pla_lex_t){ .hst = hst, .ec_fmtr = ec_fmtr };
 
 	static const ul_ros_t emp_str_raw = UL_ROS_MAKE(L"");
 
@@ -31,7 +27,7 @@ static bool next_ch(pla_lex_t * lex) {
 
 	lex->ch_succ = false;
 
-	if (!lex->get_src_ch_proc(lex->src_data, &lex->ch)) {
+	if (lex->src == NULL || !lex->src->get_ch_proc(lex->src->data, &lex->ch)) {
 		return false;
 	}
 
@@ -50,9 +46,8 @@ static bool next_ch(pla_lex_t * lex) {
 	return true;
 }
 
-void pla_lex_update_src(pla_lex_t * lex, void * src_data, pla_lex_get_src_ch_proc_t * get_src_ch_proc) {
-	lex->get_src_ch_proc = get_src_ch_proc;
-	lex->src_data = src_data;
+static void update_src(pla_lex_t * lex, const pla_lex_src_t * src) {
+	lex->src = src;
 
 	lex->ch = 0;
 	lex->ch_succ = false;
@@ -61,15 +56,18 @@ void pla_lex_update_src(pla_lex_t * lex, void * src_data, pla_lex_get_src_ch_pro
 		return;
 	}
 }
-void pla_lex_set_src(pla_lex_t * lex, void * src_data, pla_lex_get_src_ch_proc_t * get_src_ch_proc, size_t line_num, size_t line_ch) {
+void pla_lex_set_src(pla_lex_t * lex, const pla_lex_src_t * src) {
 	lex->line_switch = false;
-	lex->line_num = line_num;
-	lex->line_ch = line_ch;
+	if (src != NULL) {
+		lex->line_num = src->line_num;
+		lex->line_ch = src->line_ch;
+	}
+	else {
+		lex->line_num = 0;
+		lex->line_ch = 0;
+	}
 
-	pla_lex_update_src(lex, src_data, get_src_ch_proc);
-}
-void pla_lex_reset_src(pla_lex_t * lex) {
-	pla_lex_set_src(lex, NULL, get_src_ch_proc_dflt, 0, 0);
+	update_src(lex, src);
 }
 
 static pla_ec_pos_t get_ec_pos(pla_lex_t * lex) {
@@ -80,14 +78,11 @@ static pla_ec_pos_t get_ec_pos(pla_lex_t * lex) {
 static void report_lex(pla_lex_t * lex, const wchar_t * fmt, ...) {
 	lex->is_rptd = true;
 	
-	pla_ec_pos_t pos_start = get_ec_pos(lex), pos_end = pos_start;
-	++pos_end.line_ch;
-
 	va_list args;
 
 	va_start(args, fmt);
 
-	pla_ec_fmtr_formatpost_va(lex->ec_fmtr, PLA_LEX_EC_GROUP, lex->tok.pos_start, get_ec_pos(lex), fmt, args);
+	pla_ec_fmtr_formatpost_va(lex->ec_fmtr, PLA_LEX_EC_GROUP, (lex->src != NULL ? lex->src->name : NULL), lex->tok.pos_start, get_ec_pos(lex), fmt, args);
 
 	va_end(args);
 }

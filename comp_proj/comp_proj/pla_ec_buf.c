@@ -24,34 +24,39 @@ static void post_err_nl(pla_ec_buf_t * buf, pla_ec_actn_t * actn) {
 		return;
 	}
 	
-	pla_ec_err_t err = { .group = actn->group, .pos_start = actn->pos_start, .pos_end = actn->pos_end, .msg = actn->msg };
+	pla_ec_err_t err = { .group = actn->group, .src_name = actn->post.src_name, .pos_start = actn->post.pos_start, .pos_end = actn->post.pos_end, .msg = actn->post.msg };
 
 	insert_err_sorted_nl(buf, &err);
 }
 static void shift_lines_nl(pla_ec_buf_t * buf, pla_ec_actn_t * actn) {
+	const size_t start_line = actn->shift.start_line, shift_size = actn->shift.size;
+	const bool shift_rev = actn->shift.rev;
+
 	for (size_t err_i = 0; err_i < buf->errs_size; ++err_i) {
 		pla_ec_err_t * err = &buf->errs[err_i];
 
 		if ((actn->group == PLA_EC_GROUP_ALL || err->group == actn->group)
-			&& err->pos_start.line_num >= actn->start_line) {
-			if (actn->shift_rev) {
-				err->pos_start.line_num -= min(err->pos_start.line_num, actn->shift_size);
-				err->pos_end.line_num -= min(err->pos_end.line_num, actn->shift_size);
+			&& err->pos_start.line_num >= start_line) {
+			if (shift_rev) {
+				err->pos_start.line_num -= min(err->pos_start.line_num, shift_size);
+				err->pos_end.line_num -= min(err->pos_end.line_num, shift_size);
 			}
 			else {
-				err->pos_start.line_num += actn->shift_size;
-				err->pos_end.line_num += actn->shift_size;
+				err->pos_start.line_num += shift_size;
+				err->pos_end.line_num += shift_size;
 			}
 		}
 	}
 }
 static void clear_errs_nl(pla_ec_buf_t * buf, pla_ec_actn_t * actn) {
+	const pla_ec_pos_t * const pos_start = &actn->clear.pos_start, * const pos_end = &actn->clear.pos_end;
+
 	for (size_t err_i = 0; err_i < buf->errs_size; ) {
 		pla_ec_err_t * err = &buf->errs[err_i];
 
 		if ((actn->group == PLA_EC_GROUP_ALL || err->group == actn->group)
-			&& !pla_ec_pos_is_less(&err->pos_start, &actn->pos_start)
-			&& !pla_ec_pos_is_less(&actn->pos_end, &err->pos_start)) {
+			&& !pla_ec_pos_is_less(&err->pos_start, pos_start)
+			&& !pla_ec_pos_is_less(pos_end, &err->pos_start)) {
 			memmove_s(err, (buf->errs_cap - err_i) * sizeof(*buf->errs), err + 1, (buf->errs_size - err_i - 1) * sizeof(*buf->errs));
 
 			--buf->errs_size;
@@ -106,7 +111,7 @@ void pla_ec_buf_cleanup(pla_ec_buf_t * buf) {
 
 static void repost_nl(pla_ec_buf_t * buf, pla_ec_t * ec) {
 	for (pla_ec_err_t * err = buf->errs, *err_end = err + buf->errs_size; err != err_end; ++err) {
-		pla_ec_post(ec, err->group, err->pos_start, err->pos_end, err->msg);
+		pla_ec_post(ec, err->group, err->src_name, err->pos_start, err->pos_end, err->msg);
 	}
 }
 void pla_ec_buf_repost(pla_ec_buf_t * buf, pla_ec_t * ec) {

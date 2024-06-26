@@ -16,15 +16,28 @@ enum pla_ec_actn_type {
 struct pla_ec_actn {
 	pla_ec_actn_type_t type;
 	size_t group;
-	pla_ec_pos_t pos_start;
-	pla_ec_pos_t pos_end;
-	ul_hs_t * msg;
-	size_t start_line;
-	size_t shift_size;
-	bool shift_rev;
+	union {
+		struct {
+			ul_hs_t * src_name;
+			pla_ec_pos_t pos_start;
+			pla_ec_pos_t pos_end;
+			ul_hs_t * msg;
+		} post;
+		struct {
+			size_t start_line;
+			size_t size;
+			bool rev;
+		} shift;
+		struct {
+			pla_ec_pos_t pos_start;
+			pla_ec_pos_t pos_end;
+		} clear;
+	};
 };
 struct pla_ec_err {
 	size_t group;
+
+	ul_hs_t * src_name;
 
 	pla_ec_pos_t pos_start;
 	pla_ec_pos_t pos_end;
@@ -37,8 +50,8 @@ struct pla_ec {
 	pla_ec_do_actn_proc_t * actn_proc;
 };
 
-bool pla_ec_pos_is_less(pla_ec_pos_t * first, pla_ec_pos_t * second);
-bool pla_ec_err_is_less(pla_ec_err_t * first, pla_ec_err_t * second);
+bool pla_ec_pos_is_less(const pla_ec_pos_t * first, const pla_ec_pos_t * second);
+bool pla_ec_err_is_less(const pla_ec_err_t * first, const pla_ec_err_t * second);
 
 void pla_ec_init(pla_ec_t * ec, void * user_data, pla_ec_do_actn_proc_t * actn_proc);
 void pla_ec_cleanup(pla_ec_t * ec);
@@ -46,18 +59,18 @@ void pla_ec_cleanup(pla_ec_t * ec);
 inline void pla_ec_do_actn(pla_ec_t * ec, pla_ec_actn_t * actn) {
 	ec->actn_proc(ec->user_data, actn);
 }
-inline void pla_ec_post(pla_ec_t * ec, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end, ul_hs_t * msg) {
-	pla_ec_actn_t actn = { .type = PlaEcActnPost, .group = group, .pos_start = pos_start, .pos_end = pos_end, .msg = msg };
+inline void pla_ec_post(pla_ec_t * ec, size_t group, ul_hs_t * src_name, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end, ul_hs_t * msg) {
+	pla_ec_actn_t actn = { .type = PlaEcActnPost, .group = group, .post = { .src_name = src_name, .pos_start = pos_start, .pos_end = pos_end, .msg = msg } };
 	
 	pla_ec_do_actn(ec, &actn);
 }
 inline void pla_ec_shift(pla_ec_t * ec, size_t group, size_t start_line, size_t shift_size, bool shift_rev) {
-	pla_ec_actn_t actn = { .type = PlaEcActnShift, .group = group, .start_line = start_line, .shift_size = shift_size, .shift_rev = shift_rev };
+	pla_ec_actn_t actn = { .type = PlaEcActnShift, .group = group, .shift = { .start_line = start_line, .size = shift_size, .rev = shift_rev } };
 
 	pla_ec_do_actn(ec, &actn);
 }
 inline void pla_ec_clear(pla_ec_t * ec, size_t group, pla_ec_pos_t pos_start, pla_ec_pos_t pos_end) {
-	pla_ec_actn_t actn = { .type = PlaEcActnClear, .group = group, .pos_start = pos_start, .pos_end = pos_end };
+	pla_ec_actn_t actn = { .type = PlaEcActnClear, .group = group, .clear = { .pos_start = pos_start, .pos_end = pos_end } };
 
 	pla_ec_do_actn(ec, &actn);
 }

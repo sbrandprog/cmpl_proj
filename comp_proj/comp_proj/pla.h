@@ -24,8 +24,8 @@ typedef enum pla_keyw pla_keyw_t;
 typedef enum pla_tok_type pla_tok_type_t;
 typedef struct pla_tok pla_tok_t;
 
-typedef enum pla_lex_err_type pla_lex_err_type_t;
-typedef struct pla_lex_err pla_lex_err_t;
+typedef bool pla_lex_src_get_ch_proc_t(void * src_data, wchar_t * out);
+typedef struct pla_lex_src pla_lex_src_t;
 typedef struct pla_lex pla_lex_t;
 
 typedef struct pla_cn pla_cn_t;
@@ -47,6 +47,8 @@ typedef struct pla_dclr_info pla_dclr_info_t;
 typedef struct pla_tu_ref pla_tu_ref_t;
 typedef struct pla_tu pla_tu_t;
 
+typedef bool pla_prsr_src_get_tok_proc_t(void * src_data, pla_tok_t * out);
+typedef struct pla_prsr_src pla_prsr_src_t;
 typedef struct pla_prsr_rse pla_prsr_rse_t;
 typedef struct pla_prsr pla_prsr_t;
 

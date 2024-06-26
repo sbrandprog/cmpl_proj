@@ -38,7 +38,10 @@ static void print_ec_buf(ctx_t * ctx) {
 	for (pla_ec_err_t * err = ctx->pla_ec_buf.errs, *err_end = err + ctx->pla_ec_buf.errs_size; err != err_end; ++err) {
 		wchar_t group_letter = get_group_letter(err->group);
 
-		wprintf(L"%c %4zi:%4zi %s\n", group_letter, err->pos_start.line_num, err->pos_start.line_ch, err->msg->str);
+		wchar_t * src_name_str = err->src_name != NULL ? err->src_name->str : L"/ no source name /";
+
+		wprintf(L"%c %4zi:%4zi | %s\n", group_letter, err->pos_start.line_num, err->pos_start.line_ch, src_name_str);
+		wprintf(L"    %s\n", err->msg->str);
 	}
 }
 

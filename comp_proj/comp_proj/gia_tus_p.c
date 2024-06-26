@@ -6,12 +6,18 @@
 
 typedef struct gia_prog_p_tus_ctx {
 	pla_lex_t * lex;
-	pla_prsr_t prsr;
 	gia_tus_t * tus;
+	ul_hs_t * tus_full_name;
 	pla_tu_t * out;
+
+	pla_prsr_t prsr;
 
 	wchar_t * ch;
 	wchar_t * ch_end;
+
+	pla_lex_src_t lex_src_data;
+
+	pla_prsr_src_t prsr_src_data;
 } ctx_t;
 
 static bool get_tus_src_ch(void * src_data, wchar_t * out) {
@@ -41,22 +47,24 @@ static bool parse_core(ctx_t * ctx) {
 	ctx->ch = ctx->tus->src;
 	ctx->ch_end = ctx->ch + ctx->tus->src_size;
 
-	pla_lex_set_src(ctx->lex, ctx, get_tus_src_ch, 0, 0);
+	ctx->lex_src_data = (pla_lex_src_t){ .name = ctx->tus_full_name, .data = ctx, .get_ch_proc = get_tus_src_ch, .line_num = 0, .line_ch = 0 };
+	pla_lex_set_src(ctx->lex, &ctx->lex_src_data);
 
 	pla_prsr_init(&ctx->prsr, ctx->lex->ec_fmtr);
 
-	pla_prsr_set_src(&ctx->prsr, ctx, get_tus_src_tok);
+	ctx->prsr_src_data = (pla_prsr_src_t){ .name = ctx->tus_full_name, .data = ctx, .get_tok_proc = get_tus_src_tok };
+	pla_prsr_set_src(&ctx->prsr, &ctx->prsr_src_data);
 
 	if (!pla_prsr_parse_tu(&ctx->prsr, ctx->out)) {
 		return false;
 	}
 
-	pla_lex_reset_src(ctx->lex);
+	pla_lex_set_src(ctx->lex, NULL);
 
 	return true;
 }
-bool gia_tus_p_parse(pla_lex_t * lex, gia_tus_t * tus, pla_tu_t * out) {
-	ctx_t ctx = { .lex = lex, .tus = tus, .out = out };
+bool gia_tus_p_parse(pla_lex_t * lex, gia_tus_t * tus, ul_hs_t * tus_full_name, pla_tu_t * out) {
+	ctx_t ctx = { .lex = lex, .tus = tus, .tus_full_name = tus_full_name, .out = out };
 
 	EnterCriticalSection(&tus->lock);
 

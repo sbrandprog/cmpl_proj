@@ -3,16 +3,20 @@
 
 #define PLA_LEX_EC_GROUP 1
 
-typedef bool pla_lex_get_src_ch_proc_t(void * src_data, wchar_t * out);
-
+struct pla_lex_src {
+	ul_hs_t * name;
+	void * data;
+	pla_lex_src_get_ch_proc_t * get_ch_proc;
+	size_t line_num;
+	size_t line_ch;
+};
 struct pla_lex {
 	ul_hst_t * hst;
 	pla_ec_fmtr_t * ec_fmtr;
 
 	ul_hs_t * emp_hs;
 
-	pla_lex_get_src_ch_proc_t * get_src_ch_proc;
-	void * src_data;
+	const pla_lex_src_t * src;
 
 	wchar_t ch;
 	bool ch_succ;
@@ -34,8 +38,6 @@ struct pla_lex {
 void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, pla_ec_fmtr_t * ec_fmtr);
 void pla_lex_cleanup(pla_lex_t * lex);
 
-void pla_lex_update_src(pla_lex_t * lex, void * src_data, pla_lex_get_src_ch_proc_t * get_src_ch_proc);
-void pla_lex_set_src(pla_lex_t * lex, void * src_data, pla_lex_get_src_ch_proc_t * get_src_ch_proc, size_t line_num, size_t line_ch);
-void pla_lex_reset_src(pla_lex_t * lex);
+void pla_lex_set_src(pla_lex_t * lex, const pla_lex_src_t * src);
 
 bool pla_lex_get_tok(pla_lex_t * lex);
