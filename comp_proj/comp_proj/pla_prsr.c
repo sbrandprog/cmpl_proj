@@ -89,7 +89,7 @@ void pla_prsr_cleanup(pla_prsr_t * prsr) {
 static void push_rse(pla_prsr_t * prsr, pla_prsr_rse_t * rse) {
 	rse->prev = prsr->rse;
 
-	if (rse->prev != NULL) {
+	if (rse->prev != NULL && rse->prev->set_next) {
 		rse->is_rptd = rse->prev->is_rptd;
 	}
 
@@ -314,13 +314,6 @@ static void parse_cn(pla_prsr_t * prsr, pla_punc_t delim, pla_cn_t ** out) {
 	parse_cn_rse(prsr, delim, out);
 
 	pop_rse(prsr);
-}
-bool pla_prsr_parse_cn(pla_prsr_t * prsr, pla_punc_t delim, pla_cn_t ** out) {
-	prsr->is_rptd = false;
-
-	parse_cn(prsr, delim, out);
-
-	return !prsr->is_rptd;
 }
 
 
@@ -556,7 +549,7 @@ static void parse_expr_unit(pla_prsr_t * prsr, pla_expr_t ** out) {
 	}
 
 	if (!success) {
-		report(prsr, L"expected an unit-expression");
+		report(prsr, L"expected an expression");
 	}
 
 	parse_expr_post(prsr, out);
@@ -701,13 +694,6 @@ static void parse_expr(pla_prsr_t * prsr, pla_expr_t ** out) {
 	parse_expr_rse(prsr, out);
 
 	pop_rse(prsr);
-}
-bool pla_prsr_parse_expr(pla_prsr_t * prsr, pla_expr_t ** out) {
-	prsr->is_rptd = false;
-
-	parse_expr(prsr, out);
-
-	return !prsr->is_rptd;
 }
 
 
@@ -909,20 +895,13 @@ static void parse_stmt_rse(pla_prsr_t * prsr, pla_stmt_t ** out) {
 	}
 }
 static void parse_stmt(pla_prsr_t * prsr, pla_stmt_t ** out) {
-	pla_prsr_rse_t rse = { 0 };
+	pla_prsr_rse_t rse = { .set_next = true };
 
 	push_rse(prsr, &rse);
 
 	parse_stmt_rse(prsr, out);
 
 	pop_rse(prsr);
-}
-bool pla_prsr_parse_stmt(pla_prsr_t * prsr, pla_stmt_t ** out) {
-	prsr->is_rptd = false;
-
-	parse_stmt(prsr, out);
-
-	return !prsr->is_rptd;
 }
 
 
@@ -1110,21 +1089,13 @@ static void parse_dclr_rse(pla_prsr_t * prsr, pla_dclr_t ** out) {
 	report(prsr, L"expected a declarator");
 }
 static void parse_dclr(pla_prsr_t * prsr, pla_dclr_t ** out) {
-	pla_prsr_rse_t rse = { .get_next = true };
+	pla_prsr_rse_t rse = { 0 };
 
 	push_rse(prsr, &rse);
 
 	parse_dclr_rse(prsr, out);
 	
 	pop_rse(prsr);
-}
-
-bool pla_prsr_parse_dclr(pla_prsr_t * prsr, pla_dclr_t ** out) {
-	prsr->is_rptd = false;
-
-	parse_dclr(prsr, out);
-
-	return !prsr->is_rptd;
 }
 
 
@@ -1141,7 +1112,7 @@ static void parse_tu_ref(pla_prsr_t * prsr, pla_tu_t * tu, pla_dclr_t ** ins) {
 
 	consume_punc_exact_crit(prsr, PlaPuncSemicolon);
 }
-static void parse_tu_item_rse(pla_prsr_t * prsr, pla_tu_t * tu, pla_dclr_t ** ins) {
+static void parse_tu_item(pla_prsr_t * prsr, pla_tu_t * tu, pla_dclr_t ** ins) {
 	switch (prsr->tok.type) {
 		case PlaTokNone:
 			break;
@@ -1155,15 +1126,6 @@ static void parse_tu_item_rse(pla_prsr_t * prsr, pla_tu_t * tu, pla_dclr_t ** in
 	}
 
 	parse_dclr(prsr, ins);
-}
-static void parse_tu_item(pla_prsr_t * prsr, pla_tu_t * tu, pla_dclr_t ** ins) {
-	pla_prsr_rse_t rse = { 0 };
-
-	push_rse(prsr, &rse);
-
-	parse_tu_item_rse(prsr, tu, ins);
-	
-	pop_rse(prsr);
 }
 static void parse_tu_body(pla_prsr_t * prsr, pla_tu_t * tu, pla_dclr_t ** ins) {
 	size_t tok_ind = prsr->tok_ind;
@@ -1182,7 +1144,7 @@ static void parse_tu_body(pla_prsr_t * prsr, pla_tu_t * tu, pla_dclr_t ** ins) {
 		}
 	}
 }
-static void parse_tu(pla_prsr_t * prsr, pla_tu_t * tu) {
+static void parse_tu_rse(pla_prsr_t * prsr, pla_tu_t * tu) {
 	pla_dclr_t ** root = &tu->root;
 
 	if (*root == NULL) {
@@ -1199,6 +1161,16 @@ static void parse_tu(pla_prsr_t * prsr, pla_tu_t * tu) {
 
 	parse_tu_body(prsr, tu, ins);
 }
+static void parse_tu(pla_prsr_t * prsr, pla_tu_t * tu) {
+	pla_prsr_rse_t rse = { .get_next = true, .set_next = true };
+
+	push_rse(prsr, &rse);
+
+	parse_tu_rse(prsr, tu);
+
+	pop_rse(prsr);
+}
+
 bool pla_prsr_parse_tu(pla_prsr_t * prsr, pla_tu_t * tu) {
 	prsr->is_rptd = false;
 
