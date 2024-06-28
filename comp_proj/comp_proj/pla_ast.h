@@ -2,6 +2,8 @@
 #include "pla_pds.h"
 #include "ira.h"
 
+#define PLA_AST_NAME_DELIM '.'
+
 struct pla_ast {
 	ul_hst_t * hst;
 

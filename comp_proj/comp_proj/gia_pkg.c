@@ -34,17 +34,50 @@ void gia_pkg_destroy_chain(gia_pkg_t * pkg) {
 	}
 }
 
-gia_pkg_t * gia_pkg_get_sub_pkg(gia_pkg_t * pkg, ul_hs_t * sub_pkg_name) {
+static gia_pkg_t ** find_sub_pkg_ins(gia_pkg_t * pkg, ul_hs_t * sub_pkg_name) {
 	gia_pkg_t ** sub_pkg_ins = &pkg->sub_pkg;
 
 	while (*sub_pkg_ins != NULL) {
 		gia_pkg_t * sub_pkg = *sub_pkg_ins;
 
 		if (sub_pkg->name == sub_pkg_name) {
-			return sub_pkg;
+			break;
 		}
 
 		sub_pkg_ins = &sub_pkg->next;
+	}
+
+	return sub_pkg_ins;
+}
+gia_pkg_t * gia_pkg_find_sub_pkg(gia_pkg_t * pkg, ul_hs_t * sub_pkg_name) {
+	return *find_sub_pkg_ins(pkg, sub_pkg_name);
+}
+static gia_tus_t ** find_tus_ins(gia_pkg_t * pkg, ul_hs_t * tus_name) {
+	gia_tus_t ** tus_ins = &pkg->tus;
+
+	while (*tus_ins != NULL) {
+		gia_tus_t * tus = *tus_ins;
+
+		if (tus->name == tus_name) {
+			break;
+		}
+
+		tus_ins = &tus->next;
+	}
+
+	return tus_ins;
+}
+gia_tus_t * gia_pkg_find_tus(gia_pkg_t * pkg, ul_hs_t * tus_name) {
+	return *find_tus_ins(pkg, tus_name);
+}
+
+gia_pkg_t * gia_pkg_get_sub_pkg(gia_pkg_t * pkg, ul_hs_t * sub_pkg_name) {
+	gia_pkg_t ** sub_pkg_ins = find_sub_pkg_ins(pkg, sub_pkg_name);
+
+	if (*sub_pkg_ins != NULL) {
+		ul_assert((*sub_pkg_ins)->name == sub_pkg_name);
+
+		return *sub_pkg_ins;
 	}
 
 	*sub_pkg_ins = gia_pkg_create(sub_pkg_name);
@@ -52,16 +85,12 @@ gia_pkg_t * gia_pkg_get_sub_pkg(gia_pkg_t * pkg, ul_hs_t * sub_pkg_name) {
 	return *sub_pkg_ins;
 }
 gia_tus_t * gia_pkg_get_tus(gia_pkg_t * pkg, ul_hs_t * tus_name) {
-	gia_tus_t ** tus_ins = &pkg->tus;
+	gia_tus_t ** tus_ins = find_tus_ins(pkg, tus_name);
 
-	while (*tus_ins != NULL) {
-		gia_tus_t * tus = *tus_ins;
+	if (*tus_ins != NULL) {
+		ul_assert((*tus_ins)->name == tus_name);
 
-		if (tus->name == tus_name) {
-			return tus;
-		}
-
-		tus_ins = &tus->next;
+		return *tus_ins;
 	}
 
 	*tus_ins = gia_tus_create(tus_name);

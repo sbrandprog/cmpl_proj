@@ -14,7 +14,6 @@
 #include "pla_pkg.h"
 #include "pla_ast_t_s.h"
 
-#define TU_FULL_NAME_DELIM L'.'
 #define LO_FULL_NAME_DELIM L'.'
 
 typedef pla_ast_t_optr_type_t optr_type_t;
@@ -716,7 +715,7 @@ static bool push_tu(ctx_t * ctx, pla_tu_t * base, ul_hs_t * parent_pkg_full_name
 	*tu = (tu_t){ .base = base, .full_name = base->name };
 
 	if (parent_pkg_full_name != NULL) {
-		tu->full_name = cat_hs_delim(ctx, parent_pkg_full_name, TU_FULL_NAME_DELIM, tu->full_name);
+		tu->full_name = cat_hs_delim(ctx, parent_pkg_full_name, PLA_AST_NAME_DELIM, tu->full_name);
 	}
 
 	tu->refs = malloc(base->refs_size * sizeof(*tu->refs));
@@ -730,10 +729,10 @@ static bool push_tu(ctx_t * ctx, pla_tu_t * base, ul_hs_t * parent_pkg_full_name
 			return false;
 		}
 		
-		ul_hs_t * base_ref_hs = convert_cn_to_hs(ctx, base_ref->cn, TU_FULL_NAME_DELIM);
+		ul_hs_t * base_ref_hs = convert_cn_to_hs(ctx, base_ref->cn, PLA_AST_NAME_DELIM);
 
 		if (base_ref->is_rel) {
-			base_ref_hs = cat_hs_delim(ctx, base_ref_hs, TU_FULL_NAME_DELIM, parent_pkg_full_name);
+			base_ref_hs = cat_hs_delim(ctx, base_ref_hs, PLA_AST_NAME_DELIM, parent_pkg_full_name);
 		}
 
 		*ref = base_ref_hs;
@@ -747,7 +746,7 @@ static bool form_tus_list(ctx_t * ctx, pla_pkg_t * pkg, ul_hs_t * parent_pkg_ful
 	if (parent_pkg_full_name != NULL) {
 		ul_assert(pkg_full_name != NULL);
 
-		pkg_full_name = cat_hs_delim(ctx, parent_pkg_full_name, TU_FULL_NAME_DELIM, pkg_full_name);
+		pkg_full_name = cat_hs_delim(ctx, parent_pkg_full_name, PLA_AST_NAME_DELIM, pkg_full_name);
 	}
 
 	for (pla_tu_t * tu = pkg->tu; tu != NULL; tu = tu->next) {

@@ -165,9 +165,6 @@ static void ch_str_ch_proc(pla_lex_t * lex, wchar_t * out) {
 	}
 }
 static void get_tok_core(pla_lex_t * lex) {
-	lex->tok.type = PlaTokNone;
-	lex->is_rptd = false;
-
 	if (!lex->ch_succ) {
 		return;
 	}
@@ -296,9 +293,13 @@ static void get_tok_core(pla_lex_t * lex) {
 	}
 }
 bool pla_lex_get_tok(pla_lex_t * lex) {
+	lex->is_rptd = false;
+	lex->tok.type = PlaTokNone;
+	lex->tok.pos_start = get_ec_pos(lex);
+
 	get_tok_core(lex);
 
 	lex->tok.pos_end = get_ec_pos(lex);
 
-	return !lex->is_rptd && lex->tok.type != PlaTokNone;
+	return lex->tok.type != PlaTokNone;
 }

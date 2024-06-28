@@ -118,7 +118,7 @@ static void report(pla_prsr_t * prsr, const wchar_t * fmt, ...) {
 
 	va_start(args, fmt);
 
-	pla_ec_fmtr_formatpost_va(prsr->ec_fmtr, PLA_PRSR_EC_GROUP, (prsr->src != NULL ? prsr->src->name : NULL), prsr->prev_tok_pos_start, prsr->prev_tok_pos_end, fmt, args);
+	pla_ec_fmtr_formatpost_va(prsr->ec_fmtr, PLA_PRSR_EC_GROUP, (prsr->src != NULL ? prsr->src->name : NULL), prsr->tok.pos_start, prsr->tok.pos_end, fmt, args);
 
 	va_end(args);
 }
@@ -1078,8 +1078,8 @@ static void parse_dclr_rse(pla_prsr_t * prsr, pla_dclr_t ** out) {
 			break;
 	}
 
-	next_tok(prsr);
 	report(prsr, L"expected a declarator");
+	next_tok(prsr);
 }
 static void parse_dclr(pla_prsr_t * prsr, pla_dclr_t ** out) {
 	pla_prsr_rse_t rse = { 0 };

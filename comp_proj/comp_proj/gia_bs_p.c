@@ -8,8 +8,6 @@
 #include "gia_repo.h"
 #include "gia_bs_p.h"
 
-#define FULL_NAME_DELIM L'.'
-
 typedef struct gia_bs_p_pkg pkg_t;
 struct gia_bs_p_pkg {
 	gia_pkg_t * base;
@@ -59,7 +57,7 @@ static pkg_t * create_pkg(ctx_t * ctx, gia_pkg_t * base, pkg_t * parent, pla_pkg
 	if (parent != NULL && parent->full_name != NULL) {
 		ul_assert(base->name != NULL);
 
-		pkg->full_name = ul_hsb_formatadd(&ctx->hsb, &ctx->repo->hst, L"%s%c%s", parent->full_name->str, FULL_NAME_DELIM, base->name->str);
+		pkg->full_name = ul_hsb_formatadd(&ctx->hsb, &ctx->repo->hst, L"%s%c%s", parent->full_name->str, PLA_AST_NAME_DELIM, base->name->str);
 	}
 
 	return pkg;
@@ -111,17 +109,6 @@ static pkg_t * get_sub_pkg(ctx_t * ctx, pkg_t * pkg, ul_hs_t * sub_pkg_name) {
 	return *sub_pkg_ins;
 }
 
-static gia_tus_t * find_tus(pkg_t * pkg, ul_hs_t * tus_name) {
-	gia_pkg_t * pkg_base = pkg->base;
-
-	for (gia_tus_t * tus = pkg_base->tus; tus != NULL; tus = tus->next) {
-		if (tus->name == tus_name) {
-			return tus;
-		}
-	}
-
-	return NULL;
-}
 static bool find_and_push_tus(ctx_t * ctx, pkg_t * pkg, ul_hs_t * tus_name) {
 	for (tus_t * tus = ctx->tuss, *tus_end = tus + ctx->tuss_size; tus != tus_end; ++tus) {
 		if (tus->parent_pkg == pkg && tus->base->name == tus_name) {
@@ -129,7 +116,7 @@ static bool find_and_push_tus(ctx_t * ctx, pkg_t * pkg, ul_hs_t * tus_name) {
 		}
 	}
 
-	gia_tus_t * tus = find_tus(pkg, tus_name);
+	gia_tus_t * tus = gia_pkg_find_tus(pkg->base, tus_name);
 
 	if (tus == NULL) {
 		return false;
@@ -142,7 +129,7 @@ static bool find_and_push_tus(ctx_t * ctx, pkg_t * pkg, ul_hs_t * tus_name) {
 	ul_hs_t * tus_full_name = tus->name;
 
 	if (pkg->full_name != NULL) {
-		tus_full_name = ul_hsb_formatadd(&ctx->hsb, &ctx->repo->hst, L"%s%c%s", pkg->full_name->str, FULL_NAME_DELIM, tus->name->str);
+		tus_full_name = ul_hsb_formatadd(&ctx->hsb, &ctx->repo->hst, L"%s%c%s", pkg->full_name->str, PLA_AST_NAME_DELIM, tus->name->str);
 	}
 
 	ctx->tuss[ctx->tuss_size++] = (tus_t){ .base = tus, .full_name = tus_full_name, .parent_pkg = pkg };

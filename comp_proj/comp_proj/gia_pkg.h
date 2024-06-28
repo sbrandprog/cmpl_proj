@@ -15,6 +15,9 @@ gia_pkg_t * gia_pkg_create(ul_hs_t * name);
 void gia_pkg_destroy(gia_pkg_t * pkg);
 void gia_pkg_destroy_chain(gia_pkg_t * pkg);
 
+gia_pkg_t * gia_pkg_find_sub_pkg(gia_pkg_t * pkg, ul_hs_t * sub_pkg_name);
+gia_tus_t * gia_pkg_find_tus(gia_pkg_t * pkg, ul_hs_t * tus_name);
+
 gia_pkg_t * gia_pkg_get_sub_pkg(gia_pkg_t * pkg, ul_hs_t * sub_pkg_name);
 gia_tus_t * gia_pkg_get_tus(gia_pkg_t * pkg, ul_hs_t * tus_name);
 
