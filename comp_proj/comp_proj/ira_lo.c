@@ -21,13 +21,7 @@ void ira_lo_destroy(ira_lo_t * lo) {
 		case IraLoNone:
 			break;
 		case IraLoNspc:
-			for (ira_lo_t * it = lo->nspc.body; it != NULL; ) {
-				ira_lo_t * next = it->next;
-
-				ira_lo_destroy(it);
-
-				it = next;
-			}
+			ira_lo_destroy_chain(lo->nspc.body);
 			break;
 		case IraLoFunc:
 			ira_func_destroy(lo->func);
@@ -40,20 +34,18 @@ void ira_lo_destroy(ira_lo_t * lo) {
 		case IraLoDtStct:
 			ira_dt_destroy_sd(lo->dt_stct.sd);
 			break;
-		case IraLoRoVal:
-			ira_val_destroy(lo->ro_val.val);
-			break;
 		default:
 			ul_assert_unreachable();
 	}
 
 	free(lo);
 }
-
 void ira_lo_destroy_chain(ira_lo_t * lo) {
 	while (lo != NULL) {
 		ira_lo_t * next = lo->next;
+
 		ira_lo_destroy(lo);
+		
 		lo = next;
 	}
 }

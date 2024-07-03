@@ -3,16 +3,16 @@ tlaturef pla_lib.w64.kernel32;
 namespace std {
 	variable const con_handle_name := "CON"w;
 
-	readonly con_in_buf_size := 256'u64;
+	variable const con_in_buf_size := 256'u64;
 	struct con_in_buf_t;
-	readonly con_in_buf_hdr_t := struct {
+	variable const con_in_buf_hdr_t := struct {
 		next : * con_in_buf_t
 	};
 	struct con_in_buf_t {
 		hdr : con_in_buf_hdr_t,
 		data : [con_in_buf_size]u16
 	};
-	readonly con_in_t := struct {
+	variable const con_in_t := struct {
 		handle : w64::handle_t,
 
 		rd_buf : * con_in_buf_t,
@@ -28,7 +28,7 @@ namespace std {
 	variable con_in_ug : con_in_buf_t;
 	variable con_in : con_in_t;
 
-	readonly con_out_t := struct {
+	variable const con_out_t := struct {
 		handle : w64::handle_t
 	};
 

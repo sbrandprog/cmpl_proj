@@ -47,9 +47,6 @@ void pla_dclr_destroy(pla_dclr_t * dclr) {
 			break;
 		case PlaDclrDtStctDecl:
 			break;
-		case PlaDclrRoVal:
-			pla_expr_destroy(dclr->ro_val.val_expr);
-			break;
 		default:
 			ul_assert_unreachable();
 	}
@@ -65,6 +62,5 @@ const pla_dclr_info_t pla_dclr_infos[PlaDclr_Count] = {
 	[PlaDclrVarDt] = { .type_str = UL_ROS_MAKE(L"DclrVarDt") },
 	[PlaDclrVarVal] = { .type_str = UL_ROS_MAKE(L"DclrVarVal") },
 	[PlaDclrDtStct] = { .type_str = UL_ROS_MAKE(L"DclrDtStct") },
-	[PlaDclrDtStctDecl] = { .type_str = UL_ROS_MAKE(L"DclrDtStctDecl") },
-	[PlaDclrRoVal] = { .type_str = UL_ROS_MAKE(L"DclrRoVal") }
+	[PlaDclrDtStctDecl] = { .type_str = UL_ROS_MAKE(L"DclrDtStctDecl") }
 };

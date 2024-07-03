@@ -1,6 +1,5 @@
 namespace w64 {
-
-	readonly handle_t := * void;
+	variable const handle_t := * void;
 
 	import create_file_w : $(file_name : const * u16, access : u32, share_mode : u32, security_attributes : * void, creation_disposition : u32, flags_attributes : u32, template_file : * void) -> handle_t : "kernel32.dll"a, "CreateFileW"a;
 	import exit_process : $(exit_code : u32) -> void : "kernel32.dll"a, "ExitProcess"a;

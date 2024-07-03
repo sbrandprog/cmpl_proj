@@ -8,7 +8,6 @@ enum ira_lo_type {
 	IraLoImpt,
 	IraLoVar,
 	IraLoDtStct,
-	IraLoRoVal,
 	IraLo_Count
 };
 struct ira_lo {
@@ -36,13 +35,9 @@ struct ira_lo {
 		struct {
 			ira_dt_sd_t * sd;
 		} dt_stct;
-		struct {
-			ira_val_t * val;
-		} ro_val;
 	};
 };
 
 ira_lo_t * ira_lo_create(ira_lo_type_t type, ul_hs_t * name);
 void ira_lo_destroy(ira_lo_t * ira);
-
 void ira_lo_destroy_chain(ira_lo_t * ira);

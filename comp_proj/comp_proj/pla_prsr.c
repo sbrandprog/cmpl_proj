@@ -1026,30 +1026,6 @@ static void parse_dclr_stct(pla_prsr_t * prsr, pla_dclr_t ** out) {
 
 	consume_punc_exact_crit(prsr, PlaPuncSemicolon);
 }
-static void parse_dclr_ro_val(pla_prsr_t * prsr, pla_dclr_t ** out) {
-	consume_keyw_exact_crit(prsr, PlaKeywReadonly);
-
-	while (true) {
-		*out = pla_dclr_create(PlaDclrRoVal);
-
-		consume_ident_crit(prsr, &(*out)->name);
-
-		consume_punc_exact_crit(prsr, PlaPuncColonAsgn);
-
-		parse_expr(prsr, &(*out)->ro_val.val_expr);
-
-		if (consume_punc_exact(prsr, PlaPuncComma)) {
-			(void)0;
-		}
-		else {
-			consume_punc_exact_crit(prsr, PlaPuncSemicolon);
-
-			break;
-		}
-
-		out = &(*out)->next;
-	}
-}
 static void parse_dclr_rse(pla_prsr_t * prsr, pla_dclr_t ** out) {
 	switch (prsr->tok.type) {
 		case PlaTokNone:
@@ -1070,9 +1046,6 @@ static void parse_dclr_rse(pla_prsr_t * prsr, pla_dclr_t ** out) {
 					return;
 				case PlaKeywStruct:
 					parse_dclr_stct(prsr, out);
-					return;
-				case PlaKeywReadonly:
-					parse_dclr_ro_val(prsr, out);
 					return;
 			}
 			break;

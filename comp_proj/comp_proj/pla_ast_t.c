@@ -536,6 +536,8 @@ static bool translate_dclr_var_dt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** ou
 		return false;
 	}
 
+	(*out)->var.qdt.qual = dclr->var_dt.dt_qual;
+
 	if (!ira_dt_is_complete((*out)->var.qdt.dt)) {
 		pla_ast_t_report(ctx, L"global variables must have only complete data types");
 		return false;
@@ -561,6 +563,7 @@ static bool translate_dclr_var_val(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** o
 	}
 
 	(*out)->var.qdt.dt = (*out)->var.val->dt;
+	(*out)->var.qdt.qual = dclr->var_val.dt_qual;
 
 	return true;
 }
@@ -608,20 +611,6 @@ static bool translate_dclr_stct_decl(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t **
 
 	return true;
 }
-static bool translate_dclr_ro_val(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
-	if (*out != NULL) {
-		pla_ast_t_report(ctx, L"language object with [%s] name already exists", dclr->name->str);
-		return false;
-	}
-
-	*out = ira_lo_create(IraLoRoVal, dclr->name);
-
-	if (!pla_ast_t_calculate_expr(ctx, dclr->ro_val.val_expr, &(*out)->ro_val.val)) {
-		return false;
-	}
-
-	return true;
-}
 static bool translate_dclr_tse(ctx_t * ctx, pla_dclr_t * dclr) {
 	ira_lo_t ** ins = get_vse_lo_ins(ctx, dclr->name);
 
@@ -660,11 +649,6 @@ static bool translate_dclr_tse(ctx_t * ctx, pla_dclr_t * dclr) {
 			break;
 		case PlaDclrDtStctDecl:
 			if (!translate_dclr_stct_decl(ctx, dclr, ins)) {
-				return false;
-			}
-			break;
-		case PlaDclrRoVal:
-			if (!translate_dclr_ro_val(ctx, dclr, ins)) {
 				return false;
 			}
 			break;

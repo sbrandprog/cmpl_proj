@@ -86,7 +86,6 @@ static void destroy_root0(ira_pec_t * pec, ira_lo_t * nspc) {
 			case IraLoFunc:
 			case IraLoImpt:
 			case IraLoVar:
-			case IraLoRoVal:
 				next = lo->next;
 				ira_lo_destroy(lo);
 				break;

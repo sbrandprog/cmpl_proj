@@ -2194,6 +2194,15 @@ bool ira_pec_ip_compile(ira_pec_c_ctx_t * c_ctx, ira_lo_t * lo) {
 }
 
 
+static void clear_var_val(ctx_t * ctx, var_t * var) {
+	if (var->val == NULL) {
+		return;
+	}
+
+	ira_val_destroy(var->val);
+
+	var->val = NULL;
+}
 static bool check_var_for_val(ctx_t * ctx, inst_t * inst, size_t opd) {
 	if (inst->opds[opd].var->val == NULL) {
 		report(ctx, L"[%s]: value in opd[%zi] var is NULL", ira_inst_infos[inst->base->type].type_str.str, opd);
@@ -2261,7 +2270,7 @@ static bool execute_blank(ctx_t * ctx, inst_t * inst) {
 	return true;
 }
 static bool execute_load_val(ctx_t * ctx, inst_t * inst) {
-	ira_val_destroy(inst->opd0.var->val);
+	clear_var_val(ctx, inst->opd0.var);
 
 	inst->opd0.var->val = ira_val_copy(inst->opd1.val);
 
@@ -2272,9 +2281,45 @@ static bool execute_copy(ctx_t * ctx, inst_t * inst) {
 		return false;
 	}
 
-	ira_val_destroy(inst->opd0.var->val);
+	clear_var_val(ctx, inst->opd0.var);
 
 	inst->opd0.var->val = ira_val_copy(inst->opd1.var->val);
+
+	return true;
+}
+static bool execute_read_ptr(ctx_t * ctx, inst_t * inst) {
+	if (!check_var_for_val(ctx, inst, 1)) {
+		return false;
+	}
+
+	clear_var_val(ctx, inst->opd0.var);
+
+	ira_val_t * val = inst->opd1.var->val;
+
+	switch (val->type) {
+		case IraValImmPtr:
+			report(ctx, L"[%s]: no read of integer pointers in interpreter mode", ira_inst_infos[inst->base->type].type_str.str);
+			return false;
+		case IraValLoPtr:
+		{
+			ira_lo_t * lo = val->lo_val;
+
+			ul_assert(lo != NULL);
+
+			switch (lo->type) {
+				case IraLoVar:
+					inst->opd0.var->val = ira_val_copy(lo->var.val);
+					break;
+				default:
+					report(ctx, L"[%s]: read of unsupported language object", ira_inst_infos[inst->base->type].type_str.str);
+					return false;
+			}
+
+			break;
+		}
+		default:
+			ul_assert_unreachable();
+	}
 
 	return true;
 }
@@ -2294,7 +2339,7 @@ static bool execute_make_dt_vec(ctx_t * ctx, inst_t * inst) {
 		return false;
 	}
 
-	ira_val_destroy(inst->opd0.var->val);
+	clear_var_val(ctx, inst->opd0.var);
 
 	ira_dt_t * res_dt;
 
@@ -2313,7 +2358,7 @@ static bool execute_make_dt_ptr(ctx_t * ctx, inst_t * inst) {
 		return false;
 	}
 
-	ira_val_destroy(inst->opd0.var->val);
+	clear_var_val(ctx, inst->opd0.var);
 
 	ira_dt_t * res_dt;
 
@@ -2350,7 +2395,7 @@ static bool execute_make_dt_stct(ctx_t * ctx, inst_t * inst) {
 		}
 	}
 
-	ira_val_destroy(inst->opd0.var->val);
+	clear_var_val(ctx, inst->opd0.var);
 
 	ira_dt_t * res_dt;
 
@@ -2371,7 +2416,7 @@ static bool execute_make_dt_arr(ctx_t * ctx, inst_t * inst) {
 		return false;
 	}
 
-	ira_val_destroy(inst->opd0.var->val);
+	clear_var_val(ctx, inst->opd0.var);
 
 	ira_dt_t * res_dt;
 
@@ -2413,7 +2458,7 @@ static bool execute_make_dt_func(ctx_t * ctx, inst_t * inst) {
 		return false;
 	}
 
-	ira_val_destroy(inst->opd0.var->val);
+	clear_var_val(ctx, inst->opd0.var);
 
 	ira_dt_t * res_dt;
 
@@ -2440,7 +2485,7 @@ static bool execute_make_dt_const(ctx_t * ctx, inst_t * inst) {
 		return false;
 	}
 
-	ira_val_destroy(inst->opd0.var->val);
+	clear_var_val(ctx, inst->opd0.var);
 
 	if (!ira_pec_make_val_imm_dt(ctx->pec, dt, &inst->opd0.var->val)) {
 		return false;
@@ -2462,13 +2507,14 @@ static bool execute_ret(ctx_t * ctx, inst_t * inst) {
 static bool execute_insts(ctx_t * ctx) {
 	for (inst_t * inst = ctx->insts, *inst_end = inst + ctx->insts_size; inst != inst_end; ) {
 		typedef bool execute_inst_proc_t(ctx_t * ctx, inst_t * inst);
-
+		
 		static execute_inst_proc_t * const execute_insts_procs[IraInst_Count] = {
 			[IraInstNone] = execute_blank,
 			[IraInstDefVar] = execute_blank,
 			[IraInstDefLabel] = execute_blank,
 			[IraInstLoadVal] = execute_load_val,
 			[IraInstCopy] = execute_copy,
+			[IraInstReadPtr] = execute_read_ptr,
 			[IraInstMakeDtVec] = execute_make_dt_vec,
 			[IraInstMakeDtPtr] = execute_make_dt_ptr,
 			[IraInstMakeDtStct] = execute_make_dt_stct,
