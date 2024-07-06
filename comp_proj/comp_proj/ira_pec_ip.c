@@ -380,7 +380,7 @@ static bool define_var(ctx_t * ctx, ira_dt_t * dt, ira_dt_qual_t dt_qual, ul_hs_
 
 	size_t dt_size, dt_align;
 
-	if (!ira_dt_get_size(dt, &dt_size) || !ira_dt_get_align(dt, &dt_align)) {
+	if (!ira_pec_get_dt_size(dt, &dt_size) || !ira_pec_get_dt_align(dt, &dt_align)) {
 		report(ctx, L"size & alignment of variable [%s] are undefined");
 		return false;
 	}
@@ -432,25 +432,17 @@ static bool define_label(ctx_t * ctx, inst_t * inst, label_t * label) {
 	return true;
 }
 
-static bool set_mmbr_acc_ptr_data_stct(ctx_t * ctx, inst_t * inst, ira_dt_t * dt, ul_hs_t * mmbr) {
-	ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
-
-	if (sd == NULL) {
-		return false;
-	}
-
-	ira_dt_ndt_t * elem = sd->elems, * elem_end = elem + sd->elems_size;
-
-	for (; elem != elem_end; ++elem) {
+static bool set_mmbr_acc_ptr_data_tpl(ctx_t * ctx, inst_t * inst, ira_dt_t * dt, ul_hs_t * mmbr) {
+	for (ira_dt_ndt_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size; elem != elem_end; ++elem) {
 		if (mmbr == elem->name) {
 			ira_dt_t * res_dt;
 
-			if (!ira_pec_apply_qual(ctx->pec, elem->dt, dt->stct.qual, &res_dt)) {
+			if (!ira_pec_apply_qual(ctx->pec, elem->dt, dt->tpl.qual, &res_dt)) {
 				return false;
 			}
 
 			inst->mmbr_acc.res_dt = res_dt;
-			inst->mmbr_acc.off = ira_dt_get_sd_elem_off(sd, elem - sd->elems);
+			inst->mmbr_acc.off = ira_pec_get_tpl_elem_off(dt, elem - dt->tpl.elems);
 
 			return true;
 		}
@@ -466,13 +458,22 @@ static bool set_mmbr_acc_ptr_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt,
 		case IraDtVec:
 		case IraDtPtr:
 			return false;
-		case IraDtStct:
-			if (!set_mmbr_acc_ptr_data_stct(ctx, inst, opd_dt, mmbr)) {
+		case IraDtTpl:
+			if (!set_mmbr_acc_ptr_data_tpl(ctx, inst, opd_dt, mmbr)) {
 				return false;
 			}
 			break;
+		case IraDtStct:
+		{
+			ira_dt_t * tpl = opd_dt->stct.lo->dt_stct.tpl;
+
+			if (tpl == NULL || !set_mmbr_acc_ptr_data_tpl(ctx, inst, tpl, mmbr)) {
+				return false;
+			}
+			break;
+		}
 		case IraDtArr:
-			if (!set_mmbr_acc_ptr_data_stct(ctx, inst, opd_dt->arr.assoc_stct, mmbr)) {
+			if (!set_mmbr_acc_ptr_data_tpl(ctx, inst, opd_dt->arr.assoc_tpl, mmbr)) {
 				return false;
 			}
 			break;
@@ -747,7 +748,7 @@ static bool prepare_shift_ptr(ctx_t * ctx, inst_t * inst, const ira_inst_info_t 
 
 	size_t scale;
 
-	if (!ira_dt_get_size(ptr_dt->ptr.body, &scale)) {
+	if (!ira_pec_get_dt_size(ptr_dt->ptr.body, &scale)) {
 		report(ctx, L"[%s]: opd[1] must have a [pointer to a sizable data type] data type", info->type_str.str);
 		return false;
 	}
@@ -817,7 +818,7 @@ static bool prepare_make_dt_arr(ctx_t * ctx, inst_t * inst, const ira_inst_info_
 
 	return true;
 }
-static bool prepare_make_dt_stct(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+static bool prepare_make_dt_tpl(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
 	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
 
 	for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var) {
@@ -1149,7 +1150,7 @@ static bool prepare_insts(ctx_t * ctx) {
 			[IraInstShiftPtr] = prepare_shift_ptr,
 			[IraInstMakeDtVec] = prepare_make_dt_vec,
 			[IraInstMakeDtPtr] = prepare_make_dt_ptr,
-			[IraInstMakeDtStct] = prepare_make_dt_stct,
+			[IraInstMakeDtTpl] = prepare_make_dt_tpl,
 			[IraInstMakeDtArr] = prepare_make_dt_arr,
 			[IraInstMakeDtFunc] = prepare_make_dt_func,
 			[IraInstMakeDtConst] = prepare_make_dt_const,
@@ -1690,17 +1691,15 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 				ul_assert_unreachable();
 			}
 
-			ira_dt_sd_t * sd = val->dt->arr.assoc_stct->stct.lo->dt_stct.sd;
+			ira_dt_t * arr_tpl = val->dt->arr.assoc_tpl;
 			
-			ul_assert(sd != NULL);
-
 			size_t off;
 
-			off = ira_dt_get_sd_elem_off(sd, IRA_DT_ARR_SIZE_IND);
+			off = ira_pec_get_tpl_elem_off(arr_tpl, IRA_DT_ARR_SIZE_IND);
 			load_int(ctx, AsmRegRax, (int64_t)val->arr_val.size);
 			save_stack_var_off(ctx, var, AsmRegRax, off);
 
-			off = ira_dt_get_sd_elem_off(sd, IRA_DT_ARR_DATA_IND);
+			off = ira_pec_get_tpl_elem_off(arr_tpl, IRA_DT_ARR_DATA_IND);
 			load_label_off(ctx, AsmRegRax, arr_label);
 			save_stack_var_off(ctx, var, AsmRegRax, off);
 
@@ -1728,16 +1727,15 @@ static void compile_copy_impl(ctx_t * ctx, var_t * dst, var_t * src, size_t src_
 		}
 		case IraDtArr:
 		{
-			ira_dt_sd_t * sd = dt->arr.assoc_stct->stct.lo->dt_stct.sd;
-			ul_assert(sd != NULL);
+			ira_dt_t * arr_tpl = dt->arr.assoc_tpl;
 
 			size_t off;
 
-			off = ira_dt_get_sd_elem_off(sd, IRA_DT_ARR_SIZE_IND);
+			off = ira_pec_get_tpl_elem_off(arr_tpl, IRA_DT_ARR_SIZE_IND);
 			load_stack_var_off(ctx, AsmRegRax, src, src_off + off);
 			save_stack_var_off(ctx, dst, AsmRegRax, off);
 
-			off = ira_dt_get_sd_elem_off(sd, IRA_DT_ARR_DATA_IND);
+			off = ira_pec_get_tpl_elem_off(arr_tpl, IRA_DT_ARR_DATA_IND);
 			load_stack_var_off(ctx, AsmRegRax, src, src_off + off);
 			save_stack_var_off(ctx, dst, AsmRegRax, off);
 			break;
@@ -2372,7 +2370,7 @@ static bool execute_make_dt_ptr(ctx_t * ctx, inst_t * inst) {
 
 	return true;
 }
-static bool execute_make_dt_stct(ctx_t * ctx, inst_t * inst) {
+static bool execute_make_dt_tpl(ctx_t * ctx, inst_t * inst) {
 	size_t elems_size = inst->opd2.size;
 
 	ira_dt_ndt_t * elems = _malloca(elems_size * sizeof(*elems));
@@ -2399,11 +2397,13 @@ static bool execute_make_dt_stct(ctx_t * ctx, inst_t * inst) {
 
 	ira_dt_t * res_dt;
 
-	if (!ira_pec_get_dt_stct(ctx->pec, elems_size, elems, inst->opd1.dt_qual, &res_dt)) {
+	if (!ira_pec_get_dt_tpl(ctx->pec, elems_size, elems, inst->opd1.dt_qual, &res_dt)) {
+		_freea(elems);
 		return false;
 	}
 
 	if (!ira_pec_make_val_imm_dt(ctx->pec, res_dt, &inst->opd0.var->val)) {
+		_freea(elems);
 		return false;
 	}
 
@@ -2463,10 +2463,12 @@ static bool execute_make_dt_func(ctx_t * ctx, inst_t * inst) {
 	ira_dt_t * res_dt;
 
 	if (!ira_pec_get_dt_func(ctx->pec, inst->opd1.var->val->dt_val, args_size, args, &res_dt)) {
+		_freea(args);
 		return false;
 	}
 
 	if (!ira_pec_make_val_imm_dt(ctx->pec, res_dt, &inst->opd0.var->val)) {
+		_freea(args);
 		return false;
 	}
 
@@ -2517,7 +2519,7 @@ static bool execute_insts(ctx_t * ctx) {
 			[IraInstReadPtr] = execute_read_ptr,
 			[IraInstMakeDtVec] = execute_make_dt_vec,
 			[IraInstMakeDtPtr] = execute_make_dt_ptr,
-			[IraInstMakeDtStct] = execute_make_dt_stct,
+			[IraInstMakeDtTpl] = execute_make_dt_tpl,
 			[IraInstMakeDtArr] = execute_make_dt_arr,
 			[IraInstMakeDtFunc] = execute_make_dt_func,
 			[IraInstMakeDtConst] = execute_make_dt_const,

@@ -11,6 +11,10 @@ static void destroy_dt_chain(ira_pec_t * pec, ira_dt_t * dt) {
 		switch (dt->type) {
 			case IraDtVec:
 			case IraDtPtr:
+				break;
+			case IraDtTpl:
+				free(dt->tpl.elems);
+				break;
 			case IraDtStct:
 			case IraDtArr:
 				break;
@@ -110,6 +114,7 @@ void ira_pec_cleanup(ira_pec_t * pec) {
 
 	destroy_dt_chain(pec, pec->dt_vec);
 	destroy_dt_chain(pec, pec->dt_ptr);
+	destroy_dt_chain(pec, pec->dt_tpl);
 	destroy_dt_chain(pec, pec->dt_stct);
 	destroy_dt_chain(pec, pec->dt_arr);
 	destroy_dt_chain(pec, pec->dt_func);
@@ -120,6 +125,222 @@ void ira_pec_cleanup(ira_pec_t * pec) {
 	memset(pec, 0, sizeof(*pec));
 }
 
+
+bool ira_pec_is_dt_complete(ira_dt_t * dt) {
+	switch (dt->type) {
+		case IraDtVoid:
+		case IraDtDt:
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtVec:
+		case IraDtPtr:
+		case IraDtTpl:
+			break;
+		case IraDtStct:
+			if (dt->stct.lo->dt_stct.tpl == NULL) {
+				return false;
+			}
+			break;
+		case IraDtArr:
+		case IraDtFunc:
+			break;
+		default:
+			ul_assert_unreachable();
+	}
+
+	return true;
+}
+
+bool ira_pec_get_dt_size(ira_dt_t * dt, size_t * out) {
+	switch (dt->type) {
+		case IraDtVoid:
+		case IraDtDt:
+			*out = 0;
+			break;
+		case IraDtBool:
+			*out = 1;
+			break;
+		case IraDtInt:
+			*out = (size_t)ira_int_infos[dt->int_type].size;
+			break;
+		case IraDtVec:
+			if (!ira_pec_get_dt_size(dt->vec.body, out)) {
+				return false;
+			}
+
+			*out *= dt->vec.size;
+
+			break;
+		case IraDtPtr:
+			*out = 8;
+			break;
+		case IraDtTpl:
+		{
+			size_t size = 0, align = 1;
+
+			for (ira_dt_ndt_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size; elem != elem_end; ++elem) {
+				size_t elem_align, elem_size;
+
+				if (!ira_pec_get_dt_align(elem->dt, &elem_align) || !ira_pec_get_dt_size(elem->dt, &elem_size)) {
+					return false;
+				}
+
+				size = ul_align_to(size, elem_align);
+				size += elem_size;
+
+				align = max(align, elem_align);
+			}
+
+			size = ul_align_to(size, align);
+
+			*out = size;
+
+			break;
+		}
+		case IraDtStct:
+		{
+			ira_dt_t * tpl = dt->stct.lo->dt_stct.tpl;
+
+			if (tpl == NULL || !ira_pec_get_dt_size(tpl, out)) {
+				return false;
+			}
+
+			break;
+		}
+		case IraDtArr:
+			if (!ira_pec_get_dt_size(dt->arr.assoc_tpl, out)) {
+				return false;
+			}
+			break;
+		case IraDtFunc:
+			*out = 0;
+			break;
+		default:
+			ul_assert_unreachable();
+	}
+
+	return true;
+}
+bool ira_pec_get_dt_align(ira_dt_t * dt, size_t * out) {
+		switch (dt->type) {
+		case IraDtVoid:
+		case IraDtDt:
+		case IraDtBool:
+			*out = 1;
+			break;
+		case IraDtInt:
+			*out = (size_t)ira_int_infos[dt->int_type].size;
+			break;
+		case IraDtVec:
+			if (!ira_pec_get_dt_align(dt->vec.body, out)) {
+				return false;
+			}
+			break;
+		case IraDtPtr:
+			*out = 8;
+			break;
+		case IraDtTpl:
+		{
+			size_t align = 1;
+
+			for (ira_dt_ndt_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size; elem != elem_end; ++elem) {
+				size_t elem_align;
+
+				if (!ira_pec_get_dt_align(elem->dt, &elem_align)) {
+					return false;
+				}
+
+				align = max(align, elem_align);
+			}
+
+			*out = align;
+
+			break;
+		}
+		case IraDtStct:
+		{
+			ira_dt_t * tpl = dt->stct.lo->dt_stct.tpl;
+
+			if (tpl == NULL || !ira_pec_get_dt_align(tpl, out)) {
+				return false;
+			}
+
+			break;
+		}
+		case IraDtArr:
+			if (!ira_pec_get_dt_align(dt->arr.assoc_tpl, out)) {
+				return false;
+			}
+			break;
+		case IraDtFunc:
+			*out = 1;
+			break;
+		default:
+			ul_assert_unreachable();
+	}
+
+	return true;
+}
+
+size_t ira_pec_get_tpl_elem_off(ira_dt_t * dt, size_t elem_i) {
+	ul_assert(dt->type == IraDtTpl && elem_i < dt->tpl.elems_size);
+
+	size_t off = 0;
+
+	for (ira_dt_ndt_t * elem = dt->tpl.elems, *elem_end = elem + elem_i; elem != elem_end; ++elem) {
+		size_t elem_align, elem_size;
+
+		if (!ira_pec_get_dt_align(elem->dt, &elem_align) || !ira_pec_get_dt_size(elem->dt, &elem_size)) {
+			ul_assert_unreachable();
+		}
+
+		off = ul_align_to(off, elem_align);
+		off += elem_size;
+	}
+
+	return off;
+}
+
+static bool get_listed_dt_check(ira_pec_t * pec, ira_dt_t * pred) {
+	switch (pred->type) {
+		case IraDtVec:
+			if (!ira_pec_is_dt_complete(pred->vec.body)) {
+				return false;
+			}
+			break;
+		case IraDtPtr:
+			break;
+		case IraDtTpl:
+			for (ira_dt_ndt_t * elem = pred->tpl.elems, *elem_end = elem + pred->tpl.elems_size; elem != elem_end; ++elem) {
+				if (!ira_pec_is_dt_complete(elem->dt)) {
+					return false;
+				}
+			}
+			break;
+		case IraDtStct:
+			break;
+		case IraDtArr:
+			if (!ira_pec_is_dt_complete(pred->arr.body)) {
+				return false;
+			}
+			break;
+		case IraDtFunc:
+			if (!ira_pec_is_dt_complete(pred->func.ret)) {
+				return false;
+			}
+
+			for (ira_dt_ndt_t * arg = pred->func.args, *arg_end = arg + pred->func.args_size; arg != arg_end; ++arg) {
+				if (!ira_pec_is_dt_complete(arg->dt) || arg->name == NULL) {
+					return false;
+				}
+			}
+			break;
+		default:
+			ul_assert_unreachable();
+	}
+
+	return true;
+}
 static bool get_listed_dt_cmp(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * dt) {
 	ul_assert(pred->type == dt->type);
 
@@ -146,30 +367,28 @@ static bool get_listed_dt_cmp(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * dt) {
 				return false;
 			}
 			break;
+		case IraDtTpl:
+			if (!ira_dt_is_qual_equal(dt->tpl.qual, pred->tpl.qual)) {
+				return false;
+			}
+
+			if (dt->tpl.elems_size != pred->tpl.elems_size) {
+				return false;
+			}
+
+			for (ira_dt_ndt_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size, *pred_elem = pred->tpl.elems; elem != elem_end; ++elem, ++pred_elem) {
+				if (elem->dt != pred_elem->dt || elem->name != pred_elem->name) {
+					return false;
+				}
+			}
+			break;
 		case IraDtStct:
 			if (!ira_dt_is_qual_equal(dt->stct.qual, pred->stct.qual)) {
 				return false;
 			}
 
 			if (dt->stct.lo != pred->stct.lo) {
-				if (dt->stct.lo->name == pec->pds[IraPdsStctLoName] && dt->stct.lo->name == pred->stct.lo->name) {
-					ira_dt_sd_t * dt_sd = dt->stct.lo->dt_stct.sd, * pred_sd = pred->stct.lo->dt_stct.sd;
-
-					ul_assert(dt_sd != NULL && pred_sd != NULL);
-
-					if (dt_sd->elems_size != pred_sd->elems_size) {
-						return false;
-					}
-
-					for (ira_dt_ndt_t * elem = dt_sd->elems, *elem_end = elem + dt_sd->elems_size, *pred_elem = pred_sd->elems; elem != elem_end; ++elem, ++pred_elem) {
-						if (elem->dt != pred_elem->dt || elem->name != pred_elem->name) {
-							return false;
-						}
-					}
-				}
-				else {
-					return false;
-				}
+				return false;
 			}
 			break;
 		case IraDtArr:
@@ -211,24 +430,22 @@ static bool get_listed_dt_copy(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * out)
 		case IraDtPtr:
 			*out = (ira_dt_t){ .type = pred->type, .ptr = { .body = pred->ptr.body, .qual = pred->ptr.qual } };
 			break;
+		case IraDtTpl:
+		{
+			*out = (ira_dt_t){ .type = pred->type, .tpl = { .qual = pred->tpl.qual } };
+
+			out->tpl.elems = malloc(sizeof(*out->tpl.elems) * pred->tpl.elems_size);
+
+			ul_assert(out->tpl.elems != NULL);
+
+			memcpy(out->tpl.elems, pred->tpl.elems, sizeof(*out->tpl.elems) * pred->tpl.elems_size);
+
+			out->tpl.elems_size = pred->tpl.elems_size;
+
+			break;
+		}
 		case IraDtStct:
-			if (pred->stct.lo->name != pec->pds[IraPdsStctLoName]) {
-				*out = (ira_dt_t){ .type = pred->type, .stct = { .lo = pred->stct.lo, .qual = pred->stct.qual } };
-			}
-			else {
-				ira_dt_sd_t * pred_sd = pred->stct.lo->dt_stct.sd;
-
-				ira_lo_t * lo = ira_lo_create(IraLoDtStct, pec->pds[IraPdsStctLoName]);
-
-				lo->next = pec->dt_stct_lo;
-				pec->dt_stct_lo = lo;
-
-				if (!ira_dt_create_sd(pred_sd->elems_size, pred_sd->elems, &lo->dt_stct.sd)) {
-					return false;
-				}
-
-				*out = (ira_dt_t){ .type = pred->type, .stct = { .lo = lo, .qual = pred->stct.qual } };
-			}
+			*out = (ira_dt_t){ .type = pred->type, .stct = { .lo = pred->stct.lo, .qual = pred->stct.qual } };
 			break;
 		case IraDtArr:
 		{
@@ -243,19 +460,13 @@ static bool get_listed_dt_copy(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * out)
 				return false;
 			}
 
-			if (!ira_pec_get_dt_stct(pec, _countof(elems), elems, pred->arr.qual, &out->arr.assoc_stct)) {
+			if (!ira_pec_get_dt_tpl(pec, _countof(elems), elems, pred->arr.qual, &out->arr.assoc_tpl)) {
 				return false;
 			}
 			break;
 		}
 		case IraDtFunc:
 		{
-			for (ira_dt_ndt_t * arg = pred->func.args, *arg_end = arg + pred->func.args_size; arg != arg_end; ++arg) {
-				if (arg->name == NULL) {
-					return false;
-				}
-			}
-
 			ira_dt_ndt_t * new_args = malloc(pred->func.args_size * sizeof(*new_args));
 
 			ul_assert(new_args != NULL);
@@ -272,6 +483,10 @@ static bool get_listed_dt_copy(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * out)
 	return true;
 }
 static bool get_listed_dt(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t ** ins, ira_dt_t ** out) {
+	if (!get_listed_dt_check(pec, pred)) {
+		return false;
+	}
+
 	while (*ins != NULL) {
 		ira_dt_t * dt = *ins;
 
@@ -310,14 +525,10 @@ bool ira_pec_get_dt_ptr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual, ir
 
 	return get_listed_dt(pec, &pred, &pec->dt_ptr, out);
 }
-bool ira_pec_get_dt_stct(ira_pec_t * pec, size_t elems_size, ira_dt_ndt_t * elems, ira_dt_qual_t qual, ira_dt_t ** out) {
-	ira_dt_sd_t sd = { .elems_size = elems_size, .elems = elems };
+bool ira_pec_get_dt_tpl(ira_pec_t * pec, size_t elems_size, ira_dt_ndt_t * elems, ira_dt_qual_t qual, ira_dt_t ** out) {
+	ira_dt_t pred = { .type = IraDtTpl, .tpl = { .elems_size = elems_size, .elems = elems, .qual = qual } };
 
-	ira_lo_t lo = { .type = IraLoDtStct, .name = pec->pds[IraPdsStctLoName], .dt_stct.sd = &sd };
-
-	ira_dt_t pred = { .type = IraDtStct, .stct = { .lo = &lo, .qual = qual } };
-
-	return get_listed_dt(pec, &pred, &pec->dt_stct, out);
+	return get_listed_dt(pec, &pred, &pec->dt_tpl, out);
 }
 bool ira_pec_get_dt_stct_lo(ira_pec_t * pec, ira_lo_t * lo, ira_dt_qual_t qual, ira_dt_t ** out) {
 	ira_dt_t pred = { .type = IraDtStct, .stct = { .lo = lo, .qual = qual } };
@@ -336,6 +547,15 @@ bool ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_
 }
 
 bool ira_pec_apply_qual(ira_pec_t * pec, ira_dt_t * dt, ira_dt_qual_t qual, ira_dt_t ** out) {
+	ira_dt_qual_t dt_qual = ira_dt_get_qual(dt);
+
+	qual = ira_dt_apply_qual(dt_qual, qual);
+
+	if (ira_dt_is_qual_equal(dt_qual, qual)) {
+		*out = dt;
+		return true;
+	}
+	
 	switch (dt->type) {
 		case IraDtVoid:
 		case IraDtDt:
@@ -344,29 +564,26 @@ bool ira_pec_apply_qual(ira_pec_t * pec, ira_dt_t * dt, ira_dt_qual_t qual, ira_
 			*out = dt;
 			break;
 		case IraDtVec:
-			qual = ira_dt_apply_qual(dt->vec.qual, qual);
-
 			if (!ira_pec_get_dt_vec(pec, dt->vec.size, dt->vec.body, qual, out)) {
 				return false;
 			}
 			break;
 		case IraDtPtr:
-			qual = ira_dt_apply_qual(dt->ptr.qual, qual);
-
 			if (!ira_pec_get_dt_ptr(pec, dt->ptr.body, qual, out)) {
 				return false;
 			}
 			break;
+		case IraDtTpl:
+			if (!ira_pec_get_dt_tpl(pec, dt->tpl.elems_size, dt->tpl.elems, qual, out)) {
+				return false;
+			}
+			break;
 		case IraDtStct:
-			qual = ira_dt_apply_qual(dt->ptr.qual, qual);
-
 			if (!ira_pec_get_dt_stct_lo(pec, dt->stct.lo, qual, out)) {
 				return false;
 			}
 			break;
 		case IraDtArr:
-			qual = ira_dt_apply_qual(dt->ptr.qual, qual);
-
 			if (!ira_pec_get_dt_arr(pec, dt->arr.body, qual, out)) {
 				return false;
 			}
@@ -461,8 +678,11 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 		case IraDtPtr:
 			val_type = IraValImmPtr;
 			break;
+		case IraDtTpl:
+			val_type = IraValImmTpl;
+			break;
 		case IraDtStct:
-			if (dt->stct.lo->dt_stct.sd == NULL) {
+			if (dt->stct.lo->dt_stct.tpl == NULL) {
 				return false;
 			}
 
@@ -516,20 +736,16 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 		case IraDtPtr:
 			(*out)->int_val.ui64 = 0;
 			break;
-		case IraDtStct:
+		case IraDtTpl:
 		{
-			ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
-
-			(*out)->arr_val.size = sd->elems_size;
-
-			(*out)->arr_val.data = malloc((*out)->arr_val.size * sizeof((*out)->arr_val.data));
+			(*out)->arr_val.data = malloc(dt->tpl.elems_size * sizeof((*out)->arr_val.data));
 
 			ul_assert((*out)->arr_val.data != NULL);
 
-			memset((*out)->arr_val.data, 0, (*out)->arr_val.size * sizeof((*out)->arr_val.data));
+			memset((*out)->arr_val.data, 0, dt->tpl.elems_size * sizeof((*out)->arr_val.data));
 
-			ira_val_t ** elem = (*out)->arr_val.data, ** elem_end = elem + (*out)->arr_val.size;
-			ira_dt_ndt_t * elem_dt = sd->elems;
+			ira_val_t ** elem = (*out)->arr_val.data, ** elem_end = elem + dt->tpl.elems_size;
+			ira_dt_ndt_t * elem_dt = dt->tpl.elems;
 
 			for (; elem != elem_end; ++elem, ++elem_dt) {
 				if (!ira_pec_make_val_null(pec, elem_dt->dt, elem)) {
@@ -538,6 +754,11 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 			}
 			break;
 		}
+		case IraDtStct:
+			if (!ira_pec_make_val_null(pec, dt->stct.lo->dt_stct.tpl, &(*out)->val_val)) {
+				return false;
+			}
+			break;
 		case IraDtArr:
 		{
 			(*out)->arr_val.size = 0;

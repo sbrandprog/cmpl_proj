@@ -49,10 +49,12 @@ void ira_val_destroy(ira_val_t * val) {
 		case IraValImmPtr:
 		case IraValLoPtr:
 			break;
-		case IraValImmStct:
-			ul_assert(val->dt->stct.lo->dt_stct.sd != NULL);
-			destroy_val_arr(val->dt->stct.lo->dt_stct.sd->elems_size, val->arr_val.data);
+		case IraValImmTpl:
+			destroy_val_arr(val->dt->tpl.elems_size, val->arr_val.data);
 			free(val->arr_val.data);
+			break;
+		case IraValImmStct:
+			ira_val_destroy(val->val_val);
 			break;
 		case IraValImmArr:
 			destroy_val_arr(val->arr_val.size, val->arr_val.data);
@@ -89,9 +91,11 @@ ira_val_t * ira_val_copy(ira_val_t * val) {
 		case IraValLoPtr:
 			new_val->lo_val = val->lo_val;
 			break;
+		case IraValImmTpl:
+			new_val->arr_val.data = copy_val_arr(val->dt->tpl.elems_size, val->arr_val.data);
+			break;
 		case IraValImmStct:
-			ul_assert(val->dt->stct.lo->dt_stct.sd != NULL);
-			new_val->arr_val.data = copy_val_arr(val->dt->stct.lo->dt_stct.sd->elems_size, val->arr_val.data);
+			new_val->val_val = ira_val_copy(val->val_val);
 			break;
 		case IraValImmArr:
 			new_val->arr_val.size = val->arr_val.size;

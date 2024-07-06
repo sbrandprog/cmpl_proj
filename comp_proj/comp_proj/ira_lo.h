@@ -33,7 +33,7 @@ struct ira_lo {
 			ira_val_t * val;
 		} var;
 		struct {
-			ira_dt_sd_t * sd;
+			ira_dt_t * tpl;
 		} dt_stct;
 	};
 };

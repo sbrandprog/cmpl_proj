@@ -5,14 +5,14 @@ namespace std {
 
 	variable const con_in_buf_size := 256'u64;
 	struct con_in_buf_t;
-	variable const con_in_buf_hdr_t := struct {
+	variable const con_in_buf_hdr_t := tuple [
 		next : * con_in_buf_t
-	};
-	struct con_in_buf_t {
+	];
+	struct con_in_buf_t : [
 		hdr : con_in_buf_hdr_t,
 		data : [con_in_buf_size]u16
-	};
-	variable const con_in_t := struct {
+	];
+	variable const con_in_t := tuple [
 		handle : w64::handle_t,
 
 		rd_buf : * con_in_buf_t,
@@ -21,16 +21,16 @@ namespace std {
 
 		ug_buf : * con_in_buf_t,
 		ug_buf_size : u64
-	};
+	];
 
 	variable con_in_rd0 : con_in_buf_t;
 	variable con_in_rd1 : con_in_buf_t;
 	variable con_in_ug : con_in_buf_t;
 	variable con_in : con_in_t;
 
-	variable const con_out_t := struct {
+	variable const con_out_t := tuple [
 		handle : w64::handle_t
-	};
+	];
 
 	variable con_out : con_out_t;
 
@@ -313,7 +313,7 @@ namespace std {
 
 		return true;
 	}
-	function write_con_dec : $(val_ptr : * void, size_bytes : u8, sign : bool) -> bool {
+	function write_con_dec : $(val_ptr : * const void, size_bytes : u8, sign : bool) -> bool {
 		variable val : u64, neg : bool;
 
 		if !get_dec_val(val_ptr, size_bytes, sign, &val, &neg) {

@@ -101,21 +101,18 @@ bool ira_pec_c_process_val_compl(ira_pec_c_ctx_t * ctx, ira_val_t * val) {
 
 			ira_pec_c_push_cl_elem(ctx, val->lo_val);
 			break;
-		case IraValImmStct:
-		{
-			ira_dt_sd_t * sd = val->dt->stct.lo->dt_stct.sd;
-
-			if (sd == NULL) {
-				return false;
-			}
-
-			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
+		case IraValImmTpl:
+			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + val->dt->tpl.elems_size; elem != elem_end; ++elem) {
 				if (!ira_pec_c_process_val_compl(ctx, *elem)) {
 					return false;
 				}
 			}
 			break;
-		}
+		case IraValImmStct:
+			if (!ira_pec_c_process_val_compl(ctx, val->val_val)) {
+				return false;
+			}
+			break;
 		case IraValImmArr:
 			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + val->arr_val.size; elem != elem_end; ++elem) {
 				if (!ira_pec_c_process_val_compl(ctx, *elem)) {
@@ -133,7 +130,7 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 	{
 		size_t dt_align;
 		
-		if (!ira_dt_get_align(val->dt, &dt_align)) {
+		if (!ira_pec_get_dt_align(val->dt, &dt_align)) {
 			return false;
 		}
 
@@ -184,21 +181,18 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 			
 			asm_frag_push_inst(frag, &data);
 			break;
-		case IraValImmStct:
-		{
-			ira_dt_sd_t * sd = val->dt->stct.lo->dt_stct.sd;
-
-			if (sd == NULL) {
-				return false;
-			}
-
-			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + sd->elems_size; elem != elem_end; ++elem) {
+		case IraValImmTpl:
+			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + val->dt->tpl.elems_size; elem != elem_end; ++elem) {
 				if (!compile_val(ctx, frag, *elem)) {
 					return false;
 				}
 			}
 			break;
-		}
+		case IraValImmStct:
+			if (!compile_val(ctx, frag, val->val_val)) {
+				return false;
+			}
+			break;
 		case IraValImmArr:
 			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + val->arr_val.size; elem != elem_end; ++elem) {
 				if (!compile_val(ctx, frag, *elem)) {
@@ -276,7 +270,7 @@ static bool compile_lo_impt(ctx_t * ctx, ira_lo_t * lo) {
 	return true;
 }
 static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
-	if (!ira_dt_is_complete(lo->var.qdt.dt)) {
+	if (!ira_pec_is_dt_complete(lo->var.qdt.dt)) {
 		return false;
 	}
 
@@ -298,6 +292,7 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 		case IraValImmInt:
 		case IraValImmPtr:
 		case IraValLoPtr:
+		case IraValImmTpl:
 		case IraValImmStct:
 			if (!compile_val(ctx, frag, lo->var.val)) {
 				return false;
@@ -325,6 +320,8 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 
 			break;
 		}
+		default:
+			ul_assert_unreachable();
 	}
 
 	return true;

@@ -72,7 +72,7 @@ struct pla_ast_t_s_expr {
 		} load_val;
 		struct {
 			size_t elems_size;
-		} dt_stct;
+		} dt_tpl;
 		struct {
 			size_t args_size;
 		} dt_func;
@@ -688,18 +688,10 @@ static bool process_ident_lo(ctx_t * ctx, expr_t * expr, ira_lo_t * lo) {
 
 	return true;
 }
-static bool get_stct_mmbr_dt(ctx_t * ctx, ira_dt_t * dt, ul_hs_t * mmbr, ira_dt_t ** out) {
-	ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
-
-	if (sd == NULL) {
-		return false;
-	}
-
-	ira_dt_ndt_t * elem = sd->elems, * elem_end = elem + sd->elems_size;
-
-	for (; elem != elem_end; ++elem) {
+static bool get_tpl_mmbr_dt(ctx_t * ctx, ira_dt_t * dt, ul_hs_t * mmbr, ira_dt_t ** out) {
+	for (ira_dt_ndt_t * elem = dt->tpl.elems, *elem_end = elem + dt->tpl.elems_size; elem != elem_end; ++elem) {
 		if (mmbr == elem->name) {
-			if (!ira_pec_apply_qual(ctx->pec, elem->dt, dt->stct.qual, out)) {
+			if (!ira_pec_apply_qual(ctx->pec, elem->dt, dt->tpl.qual, out)) {
 				pla_ast_t_report_pec_err(ctx->t_ctx);
 				return false;
 			}
@@ -719,13 +711,23 @@ static bool get_mmbr_acc_dt(ctx_t * ctx, ira_dt_t * opd_dt, ul_hs_t * mmbr, ira_
 		case IraDtVec:
 		case IraDtPtr:
 			return false;
-		case IraDtStct:
-			if (!get_stct_mmbr_dt(ctx, opd_dt, mmbr, out)) {
+		case IraDtTpl:
+			if (!get_tpl_mmbr_dt(ctx, opd_dt, mmbr, out)) {
 				return false;
 			}
 			break;
+		case IraDtStct:
+		{
+			ira_dt_t * tpl = opd_dt->stct.lo->dt_stct.tpl;
+
+			if (tpl == NULL || !get_tpl_mmbr_dt(ctx, tpl, mmbr, out)) {
+				return false;
+			}
+
+			break;
+		}
 		case IraDtArr:
-			if (!get_stct_mmbr_dt(ctx, opd_dt->arr.assoc_stct, mmbr, out)) {
+			if (!get_tpl_mmbr_dt(ctx, opd_dt->arr.assoc_tpl, mmbr, out)) {
 				return false;
 			}
 			break;
@@ -870,7 +872,7 @@ static bool translate_expr0_dt_ptr(ctx_t * ctx, expr_t * expr) {
 
 	return true;
 }
-static bool translate_expr0_dt_stct(ctx_t * ctx, expr_t * expr) {
+static bool translate_expr0_dt_tpl(ctx_t * ctx, expr_t * expr) {
 	ira_dt_t * dt_dt = &ctx->pec->dt_dt;
 
 	size_t elems_size = 0;
@@ -882,7 +884,7 @@ static bool translate_expr0_dt_stct(ctx_t * ctx, expr_t * expr) {
 		}
 	}
 
-	expr->dt_stct.elems_size = elems_size;
+	expr->dt_tpl.elems_size = elems_size;
 
 	expr->val_qdt.dt = dt_dt;
 
@@ -1185,8 +1187,8 @@ static bool translate_expr0_tse(ctx_t * ctx, pla_expr_t * base, expr_t ** out) {
 		[PlaExprDtBool] = translate_expr0_load_val,
 		[PlaExprDtInt] = translate_expr0_load_val,
 		[PlaExprDtPtr] = translate_expr0_dt_ptr,
-		[PlaExprDtStct] = translate_expr0_dt_stct,
-		[PlaExprDtStctElem] = translate_expr0_blank,
+		[PlaExprDtTpl] = translate_expr0_dt_tpl,
+		[PlaExprDtTplElem] = translate_expr0_blank,
 		[PlaExprDtArr] = translate_expr0_dt_arr,
 		[PlaExprDtFunc] = translate_expr0_dt_func,
 		[PlaExprDtFuncArg] = translate_expr0_blank,
@@ -1348,8 +1350,8 @@ static bool translate_expr1_dt_ptr(ctx_t * ctx, expr_t * expr) {
 
 	return true;
 }
-static bool translate_expr1_dt_stct(ctx_t * ctx, expr_t * expr) {
-	size_t elems_size = expr->dt_stct.elems_size;
+static bool translate_expr1_dt_tpl(ctx_t * ctx, expr_t * expr) {
+	size_t elems_size = expr->dt_tpl.elems_size;
 
 	ul_hs_t ** elems = malloc(elems_size * sizeof(*elems));
 
@@ -1374,7 +1376,7 @@ static bool translate_expr1_dt_stct(ctx_t * ctx, expr_t * expr) {
 		*id = elem_expr->opd2.hs;
 	}
 
-	ira_inst_t make_dt_stct = { .type = IraInstMakeDtStct, .opd1.dt_qual = ira_dt_qual_none, .opd2.size = elems_size, .opd3.hss = elems, .opd4.hss = ids };
+	ira_inst_t make_dt_stct = { .type = IraInstMakeDtTpl, .opd1.dt_qual = ira_dt_qual_none, .opd2.size = elems_size, .opd3.hss = elems, .opd4.hss = ids };
 
 	push_inst_imm_var0_expr(ctx, expr, &make_dt_stct);
 
@@ -1942,7 +1944,7 @@ static bool translate_expr1_tse(ctx_t * ctx, expr_t * expr) {
 		[PlaExprDtBool] = translate_expr1_load_val,
 		[PlaExprDtInt] = translate_expr1_load_val,
 		[PlaExprDtPtr] = translate_expr1_dt_ptr,
-		[PlaExprDtStct] = translate_expr1_dt_stct,
+		[PlaExprDtTpl] = translate_expr1_dt_tpl,
 		[PlaExprDtArr] = translate_expr1_dt_arr,
 		[PlaExprDtFunc] = translate_expr1_dt_func,
 		[PlaExprDtConst] = translate_expr1_dt_const,
@@ -2068,7 +2070,7 @@ static bool translate_stmt_var_dt(ctx_t * ctx, pla_stmt_t * stmt) {
 		return false;
 	}
 
-	if (!ira_dt_is_complete(dt)) {
+	if (!ira_pec_is_dt_complete(dt)) {
 		pla_ast_t_report(ctx->t_ctx, L"variables must have only complete data type");
 		return false;
 	}
@@ -2395,11 +2397,6 @@ static bool translate_args_vvb(ctx_t * ctx) {
 		ctx->func_ret = ctx->func_dt->func.ret;
 
 		for (ira_dt_ndt_t * arg = ctx->func_dt->func.args, *arg_end = arg + ctx->func_dt->func.args_size; arg != arg_end; ++arg) {
-			if (!ira_dt_is_complete(arg->dt)) {
-				pla_ast_t_report(ctx->t_ctx, L"function arguments must have only complete data type");
-				return false;
-			}
-
 			var_t * var = define_var(ctx, arg->name, arg->dt, ira_dt_qual_none, false);
 
 			ul_assert(var != NULL);

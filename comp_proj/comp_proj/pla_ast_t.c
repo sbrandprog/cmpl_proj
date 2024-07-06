@@ -538,7 +538,7 @@ static bool translate_dclr_var_dt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** ou
 
 	(*out)->var.qdt.qual = dclr->var_dt.dt_qual;
 
-	if (!ira_dt_is_complete((*out)->var.qdt.dt)) {
+	if (!ira_pec_is_dt_complete((*out)->var.qdt.dt)) {
 		pla_ast_t_report(ctx, L"global variables must have only complete data types");
 		return false;
 	}
@@ -574,7 +574,7 @@ static bool translate_dclr_stct(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 			return false;
 		}
 
-		if ((*out)->dt_stct.sd != NULL) {
+		if ((*out)->dt_stct.tpl != NULL) {
 			pla_ast_t_report(ctx, L"struct [%s] already defined", dclr->name->str);
 			return false;
 		}
@@ -589,12 +589,12 @@ static bool translate_dclr_stct(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 		return false;
 	}
 
-	ira_dt_sd_t * sd = dt->stct.lo->dt_stct.sd;
-
-	if (sd == NULL || !ira_dt_create_sd(sd->elems_size, sd->elems, &(*out)->dt_stct.sd)) {
-		pla_ast_t_report_pec_err(ctx);
+	if (dt->type != IraDtTpl) {
+		pla_ast_t_report(ctx, L"invalid struct %[s] binding, expected tuple body expression", dclr->name->str);
 		return false;
 	}
+
+	(*out)->dt_stct.tpl = dt;
 
 	return true;
 }

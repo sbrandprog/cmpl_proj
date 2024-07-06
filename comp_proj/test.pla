@@ -32,17 +32,17 @@ function main : $() -> s32 {
 	variable a : s32, b : s32;
 
 	while:loop true {
-		if !std::read_con_dec(4'u8, true, &a) {
+		if !std::read_con_dec(4'u8, true, %[* void]&a) {
 			return -1's32;
 		}
 
-		if !std::read_con_dec(4'u8, true, &b) {
+		if !std::read_con_dec(4'u8, true, %[* void]&b) {
 			return -1's32;
 		}
 
 		variable res := a + b;
 
-		if !std::write_con_dec(&res, 4'u8, true) {
+		if !std::write_con_dec(%[* const void]&res, 4'u8, true) {
 			return -1's32;
 		}
 
@@ -50,7 +50,7 @@ function main : $() -> s32 {
 
 		res = a - b;
 
-		if !std::write_con_dec(&res, 4'u8, true) {
+		if !std::write_con_dec(%[* const void]&res, 4'u8, true) {
 			return -1's32;
 		}
 

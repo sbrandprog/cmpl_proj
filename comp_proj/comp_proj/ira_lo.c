@@ -32,7 +32,6 @@ void ira_lo_destroy(ira_lo_t * lo) {
 			ira_val_destroy(lo->var.val);
 			break;
 		case IraLoDtStct:
-			ira_dt_destroy_sd(lo->dt_stct.sd);
 			break;
 		default:
 			ul_assert_unreachable();
