@@ -454,6 +454,29 @@ static ira_lo_t ** get_vse_lo_ins(pla_ast_t_ctx_t * ctx, ul_hs_t * name) {
 	}
 }
 
+static bool init_lo_stct_var(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
+	*out = ira_lo_create(IraLoVar, dclr->name);
+
+	(*out)->var.qdt.dt = &ctx->out->dt_dt;
+	(*out)->var.qdt.qual = ira_dt_qual_const;
+
+	ira_dt_stct_tag_t * tag = ira_pec_get_dt_stct_tag(ctx->out);
+
+	ira_dt_t * stct;
+
+	if (!ira_pec_get_dt_stct(ctx->out, tag, ira_dt_qual_none, &stct)) {
+		pla_ast_t_report_pec_err(ctx);
+		return false;
+	}
+
+	if (!ira_pec_make_val_imm_dt(ctx->out, stct, &(*out)->var.val)) {
+		pla_ast_t_report_pec_err(ctx);
+		return false;
+	}
+
+	return true;
+}
+
 static bool translate_dclr_nspc_vse(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
 	for (pla_dclr_t * it = dclr->nspc.body; it != NULL; it = it->next) {
 		if (!translate_dclr(ctx, it)) {
@@ -569,18 +592,28 @@ static bool translate_dclr_var_val(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** o
 }
 static bool translate_dclr_stct(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
 	if (*out != NULL) {
-		if ((*out)->type != IraLoDtStct) {
+		if ((*out)->type != IraLoVar) {
 			pla_ast_t_report(ctx, L"language object with [%s] name already exists", dclr->name->str);
 			return false;
 		}
 
-		if ((*out)->dt_stct.tpl != NULL) {
+		if ((*out)->var.qdt.dt != &ctx->out->dt_dt
+			|| (*out)->var.val == NULL
+			|| (*out)->var.val->type != IraValImmDt
+			|| (*out)->var.val->dt_val->type != IraDtStct) {
+			pla_ast_t_report(ctx, L"invalid language object for struct [%s]", dclr->name->str);
+			return false;
+		}
+
+		if ((*out)->var.val->dt_val->stct.tag->tpl != NULL) {
 			pla_ast_t_report(ctx, L"struct [%s] already defined", dclr->name->str);
 			return false;
 		}
 	}
 	else {
-		*out = ira_lo_create(IraLoDtStct, dclr->name);
+		if (!init_lo_stct_var(ctx, dclr, out)) {
+			return false;
+		}
 	}
 
 	ira_dt_t * dt;
@@ -594,19 +627,21 @@ static bool translate_dclr_stct(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 		return false;
 	}
 
-	(*out)->dt_stct.tpl = dt;
+	(*out)->var.val->dt_val->stct.tag->tpl = dt;
 
 	return true;
 }
 static bool translate_dclr_stct_decl(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
 	if (*out != NULL) {
-		if ((*out)->type != IraLoDtStct) {
+		if ((*out)->type != IraLoVar) {
 			pla_ast_t_report(ctx, L"language object with [%s] name already exists", dclr->name->str);
 			return false;
 		}
 	}
 	else {
-		*out = ira_lo_create(IraLoDtStct, dclr->name);
+		if (!init_lo_stct_var(ctx, dclr, out)) {
+			return false;
+		}
 	}
 
 	return true;

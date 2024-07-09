@@ -76,8 +76,6 @@ static bool is_lo_compilable(ira_lo_t * lo) {
 		case IraLoImpt:
 		case IraLoVar:
 			break;
-		case IraLoDtStct:
-			return false;
 		default:
 			ul_assert_unreachable();
 	}

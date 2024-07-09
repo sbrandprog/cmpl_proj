@@ -17,6 +17,11 @@ struct ira_dt_ndt {
 	ul_hs_t * name;
 };
 
+struct ira_dt_stct_tag {
+	ira_dt_stct_tag_t * next;
+	ira_dt_t * tpl;
+};
+
 enum ira_dt_type {
 	IraDtVoid,
 	IraDtDt,
@@ -50,7 +55,7 @@ struct ira_dt {
 			ira_dt_qual_t qual;
 		} tpl;
 		struct {
-			ira_lo_t * lo;
+			ira_dt_stct_tag_t * tag;
 			ira_dt_qual_t qual;
 		} stct;
 		struct {

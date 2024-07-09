@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "ira_dt.h"
 #include "ira_int.h"
-#include "ira_lo.h"
 
 bool ira_dt_is_qual_equal(ira_dt_qual_t first, ira_dt_qual_t second) {
 	if (first.const_q != second.const_q) {
@@ -73,8 +72,8 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 				return false;
 			}
 
-			if (first->stct.lo != second->stct.lo) {
-				ira_dt_t * first_tpl = first->stct.lo->dt_stct.tpl, * second_tpl = second->stct.lo->dt_stct.tpl;
+			if (first->stct.tag != second->stct.tag) {
+				ira_dt_t * first_tpl = first->stct.tag->tpl, * second_tpl = second->stct.tag->tpl;
 
 				if (first_tpl == NULL || second_tpl == NULL) {
 					return false;
@@ -374,7 +373,7 @@ bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to) {
 			}
 			break;
 		case IraDtStct:
-			if (to->stct.lo->dt_stct.tpl == NULL) {
+			if (to->stct.tag->tpl == NULL) {
 				return false;
 			}
 

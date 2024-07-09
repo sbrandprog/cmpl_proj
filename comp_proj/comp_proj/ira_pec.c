@@ -31,6 +31,33 @@ static void destroy_dt_chain(ira_pec_t * pec, ira_dt_t * dt) {
 	}
 }
 
+static ira_dt_stct_tag_t * create_dt_stct_tag() {
+	ira_dt_stct_tag_t * tag = malloc(sizeof(*tag));
+
+	ul_assert(tag != NULL);
+
+	*tag = (ira_dt_stct_tag_t){ 0 };
+
+	return tag;
+}
+static void destroy_dt_stct_tag(ira_dt_stct_tag_t * tag) {
+	if (tag == NULL) {
+		return;
+	}
+
+	free(tag);
+}
+static void destroy_dt_stct_tag_chain(ira_dt_stct_tag_t * tag) {
+	while (tag != NULL) {
+		ira_dt_stct_tag_t * next = tag->next;
+
+		destroy_dt_stct_tag(tag);
+
+		tag = next;
+	}
+}
+
+
 bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst) {
 	*pec = (ira_pec_t){ .hst = hst };
 
@@ -69,48 +96,8 @@ bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst) {
 
 	return true;
 }
-static void destroy_root0(ira_pec_t * pec, ira_lo_t * nspc) {
-	if (nspc == NULL) {
-		return;
-	}
-
-	ira_lo_t ** ins = &nspc->nspc.body;
-
-	for (ira_lo_t * lo = nspc->nspc.body; lo != NULL;) {
-		ira_lo_t * next = lo->next;
-
-		switch (lo->type) {
-			case IraLoNone:
-				break;
-			case IraLoNspc:
-				destroy_root0(pec, lo);
-				*ins = lo;
-				ins = &lo->next;
-				break;
-			case IraLoFunc:
-			case IraLoImpt:
-			case IraLoVar:
-				next = lo->next;
-				ira_lo_destroy(lo);
-				break;
-			case IraLoDtStct:
-				*ins = lo;
-				ins = &lo->next;
-				break;
-			default:
-				ul_assert_unreachable();
-		}
-
-		lo = next;
-	}
-
-	*ins = NULL;
-}
-static void destroy_root1(ira_pec_t * pec, ira_lo_t * nspc) {
-	ira_lo_destroy(nspc);
-}
 void ira_pec_cleanup(ira_pec_t * pec) {
-	destroy_root0(pec, pec->root);
+	ira_lo_destroy(pec->root);
 
 	destroy_dt_chain(pec, pec->dt_vec);
 	destroy_dt_chain(pec, pec->dt_ptr);
@@ -119,8 +106,7 @@ void ira_pec_cleanup(ira_pec_t * pec) {
 	destroy_dt_chain(pec, pec->dt_arr);
 	destroy_dt_chain(pec, pec->dt_func);
 
-	ira_lo_destroy_chain(pec->dt_stct_lo);
-	destroy_root1(pec, pec->root);
+	destroy_dt_stct_tag_chain(pec->dt_stct_tag);
 
 	memset(pec, 0, sizeof(*pec));
 }
@@ -137,7 +123,7 @@ bool ira_pec_is_dt_complete(ira_dt_t * dt) {
 		case IraDtTpl:
 			break;
 		case IraDtStct:
-			if (dt->stct.lo->dt_stct.tpl == NULL) {
+			if (dt->stct.tag->tpl == NULL) {
 				return false;
 			}
 			break;
@@ -199,7 +185,7 @@ bool ira_pec_get_dt_size(ira_dt_t * dt, size_t * out) {
 		}
 		case IraDtStct:
 		{
-			ira_dt_t * tpl = dt->stct.lo->dt_stct.tpl;
+			ira_dt_t * tpl = dt->stct.tag->tpl;
 
 			if (tpl == NULL || !ira_pec_get_dt_size(tpl, out)) {
 				return false;
@@ -259,7 +245,7 @@ bool ira_pec_get_dt_align(ira_dt_t * dt, size_t * out) {
 		}
 		case IraDtStct:
 		{
-			ira_dt_t * tpl = dt->stct.lo->dt_stct.tpl;
+			ira_dt_t * tpl = dt->stct.tag->tpl;
 
 			if (tpl == NULL || !ira_pec_get_dt_align(tpl, out)) {
 				return false;
@@ -299,6 +285,16 @@ size_t ira_pec_get_tpl_elem_off(ira_dt_t * dt, size_t elem_i) {
 	}
 
 	return off;
+}
+
+
+ira_dt_stct_tag_t * ira_pec_get_dt_stct_tag(ira_pec_t * pec) {
+	ira_dt_stct_tag_t * tag = create_dt_stct_tag();
+
+	tag->next = pec->dt_stct_tag;
+	pec->dt_stct_tag = tag;
+
+	return tag;
 }
 
 static bool get_listed_dt_check(ira_pec_t * pec, ira_dt_t * pred) {
@@ -387,7 +383,7 @@ static bool get_listed_dt_cmp(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * dt) {
 				return false;
 			}
 
-			if (dt->stct.lo != pred->stct.lo) {
+			if (dt->stct.tag != pred->stct.tag) {
 				return false;
 			}
 			break;
@@ -445,7 +441,7 @@ static bool get_listed_dt_copy(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * out)
 			break;
 		}
 		case IraDtStct:
-			*out = (ira_dt_t){ .type = pred->type, .stct = { .lo = pred->stct.lo, .qual = pred->stct.qual } };
+			*out = (ira_dt_t){ .type = pred->type, .stct = { .tag = pred->stct.tag, .qual = pred->stct.qual } };
 			break;
 		case IraDtArr:
 		{
@@ -530,8 +526,8 @@ bool ira_pec_get_dt_tpl(ira_pec_t * pec, size_t elems_size, ira_dt_ndt_t * elems
 
 	return get_listed_dt(pec, &pred, &pec->dt_tpl, out);
 }
-bool ira_pec_get_dt_stct_lo(ira_pec_t * pec, ira_lo_t * lo, ira_dt_qual_t qual, ira_dt_t ** out) {
-	ira_dt_t pred = { .type = IraDtStct, .stct = { .lo = lo, .qual = qual } };
+bool ira_pec_get_dt_stct(ira_pec_t * pec, ira_dt_stct_tag_t * tag, ira_dt_qual_t qual, ira_dt_t ** out) {
+	ira_dt_t pred = { .type = IraDtStct, .stct = { .tag = tag, .qual = qual } };
 
 	return get_listed_dt(pec, &pred, &pec->dt_stct, out);
 }
@@ -579,7 +575,7 @@ bool ira_pec_apply_qual(ira_pec_t * pec, ira_dt_t * dt, ira_dt_qual_t qual, ira_
 			}
 			break;
 		case IraDtStct:
-			if (!ira_pec_get_dt_stct_lo(pec, dt->stct.lo, qual, out)) {
+			if (!ira_pec_get_dt_stct(pec, dt->stct.tag, qual, out)) {
 				return false;
 			}
 			break;
@@ -682,7 +678,7 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 			val_type = IraValImmTpl;
 			break;
 		case IraDtStct:
-			if (dt->stct.lo->dt_stct.tpl == NULL) {
+			if (dt->stct.tag->tpl == NULL) {
 				return false;
 			}
 
@@ -755,7 +751,7 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 			break;
 		}
 		case IraDtStct:
-			if (!ira_pec_make_val_null(pec, dt->stct.lo->dt_stct.tpl, &(*out)->val_val)) {
+			if (!ira_pec_make_val_null(pec, dt->stct.tag->tpl, &(*out)->val_val)) {
 				return false;
 			}
 			break;

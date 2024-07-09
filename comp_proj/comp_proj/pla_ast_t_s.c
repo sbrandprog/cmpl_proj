@@ -644,7 +644,6 @@ static ira_lo_t * find_cn_lo(ctx_t * ctx, ira_lo_t * nspc, pla_cn_t * cn) {
 				case IraLoFunc:
 				case IraLoImpt:
 				case IraLoVar:
-				case IraLoDtStct:
 					if (cn->sub_name == NULL) {
 						return lo;
 					}
@@ -675,9 +674,6 @@ static bool process_ident_lo(ctx_t * ctx, expr_t * expr, ira_lo_t * lo) {
 			break;
 		case IraLoVar:
 			expr->val_qdt = lo->var.qdt;
-			break;
-		case IraLoDtStct:
-			expr->val_qdt.dt = &ctx->pec->dt_dt;
 			break;
 		default:
 			ul_assert_unreachable();
@@ -718,7 +714,7 @@ static bool get_mmbr_acc_dt(ctx_t * ctx, ira_dt_t * opd_dt, ul_hs_t * mmbr, ira_
 			break;
 		case IraDtStct:
 		{
-			ira_dt_t * tpl = opd_dt->stct.lo->dt_stct.tpl;
+			ira_dt_t * tpl = opd_dt->stct.tag->tpl;
 
 			if (tpl == NULL || !get_tpl_mmbr_dt(ctx, tpl, mmbr, out)) {
 				return false;
@@ -1504,27 +1500,6 @@ static bool translate_expr1_ident(ctx_t * ctx, expr_t * expr) {
 
 					expr->val_type = ExprValDeref;
 					expr->val.var = lo_ptr_var;
-
-					break;
-				}
-				case IraLoDtStct:
-				{
-					ira_dt_t * dt;
-
-					if (!ira_pec_get_dt_stct_lo(ctx->pec, expr->ident.lo, ira_dt_qual_none, &dt)) {
-						pla_ast_t_report_pec_err(ctx->t_ctx);
-						return false;
-					}
-
-					ira_val_t * val_dt;
-
-					if (!ira_pec_make_val_imm_dt(ctx->pec, dt, &val_dt)) {
-						return false;
-					}
-
-					ira_inst_t load_val = { .type = IraInstLoadVal, .opd1.val = val_dt };
-
-					push_inst_imm_var0_expr(ctx, expr, &load_val);
 
 					break;
 				}

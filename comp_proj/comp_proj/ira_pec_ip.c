@@ -465,7 +465,7 @@ static bool set_mmbr_acc_ptr_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt,
 			break;
 		case IraDtStct:
 		{
-			ira_dt_t * tpl = opd_dt->stct.lo->dt_stct.tpl;
+			ira_dt_t * tpl = opd_dt->stct.tag->tpl;
 
 			if (tpl == NULL || !set_mmbr_acc_ptr_data_tpl(ctx, inst, tpl, mmbr)) {
 				return false;
