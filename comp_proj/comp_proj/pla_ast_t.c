@@ -14,7 +14,7 @@
 #include "pla_pkg.h"
 #include "pla_ast_t_s.h"
 
-#define LO_FULL_NAME_DELIM L'.'
+#define VSE_LO_FULL_NAME_DELIM L'.'
 
 typedef pla_ast_t_optr_type_t optr_type_t;
 typedef pla_ast_t_optr_t optr_t;
@@ -48,6 +48,7 @@ typedef struct pla_ast_t_ctx {
 	tse_t * tse;
 	vse_t * vse;
 } ctx_t;
+
 
 static optr_t * create_optr(optr_type_t type) {
 	optr_t * optr = malloc(sizeof(*optr));
@@ -158,6 +159,12 @@ static bool is_optrs_equivalent(optr_t * first, optr_t * second) {
 	return false;
 }
 
+
+static ul_hs_t * cat_hs_delim(ctx_t * ctx, ul_hs_t * str1, wchar_t delim, ul_hs_t * str2) {
+	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%c%s", str1->str, delim, str2->str);
+}
+
+
 void pla_ast_t_report(pla_ast_t_ctx_t * ctx, const wchar_t * format, ...) {
 	pla_ast_t_print_ts(ctx, stderr);
 
@@ -175,6 +182,7 @@ void pla_ast_t_report_pec_err(pla_ast_t_ctx_t * ctx) {
 	pla_ast_t_report(ctx, L"pec function error");
 }
 
+
 ul_hsb_t * pla_ast_t_get_hsb(pla_ast_t_ctx_t * ctx) {
 	return &ctx->hsb;
 }
@@ -184,6 +192,7 @@ ul_hst_t * pla_ast_t_get_hst(pla_ast_t_ctx_t * ctx) {
 ira_pec_t * pla_ast_t_get_pec(pla_ast_t_ctx_t * ctx) {
 	return ctx->out;
 }
+
 
 pla_ast_t_optr_t * pla_ast_t_get_optr_chain(pla_ast_t_ctx_t * ctx, pla_expr_type_t expr_type) {
 	return ctx->optrs[expr_type];
@@ -232,6 +241,7 @@ bool pla_ast_t_get_optr_dt(pla_ast_t_ctx_t * ctx, pla_ast_t_optr_t * optr, ira_d
 	return true;
 }
 
+
 void pla_ast_t_push_tse(pla_ast_t_ctx_t * ctx, pla_ast_t_tse_t * tse) {
 	tse->prev = ctx->tse;
 
@@ -244,8 +254,29 @@ pla_ast_t_tse_t * pla_ast_t_get_tse(pla_ast_t_ctx_t * ctx) {
 	return ctx->tse;
 }
 
+
+static ul_hs_t * get_vse_raw_name(vse_t * vse) {
+	switch (vse->type) {
+		case PlaAstTVseNspc:
+			return vse->nspc.name;
+		default:
+			ul_assert_unreachable();
+	}
+
+	return NULL;
+}
 void pla_ast_t_push_vse(pla_ast_t_ctx_t * ctx, pla_ast_t_vse_t * vse) {
 	vse->prev = ctx->vse;
+
+	ul_hs_t * vse_name = get_vse_raw_name(vse);
+
+	ul_hs_t * prefix = vse->prev != NULL ? get_vse_raw_name(vse->prev) : NULL;
+
+	if (prefix != NULL) {
+		vse_name = cat_hs_delim(ctx, prefix, VSE_LO_FULL_NAME_DELIM, vse_name);
+	}
+
+	vse->name = vse_name;
 
 	ctx->vse = vse;
 }
@@ -265,11 +296,13 @@ pla_ast_t_vse_t * pla_ast_t_get_vse(pla_ast_t_ctx_t * ctx) {
 	return ctx->vse;
 }
 
+
 ul_hs_t * pla_ast_t_get_pds(pla_ast_t_ctx_t * ctx, pla_pds_t pds) {
 	ul_assert(pds < PlaPds_Count);
 
 	return ctx->ast->pds[pds];
 }
+
 
 void pla_ast_t_print_ts(pla_ast_t_ctx_t * ctx, FILE * file) {
 	for (tse_t * tse = pla_ast_t_get_tse(ctx); tse != NULL; tse = tse->prev) {
@@ -306,6 +339,7 @@ void pla_ast_t_print_ts(pla_ast_t_ctx_t * ctx, FILE * file) {
 		}
 	}
 }
+
 
 static bool calculate_expr_guard(pla_ast_t_ctx_t * ctx, pla_stmt_t * blk, ira_func_t ** func, ira_val_t ** out) {
 	if (!pla_ast_t_s_translate(ctx, NULL, blk, func)) {
@@ -423,10 +457,11 @@ static void register_bltn_optrs(ctx_t * ctx) {
 	register_bltn_optrs_bin_ptr_bool(ctx, PlaExprNeq, IraInstCmpPtr, IraIntCmpNeq);
 }
 
+
 static bool translate_dclr(ctx_t * ctx, pla_dclr_t * dclr);
 
-static ira_lo_t ** get_vse_lo_ins(pla_ast_t_ctx_t * ctx, ul_hs_t * name) {
-	pla_ast_t_vse_t * vse = pla_ast_t_get_vse(ctx);
+static ira_lo_t ** get_vse_lo_ins(ctx_t * ctx, ul_hs_t * name) {
+	vse_t * vse = pla_ast_t_get_vse(ctx);
 
 	if (vse == NULL) {
 		ul_assert(name == NULL);
@@ -437,25 +472,48 @@ static ira_lo_t ** get_vse_lo_ins(pla_ast_t_ctx_t * ctx, ul_hs_t * name) {
 	switch (vse->type) {
 		case PlaAstTVseNspc:
 		{
-			ira_lo_t ** ins = &vse->nspc->nspc.body;
+			ira_lo_nspc_node_t ** ins = &vse->nspc.lo->nspc.body;
 
 			for (; *ins != NULL; ins = &(*ins)->next) {
-				ira_lo_t * lo = *ins;
+				ira_lo_nspc_node_t * node = *ins;
 
-				if (lo->name == name) {
+				if (node->name == name) {
 					break;
 				}
 			}
 
-			return ins;
+			if (*ins == NULL) {
+				*ins = ira_lo_create_nspc_node(name);
+			}
+
+			return &(*ins)->lo;
 		}
 		default:
 			ul_assert_unreachable();
 	}
 }
 
+static ul_hs_t * make_vse_lo_hint_name(ctx_t * ctx, ul_hs_t * name) {
+	ul_hs_t * hint_name = name;
+
+	vse_t * vse = pla_ast_t_get_vse(ctx);
+
+	ul_hs_t * vse_name = vse != NULL ? vse->name : NULL;
+
+	if (vse_name != NULL) {
+		hint_name = cat_hs_delim(ctx, vse_name, VSE_LO_FULL_NAME_DELIM, hint_name);
+	}
+
+	return hint_name;
+}
+static ira_lo_t * push_lo(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_type_t lo_type) {
+	ul_hs_t * hint_name = make_vse_lo_hint_name(ctx, dclr->name);
+
+	return ira_pec_push_unq_lo(ctx->out, lo_type, hint_name);
+}
+
 static bool init_lo_stct_var(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
-	*out = ira_lo_create(IraLoVar, dclr->name);
+	*out = push_lo(ctx, dclr, IraLoVar);
 
 	(*out)->var.qdt.dt = &ctx->out->dt_dt;
 	(*out)->var.qdt.qual = ira_dt_qual_const;
@@ -488,14 +546,14 @@ static bool translate_dclr_nspc_vse(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** 
 }
 static bool translate_dclr_nspc(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out) {
 	if (*out == NULL) {
-		*out = ira_lo_create(IraLoNspc, dclr->name);
+		*out = push_lo(ctx, dclr, IraLoNspc);
 	}
 	else if ((*out)->type != IraLoNspc) {
 		pla_ast_t_report(ctx, L"language object with [%s] name already exists", dclr->name->str);
 		return false;
 	}
 
-	vse_t vse = { .type = PlaAstTVseNspc, .nspc = *out };
+	vse_t vse = { .type = PlaAstTVseNspc, .nspc = { .lo = *out, .name = dclr->name } };
 
 	pla_ast_t_push_vse(ctx, &vse);
 
@@ -511,7 +569,7 @@ static bool translate_dclr_func(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 		return false;
 	}
 
-	*out = ira_lo_create(IraLoFunc, dclr->name);
+	*out = push_lo(ctx, dclr, IraLoFunc);
 
 	ira_dt_t * func_dt = NULL;
 
@@ -536,7 +594,7 @@ static bool translate_dclr_impt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** out)
 		return false;
 	}
 
-	*out = ira_lo_create(IraLoImpt, dclr->name);
+	*out = push_lo(ctx, dclr, IraLoImpt);
 
 	if (!pla_ast_t_calculate_expr_dt(ctx, dclr->impt.dt_expr, &(*out)->impt.dt)) {
 		return false;
@@ -553,7 +611,7 @@ static bool translate_dclr_var_dt(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** ou
 		return false;
 	}
 
-	*out = ira_lo_create(IraLoVar, dclr->name);
+	*out = push_lo(ctx, dclr, IraLoVar);
 
 	if (!pla_ast_t_calculate_expr_dt(ctx, dclr->var_dt.dt_expr, &(*out)->var.qdt.dt)) {
 		return false;
@@ -579,7 +637,7 @@ static bool translate_dclr_var_val(ctx_t * ctx, pla_dclr_t * dclr, ira_lo_t ** o
 		return false;
 	}
 
-	*out = ira_lo_create(IraLoVar, dclr->name);
+	*out = push_lo(ctx, dclr, IraLoVar);
 
 	if (!pla_ast_t_calculate_expr(ctx, dclr->var_val.val_expr, &(*out)->var.val)) {
 		return false;
@@ -705,9 +763,6 @@ static bool translate_dclr(ctx_t * ctx, pla_dclr_t * dclr) {
 	return res;
 }
 
-static ul_hs_t * cat_hs_delim(ctx_t * ctx, ul_hs_t * str1, wchar_t delim, ul_hs_t * str2) {
-	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%c%s", str1->str, delim, str2->str);
-}
 static ul_hs_t * convert_cn_to_hs(ctx_t * ctx, pla_cn_t * cn, wchar_t delim) {
 	ul_hs_t * res = cn->name;
 
@@ -850,20 +905,6 @@ static bool translate_tus(ctx_t * ctx) {
 	return true;
 }
 
-static void generate_full_names(ctx_t * ctx, ira_lo_t * nspc) {
-	for (ira_lo_t * lo = nspc->nspc.body; lo != NULL; lo = lo->next) {
-		lo->full_name = lo->name;
-
-		if (nspc->full_name != NULL) {
-			lo->full_name = cat_hs_delim(ctx, lo->full_name, LO_FULL_NAME_DELIM, nspc->full_name);
-		}
-
-		if (lo->type == IraLoNspc) {
-			generate_full_names(ctx, lo);
-		}
-	}
-}
-
 static bool translate_core(ctx_t * ctx) {
 	ctx->hst = ctx->ast->hst;
 
@@ -878,8 +919,6 @@ static bool translate_core(ctx_t * ctx) {
 	if (!translate_tus(ctx)) {
 		return false;
 	}
-
-	generate_full_names(ctx, ctx->out->root);
 
 	ul_assert(ctx->tse == NULL && ctx->vse == NULL);
 

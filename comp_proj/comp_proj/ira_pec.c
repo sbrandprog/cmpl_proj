@@ -4,32 +4,6 @@
 #include "ira_func.h"
 #include "ira_lo.h"
 
-static void destroy_dt_chain(ira_pec_t * pec, ira_dt_t * dt) {
-	while (dt != NULL) {
-		ira_dt_t * next = dt->next;
-
-		switch (dt->type) {
-			case IraDtVec:
-			case IraDtPtr:
-				break;
-			case IraDtTpl:
-				free(dt->tpl.elems);
-				break;
-			case IraDtStct:
-			case IraDtArr:
-				break;
-			case IraDtFunc:
-				free(dt->func.args);
-				break;
-			default:
-				ul_assert_unreachable();
-		}
-
-		free(dt);
-
-		dt = next;
-	}
-}
 
 static ira_dt_stct_tag_t * create_dt_stct_tag() {
 	ira_dt_stct_tag_t * tag = malloc(sizeof(*tag));
@@ -58,8 +32,83 @@ static void destroy_dt_stct_tag_chain(ira_dt_stct_tag_t * tag) {
 }
 
 
+static void destroy_dt_chain(ira_pec_t * pec, ira_dt_t * dt) {
+	while (dt != NULL) {
+		ira_dt_t * next = dt->next;
+
+		switch (dt->type) {
+			case IraDtVec:
+			case IraDtPtr:
+				break;
+			case IraDtTpl:
+				free(dt->tpl.elems);
+				break;
+			case IraDtStct:
+			case IraDtArr:
+				break;
+			case IraDtFunc:
+				free(dt->func.args);
+				break;
+			default:
+				ul_assert_unreachable();
+		}
+
+		free(dt);
+
+		dt = next;
+	}
+}
+
+
+static ira_lo_t * create_lo(ira_lo_type_t type, ul_hs_t * name) {
+	ira_lo_t * lo = malloc(sizeof(*lo));
+
+	ul_assert(lo != NULL);
+
+	*lo = (ira_lo_t){ .type = type, .name = name };
+
+	return lo;
+}
+static void destroy_lo(ira_lo_t * lo) {
+	if (lo == NULL) {
+		return;
+	}
+
+	switch (lo->type) {
+		case IraLoNone:
+			break;
+		case IraLoNspc:
+			ira_lo_destroy_nspc_node_chain(lo->nspc.body);
+			break;
+		case IraLoFunc:
+			ira_func_destroy(lo->func);
+			break;
+		case IraLoImpt:
+			break;
+		case IraLoVar:
+			ira_val_destroy(lo->var.val);
+			break;
+		default:
+			ul_assert_unreachable();
+	}
+
+	free(lo);
+}
+static void destroy_lo_chain(ira_lo_t * lo) {
+	while (lo != NULL) {
+		ira_lo_t * next = lo->next;
+
+		destroy_lo(lo);
+
+		lo = next;
+	}
+}
+
+
 bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst) {
 	*pec = (ira_pec_t){ .hst = hst };
+
+	ul_hsb_init(&pec->hsb);
 
 	for (ira_pds_t pds = 0; pds < IraPds_Count; ++pds) {
 		const ul_ros_t * pds_str = &ira_pds_strs[pds];
@@ -97,7 +146,7 @@ bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst) {
 	return true;
 }
 void ira_pec_cleanup(ira_pec_t * pec) {
-	ira_lo_destroy(pec->root);
+	destroy_lo_chain(pec->lo);
 
 	destroy_dt_chain(pec, pec->dt_vec);
 	destroy_dt_chain(pec, pec->dt_ptr);
@@ -107,6 +156,8 @@ void ira_pec_cleanup(ira_pec_t * pec) {
 	destroy_dt_chain(pec, pec->dt_func);
 
 	destroy_dt_stct_tag_chain(pec->dt_stct_tag);
+
+	ul_hsb_cleanup(&pec->hsb);
 
 	memset(pec, 0, sizeof(*pec));
 }
@@ -594,6 +645,7 @@ bool ira_pec_apply_qual(ira_pec_t * pec, ira_dt_t * dt, ira_dt_qual_t qual, ira_
 	return true;
 }
 
+
 bool ira_pec_make_val_imm_void(ira_pec_t * pec, ira_val_t ** out) {
 	*out = ira_val_create(IraValImmVoid, &pec->dt_void);
 
@@ -774,4 +826,37 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 	}
 
 	return true;
+}
+
+
+ira_lo_t * ira_pec_push_unq_lo(ira_pec_t * pec, ira_lo_type_t type, ul_hs_t * hint_name) {
+	ul_assert(type < IraLo_Count);
+
+	static const wchar_t * const lo_type_names[IraLo_Count] = {
+		[IraLoNone] = L"none",
+		[IraLoNspc] = L"nspc",
+		[IraLoFunc] = L"func",
+		[IraLoImpt] = L"impt",
+		[IraLoVar] = L"var"
+	};
+
+	const wchar_t * type_name = lo_type_names[type];
+
+	ul_assert(type_name != NULL);
+
+	ul_hs_t * unq_name;
+	
+	if (hint_name != NULL) {
+		unq_name = ul_hsb_formatadd(&pec->hsb, pec->hst, L"%s:%s%zi", hint_name->str, type_name, pec->lo_index++);
+	}
+	else {
+		unq_name = ul_hsb_formatadd(&pec->hsb, pec->hst, L"%s%zi", type_name, pec->lo_index++);
+	}
+
+	ira_lo_t * lo = create_lo(type, unq_name);
+
+	lo->next = pec->lo;
+	pec->lo = lo;
+
+	return lo;
 }

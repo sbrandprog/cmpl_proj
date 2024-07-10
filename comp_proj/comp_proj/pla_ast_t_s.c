@@ -631,27 +631,33 @@ static bool get_null_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) 
 }
 
 static ira_lo_t * find_cn_lo(ctx_t * ctx, ira_lo_t * nspc, pla_cn_t * cn) {
-	for (ira_lo_t * lo = nspc->nspc.body; lo != NULL; lo = lo->next) {
-		if (lo->name == cn->name) {
-			switch (lo->type) {
-				case IraLoNone:
-					break;
-				case IraLoNspc:
-					if (cn->sub_name != NULL) {
-						return find_cn_lo(ctx, lo, cn->sub_name);
-					}
-					break;
-				case IraLoFunc:
-				case IraLoImpt:
-				case IraLoVar:
-					if (cn->sub_name == NULL) {
-						return lo;
-					}
-					break;
-				default:
-					ul_assert_unreachable();
-			}
+	for (ira_lo_nspc_node_t * node = nspc->nspc.body; node != NULL; node = node->next) {
+		if (node->name != cn->name) {
+			continue;
 		}
+
+		ira_lo_t * lo = node->lo;
+
+		switch (node->lo->type) {
+			case IraLoNone:
+				break;
+			case IraLoNspc:
+				if (cn->sub_name != NULL) {
+					return find_cn_lo(ctx, lo, cn->sub_name);
+				}
+				break;
+			case IraLoFunc:
+			case IraLoImpt:
+			case IraLoVar:
+				if (cn->sub_name == NULL) {
+					return lo;
+				}
+				break;
+			default:
+				ul_assert_unreachable();
+		}
+
+		break;
 	}
 
 	return NULL;
@@ -961,7 +967,7 @@ static bool translate_expr0_ident(ctx_t * ctx, expr_t * expr) {
 		switch (vse->type) {
 			case PlaAstTVseNspc:
 			{
-				ira_lo_t * lo = find_cn_lo(ctx, vse->nspc, cn);
+				ira_lo_t * lo = find_cn_lo(ctx, vse->nspc.lo, cn);
 
 				if (lo != NULL && process_ident_lo(ctx, expr, lo)) {
 					return true;

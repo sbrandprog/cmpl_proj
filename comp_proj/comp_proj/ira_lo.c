@@ -3,46 +3,29 @@
 #include "ira_lo.h"
 #include "ira_func.h"
 
-ira_lo_t * ira_lo_create(ira_lo_type_t type, ul_hs_t * name) {
-	ira_lo_t * lo = malloc(sizeof(*lo));
 
-	ul_assert(lo != NULL);
+ira_lo_nspc_node_t * ira_lo_create_nspc_node(ul_hs_t * name) {
+	ira_lo_nspc_node_t * node = malloc(sizeof(*node));
 
-	*lo = (ira_lo_t){ .type = type, .name = name };
+	ul_assert(node != NULL);
 
-	return lo;
+	*node = (ira_lo_nspc_node_t){ .name = name };
+
+	return node;
 }
-void ira_lo_destroy(ira_lo_t * lo) {
-	if (lo == NULL) {
+void ira_lo_destroy_nspc_node(ira_lo_nspc_node_t * node) {
+	if (node == NULL) {
 		return;
 	}
 
-	switch (lo->type) {
-		case IraLoNone:
-			break;
-		case IraLoNspc:
-			ira_lo_destroy_chain(lo->nspc.body);
-			break;
-		case IraLoFunc:
-			ira_func_destroy(lo->func);
-			break;
-		case IraLoImpt:
-			break;
-		case IraLoVar:
-			ira_val_destroy(lo->var.val);
-			break;
-		default:
-			ul_assert_unreachable();
-	}
-
-	free(lo);
+	free(node);
 }
-void ira_lo_destroy_chain(ira_lo_t * lo) {
-	while (lo != NULL) {
-		ira_lo_t * next = lo->next;
+void ira_lo_destroy_nspc_node_chain(ira_lo_nspc_node_t * node) {
+	while (node != NULL) {
+		ira_lo_nspc_node_t * next = node->next;
 
-		ira_lo_destroy(lo);
-		
-		lo = next;
+		ira_lo_destroy_nspc_node(node);
+
+		node = next;
 	}
 }

@@ -1,6 +1,12 @@
 #pragma once
 #include "ira_dt.h"
 
+struct ira_lo_nspc_node {
+	ul_hs_t * name;
+	ira_lo_nspc_node_t * next;
+	ira_lo_t * lo;
+};
+
 enum ira_lo_type {
 	IraLoNone,
 	IraLoNspc,
@@ -15,11 +21,10 @@ struct ira_lo {
 	ira_lo_t * next;
 
 	ul_hs_t * name;
-	ul_hs_t * full_name;
 
 	union {
 		struct {
-			ira_lo_t * body;
+			ira_lo_nspc_node_t * body;
 		} nspc;
 		ira_func_t * func;
 		struct {
@@ -34,6 +39,7 @@ struct ira_lo {
 	};
 };
 
-ira_lo_t * ira_lo_create(ira_lo_type_t type, ul_hs_t * name);
-void ira_lo_destroy(ira_lo_t * ira);
-void ira_lo_destroy_chain(ira_lo_t * ira);
+
+ira_lo_nspc_node_t * ira_lo_create_nspc_node(ul_hs_t * name);
+void ira_lo_destroy_nspc_node(ira_lo_nspc_node_t * node);
+void ira_lo_destroy_nspc_node_chain(ira_lo_nspc_node_t * node);

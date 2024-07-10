@@ -26,6 +26,7 @@ typedef struct ira_inst_info ira_inst_info_t;
 
 typedef struct ira_func ira_func_t;
 
+typedef struct ira_lo_nspc_node ira_lo_nspc_node_t;
 typedef enum ira_lo_type ira_lo_type_t;
 typedef struct ira_lo ira_lo_t;
 

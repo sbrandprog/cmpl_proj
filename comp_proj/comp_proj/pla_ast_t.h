@@ -57,9 +57,15 @@ enum pla_ast_t_vse_type {
 };
 struct pla_ast_t_vse {
 	pla_ast_t_vse_type_t type;
+	
+	ul_hs_t * name;
 	pla_ast_t_vse_t * prev;
+	
 	union {
-		ira_lo_t * nspc;
+		struct {
+			ira_lo_t * lo;
+			ul_hs_t * name;
+		} nspc;
 	};
 };
 

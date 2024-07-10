@@ -5,6 +5,8 @@
 struct ira_pec {
 	ul_hst_t * hst;
 
+	ul_hsb_t hsb;
+
 	ul_hs_t * pds[IraPds_Count];
 
 	ira_dt_t dt_void;
@@ -27,6 +29,9 @@ struct ira_pec {
 	} dt_spcl;
 
 	ira_lo_t * root;
+
+	ira_lo_t * lo;
+	size_t lo_index;
 
 	ul_hs_t * ep_name;
 };
@@ -54,6 +59,7 @@ bool ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_
 
 bool ira_pec_apply_qual(ira_pec_t * pec, ira_dt_t * dt, ira_dt_qual_t qual, ira_dt_t ** out);
 
+
 bool ira_pec_make_val_imm_void(ira_pec_t * pec, ira_val_t ** out);
 bool ira_pec_make_val_imm_dt(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out);
 bool ira_pec_make_val_imm_bool(ira_pec_t * pec, bool bool_val, ira_val_t ** out);
@@ -61,3 +67,6 @@ bool ira_pec_make_val_imm_int(ira_pec_t * pec, ira_int_type_t int_type, ira_int_
 bool ira_pec_make_val_lo_ptr(ira_pec_t * pec, ira_lo_t * lo, ira_val_t ** out);
 
 bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out);
+
+
+ira_lo_t * ira_pec_push_unq_lo(ira_pec_t * pec, ira_lo_type_t type, ul_hs_t * hint_name);

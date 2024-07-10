@@ -245,7 +245,7 @@ static void report(ctx_t * ctx, const wchar_t * format, ...) {
 		fwprintf(stderr, L"reporting error in instruction processor [%s]\n", trg_to_str[ctx->trg]);
 
 		if (ctx->c_lo != NULL) {
-			fwprintf(stderr, L"processing [%s] function language object\n", ctx->c_lo->full_name->str);
+			fwprintf(stderr, L"processing [%s] function language object\n", ctx->c_lo->name->str);
 		}
 		else {
 			fwprintf(stderr, L"processing anonymouse function\n");
@@ -1672,11 +1672,11 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 			switch (val->lo_val->type) {
 				case IraLoFunc:
 				case IraLoVar:
-					load_label_off(ctx, AsmRegRax, val->lo_val->full_name);
+					load_label_off(ctx, AsmRegRax, val->lo_val->name);
 					save_stack_var(ctx, var, AsmRegRax);
 					break;
 				case IraLoImpt:
-					load_label_val(ctx, AsmRegRax, val->lo_val->full_name);
+					load_label_val(ctx, AsmRegRax, val->lo_val->name);
 					save_stack_var(ctx, var, AsmRegRax);
 					break;
 				default:
@@ -2163,7 +2163,7 @@ static bool compile_core(ctx_t * ctx) {
 
 	ctx->frag = ira_pec_c_get_frag(ctx->c_ctx, AsmFragProc);
 
-	push_label(ctx, ctx->c_lo->full_name);
+	push_label(ctx, ctx->c_lo->name);
 
 	ctx->func = ctx->c_lo->func;
 
@@ -2171,7 +2171,7 @@ static bool compile_core(ctx_t * ctx) {
 		return false;
 	}
 
-	form_global_label_names(ctx, ctx->c_lo->full_name);
+	form_global_label_names(ctx, ctx->c_lo->name);
 
 	if (!calculate_stack(ctx)) {
 		return false;

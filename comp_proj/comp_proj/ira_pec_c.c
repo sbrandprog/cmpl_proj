@@ -175,7 +175,7 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 			}
 
 			data.imm0_type = AsmInstImmLabelVa64;
-			data.imm0_label = val->lo_val->full_name;
+			data.imm0_label = val->lo_val->name;
 			
 			asm_frag_push_inst(frag, &data);
 			break;
@@ -261,7 +261,7 @@ void ira_pec_c_push_cl_elem(ira_pec_c_ctx_t * ctx, ira_lo_t * lo) {
 static bool compile_lo_impt(ctx_t * ctx, ira_lo_t * lo) {
 	EnterCriticalSection(&ctx->cl_out_it_lock);
 
-	asm_it_add_sym(&ctx->out->it, lo->impt.lib_name, lo->impt.sym_name, lo->full_name);
+	asm_it_add_sym(&ctx->out->it, lo->impt.lib_name, lo->impt.sym_name, lo->name);
 
 	LeaveCriticalSection(&ctx->cl_out_it_lock);
 
@@ -277,7 +277,7 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 	asm_frag_t * frag = ira_pec_c_get_frag(ctx, frag_type);
 
 	{
-		asm_inst_t label = { .type = AsmInstLabel, .opds = AsmInstOpds_Label, .label = lo->full_name };
+		asm_inst_t label = { .type = AsmInstLabel, .opds = AsmInstOpds_Label, .label = lo->name };
 
 		asm_frag_push_inst(frag, &label);
 	}
@@ -401,9 +401,9 @@ static VOID compile_lo_worker(PTP_CALLBACK_INSTANCE itnc, PVOID user_data, PTP_W
 }
 
 static ira_lo_t * find_lo(ira_lo_t * nspc, ul_hs_t * name) {
-	for (ira_lo_t * lo = nspc->nspc.body; lo != NULL; lo = lo->next) {
-		if (lo->name == name) {
-			return lo;
+	for (ira_lo_nspc_node_t * node = nspc->nspc.body; node != NULL; node = node->next) {
+		if (node->name == name) {
+			return node->lo;
 		}
 	}
 
@@ -425,7 +425,7 @@ static bool prepare_data(ctx_t * ctx) {
 
 	asm_pea_init(ctx->out, ctx->hst);
 
-	ctx->out->ep_name = ctx->pec->ep_name;
+	ctx->out->ep_name = ep_lo->name;
 
 	InitializeCriticalSection(&ctx->cl_lock);
 
