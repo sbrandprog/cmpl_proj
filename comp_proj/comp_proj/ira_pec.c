@@ -1,8 +1,9 @@
 #include "pch.h"
-#include "ira_pec.h"
 #include "ira_val.h"
+#include "ira_inst.h"
 #include "ira_func.h"
 #include "ira_lo.h"
+#include "ira_pec.h"
 
 
 static ira_dt_stct_tag_t * create_dt_stct_tag() {
@@ -60,6 +61,16 @@ static void destroy_dt_chain(ira_pec_t * pec, ira_dt_t * dt) {
 }
 
 
+static ira_optr_t * create_optr_inst(ira_optr_impl_type_t impl_type, ira_inst_type_t inst_type, ira_int_cmp_t int_cmp) {
+	ira_optr_t * optr = ira_optr_create(impl_type);
+
+	optr->inst.type = inst_type;
+	optr->inst.int_cmp = int_cmp;
+
+	return optr;
+}
+
+
 static ira_lo_t * create_lo(ira_lo_type_t type, ul_hs_t * name) {
 	ira_lo_t * lo = malloc(sizeof(*lo));
 
@@ -105,6 +116,67 @@ static void destroy_lo_chain(ira_lo_t * lo) {
 }
 
 
+static ira_optr_t ** get_optr_ins(ira_pec_t * pec, ira_optr_type_t optr_type, ira_optr_t * pred) {
+	ira_optr_t ** ins = &pec->optrs[optr_type];
+
+	for (; *ins != NULL; ins = &(*ins)->next) {
+		if (ira_optr_is_equivalent(*ins, pred)) {
+			return ins;
+		}
+	}
+
+	return ins;
+}
+static void register_bltn_optr_inst(ira_pec_t * pec, ira_optr_type_t optr_type, ira_optr_impl_type_t impl_type, ira_inst_type_t inst_type, ira_int_cmp_t int_cmp) {
+	switch (impl_type) {
+		case IraOptrImplInstUnrBool:
+		case IraOptrImplInstUnrInt:
+		case IraOptrImplInstBinInt:
+		case IraOptrImplInstBinIntBool:
+		case IraOptrImplInstBinPtrBool:
+			break;
+		default:
+			ul_assert_unreachable();
+	}
+
+	ira_optr_t pred = { .impl_type = impl_type, .inst = { .type = inst_type, .int_cmp = int_cmp } };
+
+	ira_optr_t ** ins = get_optr_ins(pec, optr_type, &pred);
+
+	ul_assert(*ins == NULL);
+
+	*ins = ira_optr_copy(&pred);
+}
+static void register_bltn_optrs(ira_pec_t * pec) {
+	register_bltn_optr_inst(pec, IraOptrLogicNeg, IraOptrImplInstUnrBool, IraInstNegBool, IraIntCmp_Count);
+	register_bltn_optr_inst(pec, IraOptrArithNeg, IraOptrImplInstUnrInt, IraInstNegInt, IraIntCmp_Count);
+
+	register_bltn_optr_inst(pec, IraOptrAdd, IraOptrImplInstBinInt, IraInstAddInt, IraIntCmp_Count);
+	register_bltn_optr_inst(pec, IraOptrSub, IraOptrImplInstBinInt, IraInstSubInt, IraIntCmp_Count);
+	register_bltn_optr_inst(pec, IraOptrMul, IraOptrImplInstBinInt, IraInstMulInt, IraIntCmp_Count);
+	register_bltn_optr_inst(pec, IraOptrDiv, IraOptrImplInstBinInt, IraInstDivInt, IraIntCmp_Count);
+	register_bltn_optr_inst(pec, IraOptrMod, IraOptrImplInstBinInt, IraInstModInt, IraIntCmp_Count);
+	register_bltn_optr_inst(pec, IraOptrLeShift, IraOptrImplInstBinInt, IraInstLeShiftInt, IraIntCmp_Count);
+	register_bltn_optr_inst(pec, IraOptrRiShift, IraOptrImplInstBinInt, IraInstRiShiftInt, IraIntCmp_Count);
+	register_bltn_optr_inst(pec, IraOptrBitAnd, IraOptrImplInstBinInt, IraInstAndInt, IraIntCmp_Count);
+	register_bltn_optr_inst(pec, IraOptrBitXor, IraOptrImplInstBinInt, IraInstXorInt, IraIntCmp_Count);
+	register_bltn_optr_inst(pec, IraOptrBitOr, IraOptrImplInstBinInt, IraInstOrInt, IraIntCmp_Count);
+
+	register_bltn_optr_inst(pec, IraOptrLess, IraOptrImplInstBinIntBool, IraInstCmpInt, IraIntCmpLess);
+	register_bltn_optr_inst(pec, IraOptrLessEq, IraOptrImplInstBinIntBool, IraInstCmpInt, IraIntCmpLessEq);
+	register_bltn_optr_inst(pec, IraOptrEq, IraOptrImplInstBinIntBool, IraInstCmpInt, IraIntCmpEq);
+	register_bltn_optr_inst(pec, IraOptrGrtr, IraOptrImplInstBinIntBool, IraInstCmpInt, IraIntCmpGrtr);
+	register_bltn_optr_inst(pec, IraOptrGrtrEq, IraOptrImplInstBinIntBool, IraInstCmpInt, IraIntCmpGrtrEq);
+	register_bltn_optr_inst(pec, IraOptrNeq, IraOptrImplInstBinIntBool, IraInstCmpInt, IraIntCmpNeq);
+
+	register_bltn_optr_inst(pec, IraOptrLess, IraOptrImplInstBinPtrBool, IraInstCmpPtr, IraIntCmpLess);
+	register_bltn_optr_inst(pec, IraOptrLessEq, IraOptrImplInstBinPtrBool, IraInstCmpPtr, IraIntCmpLessEq);
+	register_bltn_optr_inst(pec, IraOptrEq, IraOptrImplInstBinPtrBool, IraInstCmpPtr, IraIntCmpEq);
+	register_bltn_optr_inst(pec, IraOptrGrtr, IraOptrImplInstBinPtrBool, IraInstCmpPtr, IraIntCmpGrtr);
+	register_bltn_optr_inst(pec, IraOptrGrtrEq, IraOptrImplInstBinPtrBool, IraInstCmpPtr, IraIntCmpGrtrEq);
+	register_bltn_optr_inst(pec, IraOptrNeq, IraOptrImplInstBinPtrBool, IraInstCmpPtr, IraIntCmpNeq);
+}
+
 bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst) {
 	*pec = (ira_pec_t){ .hst = hst };
 
@@ -141,12 +213,18 @@ bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst) {
 		}
 	}
 
+	register_bltn_optrs(pec);
+
 	pec->ep_name = pec->pds[IraPdsEpName];
 
 	return true;
 }
 void ira_pec_cleanup(ira_pec_t * pec) {
 	destroy_lo_chain(pec->lo);
+
+	for (ira_optr_type_t optr = 0; optr < IraOptr_Count; ++optr) {
+		ira_optr_destroy_chain(pec->optrs[optr]);
+	}
 
 	destroy_dt_chain(pec, pec->dt_vec);
 	destroy_dt_chain(pec, pec->dt_ptr);
@@ -826,6 +904,65 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 	}
 
 	return true;
+}
+
+
+bool ira_pec_get_optr_dt(ira_pec_t * pec, ira_optr_t * optr, ira_dt_t * first, ira_dt_t * second, ira_dt_t ** out) {
+	switch (optr->impl_type) {
+		case IraOptrImplInstUnrBool:
+			if (first->type != IraDtBool) {
+				return false;
+			}
+
+			*out = first;
+			break;
+		case IraOptrImplInstUnrInt:
+			if (first->type != IraDtInt) {
+				return false;
+			}
+
+			*out = first;
+			break;
+		case IraOptrImplInstBinInt:
+			if (first->type != IraDtInt || !ira_dt_is_equivalent(first, second)) {
+				return false;
+			}
+
+			*out = first;
+			break;
+		case IraOptrImplInstBinIntBool:
+			if (first->type != IraDtInt || !ira_dt_is_equivalent(first, second)) {
+				return false;
+			}
+
+			*out = &pec->dt_bool;
+			break;
+		case IraOptrImplInstBinPtrBool:
+			if (first->type != IraDtPtr || !ira_dt_is_equivalent(first, second)) {
+				return false;
+			}
+
+			*out = &pec->dt_bool;
+			break;
+		default:
+			ul_assert_unreachable();
+	}
+
+	return true;
+}
+bool ira_pec_get_best_optr(ira_pec_t * pec, ira_optr_type_t optr_type, ira_dt_t * first, ira_dt_t * second, ira_optr_t ** optr_out, ira_dt_t ** res_dt_out) {
+	for (ira_optr_t * optr = pec->optrs[optr_type]; optr != NULL; optr = optr->next) {
+		ira_dt_t * res_dt;
+
+		if (ira_pec_get_optr_dt(pec, optr, first, second, &res_dt)) {
+			*optr_out = optr;
+			*res_dt_out = res_dt;
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 

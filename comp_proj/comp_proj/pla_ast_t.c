@@ -16,9 +16,6 @@
 
 #define VSE_LO_FULL_NAME_DELIM L'.'
 
-typedef pla_ast_t_optr_type_t optr_type_t;
-typedef pla_ast_t_optr_t optr_t;
-
 typedef pla_ast_t_tse_t tse_t;
 typedef pla_ast_t_vse_t vse_t;
 
@@ -39,8 +36,6 @@ typedef struct pla_ast_t_ctx {
 	ul_hst_t * hst;
 	ul_hsb_t hsb;
 
-	pla_ast_t_optr_t * optrs[PlaExpr_Count];
-
 	size_t tus_size;
 	tu_t * tus;
 	size_t tus_cap;
@@ -48,116 +43,6 @@ typedef struct pla_ast_t_ctx {
 	tse_t * tse;
 	vse_t * vse;
 } ctx_t;
-
-
-static optr_t * create_optr(optr_type_t type) {
-	optr_t * optr = malloc(sizeof(*optr));
-
-	ul_assert(optr != NULL);
-
-	*optr = (optr_t){ .type = type };
-
-	return optr;
-}
-static void destroy_optr(optr_t * optr) {
-	if (optr == NULL) {
-		return;
-	}
-
-	switch (optr->type) {
-		case PlaAstTOptrNone:
-		case PlaAstTOptrUnrInstBool:
-		case PlaAstTOptrUnrInstInt:
-		case PlaAstTOptrBinInstInt:
-		case PlaAstTOptrBinInstIntBool:
-		case PlaAstTOptrBinInstPtrBool:
-			break;
-		default:
-			ul_assert_unreachable();
-	}
-
-	free(optr);
-}
-static void destroy_optr_chain(optr_t * chain) {
-	while (chain != NULL) {
-		optr_t * next = chain->next;
-
-		destroy_optr(chain);
-
-		chain = next;
-	}
-}
-
-static optr_t * copy_optr(ctx_t * ctx, optr_t * src) {
-	optr_t * optr = create_optr(src->type);
-
-	switch (optr->type) {
-		case PlaAstTOptrNone:
-			break;
-		case PlaAstTOptrUnrInstBool:
-			optr->unr_inst_bool.inst_type = src->unr_inst_bool.inst_type;
-			break;
-		case PlaAstTOptrUnrInstInt:
-			optr->unr_inst_int.inst_type = src->unr_inst_int.inst_type;
-			break;
-		case PlaAstTOptrBinInstInt:
-			optr->bin_inst_int.inst_type = src->bin_inst_int.inst_type;
-			break;
-		case PlaAstTOptrBinInstIntBool:
-			optr->bin_inst_int_bool.inst_type = src->bin_inst_int_bool.inst_type;
-			optr->bin_inst_int_bool.int_cmp = src->bin_inst_int_bool.int_cmp;
-			break;
-		case PlaAstTOptrBinInstPtrBool:
-			optr->bin_inst_ptr_bool.inst_type = src->bin_inst_ptr_bool.inst_type;
-			optr->bin_inst_ptr_bool.int_cmp = src->bin_inst_ptr_bool.int_cmp;
-			break;
-		default:
-			ul_assert_unreachable();
-	}
-
-	return optr;
-}
-
-static bool is_optrs_equivalent(optr_t * first, optr_t * second) {
-	if (first == second) {
-		return true;
-	}
-
-	switch (first->type) {
-		case PlaAstTOptrNone:
-			break;
-		case PlaAstTOptrUnrInstBool:
-			switch (second->type) {
-				case PlaAstTOptrUnrInstBool:
-					return true;
-			}
-			break;
-		case PlaAstTOptrUnrInstInt:
-			switch (second->type) {
-				case PlaAstTOptrUnrInstInt:
-					return true;
-			}
-			break;
-		case PlaAstTOptrBinInstInt:
-		case PlaAstTOptrBinInstIntBool:
-			switch (second->type) {
-				case PlaAstTOptrBinInstInt:
-				case PlaAstTOptrBinInstIntBool:
-					return true;
-			}
-			break;
-		case PlaAstTOptrBinInstPtrBool:
-			switch (second->type) {
-				case PlaAstTOptrBinInstPtrBool:
-					return true;
-			}
-			break;
-		default:
-			ul_assert_unreachable();
-	}
-
-	return false;
-}
 
 
 static ul_hs_t * cat_hs_delim(ctx_t * ctx, ul_hs_t * str1, wchar_t delim, ul_hs_t * str2) {
@@ -191,54 +76,6 @@ ul_hst_t * pla_ast_t_get_hst(pla_ast_t_ctx_t * ctx) {
 }
 ira_pec_t * pla_ast_t_get_pec(pla_ast_t_ctx_t * ctx) {
 	return ctx->out;
-}
-
-
-pla_ast_t_optr_t * pla_ast_t_get_optr_chain(pla_ast_t_ctx_t * ctx, pla_expr_type_t expr_type) {
-	return ctx->optrs[expr_type];
-}
-bool pla_ast_t_get_optr_dt(pla_ast_t_ctx_t * ctx, pla_ast_t_optr_t * optr, ira_dt_t * first, ira_dt_t * second, ira_dt_t ** out) {
-	switch (optr->type) {
-		case PlaAstTOptrUnrInstBool:
-			if (first->type != IraDtBool) {
-				return false;
-			}
-
-			*out = first;
-			break;
-		case PlaAstTOptrUnrInstInt:
-			if (first->type != IraDtInt) {
-				return false;
-			}
-
-			*out = first;
-			break;
-		case PlaAstTOptrBinInstInt:
-			if (first->type != IraDtInt || !ira_dt_is_equivalent(first, second)) {
-				return false;
-			}
-
-			*out = first;
-			break;
-		case PlaAstTOptrBinInstIntBool:
-			if (first->type != IraDtInt || !ira_dt_is_equivalent(first, second)) {
-				return false;
-			}
-
-			*out = &ctx->out->dt_bool;
-			break;
-		case PlaAstTOptrBinInstPtrBool:
-			if (first->type != IraDtPtr || !ira_dt_is_equivalent(first, second)) {
-				return false;
-			}
-
-			*out = &ctx->out->dt_bool;
-			break;
-		default:
-			ul_assert_unreachable();
-	}
-
-	return true;
 }
 
 
@@ -381,80 +218,6 @@ bool pla_ast_t_calculate_expr_dt(pla_ast_t_ctx_t * ctx, pla_expr_t * expr, ira_d
 	ira_val_destroy(val);
 
 	return result;
-}
-
-
-static optr_t ** get_optr_ins(ctx_t * ctx, pla_expr_type_t expr_type, optr_t * pred) {
-	optr_t ** ins = &ctx->optrs[expr_type];
-
-	for (; *ins != NULL; ins = &(*ins)->next) {
-		if (is_optrs_equivalent(*ins, pred)) {
-			return ins;
-		}
-	}
-
-	return ins;
-}
-static void register_bltn_optr_pred(ctx_t * ctx, pla_expr_type_t expr_type, optr_t * pred) {
-	optr_t ** ins = get_optr_ins(ctx, expr_type, pred);
-
-	ul_assert(*ins == NULL);
-
-	*ins = copy_optr(ctx, pred);
-}
-static void register_bltn_optrs_unr_bool(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type) {
-	optr_t pred = { .type = PlaAstTOptrUnrInstBool, .unr_inst_int.inst_type = inst_type };
-
-	register_bltn_optr_pred(ctx, expr_type, &pred);
-}
-static void register_bltn_optrs_unr_int(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type) {
-	optr_t pred = { .type = PlaAstTOptrUnrInstInt, .unr_inst_int.inst_type = inst_type };
-
-	register_bltn_optr_pred(ctx, expr_type, &pred);
-}
-static void register_bltn_optrs_bin_int(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type) {
-	optr_t pred = { .type = PlaAstTOptrBinInstInt, .bin_inst_int.inst_type = inst_type };
-
-	register_bltn_optr_pred(ctx, expr_type, &pred);
-}
-static void register_bltn_optrs_bin_int_bool(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type, ira_int_cmp_t int_cmp) {
-	optr_t pred = { .type = PlaAstTOptrBinInstIntBool, .bin_inst_int_bool = { .inst_type = inst_type, .int_cmp = int_cmp } };
-
-	register_bltn_optr_pred(ctx, expr_type, &pred);
-}
-static void register_bltn_optrs_bin_ptr_bool(ctx_t * ctx, pla_expr_type_t expr_type, ira_inst_type_t inst_type, ira_int_cmp_t int_cmp) {
-	optr_t pred = { .type = PlaAstTOptrBinInstPtrBool, .bin_inst_ptr_bool = { .inst_type = inst_type, .int_cmp = int_cmp } };
-
-	register_bltn_optr_pred(ctx, expr_type, &pred);
-}
-static void register_bltn_optrs(ctx_t * ctx) {
-	register_bltn_optrs_unr_bool(ctx, PlaExprLogicNeg, IraInstNegBool);
-	register_bltn_optrs_unr_int(ctx, PlaExprArithNeg, IraInstNegInt);
-
-	register_bltn_optrs_bin_int(ctx, PlaExprAdd, IraInstAddInt);
-	register_bltn_optrs_bin_int(ctx, PlaExprSub, IraInstSubInt);
-	register_bltn_optrs_bin_int(ctx, PlaExprMul, IraInstMulInt);
-	register_bltn_optrs_bin_int(ctx, PlaExprDiv, IraInstDivInt);
-	register_bltn_optrs_bin_int(ctx, PlaExprMod, IraInstModInt);
-	register_bltn_optrs_bin_int(ctx, PlaExprLeShift, IraInstLeShiftInt);
-	register_bltn_optrs_bin_int(ctx, PlaExprRiShift, IraInstRiShiftInt);
-	register_bltn_optrs_bin_int(ctx, PlaExprBitAnd, IraInstAndInt);
-	register_bltn_optrs_bin_int(ctx, PlaExprBitXor, IraInstXorInt);
-	register_bltn_optrs_bin_int(ctx, PlaExprBitOr, IraInstOrInt);
-
-	register_bltn_optrs_bin_int_bool(ctx, PlaExprLess, IraInstCmpInt, IraIntCmpLess);
-	register_bltn_optrs_bin_int_bool(ctx, PlaExprLessEq, IraInstCmpInt, IraIntCmpLessEq);
-	register_bltn_optrs_bin_int_bool(ctx, PlaExprEq, IraInstCmpInt, IraIntCmpEq);
-	register_bltn_optrs_bin_int_bool(ctx, PlaExprGrtr, IraInstCmpInt, IraIntCmpGrtr);
-	register_bltn_optrs_bin_int_bool(ctx, PlaExprGrtrEq, IraInstCmpInt, IraIntCmpGrtrEq);
-	register_bltn_optrs_bin_int_bool(ctx, PlaExprNeq, IraInstCmpInt, IraIntCmpNeq);
-
-	register_bltn_optrs_bin_ptr_bool(ctx, PlaExprLess, IraInstCmpPtr, IraIntCmpLess);
-	register_bltn_optrs_bin_ptr_bool(ctx, PlaExprLessEq, IraInstCmpPtr, IraIntCmpLessEq);
-	register_bltn_optrs_bin_ptr_bool(ctx, PlaExprEq, IraInstCmpPtr, IraIntCmpEq);
-	register_bltn_optrs_bin_ptr_bool(ctx, PlaExprGrtr, IraInstCmpPtr, IraIntCmpGrtr);
-	register_bltn_optrs_bin_ptr_bool(ctx, PlaExprGrtrEq, IraInstCmpPtr, IraIntCmpGrtrEq);
-	register_bltn_optrs_bin_ptr_bool(ctx, PlaExprNeq, IraInstCmpPtr, IraIntCmpNeq);
 }
 
 
@@ -914,8 +677,6 @@ static bool translate_core(ctx_t * ctx) {
 		return false;
 	}
 
-	register_bltn_optrs(ctx);
-
 	if (!translate_tus(ctx)) {
 		return false;
 	}
@@ -934,10 +695,6 @@ bool pla_ast_t_translate(pla_ast_t * ast, ira_pec_t * out) {
 	}
 
 	free(ctx.tus);
-
-	for (pla_expr_type_t expr_type = PlaExprNone; expr_type < PlaExpr_Count; ++expr_type) {
-		destroy_optr_chain(ctx.optrs[expr_type]);
-	}
 
 	ul_hsb_cleanup(&ctx.hsb);
 

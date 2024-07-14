@@ -1,40 +1,6 @@
 #pragma once
 #include "pla_ast.h"
 
-enum pla_ast_t_optr_type {
-	PlaAstTOptrNone,
-	PlaAstTOptrUnrInstBool,
-	PlaAstTOptrUnrInstInt,
-	PlaAstTOptrBinInstInt,
-	PlaAstTOptrBinInstIntBool,
-	PlaAstTOptrBinInstPtrBool,
-	PlaAstTOptr_Count
-};
-struct pla_ast_t_optr {
-	pla_ast_t_optr_type_t type;
-	pla_ast_t_optr_t * next;
-
-	union {
-		struct {
-			ira_inst_type_t inst_type;
-		} unr_inst_bool;
-		struct {
-			ira_inst_type_t inst_type;
-		} unr_inst_int;
-		struct {
-			ira_inst_type_t inst_type;
-		} bin_inst_int;
-		struct {
-			ira_inst_type_t inst_type;
-			ira_int_cmp_t int_cmp;
-		} bin_inst_int_bool;
-		struct {
-			ira_inst_type_t inst_type;
-			ira_int_cmp_t int_cmp;
-		} bin_inst_ptr_bool;
-	};
-};
-
 enum pla_ast_t_tse_type {
 	PlaAstTTseDclr,
 	PlaAstTTseStmt,
@@ -75,9 +41,6 @@ void pla_ast_t_report_pec_err(pla_ast_t_ctx_t * ctx);
 ul_hsb_t * pla_ast_t_get_hsb(pla_ast_t_ctx_t * ctx);
 ul_hst_t * pla_ast_t_get_hst(pla_ast_t_ctx_t * ctx);
 ira_pec_t * pla_ast_t_get_pec(pla_ast_t_ctx_t * ctx);
-
-pla_ast_t_optr_t * pla_ast_t_get_optr_chain(pla_ast_t_ctx_t * ctx, pla_expr_type_t expr_type);
-bool pla_ast_t_get_optr_dt(pla_ast_t_ctx_t * ctx, pla_ast_t_optr_t * optr, ira_dt_t * first, ira_dt_t * second, ira_dt_t ** out);
 
 void pla_ast_t_push_tse(pla_ast_t_ctx_t * ctx, pla_ast_t_tse_t * tse);
 void pla_ast_t_pop_tse(pla_ast_t_ctx_t * ctx);

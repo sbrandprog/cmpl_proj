@@ -1,6 +1,7 @@
 #pragma once
 #include "ira_pds.h"
 #include "ira_dt.h"
+#include "ira_optr.h"
 
 struct ira_pec {
 	ul_hst_t * hst;
@@ -27,6 +28,8 @@ struct ira_pec {
 		ira_dt_t * ascii_str;
 		ira_dt_t * wide_str;
 	} dt_spcl;
+
+	ira_optr_t * optrs[IraOptr_Count];
 
 	ira_lo_t * root;
 
@@ -68,5 +71,8 @@ bool ira_pec_make_val_lo_ptr(ira_pec_t * pec, ira_lo_t * lo, ira_val_t ** out);
 
 bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out);
 
+
+bool ira_pec_get_optr_dt(ira_pec_t * pec, ira_optr_t * optr, ira_dt_t * first, ira_dt_t * second, ira_dt_t ** out);
+bool ira_pec_get_best_optr(ira_pec_t * pec, ira_optr_type_t optr_type, ira_dt_t * first, ira_dt_t * second, ira_optr_t ** optr_out, ira_dt_t ** res_dt_out);
 
 ira_lo_t * ira_pec_push_unq_lo(ira_pec_t * pec, ira_lo_type_t type, ul_hs_t * hint_name);

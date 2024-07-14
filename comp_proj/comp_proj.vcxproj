@@ -116,6 +116,7 @@
     <ClCompile Include="comp_proj\ira_inst.c" />
     <ClCompile Include="comp_proj\ira_int.c" />
     <ClCompile Include="comp_proj\ira_lo.c" />
+    <ClCompile Include="comp_proj\ira_optr.c" />
     <ClCompile Include="comp_proj\ira_pds.c" />
     <ClCompile Include="comp_proj\ira_pec.c" />
     <ClCompile Include="comp_proj\ira_pec_c.c" />
@@ -173,6 +174,7 @@
     <ClInclude Include="comp_proj\ira_func.h" />
     <ClInclude Include="comp_proj\ira_dt.h" />
     <ClInclude Include="comp_proj\ira_int.h" />
+    <ClInclude Include="comp_proj\ira_optr.h" />
     <ClInclude Include="comp_proj\ira_pds.h" />
     <ClInclude Include="comp_proj\ira_pec.h" />
     <ClInclude Include="comp_proj\ira_inst.h" />

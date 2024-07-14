@@ -1,6 +1,7 @@
 #include "pch.h"
-#include "pla_expr.h"
+#include "ira_optr.h"
 #include "pla_cn.h"
+#include "pla_expr.h"
 
 pla_expr_t * pla_expr_create(pla_expr_type_t type) {
 	pla_expr_t * expr = malloc(sizeof(*expr));
@@ -53,8 +54,8 @@ void pla_expr_destroy(pla_expr_t * expr) {
 }
 
 const pla_expr_info_t pla_expr_infos[PlaExpr_Count] = {
-	[PlaExprNone] = { .type_str = UL_ROS_MAKE(L"ExprNone"), .opds = { PlaExprOpdNone, PlaExprOpdNone, PlaExprOpdNone } },
-#define PLA_EXPR(name, opd0, opd1, opd2) [PlaExpr##name] = { .type_str = UL_ROS_MAKE(L"Expr" L## #name), .opds = { PlaExprOpd##opd0, PlaExprOpd##opd1, PlaExprOpd##opd2 } },
+	[PlaExprNone] = { .type_str = UL_ROS_MAKE(L"ExprNone"), .optr_type = IraOptrNone, .opds = { PlaExprOpdNone, PlaExprOpdNone, PlaExprOpdNone } },
+#define PLA_EXPR(name, optr, opd0, opd1, opd2) [PlaExpr##name] = { .type_str = UL_ROS_MAKE(L"Expr" L## #name), .optr_type = optr, .opds = { PlaExprOpd##opd0, PlaExprOpd##opd1, PlaExprOpd##opd2 } },
 #include "pla_expr.def"
 #undef PLA_EXPR
 };
