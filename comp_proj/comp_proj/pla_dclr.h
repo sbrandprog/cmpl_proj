@@ -1,6 +1,6 @@
 #pragma once
-#include "pla.h"
 #include "ira_dt.h"
+#include "pla_ec.h"
 
 enum pla_dclr_type {
 	PlaDclrNone,
@@ -15,8 +15,14 @@ enum pla_dclr_type {
 };
 struct pla_dclr {
 	pla_dclr_type_t type;
+
 	pla_dclr_t * next;
+
+	pla_ec_pos_t pos_start;
+	pla_ec_pos_t pos_end;
+
 	ul_hs_t * name;
+
 	union {
 		struct {
 			pla_dclr_t * body;

@@ -5,12 +5,13 @@
 #include "pla_ec_buf.h"
 #include "pla_ec_fmtr.h"
 #include "pla_lex.h"
+#include "pla_tu.h"
 #include "pla_prsr.h"
-#include "pla_ast_t.h"
+#include "pla_tltr.h"
 #include "gia_tus.h"
 #include "gia_pkg.h"
 #include "gia_repo.h"
-#include "gia_bs_p.h"
+#include "gia_bs_lpt.h"
 
 #define EDGE_LINES_SIZE 1
 #define TAB_SIZE 4
@@ -23,8 +24,6 @@ typedef struct gia_bs_ctx {
 
 	pla_ec_buf_t pla_ec_buf;
 	pla_ec_fmtr_t pla_ec_fmtr;
-	pla_lex_t pla_lex;
-	pla_ast_t pla_ast;
 	ira_pec_t ira_pec;
 	asm_pea_t asm_pea;
 	lnk_pel_t lnk_pe;
@@ -36,6 +35,8 @@ static wchar_t get_group_letter(size_t group) {
 			return L'L';
 		case PLA_PRSR_EC_GROUP:
 			return L'P';
+		case PLA_TLTR_EC_GROUP:
+			return L'T';
 		default:
 			return L'.';
 	}
@@ -46,7 +47,7 @@ static gia_tus_t * get_tus_from_src_name(ctx_t * ctx, ul_hs_t * src_name) {
 	wchar_t * name = src_name->str, * name_end = name + src_name->size;
 
 	while (true) {
-		wchar_t * delim = wmemchr(name, PLA_AST_NAME_DELIM, name_end - name);
+		wchar_t * delim = wmemchr(name, PLA_TU_NAME_DELIM, name_end - name);
 
 		if (delim == NULL) {
 			break;
@@ -202,15 +203,9 @@ static bool build_core(ctx_t * ctx) {
 
 	pla_ec_fmtr_init(&ctx->pla_ec_fmtr, &ctx->pla_ec_buf.ec, &ctx->repo->hst);
 	
-	pla_lex_init(&ctx->pla_lex, &ctx->repo->hst, &ctx->pla_ec_fmtr);
-
-	if (!gia_bs_p_form_ast_nl(ctx->repo, ctx->first_tus_name, &ctx->pla_lex, &ctx->pla_ast)
+	if (!gia_bs_lpt_form_pec_nl(ctx->repo, &ctx->pla_ec_fmtr, ctx->first_tus_name, &ctx->ira_pec)
 		|| ctx->pla_ec_buf.errs_size > 0) {
 		print_ec_buf(ctx);
-		return false;
-	}
-
-	if (!pla_ast_t_translate(&ctx->pla_ast, &ctx->ira_pec)) {
 		return false;
 	}
 
@@ -240,10 +235,6 @@ bool gia_bs_build_nl(gia_repo_t * repo, ul_hs_t * first_tus_name, const wchar_t 
 	asm_pea_cleanup(&ctx.asm_pea);
 
 	ira_pec_cleanup(&ctx.ira_pec);
-
-	pla_ast_cleanup(&ctx.pla_ast);
-
-	pla_lex_cleanup(&ctx.pla_lex);
 
 	pla_ec_fmtr_cleanup(&ctx.pla_ec_fmtr);
 

@@ -52,12 +52,9 @@ typedef struct pla_prsr_src pla_prsr_src_t;
 typedef struct pla_prsr_rse pla_prsr_rse_t;
 typedef struct pla_prsr pla_prsr_t;
 
-typedef struct pla_pkg pla_pkg_t;
-
-typedef struct pla_ast pla_ast_t;
-
-typedef enum pla_ast_t_tse_type pla_ast_t_tse_type_t;
-typedef struct pla_ast_t_tse pla_ast_t_tse_t;
-typedef enum pla_ast_t_vse_type pla_ast_t_vse_type_t;
-typedef struct pla_ast_t_vse pla_ast_t_vse_t;
-typedef struct pla_ast_t_ctx pla_ast_t_ctx_t;
+typedef struct pla_tltr_src pla_tltr_src_t;
+typedef enum pla_tltr_tse_type pla_tltr_tse_type_t;
+typedef struct pla_tltr_tse pla_tltr_tse_t;
+typedef enum pla_tltr_vse_type pla_tltr_vse_type_t;
+typedef struct pla_tltr_vse pla_tltr_vse_t;
+typedef struct pla_tltr pla_tltr_t;

@@ -32,6 +32,7 @@ void pla_expr_destroy(pla_expr_t * expr) {
 				pla_cn_destroy(expr->opds[opd].cn);
 				break;
 			case PlaExprOpdExpr:
+			case PlaExprOpdExprNoTltn:
 				pla_expr_destroy(expr->opds[opd].expr);
 				break;
 			case PlaExprOpdExprList1:

@@ -1,6 +1,6 @@
 #pragma once
-#include "pla.h"
 #include "ira_dt.h"
+#include "pla_ec.h"
 
 enum pla_stmt_type {
 	PlaStmtNone,
@@ -18,7 +18,12 @@ enum pla_stmt_type {
 };
 struct pla_stmt {
 	pla_stmt_type_t type;
+
 	pla_stmt_t * next;
+
+	pla_ec_pos_t pos_start;
+	pla_ec_pos_t pos_end;
+
 	union {
 		struct {
 			pla_stmt_t * body;

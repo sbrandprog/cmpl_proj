@@ -1,7 +1,12 @@
 #pragma once
-#include "pla.h"
+#include "pla_ec.h"
+
+#define PLA_TU_NAME_DELIM '.'
 
 struct pla_tu_ref {
+	pla_ec_pos_t pos_start;
+	pla_ec_pos_t pos_end;
+
 	pla_cn_t * cn;
 	bool is_rel;
 };

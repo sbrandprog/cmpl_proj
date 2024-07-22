@@ -464,6 +464,10 @@ static void move_frags(ctx_t * ctx) {
 	ctx->cl_frag = NULL;
 }
 static bool compile_core(ctx_t * ctx) {
+	if (ctx->pec->root == NULL) {
+		return false;
+	}
+
 	if (!prepare_data(ctx)) {
 		return false;
 	}

@@ -69,9 +69,6 @@
     <ClCompile Include="comp_proj\pla_expr.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="comp_proj\pla_ast.c">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
     <ClCompile Include="comp_proj\pla_stmt.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
@@ -88,12 +85,6 @@
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="comp_proj\asm_pea_b.c">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
-    <ClCompile Include="comp_proj\pla_ast_t.c">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
-    <ClCompile Include="comp_proj\pla_ast_t_s.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="comp_proj\pla_pds.c">
@@ -126,12 +117,6 @@
     <ClCompile Include="comp_proj\gia_tus.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="comp_proj\gia_tus_p.c">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
-    <ClCompile Include="comp_proj\pla_pkg.c">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
     <ClCompile Include="comp_proj\gia_pkg.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
@@ -141,7 +126,7 @@
     <ClCompile Include="comp_proj\gia_bs.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="comp_proj\gia_bs_p.c">
+    <ClCompile Include="comp_proj\gia_bs_lpt.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="comp_proj\pla_ec.c">
@@ -169,6 +154,12 @@
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="comp_proj\ira_optr.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="comp_proj\pla_tltr.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="comp_proj\pla_tltr_s.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
@@ -236,16 +227,10 @@
     <ClInclude Include="comp_proj\pla_dclr.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="comp_proj\pla_ast.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
     <ClInclude Include="comp_proj\pla_punc.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\pla_keyw.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="comp_proj\pla_ast_t.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\ira_func.h">
@@ -258,9 +243,6 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\asm_pea_b.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="comp_proj\pla_ast_t_s.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\pla_pds.h">
@@ -296,12 +278,6 @@
     <ClInclude Include="comp_proj\gia_tus.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="comp_proj\gia_tus_p.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="comp_proj\pla_pkg.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
     <ClInclude Include="comp_proj\gia_repo.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
@@ -311,7 +287,7 @@
     <ClInclude Include="comp_proj\gia_bs.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="comp_proj\gia_bs_p.h">
+    <ClInclude Include="comp_proj\gia_bs_lpt.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\pla_ec.h">
@@ -339,6 +315,12 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="comp_proj\ira_optr.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="comp_proj\pla_tltr.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="comp_proj\pla_tltr_s.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

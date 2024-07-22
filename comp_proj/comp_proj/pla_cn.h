@@ -1,7 +1,10 @@
 #pragma once
-#include "pla.h"
+#include "pla_ec.h"
 
 struct pla_cn {
+	pla_ec_pos_t pos_start;
+	pla_ec_pos_t pos_end;
+
 	ul_hs_t * name;
 	pla_cn_t * sub_name;
 };
