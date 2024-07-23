@@ -4,7 +4,10 @@
 #include "asm_it.h"
 
 #define SECT_NAME ".rdata"
-#define LABEL_PREFIX L"#it:"
+#define LABEL_SUFFIX L"#it:"
+#define LABEL_LIB_NAME_EXT L'n'
+#define LABEL_LIB_AT_EXT L'a'
+#define LABEL_SYM_NAME_EXT L's'
 #define NAME_ALIGN 2
 
 typedef IMAGE_IMPORT_DESCRIPTOR impt_desc_t;
@@ -19,8 +22,6 @@ typedef struct asm_it_ctx {
 	lnk_sect_t * dir_sect;
 	lnk_sect_t * addr_sect;
 	lnk_sect_t * hnt_sect;
-
-	size_t label_index;
 } ctx_t;
 
 void asm_it_init(asm_it_t * it) {
@@ -113,8 +114,8 @@ static void create_sects(ctx_t * ctx) {
 	ctx->hnt_sect = create_sects_sect(ctx);
 }
 
-static ul_hs_t * get_unq_label_name(ctx_t * ctx) {
-	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%zi", LABEL_PREFIX, ctx->label_index++);
+static ul_hs_t * get_it_label_name(ctx_t * ctx, ul_hs_t * base_name, wchar_t ext_char) {
+	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%s%c", base_name->str, LABEL_SUFFIX, ext_char);
 }
 static void write_data(lnk_sect_t * sect, size_t data_size, void * data) {
 	if (sect->data_size + data_size > sect->data_cap) {
@@ -151,8 +152,8 @@ static bool write_ascii_str(lnk_sect_t * sect, ul_hs_t * str) {
 }
 
 static bool process_lib(ctx_t * ctx, asm_it_lib_t * lib) {
-	ul_hs_t * lib_name_label = get_unq_label_name(ctx);
-	ul_hs_t * lib_at_label = get_unq_label_name(ctx);
+	ul_hs_t * lib_name_label = get_it_label_name(ctx, lib->name, LABEL_LIB_NAME_EXT);
+	ul_hs_t * lib_at_label = get_it_label_name(ctx, lib->name, LABEL_LIB_AT_EXT);
 
 	lnk_sect_t * hnt_sect = ctx->hnt_sect;
 
@@ -183,7 +184,7 @@ static bool process_lib(ctx_t * ctx, asm_it_lib_t * lib) {
 		uint64_t sym_rec = 0;
 
 		for (asm_it_sym_t * sym = lib->sym; sym != NULL; sym = sym->next) {
-			ul_hs_t * sym_label = get_unq_label_name(ctx);
+			ul_hs_t * sym_label = get_it_label_name(ctx, sym->link_name, LABEL_SYM_NAME_EXT);
 
 			lnk_sect_add_lp(addr_sect, LnkSectLpLabel, LnkSectLpLabelNone, sym->link_name, addr_sect->data_size);
 			lnk_sect_add_lp(addr_sect, LnkSectLpFixup, LnkSectLpFixupRva31of64, sym_label, addr_sect->data_size);

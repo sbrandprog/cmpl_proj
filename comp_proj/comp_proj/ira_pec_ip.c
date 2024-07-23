@@ -1687,7 +1687,7 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 		{
 			ul_hs_t * arr_label = NULL;
 
-			if (!ira_pec_c_compile_val_frag(ctx->c_ctx, val, &arr_label)) {
+			if (!ira_pec_c_compile_val_frag(ctx->c_ctx, val, ctx->c_lo->name, &arr_label)) {
 				ul_assert_unreachable();
 			}
 

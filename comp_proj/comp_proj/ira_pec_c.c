@@ -9,7 +9,7 @@
 
 #define LO_NAME_DELIM L'.'
 
-#define ARR_UNQ_PREFIX L"#arr"
+#define VAL_FRAG_UNQ_SUFFIX L"#val_frag"
 
 #define COMPILE_LO_WORKER_TIMEOUT 1000
 #define COMPILE_LO_WORKER_COUNT 4
@@ -25,7 +25,7 @@ typedef struct ira_pec_c_ctx {
 	ul_hsb_t hsb;
 	ul_hst_t * hst;
 
-	size_t str_unq_index;
+	size_t val_frag_index;
 
 	size_t cl_elems_size;
 	cl_elem_t * cl_elems;
@@ -63,8 +63,8 @@ asm_frag_t * ira_pec_c_get_frag(ira_pec_c_ctx_t * ctx, asm_frag_type_t frag_type
 	return res;
 }
 
-static ul_hs_t * get_unq_arr_label(ctx_t * ctx) {
-	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%zi", ARR_UNQ_PREFIX, ctx->str_unq_index++);
+static ul_hs_t * get_val_frag_label(ctx_t * ctx, ul_hs_t * hint_name) {
+	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%s%zi", hint_name->str, VAL_FRAG_UNQ_SUFFIX, ctx->val_frag_index++);
 }
 
 static bool is_lo_compilable(ira_lo_t * lo) {
@@ -205,10 +205,10 @@ static bool compile_val(ctx_t * ctx, asm_frag_t * frag, ira_val_t * val) {
 
 	return true;
 }
-bool ira_pec_c_compile_val_frag(ira_pec_c_ctx_t * ctx, ira_val_t * val, ul_hs_t ** out_label) {
+bool ira_pec_c_compile_val_frag(ira_pec_c_ctx_t * ctx, ira_val_t * val, ul_hs_t * hint_name, ul_hs_t ** out_label) {
 	asm_frag_t * frag = ira_pec_c_get_frag(ctx, AsmFragRoData);
 
-	ul_hs_t * frag_label = get_unq_arr_label(ctx);
+	ul_hs_t * frag_label = get_val_frag_label(ctx, hint_name);
 
 	{
 		asm_inst_t label = { .type = AsmInstLabel, .opds = AsmInstLabel, .label = frag_label };
@@ -300,7 +300,7 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 		{
 			ul_hs_t * arr_label;
 
-			if (!ira_pec_c_compile_val_frag(ctx, lo->var.val, &arr_label)) {
+			if (!ira_pec_c_compile_val_frag(ctx, lo->var.val, lo->name, &arr_label)) {
 				return false;
 			}
 
