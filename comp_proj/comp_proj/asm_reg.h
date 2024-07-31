@@ -34,6 +34,7 @@ union asm_reg_grps {
 struct asm_reg_info {
 	uint8_t enc : 3, ext : 1;
 	asm_reg_grps_t grps;
+	asm_reg_gpr_t gpr;
 };
 enum asm_reg_gpr {
 	AsmRegGprAx,

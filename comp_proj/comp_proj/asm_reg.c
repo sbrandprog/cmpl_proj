@@ -40,6 +40,7 @@ bool asm_reg_check_grps(const asm_reg_grps_t * has, const asm_reg_grps_t * req) 
 //base
 #define reg(name, enc_, ...) [name] = { .enc = enc_, __VA_ARGS__ }
 #define reg_g(...) .grps = { __VA_ARGS__ }
+#define reg_gpr(name) .gpr = AsmRegGpr##name
 #define reg_ext .ext = 1
 
 //groups
@@ -59,21 +60,21 @@ bool asm_reg_check_grps(const asm_reg_grps_t * has, const asm_reg_grps_t * req) 
 
 //quick
 #define q_gpr_first4(lttr, cap_lttr, enc, enc_h, sub_grp)\
-reg(AsmReg##cap_lttr##l, enc, reg_g(g_gpr, g_s_8, sub_grp)),\
-reg(AsmReg##cap_lttr##h, enc_h, reg_g(g_gpr, g_s_8, g_no_rex)),\
-reg(AsmReg##cap_lttr##x, enc, reg_g(g_gpr, g_s_16, sub_grp)),\
-reg(AsmRegE##lttr##x, enc, reg_g(g_gpr, g_s_32, sub_grp)),\
-reg(AsmRegR##lttr##x, enc, reg_g(g_gpr, g_s_64, sub_grp))
+reg(AsmReg##cap_lttr##l, enc, reg_g(g_gpr, g_s_8, sub_grp), reg_gpr(cap_lttr##x)),\
+reg(AsmReg##cap_lttr##h, enc_h, reg_g(g_gpr, g_s_8, g_no_rex), reg_gpr(cap_lttr##x)),\
+reg(AsmReg##cap_lttr##x, enc, reg_g(g_gpr, g_s_16, sub_grp), reg_gpr(cap_lttr##x)),\
+reg(AsmRegE##lttr##x, enc, reg_g(g_gpr, g_s_32, sub_grp), reg_gpr(cap_lttr##x)),\
+reg(AsmRegR##lttr##x, enc, reg_g(g_gpr, g_s_64, sub_grp), reg_gpr(cap_lttr##x))
 #define q_gpr_second4(name, cap_name, enc)\
-reg(AsmReg##cap_name##l, enc, reg_g(g_gpr, g_s_8, g_req_rex)),\
-reg(AsmReg##cap_name, enc, reg_g(g_gpr, g_s_16)),\
-reg(AsmRegE##name, enc, reg_g(g_gpr, g_s_32)),\
-reg(AsmRegR##name, enc, reg_g(g_gpr, g_s_64))
+reg(AsmReg##cap_name##l, enc, reg_g(g_gpr, g_s_8, g_req_rex), reg_gpr(cap_name)),\
+reg(AsmReg##cap_name, enc, reg_g(g_gpr, g_s_16), reg_gpr(cap_name)),\
+reg(AsmRegE##name, enc, reg_g(g_gpr, g_s_32), reg_gpr(cap_name)),\
+reg(AsmRegR##name, enc, reg_g(g_gpr, g_s_64), reg_gpr(cap_name))
 #define q_gpr_ext8(name, enc)\
-reg(AsmReg##name##b, enc, reg_ext, reg_g(g_gpr, g_s_8)),\
-reg(AsmReg##name##w, enc, reg_ext, reg_g(g_gpr, g_s_16)),\
-reg(AsmReg##name##d, enc, reg_ext, reg_g(g_gpr, g_s_32)),\
-reg(AsmReg##name, enc, reg_ext, reg_g(g_gpr, g_s_64))
+reg(AsmReg##name##b, enc, reg_ext, reg_g(g_gpr, g_s_8), reg_gpr(name)),\
+reg(AsmReg##name##w, enc, reg_ext, reg_g(g_gpr, g_s_16), reg_gpr(name)),\
+reg(AsmReg##name##d, enc, reg_ext, reg_g(g_gpr, g_s_32), reg_gpr(name)),\
+reg(AsmReg##name, enc, reg_ext, reg_g(g_gpr, g_s_64), reg_gpr(name))
 
 const asm_reg_info_t asm_reg_infos[AsmReg_Count] = {
 	reg(AsmRegNone, 0, reg_g(g_none)),
