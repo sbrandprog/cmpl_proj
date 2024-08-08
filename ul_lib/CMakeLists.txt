@@ -22,6 +22,6 @@ target_sources(ul_lib
 		ul_hst.c
 )
 
-set_proj_trg_props(ul_lib)
+set_proj_trg_props(ul_lib PCH_NAME pch.h)
 
 target_compile_definitions(ul_lib PRIVATE UL_BUILD_DLL)

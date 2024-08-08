@@ -49,7 +49,7 @@ void mc_frag_destroy_chain(mc_frag_t * frag) {
 	}
 }
 
-void mc_frag_push_inst(mc_frag_t * frag, mc_inst_t * inst) {
+void mc_frag_push_inst(mc_frag_t * frag, const mc_inst_t * inst) {
 	if (frag->insts_size + 1 > frag->insts_cap) {
 		ul_arr_grow(&frag->insts_cap, &frag->insts, sizeof(*frag->insts), 1);
 	}
@@ -116,6 +116,9 @@ static bool get_imm0_fixup_stype(mc_inst_t * inst, lnk_sect_lp_stype_t * out) {
 			break;
 		case McInstImmLabelRva32:
 			*out = LnkSectLpFixupRva32;
+			break;
+		case McInstImmLabelRva31of64:
+			*out = LnkSectLpFixupRva31of64;
 			break;
 		default:
 			return false;

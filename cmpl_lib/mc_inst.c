@@ -494,8 +494,7 @@ static void make_desc_imm(inst_desc_t * desc, mc_inst_t * inst, const inst_rec_t
 		case InstRecImm8_1:
 			break;
 		default:
-			ul_assert_unreachable()
-				;
+			ul_assert_unreachable();
 	}
 }
 static void make_desc_reg(inst_desc_t * desc, mc_inst_t * inst, const inst_rec_t * rec, size_t reg_i) {
@@ -915,7 +914,8 @@ const mc_size_t mc_inst_imm_type_to_size[McInstImm_Count] = {
 	[McInstImmLabelRel8] = McSize8,
 	[McInstImmLabelRel32] = McSize32,
 	[McInstImmLabelVa64] = McSize64,
-	[McInstImmLabelRva32] = McSize32
+	[McInstImmLabelRva32] = McSize32,
+	[McInstImmLabelRva31of64] = McSize64,
 };
 const mc_inst_imm_type_t mc_inst_imm_size_to_type[McSize_Count] = {
 	[McSize8] = McInstImm8,

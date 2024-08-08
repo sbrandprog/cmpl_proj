@@ -109,6 +109,7 @@ enum mc_inst_imm_type {
 	McInstImmLabelRel32,
 	McInstImmLabelVa64,
 	McInstImmLabelRva32,
+	McInstImmLabelRva31of64,
 	McInstImm_Count
 };
 enum mc_inst_disp_type {

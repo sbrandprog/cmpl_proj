@@ -26,7 +26,7 @@ target_sources(wa_lib
 		wa_wnd.c
 )
 
-set_proj_trg_props(wa_lib)
+set_proj_trg_props(wa_lib PCH_NAME pch.h)
 
 target_link_libraries(wa_lib ul_lib uxtheme.lib)
 
