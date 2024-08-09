@@ -354,7 +354,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 
 	sect_t * reloc = add_sect(ctx);
 
-	reloc->name = ctx->pel->sett->base_reloc_name;
+	reloc->name = ctx->pel->sett.base_reloc_name;
 	reloc->mem_r = true;
 	reloc->mem_disc = true;
 
@@ -438,7 +438,7 @@ static bool form_sects(ctx_t * ctx) {
 		return false;
 	}
 
-	if (ctx->pel->sett->make_base_reloc && ctx->va64_fixups_size != 0) {
+	if (ctx->pel->sett.make_base_reloc && ctx->va64_fixups_size != 0) {
 		if (!form_base_reloc_sect(ctx)) {
 			return false;
 		}
@@ -453,7 +453,7 @@ static bool form_sects(ctx_t * ctx) {
 
 static bool calculate_offsets(ctx_t * ctx) {
 	lnk_pel_t * pel = ctx->pel;
-	const lnk_pel_sett_t * sett = pel->sett;
+	lnk_pel_sett_t * sett = &pel->sett;
 
 	ctx->raw_hdrs_size = sizeof(IMAGE_DOS_HEADER) + sizeof(IMAGE_NT_HEADERS64) + sizeof(IMAGE_SECTION_HEADER) * ctx->sect_count;
 	ctx->hdrs_size = ul_align_to(ctx->raw_hdrs_size, sett->file_align);
@@ -529,7 +529,7 @@ static bool apply_fixups(ctx_t * ctx) {
 				break;
 			}
 			case LnkSectLpFixupVa64:
-				*(uint64_t *)write_pos = (uint64_t)(lpos + ctx->pel->sett->image_base);
+				*(uint64_t *)write_pos = (uint64_t)(lpos + ctx->pel->sett.image_base);
 				break;
 			case LnkSectLpFixupRva32:
 				*(uint32_t *)write_pos = (uint32_t)lpos;
@@ -587,7 +587,7 @@ static void write_zeros(FILE * file, size_t size) {
 	fwrite(zero_obj, sizeof(*zero_obj), mod, file);
 }
 static bool write_file_core(ctx_t * ctx, FILE * file) {
-	const lnk_pel_sett_t * sett = ctx->pel->sett;
+	lnk_pel_sett_t * sett = &ctx->pel->sett;
 
 	{
 		IMAGE_DOS_HEADER dos = { 0 };

@@ -1,12 +1,13 @@
-#include "lnk_to_exe.h"
+#include "any_to_exe.h"
 
 static bool test_proc(test_ctx_t * ctx) {
-	lnk_pel_sett_t sett = lnk_pel_dflt_sett;
+	ctx->from = TestFromLnk;
+
+	lnk_pel_init(&ctx->pel);
+
 	ul_hs_t * ep_name = UL_HST_HASHADD_WS(&ctx->hst, L"start");
 
 	ctx->pel.ep_name = ep_name;
-	ctx->pel.file_name = ctx->exe_name;
-	ctx->pel.sett = &sett;
 
 	static const uint8_t text_sect_data[] = {
 		0x48, 0x83, 0xEC, 0x28, 0xB9, 0xF5, 0xFF, 0xFF, 0xFF, 0xFF, 0x15, 0x39, 0x00, 0x00, 0x00, 0x48,
@@ -78,5 +79,5 @@ static bool test_proc(test_ctx_t * ctx) {
 	rdata_sect->data_align_byte = 0x00;
 	rdata_sect->mem_r = true;
 
-	return lnk_pel_l_link(&ctx->pel);
+	return true;
 }

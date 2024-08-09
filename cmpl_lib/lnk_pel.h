@@ -27,7 +27,7 @@ struct lnk_pel {
 
 	const wchar_t * file_name;
 
-	const lnk_pel_sett_t * sett;
+	lnk_pel_sett_t sett;
 };
 
 LNK_API void lnk_pel_init(lnk_pel_t * pel);

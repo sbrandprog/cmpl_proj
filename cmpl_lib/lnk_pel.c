@@ -2,7 +2,7 @@
 #include "lnk_sect.h"
 
 void lnk_pel_init(lnk_pel_t * pe) {
-	*pe = (lnk_pel_t){ 0 };
+	*pe = (lnk_pel_t){ .file_name = lnk_pel_dflt_file_name, .sett = lnk_pel_dflt_sett };
 }
 void lnk_pel_cleanup(lnk_pel_t * pe) {
 	lnk_sect_destroy_chain(pe->sect);

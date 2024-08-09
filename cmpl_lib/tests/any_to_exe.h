@@ -4,12 +4,28 @@
 #define EXE_NAME L"test.exe"
 #define EXE_CMD EXE_NAME
 
+typedef enum test_from {
+	TestFromLnk,
+	TestFromMc,
+	TestFromIra,
+	TestFrom_Count
+} test_from_t;
 typedef struct test_ctx {
-	const wchar_t * exe_name;
-
 	ul_hst_t hst;
 	lnk_pel_t pel;
+	mc_pea_t pea;
+	ira_pec_t pec;
+
+	test_from_t from;
 } test_ctx_t;
+
+static void copy_frag_insts(size_t insts_size, const mc_inst_t * insts, mc_frag_t * frag) {
+	frag->insts_size = 0;
+
+	for (const mc_inst_t * inst = insts, *inst_end = inst + insts_size; inst != inst_end; ++inst) {
+		mc_frag_push_inst(frag, inst);
+	}
+}
 
 static void copy_sect_data(size_t data_size, const uint8_t * data, lnk_sect_t * sect) {
 	free(sect->data);
@@ -38,26 +54,52 @@ static void copy_sect_lps(size_t lps_size, const lnk_sect_lp_t * lps, lnk_sect_t
 static bool test_proc(test_ctx_t * ctx);
 
 static bool process_test_core(test_ctx_t * ctx) {
+	ctx->from = TestFrom_Count;
+
 	if (!test_proc(ctx)) {
 		return false;
 	}
 
-	int res = (int)_wspawnl(_P_WAIT, EXE_NAME, EXE_CMD, NULL);
+	switch (ctx->from) {
+		case TestFromIra:
+			if (!ira_pec_c_compile(&ctx->pec, &ctx->pea)) {
+				return false;
+			}
+			//fallthrough
+		case TestFromMc:
+			if (!mc_pea_b_build(&ctx->pea, &ctx->pel)) {
+				return false;
+			}
+			//fallthrough
+		case TestFromLnk:
+			ctx->pel.file_name = EXE_NAME;
 
-	if (res != 0) {
-		return false;
+			if (!lnk_pel_l_link(&ctx->pel)) {
+				return false;
+			}
+
+			int res = (int)_wspawnl(_P_WAIT, EXE_NAME, EXE_CMD, NULL);
+
+			if (res != 0) {
+				return false;
+			}
+			break;
+		default:
+			ul_assert_unreachable();
 	}
 
 	return true;
 }
 static bool process_test() {
-	test_ctx_t ctx = { .exe_name = EXE_NAME };
+	test_ctx_t ctx = { 0 };
 
 	ul_hst_init(&ctx.hst);
 
-	lnk_pel_init(&ctx.pel);
-
 	bool res = process_test_core(&ctx);
+
+	ira_pec_cleanup(&ctx.pec);
+
+	mc_pea_cleanup(&ctx.pea);
 
 	lnk_pel_cleanup(&ctx.pel);
 

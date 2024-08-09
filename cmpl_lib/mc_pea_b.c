@@ -103,8 +103,6 @@ static bool build_frags(ctx_t * ctx) {
 static void fill_props(ctx_t * ctx) {
 	lnk_pel_t * out = ctx->out;
 
-	out->file_name = lnk_pel_dflt_file_name;
-	out->sett = &lnk_pel_dflt_sett;
 	out->ep_name = ctx->pea->ep_name;
 }
 

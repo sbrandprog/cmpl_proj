@@ -1,6 +1,10 @@
-#include "mc_to_exe.h"
+#include "any_to_exe.h"
 
 static bool test_proc(test_ctx_t * ctx) {
+	ctx->from = TestFromMc;
+
+	mc_pea_init(&ctx->pea, &ctx->hst);
+
 	ul_hs_t * ep_name = UL_HST_HASHADD_WS(&ctx->hst, L"main");
 
 	ctx->pea.ep_name = ep_name;
