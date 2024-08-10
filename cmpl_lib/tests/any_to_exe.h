@@ -57,17 +57,20 @@ static bool process_test_core(test_ctx_t * ctx) {
 	ctx->from = TestFrom_Count;
 
 	if (!test_proc(ctx)) {
+		wprintf(L"error point: test_proc\n");
 		return false;
 	}
 
 	switch (ctx->from) {
 		case TestFromIra:
 			if (!ira_pec_c_compile(&ctx->pec, &ctx->pea)) {
+				wprintf(L"error point: compilation\n");
 				return false;
 			}
 			//fallthrough
 		case TestFromMc:
 			if (!mc_pea_b_build(&ctx->pea, &ctx->pel)) {
+				wprintf(L"error point: mc build\n");
 				return false;
 			}
 			//fallthrough
@@ -75,18 +78,22 @@ static bool process_test_core(test_ctx_t * ctx) {
 			ctx->pel.file_name = EXE_NAME;
 
 			if (!lnk_pel_l_link(&ctx->pel)) {
+				wprintf(L"error point: link\n");
 				return false;
 			}
 
 			int res = (int)_wspawnl(_P_WAIT, EXE_NAME, EXE_CMD, NULL);
 
 			if (res != 0) {
+				wprintf(L"error point: run (codes: %d 0x%X)\n", res, res);
 				return false;
 			}
 			break;
 		default:
 			ul_assert_unreachable();
 	}
+
+	wprintf(L"success\n");
 
 	return true;
 }

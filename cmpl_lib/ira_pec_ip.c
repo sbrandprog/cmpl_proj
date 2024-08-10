@@ -27,13 +27,20 @@ typedef enum ira_pec_ip_trg {
 } trg_t;
 
 typedef struct ira_pec_ip_var var_t;
+typedef struct ira_pec_ip_var_bb_ref {
+	bb_t * bb;
+} var_bb_ref_t;
 struct ira_pec_ip_var {
 	var_t * next;
 
 	ul_hs_t * name;
 
 	ira_dt_qdt_t qdt;
-	
+
+	size_t bb_refs_size;
+	var_bb_ref_t * bb_refs;
+	size_t bb_refs_cap;
+
 	union {
 		struct {
 			size_t size;
@@ -60,8 +67,15 @@ struct ira_pec_ip_label {
 	};
 };
 
+typedef struct ira_pec_ip_bb_var_ref {
+	var_t * var;
+} bb_var_ref_t;
 struct ira_pec_ip_bb {
-	bb_t * prev;
+	bb_t * next;
+
+	size_t var_refs_size;
+	bb_var_ref_t * var_refs;
+	size_t var_refs_cap;
 };
 struct ira_pec_ip_bb_cmpl_gpr {
 	var_t * var;
@@ -142,9 +156,6 @@ typedef struct ira_pec_ip_ctx {
 
 			mc_frag_t * frag;
 
-			size_t stack_vars_pos;
-			size_t stack_vars_size;
-
 			size_t stack_size;
 
 			bb_cmpl_ctx_t bb_ctx;
@@ -157,6 +168,7 @@ typedef struct ira_pec_ip_ctx {
 	var_t * var;
 	label_t * label;
 	bb_t * bb;
+	bb_t ** bb_ins;
 
 	size_t insts_size;
 	inst_t * insts;
@@ -346,6 +358,7 @@ static void destroy_var(ctx_t * ctx, var_t * var) {
 			ul_assert_unreachable();
 	}
 
+	free(var->bb_refs);
 	free(var);
 }
 static void destroy_var_chain(ctx_t * ctx, var_t * var) {
@@ -362,15 +375,16 @@ static void destroy_bb(ctx_t * ctx, bb_t * bb) {
 		return;
 	}
 
+	free(bb->var_refs);
 	free(bb);
 }
 static void destroy_bb_chain(ctx_t * ctx, bb_t * bb) {
 	while (bb != NULL) {
-		bb_t * prev = bb->prev;
+		bb_t * next = bb->next;
 
 		destroy_bb(ctx, bb);
 
-		bb = prev;
+		bb = next;
 	}
 }
 
@@ -459,7 +473,29 @@ static bool check_var_for_not_const_q(ctx_t * ctx, inst_t * inst, size_t opd) {
 	return false;
 }
 
-static bool define_var(ctx_t * ctx, ira_dt_t * dt, ira_dt_qual_t dt_qual, ul_hs_t * name) {
+static bool init_var(ctx_t * ctx, var_t * var, ira_dt_t * dt, ira_dt_qual_t dt_qual, ul_hs_t * name) {
+	*var = (var_t){ .name = name, .qdt = { .dt = dt, .qual = dt_qual } };
+
+	switch (ctx->trg) {
+		case TrgCmpl:
+			if (!ira_pec_get_dt_size(dt, &var->cmpl.size) || !ira_pec_get_dt_align(dt, &var->cmpl.align)) {
+				report(ctx, L"size & alignment of variable [%s] are undefined", var->name->str);
+				return false;
+			}
+
+			if (var->cmpl.align > STACK_ALIGN) {
+				report(ctx, L"variable [%s] alignment [%zi] must be less or equal than stack alignment [%zi]", var->name, var->cmpl.align, STACK_ALIGN);
+			}
+			break;
+		case TrgIntr:
+			break;
+		default:
+			ul_assert_unreachable();
+	}
+
+	return true;
+}
+static var_t * define_var(ctx_t * ctx, ira_dt_t * dt, ira_dt_qual_t dt_qual, ul_hs_t * name) {
 	var_t ** ins = &ctx->var;
 
 	while (*ins != NULL) {
@@ -467,7 +503,7 @@ static bool define_var(ctx_t * ctx, ira_dt_t * dt, ira_dt_qual_t dt_qual, ul_hs_
 
 		if (var->name == name) {
 			report(ctx, L"variable [%s] already exists", name->str);
-			return false;
+			return NULL;
 		}
 
 		ins = &var->next;
@@ -477,25 +513,14 @@ static bool define_var(ctx_t * ctx, ira_dt_t * dt, ira_dt_qual_t dt_qual, ul_hs_
 
 	ul_assert(new_var != NULL);
 
-	*new_var = (var_t){ .name = name, .qdt = { .dt = dt, .qual = dt_qual } };
-
-	switch (ctx->trg) {
-		case TrgCmpl:
-			if (!ira_pec_get_dt_size(dt, &new_var->cmpl.size) || !ira_pec_get_dt_align(dt, &new_var->cmpl.align)) {
-				report(ctx, L"size & alignment of variable [%s] are undefined");
-				return false;
-			}
-
-			break;
-		case TrgIntr:
-			break;
-		default:
-			ul_assert_unreachable();
+	if (!init_var(ctx, new_var, dt, dt_qual, name)) {
+		free(new_var);
+		return NULL;
 	}
 
 	*ins = new_var;
 
-	return true;
+	return new_var;
 }
 static var_t * find_var(ctx_t * ctx, ul_hs_t * name) {
 	for (var_t * var = ctx->var; var != NULL; var = var->next) {
@@ -538,15 +563,42 @@ static bool define_label(ctx_t * ctx, inst_t * inst, label_t * label) {
 	return true;
 }
 static bb_t * push_bb(ctx_t * ctx) {
+	if (ctx->bb_ins == NULL) {
+		ul_assert(ctx->bb == NULL);
+
+		ctx->bb_ins = &ctx->bb;
+	}
+
 	bb_t * new_bb = malloc(sizeof(*new_bb));
 
 	ul_assert(new_bb != NULL);
 
-	*new_bb = (bb_t){ .prev = ctx->bb };
+	*new_bb = (bb_t){ 0 };
 
-	ctx->bb = new_bb;
+	*ctx->bb_ins = new_bb;
+	ctx->bb_ins = &new_bb->next;
 
 	return new_bb;
+}
+static void make_var_bb_ref(ctx_t * ctx, var_t * var, bb_t * bb) {
+	for (var_bb_ref_t * ref = var->bb_refs, *ref_end = ref + var->bb_refs_size; ref != ref_end; ++ref) {
+		if (ref->bb == bb) {
+			return;
+		}
+	}
+
+
+	if (var->bb_refs_size + 1 > var->bb_refs_cap) {
+		ul_arr_grow(&var->bb_refs_cap, &var->bb_refs, sizeof(*var->bb_refs), 1);
+	}
+
+	var->bb_refs[var->bb_refs_size++] = (var_bb_ref_t){ .bb = bb };
+
+	if (bb->var_refs_size + 1 > bb->var_refs_cap) {
+		ul_arr_grow(&bb->var_refs_cap, &bb->var_refs, sizeof(*bb->var_refs), 1);
+	}
+
+	bb->var_refs[bb->var_refs_size++] = (bb_var_ref_t){ .var = var };
 }
 
 
@@ -609,13 +661,18 @@ static bool set_mmbr_acc_ptr_data(ctx_t * ctx, inst_t * inst, ira_dt_t * opd_dt,
 
 
 static bool prepare_insts_args(ctx_t * ctx) {
+	bb_t * bb = push_bb(ctx);
 	ira_dt_t * func_dt = ctx->func->dt;
 
 	if (func_dt != NULL) {
 		for (ira_dt_ndt_t * arg = func_dt->func.args, *arg_end = arg + func_dt->func.args_size; arg != arg_end; ++arg) {
-			if (!define_var(ctx, arg->dt, ira_dt_qual_none, arg->name)) {
+			var_t * arg_var = define_var(ctx, arg->dt, ira_dt_qual_none, arg->name);
+
+			if (arg_var == NULL) {
 				return false;
 			}
+
+			make_var_bb_ref(ctx, arg_var, bb);
 		}
 	}
 
@@ -641,6 +698,8 @@ static bool prepare_insts_opds_vars(ctx_t * ctx, inst_t * inst, size_t opd_size,
 			report(ctx, L"[%s]: can not find a variable [%s] for [%zi] operand", ira_inst_infos[base->type].type_str.str, base->opds[opd].hs->str, opd);
 			return false;
 		}
+
+		make_var_bb_ref(ctx, *var, inst->bb);
 	}
 
 	return true;
@@ -706,6 +765,8 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
 					return false;
 				}
 
+				make_var_bb_ref(ctx, inst->opds[opd].var, inst->bb);
+
 				break;
 			case IraInstOpdMmbr:
 				inst->opds[opd].hs = inst->base->opds[opd].hs;
@@ -738,7 +799,7 @@ static bool prepare_blank(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * in
 	return true;
 }
 static bool prepare_def_var(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
-	if (!define_var(ctx, inst->opd1.dt, inst->opd2.dt_qual, inst->opd0.hs)) {
+	if (define_var(ctx, inst->opd1.dt, inst->opd2.dt_qual, inst->opd0.hs) == NULL) {
 		return false;
 	}
 
@@ -785,7 +846,7 @@ static bool prepare_copy(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * inf
 	return true;
 }
 static bool prepare_def_var_copy(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
-	if (!define_var(ctx, inst->opd1.var->qdt.dt, inst->opd2.dt_qual, inst->opd0.hs)) {
+	if (define_var(ctx, inst->opd1.var->qdt.dt, inst->opd2.dt_qual, inst->opd0.hs) == NULL) {
 		return false;
 	}
 
@@ -1377,6 +1438,15 @@ static void reset_bb_cmpl_gpr_from_reg(ctx_t * ctx, mc_reg_t reg) {
 		bb_gpr->var = NULL;
 	}
 }
+static void reset_bb_cmpl_gpr_from_var(ctx_t * ctx, var_t * var) {
+	bb_cmpl_ctx_t * bb_ctx = &ctx->cmpl.bb_ctx;
+
+	for (mc_reg_gpr_t gpr = 0; gpr < McRegGpr_Count; ++gpr) {
+		if (bb_ctx->gprs[gpr].var == var) {
+			bb_ctx->gprs[gpr].var = NULL;
+		}
+	}
+}
 
 static void push_mc_inst(ctx_t * ctx, mc_inst_t * inst) {
 	mc_frag_push_inst(ctx->cmpl.frag, inst);
@@ -1388,42 +1458,63 @@ static void push_mc_label(ctx_t * ctx, ul_hs_t * name) {
 }
 
 static bool calculate_stack(ctx_t * ctx) {
-	size_t size = 0;
+	size_t stack_size = 0;
 
 	if (ctx->has_calls) {
-		size = ul_align_to(size, STACK_ALIGN);
+		stack_size = ul_align_to(stack_size, STACK_ALIGN);
 
 		size_t args_size = max(ctx->call_args_size_max, 4);
 
-		size += args_size * STACK_UNIT;
+		stack_size += args_size * STACK_UNIT;
 	}
 
 	{
-		size = ul_align_to(size, STACK_ALIGN);
+		size_t stack_size_unq_max = stack_size;
 
-		size_t var_pos = 0;
+		for (bb_t * bb = ctx->bb; bb != NULL; bb = bb->next) {
+			size_t stack_size_unq = stack_size;
 
-		for (var_t * var = ctx->var; var != NULL; var = var->next) {
-			var_pos = ul_align_to(var_pos, var->cmpl.align);
+			for (bb_var_ref_t * ref = bb->var_refs, *ref_end = ref + bb->var_refs_size; ref != ref_end; ++ref) {
+				var_t * var = ref->var;
 
-			var->cmpl.stack_pos = var_pos;
+				if (var->bb_refs_size == 1) {
+					stack_size_unq = ul_align_to(stack_size_unq, var->cmpl.align);
 
-			var_pos += var->cmpl.size;
+					var->cmpl.stack_pos = stack_size_unq;
+
+					stack_size_unq += var->cmpl.size;
+				}
+			}
+
+			stack_size_unq_max = max(stack_size_unq_max, stack_size_unq);
 		}
 
-		ctx->cmpl.stack_vars_pos = size;
-		ctx->cmpl.stack_vars_size = var_pos;
-
-		size += var_pos;
+		stack_size = stack_size_unq_max;
 	}
 
-	size = ul_align_biased_to(size, STACK_ALIGN, STACK_ALIGN - STACK_UNIT);
+	{
+		size_t stack_size_shrd = stack_size;
 
-	if (size >= INT32_MAX) {
+		for (var_t * var = ctx->var; var != NULL; var = var->next) {
+			if (var->bb_refs_size > 1) {
+				stack_size_shrd = ul_align_to(stack_size_shrd, var->cmpl.align);
+
+				var->cmpl.stack_pos = stack_size_shrd;
+
+				stack_size_shrd += var->cmpl.size;
+			}
+		}
+
+		stack_size = stack_size_shrd;
+	}
+
+	stack_size = ul_align_biased_to(stack_size, STACK_ALIGN, STACK_ALIGN - STACK_UNIT);
+
+	if (stack_size >= INT32_MAX) {
 		return false;
 	}
 
-	ctx->cmpl.stack_size = size;
+	ctx->cmpl.stack_size = stack_size;
 
 	return true;
 }
@@ -1439,7 +1530,15 @@ static void save_stack_var_off(ctx_t * ctx, var_t * var, mc_reg_t reg, size_t of
 	ul_assert(mc_reg_infos[reg].grps.gpr
 		&& mc_size_infos[reg_size].bytes + off <= var->cmpl.size);
 
-	save_stack_gpr(ctx, (int32_t)(ctx->cmpl.stack_vars_pos + var->cmpl.stack_pos + off), reg);
+	save_stack_gpr(ctx, (int32_t)(var->cmpl.stack_pos + off), reg);
+
+	reset_bb_cmpl_gpr_from_var(ctx, var);
+
+	bb_cmpl_gpr_t * bb_gpr = get_bb_cmpl_ctx_gpr_from_reg(ctx, reg);
+
+	if (bb_gpr != NULL) {
+		*bb_gpr = (bb_cmpl_gpr_t){ .var = var, .reg_size = reg_size, .off = off };
+	}
 }
 static void save_stack_var(ctx_t * ctx, var_t * var, mc_reg_t reg) {
 	save_stack_var_off(ctx, var, reg, 0);
@@ -1462,14 +1561,14 @@ static void load_label_off(ctx_t * ctx, mc_reg_t reg, ul_hs_t * label) {
 
 	push_mc_inst(ctx, &lea);
 
-	get_bb_cmpl_ctx_gpr_from_reg(ctx, reg);
+	reset_bb_cmpl_gpr_from_reg(ctx, reg);
 }
 static void load_label_val(ctx_t * ctx, mc_reg_t reg, ul_hs_t * label) {
 	mc_inst_t mov = { .type = McInstMov, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_size = mc_reg_get_size(reg), .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp_label = label };
 
 	push_mc_inst(ctx, &mov);
 
-	get_bb_cmpl_ctx_gpr_from_reg(ctx, reg);
+	reset_bb_cmpl_gpr_from_reg(ctx, reg);
 }
 static void load_stack_gpr(ctx_t * ctx, mc_reg_t reg, int32_t off) {
 	mc_inst_t load = { .type = McInstMov, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_size = mc_reg_get_size(reg), .mem_base = McRegRsp, .mem_disp_type = McInstDispAuto, .mem_disp = off };
@@ -1487,7 +1586,7 @@ static void load_stack_var_off(ctx_t * ctx, mc_reg_t reg, var_t * var, size_t of
 	bb_cmpl_gpr_t * bb_gpr = get_bb_cmpl_ctx_gpr_from_reg(ctx, reg);
 
 	if (bb_gpr == NULL || bb_gpr->var != var || bb_gpr->reg_size != reg_size || bb_gpr->off != off) {
-		load_stack_gpr(ctx, reg, (int32_t)(ctx->cmpl.stack_vars_pos + var->cmpl.stack_pos + off));
+		load_stack_gpr(ctx, reg, (int32_t)(var->cmpl.stack_pos + off));
 
 		if (bb_gpr != NULL) {
 			*bb_gpr = (bb_cmpl_gpr_t){ .var = var, .reg_size = reg_size, .off = off };
@@ -1617,6 +1716,12 @@ static void w64_save_callee_ret(ctx_t * ctx, var_t * var) {
 	ira_dt_t * var_dt = var->qdt.dt;
 
 	mc_reg_t reg;
+	
+	reset_bb_cmpl_gpr_from_reg(ctx, McRegRax);
+	reset_bb_cmpl_gpr_from_reg(ctx, McRegRcx);
+	reset_bb_cmpl_gpr_from_reg(ctx, McRegRdx);
+	reset_bb_cmpl_gpr_from_reg(ctx, McRegR8);
+	reset_bb_cmpl_gpr_from_reg(ctx, McRegR9);
 
 	switch (var_dt->type) {
 		case IraDtVoid:
@@ -1728,9 +1833,11 @@ static void emit_epilogue(ctx_t * ctx) {
 }
 
 static void addr_of_var(ctx_t * ctx, mc_reg_t reg, var_t * var) {
-	mc_inst_t lea = { .type = McInstLea, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_base = McRegRsp, .mem_disp_type = McInstDispAuto, .mem_disp = (int32_t)(ctx->cmpl.stack_vars_pos + var->cmpl.stack_pos) };
+	mc_inst_t lea = { .type = McInstLea, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_base = McRegRsp, .mem_disp_type = McInstDispAuto, .mem_disp = (int32_t)(var->cmpl.stack_pos) };
 
 	push_mc_inst(ctx, &lea);
+
+	reset_bb_cmpl_gpr_from_reg(ctx, reg);
 }
 static void get_ptr_copy_data(var_t * var, mc_reg_t * reg_out, size_t * off_step_out) {
 	if (var->cmpl.align >= 8 && var->cmpl.size % 8 == 0) {
@@ -1781,6 +1888,8 @@ static void div_int(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_out, va
 			ul_assert_unreachable();
 	}
 
+	reset_bb_cmpl_gpr_from_reg(ctx, reg2);
+
 	load_stack_var(ctx, reg0, opd0);
 	load_stack_var(ctx, reg1, opd1);
 
@@ -1803,6 +1912,9 @@ static void div_int(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_out, va
 
 	if (div_out != NULL) {
 		save_stack_var(ctx, div_out, reg0);
+	}
+	else {
+		reset_bb_cmpl_gpr_from_reg(ctx, reg0);
 	}
 	if (mod_out != NULL) {
 		save_stack_var(ctx, mod_out, reg2);
@@ -2014,6 +2126,8 @@ static void compile_read_ptr(ctx_t * ctx, inst_t * inst) {
 		read_ptr_off(ctx, reg, McRegRcx, off);
 		save_stack_var_off(ctx, dst_var, reg, off);
 	}
+
+	reset_bb_cmpl_gpr_from_var(ctx, dst_var);
 }
 static void compile_write_ptr(ctx_t * ctx, inst_t * inst) {
 	var_t * ptr_var = inst->opd0.var;
@@ -2031,6 +2145,8 @@ static void compile_write_ptr(ctx_t * ctx, inst_t * inst) {
 		load_stack_var_off(ctx, reg, src_var, off);
 		write_ptr_off(ctx, McRegRcx, reg, off);
 	}
+
+	reset_bb_cmpl_ctx(ctx, ctx->cmpl.bb_ctx.cur_bb);
 }
 static void compile_shift_ptr(ctx_t * ctx, inst_t * inst) {
 	var_t * index_var = inst->opd2.var;
@@ -2067,6 +2183,8 @@ static void compile_shift_ptr(ctx_t * ctx, inst_t * inst) {
 	push_mc_inst(ctx, &add);
 
 	save_stack_var(ctx, inst->opd0.var, McRegRax);
+
+	reset_bb_cmpl_gpr_from_reg(ctx, McRegRcx);
 }
 static void compile_neg_bool(ctx_t * ctx, inst_t * inst) {
 	load_stack_var(ctx, McRegAl, inst->opd1.var);
@@ -2247,10 +2365,12 @@ static void compile_cast(ctx_t * ctx, inst_t * inst) {
 	}
 }
 static void compile_call_func_ptr(ctx_t * ctx, inst_t * inst) {
+	bool has_ret_link = false;
 	size_t arg_off = 0;
 
 	if (w64_load_callee_ret_link(ctx, inst->opd0.var)) {
 		++arg_off;
+		has_ret_link = true;
 	}
 
 	for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var, ++arg_off) {

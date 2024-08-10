@@ -24,13 +24,13 @@ function(set_proj_trg_props trg)
 	endif()
 
 	if (ARGS_COPY_DLLS)
-		set(runtime_dlls )
-		set(has_runtime_dlls $<BOOL:${runtime_dlls}>)
-
-		add_custom_command(TARGET ${trg} POST_BUILD
+		add_custom_target(${trg}_copy_dlls
 			COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:${trg}> ${CMAKE_CURRENT_BINARY_DIR}
+			DEPENDS $<TARGET_RUNTIME_DLLS:${trg}>
 			COMMAND_EXPAND_LISTS
 		)
+
+		add_dependencies(${trg} ${trg}_copy_dlls)
 	endif()
 endfunction()
 
