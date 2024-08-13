@@ -11,6 +11,7 @@ void ira_inst_cleanup(ira_inst_t * inst) {
 			case IraInstOpdNone:
 			case IraInstOpdIntCmp:
 			case IraInstOpdDtQual:
+			case IraInstOpdDtFuncVas:
 			case IraInstOpdDt:
 			case IraInstOpdLabel:
 			case IraInstOpdVarDef:
@@ -35,7 +36,7 @@ void ira_inst_cleanup(ira_inst_t * inst) {
 
 const ira_inst_info_t ira_inst_infos[IraInst_Count] = {
 	[IraInstNone] = { .type_str = UL_ROS_MAKE(L"InstNone"), .intrp_comp = true, .compl_comp = true, .opds = { IraInstOpdNone, IraInstOpdNone, IraInstOpdNone, IraInstOpdNone, IraInstOpdNone }, .mods_ctl_flow = false },
-#define IRA_INST(name, compl_, intrp_, opd0, opd1, opd2, opd3, opd4, mods_ctl_flow_) [IraInst##name] = { .type_str = UL_ROS_MAKE(L"Inst" L ## #name), .intrp_comp = intrp_, .compl_comp = compl_, .opds = { IraInstOpd##opd0, IraInstOpd##opd1, IraInstOpd##opd2, IraInstOpd##opd3, IraInstOpd##opd4 }, .mods_ctl_flow = mods_ctl_flow_ },
+#define IRA_INST(name, compl_, intrp_, opd0, opd1, opd2, opd3, opd4, opd5, mods_ctl_flow_) [IraInst##name] = { .type_str = UL_ROS_MAKE(L"Inst" L ## #name), .intrp_comp = intrp_, .compl_comp = compl_, .opds = { IraInstOpd##opd0, IraInstOpd##opd1, IraInstOpd##opd2, IraInstOpd##opd3, IraInstOpd##opd4, IraInstOpd##opd5 }, .mods_ctl_flow = mods_ctl_flow_ },
 #include "ira_inst.data"
 #undef IRA_INST
 };

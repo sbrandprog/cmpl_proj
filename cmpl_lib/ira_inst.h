@@ -1,12 +1,13 @@
 #pragma once
 #include "ira_dt.h"
 
-#define IRA_INST_OPDS_SIZE 5
+#define IRA_INST_OPDS_SIZE 6
 
 enum ira_inst_opd_type {
 	IraInstOpdNone,
 	IraInstOpdIntCmp,
 	IraInstOpdDtQual,
+	IraInstOpdDtFuncVas,
 	IraInstOpdDt,
 	IraInstOpdLabel,
 	IraInstOpdVal,
@@ -24,6 +25,7 @@ union ira_inst_opd {
 	size_t size;
 	ul_hs_t * hs;
 	ul_hs_t ** hss;
+	ira_dt_func_vas_t * dt_func_vas;
 	ira_dt_t * dt;
 	ira_val_t * val;
 };
@@ -40,11 +42,7 @@ struct ira_inst {
 	union {
 		ira_inst_opd_t opds[IRA_INST_OPDS_SIZE];
 		struct {
-			ira_inst_opd_t opd0;
-			ira_inst_opd_t opd1;
-			ira_inst_opd_t opd2;
-			ira_inst_opd_t opd3;
-			ira_inst_opd_t opd4;
+			ira_inst_opd_t opd0, opd1, opd2, opd3, opd4, opd5;
 		};
 	};
 };
@@ -56,7 +54,7 @@ struct ira_inst_info {
 	union {
 		ira_inst_opd_type_t opds[IRA_INST_OPDS_SIZE];
 		struct {
-			ira_inst_opd_type_t opd0, opd1, opd2, opd3, opd4;
+			ira_inst_opd_type_t opd0, opd1, opd2, opd3, opd4, opd5;
 		};
 	};
 };

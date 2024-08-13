@@ -9,6 +9,18 @@ bool ira_dt_is_qual_equal(ira_dt_qual_t first, ira_dt_qual_t second) {
 	return true;
 }
 
+bool ira_dt_is_func_vas_equivalent(ira_dt_func_vas_t * first, ira_dt_func_vas_t * second) {
+	if (first == second) {
+		return true;
+	}
+
+	if (first->type != second->type) {
+		return false;
+	}
+
+	return true;
+}
+
 bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 	if (first == second) {
 		return true;
@@ -98,6 +110,10 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 			}
 
 			if (!ira_dt_is_equivalent(first->func.ret, second->func.ret)) {
+				return false;
+			}
+
+			if (!ira_dt_is_func_vas_equivalent(first->func.vas, second->func.vas)) {
 				return false;
 			}
 
@@ -426,7 +442,7 @@ ira_dt_qual_t ira_dt_apply_qual(ira_dt_qual_t first, ira_dt_qual_t second) {
 	return first;
 }
 
-const ira_dt_qual_t ira_dt_qual_none;
+const ira_dt_qual_t ira_dt_qual_none = { 0 };
 const ira_dt_qual_t ira_dt_qual_const = { .const_q = true };
 
 const ira_dt_info_t ira_dt_infos[IraDt_Count] = {

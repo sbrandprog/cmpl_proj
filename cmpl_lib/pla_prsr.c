@@ -443,6 +443,24 @@ static void parse_expr_unit(pla_prsr_t * prsr, pla_expr_t ** out) {
 						pla_expr_t ** arg = &(*out)->opd1.expr;
 
 						while (true) {
+							if (get_keyw(prsr) == PlaKeywVararg) {
+								*arg = pla_expr_create(PlaExprDtFuncVa);
+
+								(*arg)->pos_start = prsr->tok.pos_start;
+
+								next_tok(prsr);
+
+								consume_punc_exact_crit(prsr, PlaPuncDot);
+
+								consume_ident(prsr, &(*arg)->opd0.hs);
+
+								consume_punc_exact_crit(prsr, PlaPuncRiParen);
+
+								(*arg)->pos_end = prsr->prev_tok_pos_end;
+
+								break;
+							}
+
 							*arg = pla_expr_create(PlaExprDtFuncArg);
 
 							(*arg)->pos_start = prsr->tok.pos_start;
@@ -512,17 +530,59 @@ static void parse_expr_unit(pla_prsr_t * prsr, pla_expr_t ** out) {
 					next_tok(prsr);
 					break;
 				case PlaKeywTuple:
-					next_tok(prsr);
-
 					*out = pla_expr_create(PlaExprDtTpl);
 
 					(*out)->pos_start = prsr->tok.pos_start;
+
+					next_tok(prsr);
 
 					parse_expr_tpl_body(prsr, &(*out)->opd1.expr);
 
 					(*out)->pos_end = prsr->prev_tok_pos_end;
 					
 					break;
+
+				case PlaKeywVararg:
+				{
+					pla_ec_pos_t pos_start = prsr->tok.pos_start;
+
+					next_tok(prsr);
+
+					if (consume_punc_exact(prsr, PlaPuncDot)) {
+						*out = pla_expr_create(PlaExprVaStart);
+
+						(*out)->pos_start = pos_start;
+
+						next_tok(prsr);
+
+						consume_punc_exact_crit(prsr, PlaPuncLeParen);
+
+						consume_punc_exact_crit(prsr, PlaPuncRiParen);
+
+						(*out)->pos_end = prsr->prev_tok_pos_end;
+					}
+					else {
+						*out = pla_expr_create(PlaExprVaArg);
+
+						(*out)->pos_start = pos_start;
+
+						consume_punc_exact_crit(prsr, PlaPuncLeBrack);
+
+						parse_expr(prsr, &(*out)->opd0.expr);
+
+						consume_punc_exact_crit(prsr, PlaPuncRiBrack);
+
+						consume_punc_exact_crit(prsr, PlaPuncLeParen);
+
+						parse_expr(prsr, &(*out)->opd1.expr);
+
+						consume_punc_exact_crit(prsr, PlaPuncRiParen);
+
+						(*out)->pos_end = prsr->tok.pos_end;
+					}
+
+					break;
+				}
 
 				case PlaKeywVoidval:
 					*out = pla_expr_create(PlaExprValVoid);

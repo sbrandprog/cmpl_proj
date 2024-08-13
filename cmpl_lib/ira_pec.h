@@ -22,9 +22,15 @@ struct ira_pec {
 	ira_dt_t * dt_func;
 
 	ira_dt_stct_tag_t * dt_stct_tag;
+	ira_dt_func_vas_t * dt_func_vas;
 
 	struct {
+		ira_dt_func_vas_t * none;
+		ira_dt_func_vas_t * cstyle;
+	} dt_func_vass;
+	struct {
 		ira_dt_t * size;
+		ira_dt_t * va_elem;
 		ira_dt_t * ascii_str;
 		ira_dt_t * wide_str;
 	} dt_spcl;
@@ -58,7 +64,7 @@ IRA_API bool ira_pec_get_dt_ptr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t 
 IRA_API bool ira_pec_get_dt_tpl(ira_pec_t * pec, size_t elems_size, ira_dt_ndt_t * elems, ira_dt_qual_t qual, ira_dt_t ** out);
 IRA_API bool ira_pec_get_dt_stct(ira_pec_t * pec, ira_dt_stct_tag_t * tag, ira_dt_qual_t qual, ira_dt_t ** out);
 IRA_API bool ira_pec_get_dt_arr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual, ira_dt_t ** out);
-IRA_API bool ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_dt_ndt_t * args, ira_dt_t ** out);
+IRA_API bool ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_dt_ndt_t * args, ira_dt_func_vas_t * vas, ira_dt_t ** out);
 
 IRA_API bool ira_pec_apply_qual(ira_pec_t * pec, ira_dt_t * dt, ira_dt_qual_t qual, ira_dt_t ** out);
 

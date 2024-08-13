@@ -24,10 +24,34 @@ function print_hello_world : $() -> void {
 	return;
 }
 
+function print_nums : $(vararg.cstyle) -> s32 {
+	variable loop := true, arg_list := vararg.start();
+
+	while loop {
+		variable num := vararg[s32](arg_list);
+
+		if num == 0's32 {
+			std::write_con_ch(0'u16);
+
+			return 0's32;
+		}
+
+		if !std::write_con_dec(%[* const void]&num, 4'u8, true) {
+			return -1's32;
+		}
+
+		std::write_con_ch(32'u16);
+	}
+
+	return 0's32;
+}
+
 function main : $() -> s32 {
 	std::init_con_io();
 
 	print_hello_world();
+
+	print_nums(20's32, 20's32, 0's32);
 
 	variable a : s32, b : s32;
 

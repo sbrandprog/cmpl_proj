@@ -22,6 +22,16 @@ struct ira_dt_stct_tag {
 	ira_dt_t * tpl;
 };
 
+enum ira_dt_func_vas_type {
+	IraDtFuncVasNone,
+	IraDtFuncVasCstyle,
+	IraDtFuncVas_Count
+};
+struct ira_dt_func_vas {
+	ira_dt_func_vas_type_t type;
+	ira_dt_func_vas_t * next;
+};
+
 enum ira_dt_type {
 	IraDtVoid,
 	IraDtDt,
@@ -68,6 +78,7 @@ struct ira_dt {
 			ira_dt_t * ret;
 			size_t args_size;
 			ira_dt_ndt_t * args;
+			ira_dt_func_vas_t * vas;
 		} func;
 	};
 };
@@ -77,6 +88,8 @@ struct ira_dt_info {
 };
 
 IRA_API bool ira_dt_is_qual_equal(ira_dt_qual_t first, ira_dt_qual_t second);
+
+IRA_API bool ira_dt_is_func_vas_equivalent(ira_dt_func_vas_t * first, ira_dt_func_vas_t * second);
 
 IRA_API bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second);
 

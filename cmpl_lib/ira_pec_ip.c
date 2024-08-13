@@ -93,6 +93,7 @@ typedef union ira_pec_ip_inst_opd {
 	size_t size;
 	ul_hs_t * hs;
 	ul_hs_t ** hss;
+	ira_dt_func_vas_t * dt_func_vas;
 	ira_dt_t * dt;
 	label_t * label;
 	ira_val_t * val;
@@ -106,11 +107,7 @@ struct ira_pec_ip_inst {
 	union {
 		inst_opd_t opds[IRA_INST_OPDS_SIZE];
 		struct {
-			inst_opd_t opd0;
-			inst_opd_t opd1;
-			inst_opd_t opd2;
-			inst_opd_t opd3;
-			inst_opd_t opd4;
+			inst_opd_t opd0, opd1, opd2, opd3, opd4, opd5;
 		};
 	};
 
@@ -158,6 +155,8 @@ typedef struct ira_pec_ip_ctx {
 
 			size_t stack_size;
 
+			size_t first_va_arg_ind;
+
 			bb_cmpl_ctx_t bb_ctx;
 		} cmpl;
 		struct {
@@ -187,12 +186,6 @@ static const mc_reg_t w64_int_arg_to_reg[4][IraInt_Count] = {
 	[1] = { McRegDl, McRegDx, McRegEdx, McRegRdx, McRegDl, McRegDx, McRegEdx, McRegRdx },
 	[2] = { McRegR8b, McRegR8w, McRegR8d, McRegR8, McRegR8b, McRegR8w, McRegR8d, McRegR8 },
 	[3] = { McRegR9b, McRegR9w, McRegR9d, McRegR9, McRegR9b, McRegR9w, McRegR9d, McRegR9 }
-};
-static const mc_reg_t w64_ptr_arg_to_reg[4] = {
-	[0] = { McRegRcx },
-	[1] = { McRegRdx },
-	[2] = { McRegR8 },
-	[3] = { McRegR9 }
 };
 
 static const int_cast_info_t int_cast_infos[IraInt_Count][IraInt_Count] = {
@@ -302,6 +295,7 @@ static void cleanup_inst(ctx_t * ctx, inst_t * inst) {
 			case IraInstOpdNone:
 			case IraInstOpdIntCmp:
 			case IraInstOpdDtQual:
+			case IraInstOpdDtFuncVas:
 			case IraInstOpdDt:
 			case IraInstOpdLabel:
 			case IraInstOpdVal:
@@ -720,6 +714,9 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
 			case IraInstOpdDtQual:
 				inst->opds[opd].dt_qual = ira_inst->opds[opd].dt_qual;
 				break;
+			case IraInstOpdDtFuncVas:
+				inst->opds[opd].dt_func_vas = ira_inst->opds[opd].dt_func_vas;
+				break;
 			case IraInstOpdDt:
 				inst->opds[opd].dt = ira_inst->opds[opd].dt;
 
@@ -846,13 +843,15 @@ static bool prepare_copy(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * inf
 	return true;
 }
 static bool prepare_def_var_copy(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
-	if (define_var(ctx, inst->opd1.var->qdt.dt, inst->opd2.dt_qual, inst->opd0.hs) == NULL) {
+	var_t * var = define_var(ctx, inst->opd1.var->qdt.dt, inst->opd2.dt_qual, inst->opd0.hs);
+	
+	if (var == NULL) {
 		return false;
 	}
 
-	inst->def_var_copy.var = find_var(ctx, inst->opd0.hs);
+	inst->def_var_copy.var = var;
 
-	ul_assert(inst->def_var_copy.var != NULL);
+	make_var_bb_ref(ctx, var, inst->bb);
 
 	return true;
 }
@@ -1198,13 +1197,25 @@ static bool prepare_call_func_ptr(ctx_t * ctx, inst_t * inst, const ira_inst_inf
 
 	ira_dt_t * func_dt = ptr_func_dt->ptr.body;
 
-	if (func_dt->func.args_size != inst->opd2.size) {
-		report(ctx, L"[%s]: opd[2] must match function data type arguments size", info->type_str.str);
-		return false;
+	switch (func_dt->func.vas->type) {
+		case IraDtFuncVasNone:
+			if (func_dt->func.args_size != inst->opd2.size) {
+				report(ctx, L"[%s]: opd[2] must be equal to function data type arguments size", info->type_str.str);
+				return false;
+			}
+			break;
+		case IraDtFuncVasCstyle:
+			if (func_dt->func.args_size > inst->opd2.size) {
+				report(ctx, L"[%s]: opd[2] must be equal or greater than function data type arguments size", info->type_str.str);
+				return false;
+			}
+			break;
+		default:
+			ul_assert_unreachable();
 	}
 
 	ira_dt_ndt_t * arg_dt = func_dt->func.args;
-	for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var, ++arg_dt) {
+	for (var_t ** var = inst->opd3.vars, **var_end = var + func_dt->func.args_size; var != var_end; ++var, ++arg_dt) {
 		if (!ira_dt_is_equivalent(arg_dt->dt, (*var)->qdt.dt)) {
 			report(ctx, L"[%s]: argument in opd[3] must match function argument data type", info->type_str.str);
 			return false;
@@ -1266,6 +1277,63 @@ static bool prepare_brc(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info
 static bool prepare_ret(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
 	if (!ira_dt_is_equivalent(ctx->func->dt->func.ret, inst->opd0.var->qdt.dt)) {
 		report_opd_not_equ_dt(ctx, inst, 0);
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_va_start(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	if (inst->opd0.var->qdt.dt != ctx->pec->dt_spcl.va_elem) {
+		report(ctx, L"[%s]: opd[0] must have a va_elem data type", info->type_str.str);
+		return false;
+	}
+
+	if (check_var_for_not_const_q(ctx, inst, 0)) {
+		return false;
+	}
+
+	return true;
+}
+static bool prepare_va_arg(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	if (inst->opd1.var->qdt.dt != ctx->pec->dt_spcl.va_elem) {
+		report(ctx, L"[%s]: opd[1] must have a va_elem data type", info->type_str.str);
+		return false;
+	}
+
+	ira_dt_t * dt = inst->opd0.var->qdt.dt;
+
+	switch (ctx->trg) {
+		case TrgCmpl:
+			switch (dt->type) {
+				case IraDtVoid:
+				case IraDtBool:
+				case IraDtInt:
+				case IraDtVec:
+				case IraDtPtr:
+				case IraDtTpl:
+				case IraDtStct:
+				case IraDtArr:
+					if (!ira_pec_is_dt_complete(dt)) {
+						report(ctx, L"[%s]: data type must be a complete data type", info->type_str.str);
+						return false;
+					}
+					break;
+				case IraDtDt:
+				case IraDtFunc:
+					report(ctx, L"[%s]: invalid data type for compiler mode", info->type_str.str);
+					return false;
+				default:
+					ul_assert_unreachable();
+			}
+			break;
+		case TrgIntr:
+			report(ctx, L"[%s]: unimplemented in intepretator mode", info->type_str.str);
+			return false;
+		default:
+			ul_assert_unreachable();
+	}
+
+	if (check_var_for_not_const_q(ctx, inst, 0)) {
 		return false;
 	}
 
@@ -1381,6 +1449,8 @@ static bool prepare_insts(ctx_t * ctx) {
 			[IraInstBrt] = prepare_brc,
 			[IraInstBrf] = prepare_brc,
 			[IraInstRet] = prepare_ret,
+			[IraInstVaStart] = prepare_va_start,
+			[IraInstVaArg] = prepare_va_arg
 		};
 
 		prepare_proc_t * proc = prepare_insts_procs[ira_inst->type];
@@ -1646,6 +1716,7 @@ static mc_reg_t get_gpr_reg_dt(mc_reg_gpr_t gpr, ira_dt_t * dt) {
 	return reg;
 }
 
+
 static mc_reg_t w64_get_arg_reg(ira_dt_t * dt, size_t arg) {
 	ul_assert(arg < 4);
 
@@ -1667,6 +1738,7 @@ static mc_reg_t w64_get_arg_reg(ira_dt_t * dt, size_t arg) {
 
 	return reg;
 }
+
 static bool w64_load_callee_ret_link(ctx_t * ctx, var_t * var) {
 	ira_dt_t * var_dt = var->qdt.dt;
 
@@ -1736,6 +1808,7 @@ static void w64_save_callee_ret(ctx_t * ctx, var_t * var) {
 			ul_assert_unreachable();
 	}
 }
+
 static bool w64_save_caller_ret_link(ctx_t * ctx) {
 	ira_dt_t * var_dt = ctx->func->dt->func.ret;
 
@@ -1749,6 +1822,9 @@ static bool w64_save_caller_ret_link(ctx_t * ctx) {
 			ul_assert_unreachable();
 	}
 }
+static int32_t w64_calculate_caller_arg_off(ctx_t * ctx, size_t arg) {
+	return (int32_t)(ctx->cmpl.stack_size + STACK_UNIT + arg * STACK_UNIT);
+}
 static void w64_save_caller_arg(ctx_t * ctx, ul_hs_t * arg_name, size_t arg) {
 	var_t * var = find_var(ctx, arg_name);
 
@@ -1758,7 +1834,7 @@ static void w64_save_caller_arg(ctx_t * ctx, ul_hs_t * arg_name, size_t arg) {
 
 	mc_reg_t reg;
 
-	int32_t arg_off = (int32_t)(ctx->cmpl.stack_size + STACK_UNIT + arg * STACK_UNIT);
+	int32_t arg_off = w64_calculate_caller_arg_off(ctx, arg);
 
 	switch (var_dt->type) {
 		case IraDtVoid:
@@ -1785,6 +1861,15 @@ static void w64_save_caller_arg(ctx_t * ctx, ul_hs_t * arg_name, size_t arg) {
 			ul_assert_unreachable();
 	}
 }
+static void w64_save_caller_var_args(ctx_t * ctx, size_t arg) {
+	for (; arg < 4; ++arg) {
+		mc_reg_t reg = w64_int_arg_to_reg[arg][IraIntU64];
+
+		int32_t arg_off = w64_calculate_caller_arg_off(ctx, arg);
+
+		save_stack_gpr(ctx, arg_off, reg);
+	}
+}
 static void w64_load_caller_ret(ctx_t * ctx, var_t * var) {
 	ira_dt_t * var_dt = var->qdt.dt;
 
@@ -1805,6 +1890,50 @@ static void w64_load_caller_ret(ctx_t * ctx, var_t * var) {
 			ul_assert_unreachable();
 	}
 }
+static void w64_load_caller_va_start(ctx_t * ctx, var_t * var) {
+	mc_inst_t lea = { .type = McInstLea, .opds = McInstOpds_Reg_Mem, .reg0 = McRegRax, .mem_base = McRegRsp, .mem_disp_type = McInstDispAuto, .mem_disp = w64_calculate_caller_arg_off(ctx, ctx->cmpl.first_va_arg_ind) };
+
+	push_mc_inst(ctx, &lea);
+
+	save_stack_var(ctx, var, McRegRax);
+}
+static void w64_load_caller_va_arg(ctx_t * ctx, var_t * dst, var_t * va_elem_var) {
+	load_stack_var(ctx, McRegRax, va_elem_var);
+
+	ira_dt_t * dt = dst->qdt.dt;
+
+	switch (dt->type) {
+		case IraDtVoid:
+			break;
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtPtr:
+		{
+			mc_reg_t reg = get_gpr_reg_dt(McRegGprCx, dt);
+
+			mc_inst_t mov = { .type = McInstMov, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_size = mc_reg_get_size(reg), .mem_base = McRegRax, .mem_disp_type = McInstDispNone };
+
+			push_mc_inst(ctx, &mov);
+
+			save_stack_var(ctx, dst, reg);
+
+			break;
+		}
+		default:
+			ul_assert_unreachable();
+	}
+
+	{
+		ul_assert(va_elem_var->qdt.dt->type == IraDtPtr);
+
+		mc_inst_t lea = { .type = McInstLea, .opds = McInstOpds_Reg_Mem, .reg0 = McRegRax, .mem_base = McRegRax, .mem_disp_type = McInstDispAuto, .mem_disp = (int32_t)va_elem_var->cmpl.size };
+
+		push_mc_inst(ctx, &lea);
+	}
+
+	save_stack_var(ctx, va_elem_var, McRegRax);
+}
+
 
 static void emit_prologue_save_args(ctx_t * ctx) {
 	size_t arg = 0;
@@ -1817,6 +1946,12 @@ static void emit_prologue_save_args(ctx_t * ctx) {
 
 	for (ira_dt_ndt_t * arg_dt_n = func_dt->func.args, *arg_dt_n_end = arg_dt_n + func_dt->func.args_size; arg_dt_n != arg_dt_n_end; ++arg_dt_n, ++arg) {
 		w64_save_caller_arg(ctx, arg_dt_n->name, arg);
+	}
+
+	if (func_dt->func.vas->type == IraDtFuncVasCstyle) {
+		ctx->cmpl.first_va_arg_ind = arg;
+
+		w64_save_caller_var_args(ctx, arg);
 	}
 }
 static void emit_prologue(ctx_t * ctx) {
@@ -2365,12 +2500,10 @@ static void compile_cast(ctx_t * ctx, inst_t * inst) {
 	}
 }
 static void compile_call_func_ptr(ctx_t * ctx, inst_t * inst) {
-	bool has_ret_link = false;
 	size_t arg_off = 0;
 
 	if (w64_load_callee_ret_link(ctx, inst->opd0.var)) {
 		++arg_off;
-		has_ret_link = true;
 	}
 
 	for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var, ++arg_off) {
@@ -2423,6 +2556,12 @@ static void compile_ret(ctx_t * ctx, inst_t * inst) {
 
 	push_mc_inst(ctx, &ret);
 }
+static void compile_va_start(ctx_t * ctx, inst_t * inst) {
+	w64_load_caller_va_start(ctx, inst->opd0.var);
+}
+static void compile_va_arg(ctx_t * ctx, inst_t * inst) {
+	w64_load_caller_va_arg(ctx, inst->opd0.var, inst->opd1.var);
+}
 
 static void compile_insts(ctx_t * ctx) {
 	emit_prologue(ctx);
@@ -2466,6 +2605,8 @@ static void compile_insts(ctx_t * ctx) {
 			[IraInstBrt] = compile_brc,
 			[IraInstBrf] = compile_brc,
 			[IraInstRet] = compile_ret,
+			[IraInstVaStart] = compile_va_start,
+			[IraInstVaArg] = compile_va_arg
 		};
 
 		compile_inst_proc_t * proc = compile_insts_procs[inst->base->type];
@@ -2786,7 +2927,7 @@ static bool execute_make_dt_func(ctx_t * ctx, inst_t * inst) {
 
 	ira_dt_t * res_dt;
 
-	if (!ira_pec_get_dt_func(ctx->pec, inst->opd1.var->intr.val->dt_val, args_size, args, &res_dt)) {
+	if (!ira_pec_get_dt_func(ctx->pec, inst->opd1.var->intr.val->dt_val, args_size, args, inst->opd5.dt_func_vas, &res_dt)) {
 		_freea(args);
 		return false;
 	}

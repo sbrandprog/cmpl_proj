@@ -20,7 +20,7 @@ static bool test_proc(test_ctx_t * ctx) {
 	ira_dt_t * s32_dt = &ctx->pec.dt_ints[IraIntS32];
 	ira_dt_t * main_dt;
 
-	if (!ira_pec_get_dt_func(&ctx->pec, s32_dt, 0, NULL, &main_dt)) {
+	if (!ira_pec_get_dt_func(&ctx->pec, s32_dt, 0, NULL, ctx->pec.dt_func_vass.none, &main_dt)) {
 		return false;
 	}
 
