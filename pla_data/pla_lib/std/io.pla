@@ -238,82 +238,83 @@ namespace std {
 		return;
 	}
 
-	function get_dec_val : $(val_ptr : * void, size_bytes : u8, sign : bool, out_val : * u64, out_neg : * bool) -> bool {
-		variable neg := false;
+	function get_dec_val : $(val_ptr : const * void, size_bytes : u8, sign : bool, out_val : * u64, out_neg : * bool) -> bool {
+		variable neg := false, val : u64;
 
 		if size_bytes == 1'u8 {
 			if sign {
-				variable val := (%[* s8]val_ptr)!;
+				variable val_src := (%[const * s8]val_ptr)!;
 
-				if val < 0's8 {
-					out_val! = %[u64]-val;
+				if val_src < 0's8 {
+					val = %[u64]-val_src;
 					neg = true;
 				}
 				else {
-					out_val! = %[u64]val;
+					val = %[u64]val_src;
 				}
 			}
 			else {
-				out_val! = %[u64](%[* u8]val_ptr)!;
+				val = %[u64](%[const * u8]val_ptr)!;
 			}
 		}
 		else if size_bytes == 2'u8 {
 			if sign {
-				variable val := (%[* s16]val_ptr)!;
+				variable val_src := (%[const * s16]val_ptr)!;
 
-				if val < 0's16 {
-					out_val! = %[u64]-val;
+				if val_src < 0's16 {
+					val = %[u64]-val_src;
 					neg = true;
 				}
 				else {
-					out_val! = %[u64]val;
+					val = %[u64]val_src;
 				}
 			}
 			else {
-				out_val! = %[u64](%[* u16]val_ptr)!;
+				val = %[u64](%[const * u16]val_ptr)!;
 			}
 		}
 		else if size_bytes == 4'u8 {
 			if sign {
-				variable val := (%[* s32]val_ptr)!;
+				variable val_src := (%[* s32]val_ptr)!;
 
-				if val < 0's32 {
-					out_val! = %[u64]-val;
+				if val_src < 0's32 {
+					val = %[u64]-val_src;
 					neg = true;
 				}
 				else {
-					out_val! = %[u64]val;
+					val = %[u64]val_src;
 				}
 			}
 			else {
-				out_val! = %[u64](%[* u32]val_ptr)!;
+				val = %[u64](%[* u32]val_ptr)!;
 			}
 		}
 		else if size_bytes == 8'u8 {
 			if sign {
-				variable val := (%[* s64]val_ptr)!;
+				variable val_src := (%[* s64]val_ptr)!;
 
-				if val < 0's64 {
-					out_val! = %[u64]-val;
+				if val_src < 0's64 {
+					val = %[u64]-val_src;
 					neg = true;
 				}
 				else {
-					out_val! = %[u64]val;
+					val = %[u64]val_src;
 				}
 			}
 			else {
-				out_val! = %[u64](%[* u64]val_ptr)!;
+				val = %[u64](%[* u64]val_ptr)!;
 			}
 		}
 		else {
 			return false;
 		}
 
+		out_val! = val;
 		out_neg! = neg;
 
 		return true;
 	}
-	function write_con_dec : $(val_ptr : * const void, size_bytes : u8, sign : bool) -> bool {
+	function write_con_dec : $(val_ptr : const * void, size_bytes : u8, sign : bool) -> bool {
 		variable val : u64, neg : bool;
 
 		if !get_dec_val(val_ptr, size_bytes, sign, &val, &neg) {

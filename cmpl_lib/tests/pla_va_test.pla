@@ -1,0 +1,59 @@
+tlaturef pla_lib.std.io;
+
+function print_nums : $(vararg.cstyle) -> s32 {
+	variable loop := true, arg_list := vararg.start();
+
+	while loop {
+		variable num := vararg[s32](arg_list);
+
+		if num == 0's32 {
+			std::write_con_ch(10'u16);
+
+			return 0's32;
+		}
+
+		if !std::write_con_dec(%[const * void]&num, 4'u8, true) {
+			return -1's32;
+		}
+
+		std::write_con_ch(32'u16);
+	}
+
+	return 0's32;
+}
+
+function print_nums_ptrs : $(vararg.cstyle) -> s32 {
+	variable loop := true, arg_list := vararg.start();
+
+	while loop {
+		variable num := vararg[const * s32](arg_list);
+
+		if num == nullof[const * s32] {
+			std::write_con_ch(10'u16);
+
+			return 0's32;
+		}
+
+		if !std::write_con_dec(%[const * void]num, 4'u8, true) {
+			return -1's32;
+		}
+
+		std::write_con_ch(32'u16);
+	}
+
+	return 0's32;
+}
+
+function main : $() -> s32 {
+	if print_nums(20's32, 20's32, 0's32) != 0's32 {
+		return -1's32;
+	}
+
+	variable num0 := 30's32, num1 := 40's32, num2 := 50's32;
+
+	if print_nums(&num0, &num1, &num2, nullof[const * s32]) != 0's32 {
+		return -1's32;
+	}
+
+	return 0's32;
+}

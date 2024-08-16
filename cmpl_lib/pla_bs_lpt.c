@@ -131,7 +131,7 @@ static pkg_t * create_pkg(ctx_t * ctx, pla_pkg_t * base, pkg_t * parent) {
 	if (parent != NULL && parent->full_name != NULL) {
 		ul_assert(base->name != NULL);
 
-		pkg->full_name = ul_hsb_formatadd(&ctx->hsb, &ctx->repo->hst, L"%s%c%s", parent->full_name->str, PLA_TU_NAME_DELIM, base->name->str);
+		pkg->full_name = ul_hsb_formatadd(&ctx->hsb, ctx->repo->hst, L"%s%c%s", parent->full_name->str, PLA_TU_NAME_DELIM, base->name->str);
 	}
 
 	return pkg;
@@ -203,7 +203,7 @@ static bool find_and_push_tus(ctx_t * ctx, pkg_t * pkg, ul_hs_t * tus_name) {
 	ul_hs_t * tus_full_name = base->name;
 
 	if (pkg->full_name != NULL) {
-		tus_full_name = ul_hsb_formatadd(&ctx->hsb, &ctx->repo->hst, L"%s%c%s", pkg->full_name->str, PLA_TU_NAME_DELIM, base->name->str);
+		tus_full_name = ul_hsb_formatadd(&ctx->hsb, ctx->repo->hst, L"%s%c%s", pkg->full_name->str, PLA_TU_NAME_DELIM, base->name->str);
 	}
 
 	tus_t * tus = &ctx->tuss[ctx->tuss_size++];
@@ -229,7 +229,7 @@ static bool find_and_push_tus_cn(ctx_t * ctx, pkg_t * pkg, pla_cn_t * tus_cn) {
 }
 
 static bool form_core(ctx_t * ctx) {
-	ctx->hst = &ctx->repo->hst;
+	ctx->hst = ctx->repo->hst;
 
 	ul_hsb_init(&ctx->hsb);
 

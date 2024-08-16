@@ -121,6 +121,7 @@ int main() {
 	}
 
 	if (_CrtDumpMemoryLeaks() == TRUE) {
+		wprintf(L"detected leaks\n");
 		return -2;
 	}
 

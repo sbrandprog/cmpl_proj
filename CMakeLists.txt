@@ -38,7 +38,7 @@ function(add_proj_test_exe test_prefix exe_name)
 	set(main_file ${exe_name}.c)
 	set(exe_name ${test_prefix}_${exe_name})
 
-	cmake_parse_arguments(ARGS "" "" "LIBRARIES;DEPENDENCIES" ${ARGN})
+	cmake_parse_arguments(ARGS "NO_TEST" "" "LIBRARIES;DEPENDENCIES;COPY_LOCAL" ${ARGN})
 
 	add_executable(${exe_name} ${main_file})
 
@@ -46,9 +46,20 @@ function(add_proj_test_exe test_prefix exe_name)
 
 	target_link_libraries(${exe_name} ${ARGS_LIBRARIES})
 
+	if (ARGS_COPY_LOCAL)
+		add_custom_target(${exe_name}_copy_local_data
+			COMMAND ${CMAKE_COMMAND} -E copy_if_different ${ARGS_COPY_LOCAL} ${CMAKE_CURRENT_BINARY_DIR}
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+		)
+
+		add_dependencies(${exe_name} ${exe_name}_copy_local_data)
+	endif()
+
 	add_dependencies(${exe_name} ${ARGS_DEPENDENCIES})
 
-	add_test(NAME ${exe_name}_test COMMAND ${exe_name})
+	if (NOT ARGS_NO_TEST)
+		add_test(NAME ${exe_name}_test COMMAND ${exe_name})
+	endif()
 endfunction()
 
 add_subdirectory(cmpl_lib)

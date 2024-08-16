@@ -2,10 +2,8 @@
 #include "pla_repo.h"
 #include "pla_repo_lsnr.h"
 
-void pla_repo_init(pla_repo_t * repo, ul_es_ctx_t * es_ctx) {
-	*repo = (pla_repo_t){ 0 };
-
-	ul_hst_init(&repo->hst);
+void pla_repo_init(pla_repo_t * repo, ul_hst_t * hst, ul_es_ctx_t * es_ctx) {
+	*repo = (pla_repo_t){ .hst = hst };
 
 	repo->es_node = ul_es_create_node(es_ctx, repo);
 
@@ -17,8 +15,6 @@ void pla_repo_cleanup(pla_repo_t * repo) {
 	ul_es_destroy_node(repo->es_node);
 
 	pla_pkg_destroy(repo->root);
-
-	ul_hst_cleanup(&repo->hst);
 
 	memset(repo, 0, sizeof(*repo));
 }

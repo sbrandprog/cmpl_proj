@@ -12,23 +12,25 @@ static pla_repo_t main_repo;
 static bool main_fill_repo_nl() {
 	main_repo.root = pla_pkg_create(NULL);
 
-	if (!pla_pkg_fill_from_list(main_repo.root, &main_repo.hst, L"pla_lib", L"test.pla", NULL)) {
+	if (!pla_pkg_fill_from_list(main_repo.root, main_repo.hst, L"pla_lib", L"test.pla", NULL)) {
 		return false;
 	}
 
 	return true;
 }
 static bool main_fill_repo() {
-	pla_repo_init(&main_repo, &main_es_ctx);
+	pla_repo_init(&main_repo, &main_hst, &main_es_ctx);
 
-	EnterCriticalSection(&main_repo.lock);
+	{
+		EnterCriticalSection(&main_repo.lock);
 
-	bool res = main_fill_repo_nl();
+		bool res = main_fill_repo_nl();
 
-	LeaveCriticalSection(&main_repo.lock);
+		LeaveCriticalSection(&main_repo.lock);
 
-	if (!res) {
-		return false;
+		if (!res) {
+			return false;
+		}
 	}
 
 	pla_repo_broadcast_upd(&main_repo);
@@ -90,7 +92,7 @@ static bool main_gui() {
 	gia_repo_attach_lsnr(&main_repo, gia_repo_view_get_lsnr(repo_view));
 	*/
 
-	pla_tus_t * edit_tus = pla_pkg_get_tus(main_repo.root, UL_HST_HASHADD_WS(&main_repo.hst, L"test"));
+	pla_tus_t * edit_tus = pla_pkg_get_tus(main_repo.root, UL_HST_HASHADD_WS(main_repo.hst, L"test"));
 
 	if (edit_tus == NULL) {
 		return false;

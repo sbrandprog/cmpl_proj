@@ -1,0 +1,11 @@
+tlaturef pla_lib.w64.kernel32;
+
+function main : $() -> s32 {
+	variable handle := w64::get_std_handle(-11'u32);
+
+	variable str := "Hello world!\n"a, written : u32;
+
+	w64::write_file(handle, %[const * void]str.data, %[u32]str.size - 1'u32, &written, nullof[*void]);
+
+	return 0's32;
+}
