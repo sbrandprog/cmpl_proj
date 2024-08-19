@@ -9,6 +9,15 @@ enum lnk_sect_lp_type {
 	LnkSectLp_Count
 };
 enum lnk_sect_lp_stype {
+	LnkSectLpMarkNone = 0,
+	LnkSectLpMarkImpStart,
+	LnkSectLpMarkImpEnd,
+	LnkSectLpMarkImpTabStart,
+	LnkSectLpMarkImpTabEnd,
+	LnkSectLpMarkRelocStart,
+	LnkSectLpMarkRelocEnd,
+	LnkSectLpMark_Count,
+
 	LnkSectLpLabelNone = 0,
 	LnkSectLpLabel_Count,
 
@@ -18,22 +27,13 @@ enum lnk_sect_lp_stype {
 	LnkSectLpFixupVa64,
 	LnkSectLpFixupRva32,
 	LnkSectLpFixupRva31of64,
-	LnkSectLpFixup_Count,
-
-	LnkSectLpMarkNone = 0,
-	LnkSectLpMarkImpStart,
-	LnkSectLpMarkImpEnd,
-	LnkSectLpMarkImpTabStart,
-	LnkSectLpMarkImpTabEnd,
-	LnkSectLpMarkRelocStart,
-	LnkSectLpMarkRelocEnd,
-	LnkSectLpMark_Count
+	LnkSectLpFixup_Count
 };
 struct lnk_sect_lp {
 	lnk_sect_lp_type_t type;
 	lnk_sect_lp_stype_t stype;
 	ul_hs_t * label_name;
-	size_t offset;
+	size_t off;
 };
 
 struct lnk_sect {

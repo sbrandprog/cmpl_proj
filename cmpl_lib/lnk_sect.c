@@ -29,12 +29,12 @@ void lnk_sect_destroy_chain(lnk_sect_t * sect) {
 	}
 }
 
-void lnk_sect_add_lp(lnk_sect_t * sect, lnk_sect_lp_type_t type, lnk_sect_lp_stype_t stype, ul_hs_t * label_name, size_t offset) {
+void lnk_sect_add_lp(lnk_sect_t * sect, lnk_sect_lp_type_t type, lnk_sect_lp_stype_t stype, ul_hs_t * label_name, size_t off) {
 	if (sect->lps_size + 1 > sect->lps_cap) {
 		ul_arr_grow(&sect->lps_cap, &sect->lps, sizeof(*sect->lps), 1);
 	}
 
-	sect->lps[sect->lps_size++] = (lnk_sect_lp_t){ .type = type, .stype = stype, .label_name = label_name, .offset = offset };
+	sect->lps[sect->lps_size++] = (lnk_sect_lp_t){ .type = type, .stype = stype, .label_name = label_name, .off = off };
 }
 
 const size_t lnk_sect_fixups_size[LnkSectLpFixup_Count] = {

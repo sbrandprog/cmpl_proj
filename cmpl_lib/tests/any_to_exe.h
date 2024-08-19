@@ -47,7 +47,7 @@ static void copy_sect_lps(size_t lps_size, const lnk_sect_lp_t * lps, lnk_sect_t
 	sect->lps_size = 0;
 
 	for (const lnk_sect_lp_t * lp = lps, *lp_end = lp + lps_size; lp != lp_end; ++lp) {
-		lnk_sect_add_lp(sect, lp->type, lp->stype, lp->label_name, lp->offset);
+		lnk_sect_add_lp(sect, lp->type, lp->stype, lp->label_name, lp->off);
 	}
 }
 

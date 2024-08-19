@@ -9,9 +9,9 @@ struct wa_ctl_data {
 	wa_ctl_get_h_proc_t * get_h_proc;
 };
 
-WA_SYMBOL bool wa_ctl_set_data(HWND hw, wa_ctl_data_t * ctl_data);
-WA_SYMBOL wa_ctl_data_t * wa_ctl_get_data(HWND hw);
-WA_SYMBOL void wa_ctl_remove_data(HWND hw);
+WA_API bool wa_ctl_set_data(HWND hw, wa_ctl_data_t * ctl_data);
+WA_API wa_ctl_data_t * wa_ctl_get_data(HWND hw);
+WA_API void wa_ctl_remove_data(HWND hw);
 
-WA_SYMBOL LONG wa_ctl_get_parent_w(void * ctl_ptr, RECT * parent_rect);
-WA_SYMBOL LONG wa_ctl_get_parent_h(void * ctl_ptr, RECT * parent_rect);
+WA_API LONG wa_ctl_get_parent_w(void * ctl_ptr, RECT * parent_rect);
+WA_API LONG wa_ctl_get_parent_h(void * ctl_ptr, RECT * parent_rect);

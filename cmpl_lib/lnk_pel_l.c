@@ -31,21 +31,21 @@ struct lnk_pel_l_sect {
 typedef struct lnk_pel_l_label {
 	const ul_hs_t * name;
 	sect_t * sect;
-	size_t offset;
+	size_t off;
 } label_t;
 typedef struct lnk_pel_l_fixup {
 	lnk_sect_lp_stype_t stype;
 	const ul_hs_t * label_name;
 	sect_t * sect;
-	size_t offset;
+	size_t off;
 } fixup_t;
 typedef struct lnk_pel_l_mark {
 	sect_t * sect;
-	size_t offset;
+	size_t off;
 } mark_t;
 
 typedef struct lnk_pel_l_br_fixup {
-	size_t offset;
+	size_t off;
 
 	sect_t * target_sect;
 	size_t target_page;
@@ -144,8 +144,8 @@ static sect_t * add_sect(ctx_t * ctx) {
 
 	return new_sect;
 }
-static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t offset) {
-	if (lp->offset + offset > sect->data_size) {
+static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t off) {
+	if (lp->off + off > sect->data_size) {
 		return false;
 	}
 
@@ -169,7 +169,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 			}
 
 			mark->sect = sect;
-			mark->offset = lp->offset + offset;
+			mark->off = lp->off + off;
 
 			return true;
 		}
@@ -184,8 +184,8 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 			memset(label, 0, sizeof(*label));
 
 			label->name = lp->label_name;
-			label->offset = lp->offset + offset;
 			label->sect = sect;
+			label->off = lp->off + off;
 
 			return true;
 		}
@@ -199,7 +199,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 				return false;
 			}
 
-			if (lp->offset + lnk_sect_fixups_size[lp->stype] > sect->data_size) {
+			if (lp->off + lnk_sect_fixups_size[lp->stype] > sect->data_size) {
 				return false;
 			}
 
@@ -214,7 +214,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 			fixup->stype = lp->stype;
 			fixup->label_name = lp->label_name;
 			fixup->sect = sect;
-			fixup->offset = lp->offset + offset;
+			fixup->off = lp->off + off;
 
 			if (fixup->stype == LnkSectLpFixupVa64) {
 				++ctx->va64_fixups_size;
@@ -317,10 +317,10 @@ static int base_reloc_cmp_proc(void * ctx_ptr, const void * first_ptr, const voi
 		return 1;
 	}
 
-	if (first->offset < second->offset) {
+	if (first->off < second->off) {
 		return -1;
 	}
-	else if (first->offset > second->offset) {
+	else if (first->off > second->off) {
 		return 1;
 	}
 
@@ -361,11 +361,11 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 	for (fixup_t ** va64_f = ctx->va64_fixups, **va64_f_end = va64_f + ctx->va64_fixups_size; va64_f != va64_f_end;) {
 		fixup_t * first = *va64_f;
 
-		size_t cur_page = first->offset & ~(PAGE_SIZE - 1);
+		size_t cur_page = first->off & ~(PAGE_SIZE - 1);
 
 		fixup_t ** cur = va64_f;
 
-		while (cur != va64_f_end && (*cur)->sect == first->sect && ((*cur)->offset & ~(PAGE_SIZE - 1)) == cur_page) {
+		while (cur != va64_f_end && (*cur)->sect == first->sect && ((*cur)->off & ~(PAGE_SIZE - 1)) == cur_page) {
 			++cur;
 		}
 
@@ -399,7 +399,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 			}
 
 			ctx->br_fixups[ctx->br_fixups_size++] = (br_fixup_t){
-				.offset = block_start + offsetof(IMAGE_BASE_RELOCATION, VirtualAddress),
+				.off = block_start + offsetof(IMAGE_BASE_RELOCATION, VirtualAddress),
 				.target_sect = first->sect,
 				.target_page = cur_page
 			};
@@ -409,11 +409,11 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 			fixup_t * fixup = *cur;
 
 			typedef struct br {
-				WORD offset : 12;
+				WORD off : 12;
 				WORD type : 4;
 			} br_t;
 
-			br_t br = (br_t){ .offset = (WORD)(fixup->offset - cur_page), .type = IMAGE_REL_BASED_DIR64 };
+			br_t br = (br_t){ .off = (WORD)(fixup->off - cur_page), .type = IMAGE_REL_BASED_DIR64 };
 
 			*(br_t *)data_cur = br;
 
@@ -426,8 +426,8 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 
 	ctx->reloc_sect = reloc;
 
-	ctx->marks[LnkSectLpMarkRelocStart] = (mark_t){ .sect = reloc, .offset = 0 };
-	ctx->marks[LnkSectLpMarkRelocEnd] = (mark_t){ .sect = reloc, .offset = reloc->data_size };
+	ctx->marks[LnkSectLpMarkRelocStart] = (mark_t){ .sect = reloc, .off = 0 };
+	ctx->marks[LnkSectLpMarkRelocEnd] = (mark_t){ .sect = reloc, .off = reloc->data_size };
 
 	return true;
 }
@@ -484,7 +484,7 @@ static bool calculate_offsets(ctx_t * ctx) {
 			return false;
 		}
 
-		ctx->ep_virt_addr = ep_label->sect->virt_addr + ep_label->offset;
+		ctx->ep_virt_addr = ep_label->sect->virt_addr + ep_label->off;
 	}
 
 	return true;
@@ -498,10 +498,10 @@ static bool apply_fixups(ctx_t * ctx) {
 			return false;
 		}
 
-		uint64_t lpos = label->sect->virt_addr + label->offset,
-			fpos = fixup->sect->virt_addr + fixup->offset;
+		uint64_t lpos = label->sect->virt_addr + label->off,
+			fpos = fixup->sect->virt_addr + fixup->off;
 
-		void * write_pos = fixup->sect->data + fixup->offset;
+		void * write_pos = fixup->sect->data + fixup->off;
 
 		switch (fixup->stype) {
 			case LnkSectLpFixupNone:
@@ -547,7 +547,7 @@ static bool apply_fixups(ctx_t * ctx) {
 	}
 
 	for (br_fixup_t * fixup = ctx->br_fixups, *fixup_end = fixup + ctx->br_fixups_size; fixup != fixup_end; ++fixup) {
-		*(uint32_t *)(ctx->reloc_sect->data + fixup->offset) = (uint32_t)(fixup->target_sect->virt_addr + fixup->target_page);
+		*(uint32_t *)(ctx->reloc_sect->data + fixup->off) = (uint32_t)(fixup->target_sect->virt_addr + fixup->target_page);
 	}
 
 	return true;
@@ -570,8 +570,8 @@ static bool set_dir_info(ctx_t * ctx, IMAGE_NT_HEADERS64 * nt, DWORD dir_ent) {
 
 	IMAGE_DATA_DIRECTORY * dir = &nt->OptionalHeader.DataDirectory[dir_ent];
 
-	dir->VirtualAddress = (DWORD)(start_mark->sect->virt_addr + start_mark->offset);
-	dir->Size = (DWORD)(end_mark->offset - start_mark->offset);
+	dir->VirtualAddress = (DWORD)(start_mark->sect->virt_addr + start_mark->off);
+	dir->Size = (DWORD)(end_mark->off - start_mark->off);
 
 	return true;
 }

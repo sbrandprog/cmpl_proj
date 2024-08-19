@@ -1,9 +1,9 @@
 #pragma once
 
 #if defined WA_BUILD_DLL
-#	define WA_SYMBOL __declspec(dllexport)
+#	define WA_API __declspec(dllexport)
 #else
-#	define WA_SYMBOL __declspec(dllimport)
+#	define WA_API __declspec(dllimport)
 #endif
 
 typedef enum wa_style_col_type wa_style_col_type_t;

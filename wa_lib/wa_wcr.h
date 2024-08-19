@@ -9,8 +9,8 @@ struct wa_wcr {
 	size_t wnd_clss_cap;
 };
 
-WA_SYMBOL bool wa_wcr_init(wa_wcr_t * wcr, wa_ctx_t * ctx);
-WA_SYMBOL void wa_wcr_cleanup(wa_wcr_t * wcr);
+WA_API bool wa_wcr_init(wa_wcr_t * wcr, wa_ctx_t * ctx);
+WA_API void wa_wcr_cleanup(wa_wcr_t * wcr);
 
-WA_SYMBOL bool wa_wcr_register_d(wa_wcr_t * wcr, WNDCLASSEXW * wnd_cls_desc);
-WA_SYMBOL bool wa_wcr_register_p(wa_wcr_t * wcr, wa_wcr_wnd_cls_desc_proc_t * proc);
+WA_API bool wa_wcr_register_d(wa_wcr_t * wcr, WNDCLASSEXW * wnd_cls_desc);
+WA_API bool wa_wcr_register_p(wa_wcr_t * wcr, wa_wcr_wnd_cls_desc_proc_t * proc);

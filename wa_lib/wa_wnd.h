@@ -21,9 +21,9 @@ struct wa_wnd_cd {
 
 typedef void wa_wnd_paint_proc_t(void * user_data, HDC hdc, RECT * rect);
 
-WA_SYMBOL HWND wa_wnd_create(wa_ctx_t * ctx, const wchar_t * wnd_cls_name, HWND parent_hw, DWORD style, DWORD style_ex, ...);
+WA_API HWND wa_wnd_create(wa_ctx_t * ctx, const wchar_t * wnd_cls_name, HWND parent_hw, DWORD style, DWORD style_ex, ...);
 
-WA_SYMBOL bool wa_wnd_check_cls(HWND hw, const wchar_t * cls_name);
+WA_API bool wa_wnd_check_cls(HWND hw, const wchar_t * cls_name);
 
 inline wa_wnd_cd_t * wa_wnd_get_cd(LPARAM lp) {
 	return ((LPCREATESTRUCTW)lp)->lpCreateParams;
@@ -36,4 +36,4 @@ inline void * wa_wnd_get_fp(HWND hw) {
 	return (void *)GetWindowLongPtrW(hw, 0);
 }
 
-WA_SYMBOL void wa_wnd_paint_buf(HWND hw, HDC hdc, void * user_data, wa_wnd_paint_proc_t * paint_proc);
+WA_API void wa_wnd_paint_buf(HWND hw, HDC hdc, void * user_data, wa_wnd_paint_proc_t * paint_proc);
