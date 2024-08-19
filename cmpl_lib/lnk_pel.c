@@ -24,6 +24,8 @@ const lnk_pel_sett_t lnk_pel_dflt_sett = {
 	.dll_chars = IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA | IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE | IMAGE_DLLCHARACTERISTICS_NX_COMPAT | IMAGE_DLLCHARACTERISTICS_NO_SEH | IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE,
 
 	.make_base_reloc = true,
+	.apply_mrgr = true,
+
 	.base_reloc_name = ".reloc"
 };
 const wchar_t * lnk_pel_dflt_file_name = L"out.exe";

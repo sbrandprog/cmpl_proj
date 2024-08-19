@@ -6,6 +6,7 @@ static bool test_proc(test_ctx_t * ctx) {
 	lnk_pel_init(&ctx->pel);
 
 	ctx->pel.sett.make_base_reloc = false;
+	ctx->pel.sett.apply_mrgr = false;
 
 	ul_hs_t * ep_name = UL_HST_HASHADD_WS(&ctx->hst, L"start");
 

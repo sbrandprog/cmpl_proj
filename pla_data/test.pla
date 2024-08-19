@@ -31,7 +31,7 @@ function print_nums : $(vararg.cstyle) -> s32 {
 		variable num := vararg[s32](arg_list);
 
 		if num == 0's32 {
-			std::write_con_ch(0'u16);
+			std::write_con_ch(10'u16);
 
 			return 0's32;
 		}

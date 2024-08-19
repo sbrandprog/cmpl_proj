@@ -1,15 +1,11 @@
-#include "lnk_pel_l.h"
 #include "lnk_sect.h"
+#include "lnk_pel_m.h"
+#include "lnk_pel_l.h"
 
 #define PAGE_SIZE 4096
 
 #define SECT_NAME_SIZE _countof(((IMAGE_SECTION_HEADER*)NULL)->Name)
 #define SECT_DEFAULT_ALIGN 16
-
-typedef struct lnk_pel_l_is {
-	lnk_sect_t * base;
-	size_t index;
-} is_t;
 
 typedef struct lnk_pel_l_sect sect_t;
 struct lnk_pel_l_sect {
@@ -54,13 +50,11 @@ typedef struct lnk_pel_l_br_fixup {
 typedef struct lnk_pel_l_ctx {
 	lnk_pel_t * pel;
 
-	size_t iss_size;
-	is_t * iss;
-	size_t iss_cap;
+	lnk_sect_t * mrgd_sect;
+	lnk_sect_t * input_sect;
 
 
 	sect_t * sect;
-	sect_t ** sect_ins;
 	size_t sect_count;
 
 
@@ -104,6 +98,68 @@ static const lnk_sect_lp_stype_t dir_end_mark[IMAGE_NUMBEROF_DIRECTORY_ENTRIES] 
 	[IMAGE_DIRECTORY_ENTRY_IAT] = LnkSectLpMarkImpTabEnd
 };
 
+
+static sect_t * create_sect(lnk_sect_t * src) {
+	sect_t * sect = malloc(sizeof(*sect));
+
+	ul_assert(sect != NULL);
+
+	memset(sect, 0, sizeof(*sect));
+
+	if (src != NULL) {
+		sect->name = src->name;
+
+		sect->data = malloc(sizeof(*sect->data) * src->data_size);
+
+		ul_assert(sect->data != NULL);
+
+		memcpy_s(sect->data, sizeof(*sect->data) * src->data_size, src->data, sizeof(*src->data) * src->data_size);
+
+		sect->data_size = src->data_size;
+		sect->data_cap = src->data_size;
+
+		sect->mem_r = src->mem_r;
+		sect->mem_w = src->mem_w;
+		sect->mem_e = src->mem_e;
+		sect->mem_disc = src->mem_disc;
+	}
+
+	return sect;
+}
+static void destroy_sect(sect_t * sect) {
+	if (sect == NULL) {
+		return;
+	}
+
+	free(sect->data);
+	free(sect);
+}
+static void destroy_sect_chain(sect_t * sect) {
+	while (sect != NULL) {
+		sect_t * next = sect->next;
+
+		destroy_sect(sect);
+
+		sect = next;
+	}
+}
+
+
+static bool prepare_input_sects(ctx_t * ctx) {
+	if (ctx->pel->sett.apply_mrgr) {
+		if (!lnk_pel_m_merge(ctx->pel, &ctx->mrgd_sect)) {
+			return false;
+		}
+
+		ctx->input_sect = ctx->mrgd_sect;
+	}
+	else {
+		ctx->input_sect = ctx->pel->sect;
+	}
+
+	return true;
+}
+
 static label_t * find_label(ctx_t * ctx, const ul_hs_t * name) {
 	for (label_t * label = ctx->labels, *label_end = label + ctx->labels_size; label != label_end; ++label) {
 		if (name == label->name) {
@@ -114,38 +170,25 @@ static label_t * find_label(ctx_t * ctx, const ul_hs_t * name) {
 	return NULL;
 }
 
-static int input_sect_cmp_proc(void * ctx_ptr, const void * first_ptr, const void * second_ptr) {
-	const is_t * first = first_ptr, * second = second_ptr;
+static sect_t * add_sect(ctx_t * ctx, const char * srch_name, lnk_sect_t * src) {
+	sect_t ** ins = &ctx->sect;
 
-	int res = strcmp(first->base->name, second->base->name);
+	while (*ins != NULL) {
+		sect_t * sect = *ins;
 
-	if (res != 0) {
-		return res;
+		if (strcmp(sect->name, srch_name) == 0) {
+			return NULL;
+		}
+
+		ins = &sect->next;
 	}
 
-	if (first->index < second->index) {
-		return -1;
-	}
-	else if (first->index > second->index) {
-		return 1;
-	}
+	*ins = create_sect(src);
 
-	return 0;
+	return *ins;
 }
-static sect_t * add_sect(ctx_t * ctx) {
-	sect_t * new_sect = malloc(sizeof(*new_sect));
-
-	ul_assert(new_sect != NULL);
-
-	memset(new_sect, 0, sizeof(*new_sect));
-
-	*ctx->sect_ins = new_sect;
-	ctx->sect_ins = &new_sect->next;
-
-	return new_sect;
-}
-static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t off) {
-	if (lp->off + off > sect->data_size) {
+static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp) {
+	if (lp->off > sect->data_size) {
 		return false;
 	}
 
@@ -169,7 +212,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 			}
 
 			mark->sect = sect;
-			mark->off = lp->off + off;
+			mark->off = lp->off;
 
 			return true;
 		}
@@ -185,7 +228,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 
 			label->name = lp->label_name;
 			label->sect = sect;
-			label->off = lp->off + off;
+			label->off = lp->off;
 
 			return true;
 		}
@@ -214,7 +257,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 			fixup->stype = lp->stype;
 			fixup->label_name = lp->label_name;
 			fixup->sect = sect;
-			fixup->off = lp->off + off;
+			fixup->off = lp->off;
 
 			if (fixup->stype == LnkSectLpFixupVa64) {
 				++ctx->va64_fixups_size;
@@ -226,75 +269,19 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp, size_t 
 			return false;
 	}
 }
-static bool form_input_sects(ctx_t * ctx) {
-	{
-		size_t index = 0;
+static bool form_main_sects(ctx_t * ctx) {
+	for (lnk_sect_t * lnk_sect = ctx->input_sect; lnk_sect != NULL; lnk_sect = lnk_sect->next) {
+		sect_t * sect = add_sect(ctx, lnk_sect->name, lnk_sect);
 
-		for (lnk_sect_t * sect = ctx->pel->sect; sect != NULL; sect = sect->next) {
-			if (ctx->iss_size + 1 > ctx->iss_cap) {
-				ul_arr_grow(&ctx->iss_cap, &ctx->iss, sizeof(*ctx->iss), 1);
-			}
-
-			ctx->iss[ctx->iss_size++] = (is_t){ .base = sect, .index = index++ };
+		if (sect == NULL) {
+			return false;
 		}
 
-		qsort_s(ctx->iss, ctx->iss_size, sizeof(*ctx->iss), input_sect_cmp_proc, NULL);
-	}
-
-	for (is_t * is = ctx->iss, *is_end = is + ctx->iss_size; is != is_end; ) {
-		lnk_sect_t * is_base = is->base;
-		is_t * cur = is;
-
-		while (cur != is_end && strcmp(cur->base->name, is->base->name) == 0) {
-			lnk_sect_t * cur_base = cur->base;
-
-			if (cur_base->mem_r != is_base->mem_r
-				|| cur_base->mem_w != is_base->mem_w
-				|| cur_base->mem_e != is_base->mem_e
-				|| cur_base->mem_disc != is_base->mem_disc) {
+		for (lnk_sect_lp_t * lp = lnk_sect->lps, *lp_end = lp + lnk_sect->lps_size; lp != lp_end; ++lp) {
+			if (!add_lp(ctx, sect, lp)) {
 				return false;
 			}
-
-			++cur;
 		}
-
-		is_t * batch_end = cur;
-
-		sect_t * new_sect = add_sect(ctx);
-
-		new_sect->name = is_base->name;
-		new_sect->mem_r = is_base->mem_r;
-		new_sect->mem_w = is_base->mem_w;
-		new_sect->mem_e = is_base->mem_e;
-		new_sect->mem_disc = is_base->mem_disc;
-
-		for (is_t * cur = is; cur != batch_end; ++cur) {
-			lnk_sect_t * cur_base = cur->base;
-
-			size_t align = cur_base->data_align;
-
-			if (align == 0) {
-				align = SECT_DEFAULT_ALIGN;
-			}
-
-			size_t sect_start = ul_align_to(new_sect->data_size, align);
-
-			if (sect_start + cur_base->data_size > new_sect->data_cap) {
-				ul_arr_grow(&new_sect->data_cap, &new_sect->data, sizeof(uint8_t), sect_start + cur_base->data_size - new_sect->data_cap);
-			}
-
-			memset(new_sect->data + new_sect->data_size, cur_base->data_align_byte, sect_start - new_sect->data_size);
-			memcpy(new_sect->data + sect_start, cur_base->data, cur_base->data_size);
-			new_sect->data_size = sect_start + cur_base->data_size;
-
-			for (const lnk_sect_lp_t * lp = cur_base->lps, *lp_end = lp + cur_base->lps_size; lp != lp_end; ++lp) {
-				if (!add_lp(ctx, new_sect, lp, sect_start)) {
-					return false;
-				}
-			}
-		}
-
-		is = batch_end;
 	}
 
 	return true;
@@ -352,7 +339,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 		qsort_s(ctx->va64_fixups, ctx->va64_fixups_size, sizeof(*ctx->va64_fixups), base_reloc_cmp_proc, ctx);
 	}
 
-	sect_t * reloc = add_sect(ctx);
+	sect_t * reloc = add_sect(ctx, ctx->pel->sett.base_reloc_name, NULL);
 
 	reloc->name = ctx->pel->sett.base_reloc_name;
 	reloc->mem_r = true;
@@ -432,9 +419,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 	return true;
 }
 static bool form_sects(ctx_t * ctx) {
-	ctx->sect_ins = &ctx->sect;
-
-	if (!form_input_sects(ctx)) {
+	if (!form_main_sects(ctx)) {
 		return false;
 	}
 
@@ -684,6 +669,10 @@ static bool write_file(ctx_t * ctx) {
 }
 
 static bool link_core(ctx_t * ctx) {
+	if (!prepare_input_sects(ctx)) {
+		return false;
+	}
+
 	if (!form_sects(ctx)) {
 		return false;
 	}
@@ -713,16 +702,9 @@ bool lnk_pel_l_link(lnk_pel_t * pel) {
 	free(ctx.labels);
 	free(ctx.fixups);
 
-	for (sect_t * sect = ctx.sect; sect != NULL;) {
-		sect_t * next = sect->next;
+	destroy_sect_chain(ctx.sect);
 
-		free(sect->data);
-		free(sect);
-
-		sect = next;
-	}
-
-	free(ctx.iss);
+	lnk_sect_destroy_chain(ctx.mrgd_sect);
 
 	return res;
 }

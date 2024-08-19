@@ -17,6 +17,8 @@ struct lnk_pel_sett {
 	uint16_t dll_chars;
 
 	bool make_base_reloc;
+	bool apply_mrgr;
+
 	const char * base_reloc_name;
 };
 

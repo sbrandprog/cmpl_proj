@@ -20,6 +20,7 @@ target_sources(cmpl_lib
 		lnk.h
 		lnk_pel.h
 		lnk_pel_l.h
+		lnk_pel_m.h
 		lnk_sect.h
 		mc.h
 		mc_frag.h
@@ -69,6 +70,7 @@ target_sources(cmpl_lib
 		ira_val.c
 		lnk_pel.c
 		lnk_pel_l.c
+		lnk_pel_m.c
 		lnk_sect.c
 		mc_frag.c
 		mc_inst.c
