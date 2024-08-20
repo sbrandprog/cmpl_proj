@@ -160,11 +160,16 @@ static bool prepare_input_sects(ctx_t * ctx) {
 	return true;
 }
 
+static bool label_cmp_proc(const label_t * first, const label_t * second) {
+	return (uint8_t *)first->name < (uint8_t *)second->name;
+}
 static label_t * find_label(ctx_t * ctx, const ul_hs_t * name) {
-	for (label_t * label = ctx->labels, *label_end = label + ctx->labels_size; label != label_end; ++label) {
-		if (name == label->name) {
-			return label;
-		}
+	label_t pred = { .name = name };
+
+	size_t label_ind = ul_bs_lower_bound(sizeof(*ctx->labels), ctx->labels_size, ctx->labels, label_cmp_proc, &pred);
+
+	if (label_ind < ctx->labels_size && ctx->labels[label_ind].name == name) {
+		return &ctx->labels[label_ind];
 	}
 
 	return NULL;
@@ -222,13 +227,18 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp) {
 				ul_arr_grow(&ctx->labels_cap, &ctx->labels, sizeof(label_t), 1);
 			}
 
-			label_t * label = &ctx->labels[ctx->labels_size++];
+			label_t new_label = { .name = lp->label_name, .sect = sect, .off = lp->off };
 
-			memset(label, 0, sizeof(*label));
+			size_t ins_pos = ul_bs_lower_bound(sizeof(*ctx->labels), ctx->labels_size, ctx->labels, label_cmp_proc, &new_label);
 
-			label->name = lp->label_name;
-			label->sect = sect;
-			label->off = lp->off;
+			if (ins_pos < ctx->labels_size && ctx->labels[ins_pos].name == new_label.name) {
+				return false;
+			}
+
+			memmove_s(ctx->labels + ins_pos + 1, sizeof(*ctx->labels) * (ctx->labels_cap - ins_pos), ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
+
+			ctx->labels[ins_pos] = new_label;
+			++ctx->labels_size;
 
 			return true;
 		}
@@ -250,16 +260,9 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp) {
 				ul_arr_grow(&ctx->fixups_cap, &ctx->fixups, sizeof(fixup_t), 1);
 			}
 
-			fixup_t * fixup = &ctx->fixups[ctx->fixups_size++];
+			ctx->fixups[ctx->fixups_size++] = (fixup_t){ .stype = lp->stype, .label_name = lp->label_name, .sect = sect, .off = lp->off };
 
-			memset(fixup, 0, sizeof(*fixup));
-
-			fixup->stype = lp->stype;
-			fixup->label_name = lp->label_name;
-			fixup->sect = sect;
-			fixup->off = lp->off;
-
-			if (fixup->stype == LnkSectLpFixupVa64) {
+			if (lp->stype == LnkSectLpFixupVa64) {
 				++ctx->va64_fixups_size;
 			}
 

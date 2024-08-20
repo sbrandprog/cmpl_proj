@@ -5,11 +5,7 @@ static void insert_err_sorted_nl(pla_ec_buf_t * buf, pla_ec_err_t * err) {
 		ul_arr_grow(&buf->errs_cap, &buf->errs, sizeof(*buf->errs), 1);
 	}
 
-	size_t ins_pos = 0;
-
-	while (ins_pos < buf->errs_size && !pla_ec_err_is_less(err, &buf->errs[ins_pos])) {
-		++ins_pos;
-	}
+	size_t ins_pos = ul_bs_upper_bound(sizeof(*buf->errs), buf->errs_size, buf->errs, pla_ec_err_is_less, err);
 
 	memmove_s(buf->errs + ins_pos + 1, (buf->errs_cap - ins_pos) * sizeof(*buf->errs), buf->errs + ins_pos, (buf->errs_size - ins_pos) * sizeof(*buf->errs));
 

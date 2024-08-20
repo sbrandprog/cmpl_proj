@@ -55,8 +55,10 @@ function(add_proj_test_exe test_prefix exe_name)
 		add_dependencies(${exe_name} ${exe_name}_copy_local_data)
 	endif()
 
-	add_dependencies(${exe_name} ${ARGS_DEPENDENCIES})
-
+	if (ARGS_DEPENDENCIES)
+		add_dependencies(${exe_name} ${ARGS_DEPENDENCIES})
+	endif()
+	
 	if (NOT ARGS_NO_TEST)
 		add_test(NAME ${exe_name}_test COMMAND ${exe_name})
 	endif()

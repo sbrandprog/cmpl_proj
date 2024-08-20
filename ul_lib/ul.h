@@ -8,6 +8,8 @@
 
 typedef struct ul_ros ul_ros_t;
 
+typedef bool ul_bs_cmp_proc_t(const void * first, const void * second);
+
 typedef struct ul_es_ctx ul_es_ctx_t;
 typedef struct ul_es_node ul_es_node_t;
 

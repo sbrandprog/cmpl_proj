@@ -81,11 +81,16 @@ static void destroy_sect(sect_t * sect) {
 }
 
 
-static label_t * find_label(ctx_t * ctx, ul_hs_t * label_name) {
-	for (label_t * label = ctx->labels, *label_end = label + ctx->labels_size; label != label_end; ++label) {
-		if (label->name == label_name) {
-			return label;
-		}
+static bool label_cmp_proc(const label_t * first, const label_t * second) {
+	return (uint8_t *)first->name < (uint8_t *)second->name;
+}
+static label_t * find_label(ctx_t * ctx, ul_hs_t * name) {
+	label_t pred = { .name = name };
+
+	size_t label_ind = ul_bs_lower_bound(sizeof(*ctx->labels), ctx->labels_size, ctx->labels, label_cmp_proc, &pred);
+
+	if (label_ind < ctx->labels_size && ctx->labels[label_ind].name == name) {
+		return &ctx->labels[label_ind];
 	}
 
 	return NULL;
@@ -113,11 +118,24 @@ static bool form_sects_arr(ctx_t * ctx) {
 						return false;
 					}
 
-					if (ctx->labels_size + 1 > ctx->labels_cap) {
-						ul_arr_grow(&ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels), 1);
-					}
+					{
+						if (ctx->labels_size + 1 > ctx->labels_cap) {
+							ul_arr_grow(&ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels), 1);
+						}
 
-					ctx->labels[ctx->labels_size++] = (label_t){ .name = lp->label_name, .sect = sect };
+						label_t new_label = (label_t){ .name = lp->label_name, .sect = sect };
+
+						size_t ins_pos = ul_bs_lower_bound(sizeof(*ctx->labels), ctx->labels_size, ctx->labels, label_cmp_proc, &new_label);
+
+						if (ins_pos < ctx->labels_size && ctx->labels[ins_pos].name == new_label.name) {
+							return false;
+						}
+
+						memmove_s(ctx->labels + ins_pos + 1, sizeof(*ctx->labels) * (ctx->labels_cap - ins_pos), ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
+
+						ctx->labels[ins_pos] = new_label;
+						++ctx->labels_size;
+					}
 
 					break;
 				case LnkSectLpFixup:
@@ -224,8 +242,8 @@ static bool set_ord_inds(ctx_t * ctx) {
 	return true;
 }
 
-static int sect_cmp_proc(void * ctx_ptr, const void * first_ptr, const void * second_ptr) {
-	const sect_t * first = *(const sect_t * const *)first_ptr, * second = *(const sect_t * const *)second_ptr;
+static int sect_cmp_proc(void * ctx_ptr, const sect_t * const * first_ptr, const sect_t * const * second_ptr) {
+	const sect_t * first = *first_ptr, * second = *second_ptr;
 
 	if (first->fxd_sect_ord_ind < second->fxd_sect_ord_ind) {
 		return -1;
