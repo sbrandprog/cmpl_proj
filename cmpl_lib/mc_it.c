@@ -155,7 +155,7 @@ static bool process_lib(ctx_t * ctx, mc_it_lib_t * lib) {
 		write_data(dir_sect, sizeof(desc), &desc);
 
 
-		lnk_sect_add_lp(hnt_sect, LnkSectLpLabel, LnkSectLpLabelNone, lib_name_label, hnt_sect->data_size);
+		lnk_sect_add_lp(hnt_sect, LnkSectLpLabel, LnkSectLpLabelBasic, lib_name_label, hnt_sect->data_size);
 
 		if (!write_ascii_str(hnt_sect, lib->name)) {
 			return false;
@@ -165,7 +165,7 @@ static bool process_lib(ctx_t * ctx, mc_it_lib_t * lib) {
 	{
 		lnk_sect_t * addr_sect = ctx->addr_sect;
 
-		lnk_sect_add_lp(addr_sect, LnkSectLpLabel, LnkSectLpLabelNone, lib_at_label, addr_sect->data_size);
+		lnk_sect_add_lp(addr_sect, LnkSectLpLabel, LnkSectLpLabelBasic, lib_at_label, addr_sect->data_size);
 
 		uint16_t sym_hint = 0;
 		uint64_t sym_rec = 0;
@@ -173,13 +173,13 @@ static bool process_lib(ctx_t * ctx, mc_it_lib_t * lib) {
 		for (mc_it_sym_t * sym = lib->sym; sym != NULL; sym = sym->next) {
 			ul_hs_t * sym_label = get_it_label_name(ctx, sym->link_name, LABEL_SYM_NAME_EXT);
 
-			lnk_sect_add_lp(addr_sect, LnkSectLpLabel, LnkSectLpLabelNone, sym->link_name, addr_sect->data_size);
+			lnk_sect_add_lp(addr_sect, LnkSectLpLabel, LnkSectLpLabelBasic, sym->link_name, addr_sect->data_size);
 			lnk_sect_add_lp(addr_sect, LnkSectLpFixup, LnkSectLpFixupRva31of64, sym_label, addr_sect->data_size);
 
 			write_data(addr_sect, sizeof(sym_rec), &sym_rec);
 
 
-			lnk_sect_add_lp(hnt_sect, LnkSectLpLabel, LnkSectLpLabelNone, sym_label, hnt_sect->data_size);
+			lnk_sect_add_lp(hnt_sect, LnkSectLpLabel, LnkSectLpLabelBasic, sym_label, hnt_sect->data_size);
 
 			write_data(hnt_sect, sizeof(sym_hint), &sym_hint);
 

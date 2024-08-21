@@ -6,6 +6,7 @@ enum mc_defs_sd_type {
 	McDefsSdText_Code,
 	McDefsSdRdata_ItAddr,
 	McDefsSdRdata_Data,
+	McDefsSdRdata_Unw,
 	McDefsSdRdata_ItDir,
 	McDefsSdRdata_ItHnt,
 	McDefsSdData_Data,

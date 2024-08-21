@@ -5,7 +5,7 @@ static bool test_proc(test_ctx_t * ctx) {
 
 	lnk_pel_init(&ctx->pel);
 
-	ctx->pel.sett.make_base_reloc = false;
+	ctx->pel.sett.make_base_reloc_sect = false;
 	ctx->pel.sett.apply_mrgr = false;
 
 	ul_hs_t * ep_name = UL_HST_HASHADD_WS(&ctx->hst, L"start");
@@ -36,30 +36,30 @@ static bool test_proc(test_ctx_t * ctx) {
 	};
 
 	lnk_sect_lp_t text_sect_lps[] = {
-		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelNone, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L".text#p0"), .off = 0x0 },
-		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelNone, .label_name = ep_name, .off = 0x0 },
+		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelBasic, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L".text#p0"), .off = 0x0 },
+		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelBasic, .label_name = ep_name, .off = 0x0 },
 		{ .type = LnkSectLpFixup, .stype = LnkSectLpFixupRel32, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"GetStdHandle"), .off = 0xB },
 		{ .type = LnkSectLpFixup, .stype = LnkSectLpFixupRel32, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"WriteFile"), .off = 0x32 },
 		{ .type = LnkSectLpFixup, .stype = LnkSectLpFixupRel32, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"Sleep"), .off = 0x3D },
 		{ .type = LnkSectLpFixup, .stype = LnkSectLpFixupVa64, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"msg"), .off = 0x14 },
 	};
 	lnk_sect_lp_t rdata_sect_lps[] = {
-		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelNone, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"#ia:kernel32"), .off = 0x0 },
-		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelNone, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"GetStdHandle"), .off = 0x0 },
+		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelBasic, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"#ia:kernel32"), .off = 0x0 },
+		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelBasic, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"GetStdHandle"), .off = 0x0 },
 		{ .type = LnkSectLpFixup, .stype = LnkSectLpFixupRva31of64, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"GetStdHandle#n"), .off = 0x0 },
-		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelNone, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"WriteFile"), .off = 0x8 },
+		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelBasic, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"WriteFile"), .off = 0x8 },
 		{ .type = LnkSectLpFixup, .stype = LnkSectLpFixupRva31of64, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"WriteFile#n"), .off = 0x8 },
-		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelNone, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"Sleep"), .off = 0x10 },
+		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelBasic, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"Sleep"), .off = 0x10 },
 		{ .type = LnkSectLpFixup, .stype = LnkSectLpFixupRva31of64, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"Sleep#n"), .off = 0x10 },
-		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelNone, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"msg"), .off = 0x20 },
+		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelBasic, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"msg"), .off = 0x20 },
 		{ .type = LnkSectLpMark, .stype = LnkSectLpMarkImpStart, .label_name = NULL, .off = 0x30 },
 		{ .type = LnkSectLpFixup, .stype = LnkSectLpFixupRva32, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"#n:kernel32"), .off = 0x3C },
 		{ .type = LnkSectLpFixup, .stype = LnkSectLpFixupRva32, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"#ia:kernel32"), .off = 0x40 },
 		{ .type = LnkSectLpMark, .stype = LnkSectLpMarkImpEnd, .label_name = NULL, .off = 0x58 },
-		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelNone, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"GetStdHandle#n"), .off = 0x60 },
-		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelNone, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"WriteFile#n"), .off = 0x70 },
-		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelNone, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"Sleep#n"), .off = 0x7C },
-		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelNone, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"#n:kernel32"), .off = 0x84 }
+		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelBasic, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"GetStdHandle#n"), .off = 0x60 },
+		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelBasic, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"WriteFile#n"), .off = 0x70 },
+		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelBasic, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"Sleep#n"), .off = 0x7C },
+		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelBasic, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"#n:kernel32"), .off = 0x84 }
 	};
 	lnk_sect_lp_t reloc_sect_lps[] = {
 		{ .type = LnkSectLpMark, .stype = LnkSectLpMarkRelocStart, .label_name = NULL, .off = 0x0 },

@@ -146,46 +146,6 @@ static bool get_disp_fixup_stype(mc_inst_t * inst, lnk_sect_lp_stype_t * out) {
 	return true;
 }
 
-static bool build_special_inst(mc_frag_t * frag, mc_inst_t * inst, lnk_sect_t * out) {
-	switch (inst->type) {
-		case McInstLabel:
-			if (inst->opds != McInstOpds_Label) {
-				return false;
-			}
-
-			lnk_sect_add_lp(out, LnkSectLpLabel, LnkSectLpLabelNone, inst->label, out->data_size);
-
-			break;
-		case McInstAlign:
-		{
-			if (inst->opds != McInstOpds_Imm || inst->imm0_type != McInstImm64) {
-				return false;
-			}
-
-			size_t cur_size = out->data_size;
-
-			size_t aligned_size = ul_align_to(cur_size, (size_t)inst->imm0);
-
-			if (aligned_size >= LNK_PEL_MODULE_MAX_SIZE) {
-				return false;
-			}
-
-			if (aligned_size > out->data_cap) {
-				ul_arr_grow(&out->data_cap, &out->data, sizeof(*out->data), aligned_size - out->data_cap);
-			}
-
-			memset(out->data + out->data_size, out->data_align_byte, aligned_size - cur_size);
-
-			out->data_size = aligned_size;
-
-			break;
-		}
-		default:
-			return false;
-	}
-
-	return true;
-}
 static bool build_core(mc_frag_t * frag, lnk_sect_t ** out) {
 	if (!create_sect(frag, out)) {
 		return false;
@@ -194,41 +154,77 @@ static bool build_core(mc_frag_t * frag, lnk_sect_t ** out) {
 	lnk_sect_t * sect = *out;
 
 	for (mc_inst_t * inst = frag->insts, *inst_end = inst + frag->insts_size; inst != inst_end; ++inst) {
-		if (build_special_inst(frag, inst, sect)) {
-			continue;
-		}
+		switch (inst->type) {
+			case McInstLabel:
+				if (inst->opds != McInstOpds_Label) {
+					return false;
+				}
 
-		size_t inst_size;
-		mc_inst_bs_t inst_bs;
-		mc_inst_offs_t inst_offs;
+				lnk_sect_add_lp(sect, LnkSectLpLabel, inst->label_stype, inst->label, sect->data_size);
 
-		if (!mc_inst_build(inst, &inst_size, inst_bs, &inst_offs)) {
-			return false;
-		}
+				break;
+			case McInstAlign:
+			{
+				if (inst->opds != McInstOpds_Imm || inst->imm0_type != McInstImm64) {
+					return false;
+				}
 
-		if (sect->data_size + inst_size > sect->data_cap) {
-			ul_arr_grow(&sect->data_cap, &sect->data, sizeof(*sect->data), sect->data_size + inst_size - sect->data_cap);
-		}
+				size_t cur_size = sect->data_size;
 
-		size_t inst_start = sect->data_size;
+				size_t aligned_size = ul_align_to(cur_size, (size_t)inst->imm0);
 
-		memcpy(sect->data + sect->data_size, inst_bs, inst_size);
-		sect->data_size += inst_size;
+				if (aligned_size >= LNK_PEL_MODULE_MAX_SIZE) {
+					return false;
+				}
 
-		lnk_sect_lp_stype_t stype;
+				if (aligned_size > sect->data_cap) {
+					ul_arr_grow(&sect->data_cap, &sect->data, sizeof(*sect->data), aligned_size - sect->data_cap);
+				}
 
-		if (!get_imm0_fixup_stype(inst, &stype)) {
-			return false;
-		}
-		else if (stype != LnkSectLpFixupNone) {
-			lnk_sect_add_lp(sect, LnkSectLpFixup, stype, inst->imm0_label, inst_start + inst_offs.off[McInstOffImm]);
-		}
+				memset(sect->data + sect->data_size, sect->data_align_byte, aligned_size - cur_size);
 
-		if (!get_disp_fixup_stype(inst, &stype)) {
-			return false;
-		}
-		else if (stype != LnkSectLpFixupNone) {
-			lnk_sect_add_lp(sect, LnkSectLpFixup, stype, inst->mem_disp_label, inst_start + inst_offs.off[McInstOffDisp]);
+				sect->data_size = aligned_size;
+
+				break;
+			}
+			default:
+			{
+
+				size_t inst_size;
+				mc_inst_bs_t inst_bs;
+				mc_inst_offs_t inst_offs;
+
+				if (!mc_inst_build(inst, &inst_size, inst_bs, &inst_offs)) {
+					return false;
+				}
+
+				if (sect->data_size + inst_size > sect->data_cap) {
+					ul_arr_grow(&sect->data_cap, &sect->data, sizeof(*sect->data), sect->data_size + inst_size - sect->data_cap);
+				}
+
+				size_t inst_start = sect->data_size;
+
+				memcpy(sect->data + sect->data_size, inst_bs, inst_size);
+				sect->data_size += inst_size;
+
+				lnk_sect_lp_stype_t stype;
+
+				if (!get_imm0_fixup_stype(inst, &stype)) {
+					return false;
+				}
+				else if (stype != LnkSectLpFixupNone) {
+					lnk_sect_add_lp(sect, LnkSectLpFixup, stype, inst->imm0_label, inst_start + inst_offs.off[McInstOffImm]);
+				}
+
+				if (!get_disp_fixup_stype(inst, &stype)) {
+					return false;
+				}
+				else if (stype != LnkSectLpFixupNone) {
+					lnk_sect_add_lp(sect, LnkSectLpFixup, stype, inst->mem_disp_label, inst_start + inst_offs.off[McInstOffDisp]);
+				}
+
+				break;
+			}
 		}
 	}
 
@@ -242,5 +238,6 @@ bool mc_frag_build(mc_frag_t * frag, lnk_sect_t ** out) {
 const mc_defs_sd_type_t mc_frag_type_to_sd[McFrag_Count] = {
 	[McFragCode] = McDefsSdText_Code,
 	[McFragRoData] = McDefsSdRdata_Data,
-	[McFragRwData] = McDefsSdData_Data
+	[McFragRwData] = McDefsSdData_Data,
+	[McFragUnw] = McDefsSdRdata_Unw
 };

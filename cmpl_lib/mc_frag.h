@@ -6,6 +6,7 @@ enum mc_frag_type {
 	McFragCode,
 	McFragRoData,
 	McFragRwData,
+	McFragUnw,
 	McFrag_Count
 };
 struct mc_frag {

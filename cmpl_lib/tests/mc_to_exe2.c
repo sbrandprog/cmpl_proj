@@ -14,7 +14,7 @@ static bool test_proc(test_ctx_t * ctx) {
 	ctx->pea.frag = main_proc;
 
 	mc_inst_t main_proc_insts[] = {
-		{ .type = McInstLabel, .opds = McInstOpds_Label, .imm0_label = ep_name },
+		{ .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = LnkSectLpLabelBasic, .label = ep_name },
 		{ .type = McInstSub, .opds = McInstOpds_Reg_Imm, .reg0 = McRegRsp, .imm0_type = McInstImm8, .imm0 = 0x28 },
 		{ .type = McInstMov, .opds = McInstOpds_Reg_Imm, .reg0 = McRegEcx, .imm0_type = McInstImm32, .imm0 = -11 },
 		{ .type = McInstCall, .opds = McInstOpds_Mem, .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp_label = UL_HST_HASHADD_WS(&ctx->hst, L"GetStdHandle"), },
@@ -38,7 +38,7 @@ static bool test_proc(test_ctx_t * ctx) {
 	main_proc->next = data_frag;
 
 	mc_inst_t data_frag_insts[] = {
-		{ .type = McInstLabel, .opds = McInstOpds_Label, .label = UL_HST_HASHADD_WS(&ctx->hst, L"msg") },
+		{ .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = LnkSectLpLabelBasic, .label = UL_HST_HASHADD_WS(&ctx->hst, L"msg") },
 		{ .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm8, .imm0 = 'H' },
 		{ .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm8, .imm0 = 'e' },
 		{ .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm8, .imm0 = 'l' },

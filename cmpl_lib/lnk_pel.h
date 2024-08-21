@@ -16,10 +16,12 @@ struct lnk_pel_sett {
 	uint16_t subsys;
 	uint16_t dll_chars;
 
-	bool make_base_reloc;
+	bool make_excpt_sect;
+	bool make_base_reloc_sect;
 	bool apply_mrgr;
 
-	const char * base_reloc_name;
+	const char * excpt_sect_name;
+	const char * base_reloc_sect_name;
 };
 
 struct lnk_pel {

@@ -16,7 +16,7 @@ static bool test_proc(test_ctx_t * ctx) {
 	};
 
 	lnk_sect_lp_t text_sect_lps[] = {
-		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelNone, .label_name = ep_name, .off = 0 }
+		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelBasic, .label_name = ep_name, .off = 0 }
 	};
 
 	lnk_sect_t * text_sect = lnk_sect_create(".text");

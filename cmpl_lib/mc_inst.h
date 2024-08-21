@@ -1,4 +1,5 @@
 #pragma once
+#include "lnk_sect.h"
 #include "mc_size.h"
 
 #define MC_INST_OPDS_SIZE 3
@@ -136,6 +137,7 @@ struct mc_inst {
 	union {
 		int32_t mem_disp;
 		ul_hs_t * mem_disp_label;
+		lnk_sect_lp_stype_t label_stype;
 	};
 	union {
 		int64_t imm0;
@@ -164,6 +166,12 @@ struct mc_inst_offs {
 typedef uint8_t mc_inst_bs_t[MC_INST_BS_SIZE];
 
 MC_API bool mc_inst_build(mc_inst_t * inst, size_t * inst_size, mc_inst_bs_t out, mc_inst_offs_t * offs_out);
+
+inline bool mc_inst_get_size(mc_inst_t * inst, size_t * out) {
+	mc_inst_bs_t bs;
+
+	return mc_inst_build(inst, out, bs, NULL);
+}
 
 extern MC_API const mc_inst_opd_t mc_inst_opds_to_opd[McInstOpds__Count][MC_INST_OPDS_SIZE];
 extern MC_API const mc_size_t mc_inst_imm_type_to_size[McInstImm_Count];

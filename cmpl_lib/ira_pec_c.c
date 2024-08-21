@@ -210,7 +210,7 @@ bool ira_pec_c_compile_val_frag(ira_pec_c_ctx_t * ctx, ira_val_t * val, ul_hs_t 
 	ul_hs_t * frag_label = get_val_frag_label(ctx, hint_name);
 
 	{
-		mc_inst_t label = { .type = McInstLabel, .opds = McInstLabel, .label = frag_label };
+		mc_inst_t label = { .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = LnkSectLpLabelBasic, .label = frag_label };
 
 		mc_frag_push_inst(frag, &label);
 	}
@@ -276,7 +276,7 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 	mc_frag_t * frag = ira_pec_c_get_frag(ctx, frag_type);
 
 	{
-		mc_inst_t label = { .type = McInstLabel, .opds = McInstOpds_Label, .label = lo->name };
+		mc_inst_t label = { .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = LnkSectLpLabelBasic, .label = lo->name };
 
 		mc_frag_push_inst(frag, &label);
 	}

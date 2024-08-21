@@ -152,8 +152,11 @@ typedef struct ira_pec_ip_ctx {
 			ul_hst_t * hst;
 
 			mc_frag_t * frag;
+			mc_frag_t * unw_frag;
 
 			size_t stack_size;
+
+			size_t stack_alloc_inst_size;
 
 			size_t first_va_arg_ind;
 
@@ -1521,10 +1524,32 @@ static void reset_bb_cmpl_gpr_from_var(ctx_t * ctx, var_t * var) {
 static void push_mc_inst(ctx_t * ctx, mc_inst_t * inst) {
 	mc_frag_push_inst(ctx->cmpl.frag, inst);
 }
-static void push_mc_label(ctx_t * ctx, ul_hs_t * name) {
-	mc_inst_t label = { .type = McInstLabel, .opds = McInstLabel, .label = name };
+static void push_mc_label(ctx_t * ctx, ul_hs_t * name, lnk_sect_lp_stype_t label_stype) {
+	mc_inst_t label = { .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = label_stype, .label = name };
 
 	push_mc_inst(ctx, &label);
+}
+static void push_mc_label_basic(ctx_t * ctx, ul_hs_t * name) {
+	push_mc_label(ctx, name, LnkSectLpLabelBasic);
+}
+
+static void push_mc_unw_inst(ctx_t * ctx, mc_inst_t * inst) {
+	mc_frag_push_inst(ctx->cmpl.unw_frag, inst);
+}
+static void push_mc_unw_byte(ctx_t * ctx, uint8_t byte) {
+	mc_inst_t data = { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm8, .imm0 = byte };
+
+	push_mc_unw_inst(ctx, &data);
+}
+static void push_mc_unw_word(ctx_t * ctx, uint16_t word) {
+	mc_inst_t data = { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm16, .imm0 = word };
+
+	push_mc_unw_inst(ctx, &data);
+}
+static void push_mc_unw_label(ctx_t * ctx, ul_hs_t * name, lnk_sect_lp_stype_t label_stype) {
+	mc_inst_t label = { .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = label_stype, .label = name };
+
+	push_mc_unw_inst(ctx, &label);
 }
 
 static bool calculate_stack(ctx_t * ctx) {
@@ -1954,12 +1979,133 @@ static void emit_prologue_save_args(ctx_t * ctx) {
 		w64_save_caller_var_args(ctx, arg);
 	}
 }
-static void emit_prologue(ctx_t * ctx) {
-	mc_inst_t stack_res = { .type = McInstSub, .opds = McInstOpds_Reg_Imm, .reg0 = McRegRsp, .imm0_type = McInstImm32, .imm0 = (int32_t)ctx->cmpl.stack_size };
+static void emit_unw_ver_flags(ctx_t * ctx) {
+	union {
+		struct {
+			uint8_t ver : 5;
+			uint8_t flags : 3;
+		};
+		uint8_t val;
+	} ver_flags;
 
-	push_mc_inst(ctx, &stack_res);
+	ver_flags.ver = 1;
+	ver_flags.flags = 0;
+
+	push_mc_unw_byte(ctx, ver_flags.val);
+}
+static void emit_unw_codes_size(ctx_t * ctx, size_t * out_codes_size) {
+	size_t codes_size = 0;
+
+	size_t stack_size = ctx->cmpl.stack_size;
+
+	if (stack_size % 8 == 0 && 8 <= stack_size && stack_size <= 128) {
+		codes_size += 1;
+	}
+	else if (stack_size % 8 == 0 && stack_size < (1ull << (9 + 10)) - 8ull) {
+		codes_size += 2;
+	}
+	else if (stack_size < (1ull << (2 + 10 + 10 + 10)) - 8ull) {
+		codes_size += 3;
+	}
+	else {
+		ul_assert_unreachable();
+	}
+
+	ul_assert(codes_size < UINT8_MAX);
+
+	push_mc_unw_byte(ctx, (uint8_t)codes_size);
+
+	*out_codes_size = codes_size;
+}
+static void emit_unw_frame_data(ctx_t * ctx) {
+	union {
+		struct {
+			uint8_t frame_reg : 4;
+			uint8_t frame_off : 4;
+		};
+		uint8_t val;
+	} frame_ptr;
+
+	frame_ptr.frame_reg = 0;
+	frame_ptr.frame_off = 0;
+
+	push_mc_unw_byte(ctx, frame_ptr.val);
+}
+static void emit_unw_data(ctx_t * ctx) {
+	push_mc_unw_label(ctx, ctx->cmpl.lo->name, LnkSectLpLabelProcUnw);
+
+	emit_unw_ver_flags(ctx);
+
+	size_t stack_alloc_inst_end = ctx->cmpl.stack_alloc_inst_size;
+
+	ul_assert(stack_alloc_inst_end < UINT8_MAX);
+
+	{
+		uint8_t prologue_len = (uint8_t)stack_alloc_inst_end;
+
+		push_mc_unw_byte(ctx, prologue_len);
+	}
+
+	size_t codes_size;
+
+	emit_unw_codes_size(ctx, &codes_size);
+
+	emit_unw_frame_data(ctx);
+
+	typedef union unw_code {
+		struct {
+			uint8_t off;
+			uint8_t opc : 4;
+			uint8_t info : 4;
+		};
+		uint16_t val;
+	} unw_code_t;
+
+	{
+		size_t stack_size = ctx->cmpl.stack_size;
+
+		if (stack_size % 8 == 0 && 8 <= stack_size && stack_size <= 128) {
+			unw_code_t stack_alloc = { .off = (uint8_t)stack_alloc_inst_end, .opc = 2, .info = stack_size / 8 - 1 };
+
+			push_mc_unw_word(ctx, stack_alloc.val);
+		}
+		else if (stack_size % 8 == 0 && stack_size < (1ull << (9 + 10)) - 8ull) {
+			unw_code_t stack_alloc = { .off = (uint8_t)stack_alloc_inst_end, .opc = 1, .info = 0 };
+
+			push_mc_unw_word(ctx, stack_alloc.val);
+
+			push_mc_unw_word(ctx, (uint16_t)(stack_size / 8));
+		}
+		else if (stack_size < (1ull << (2 + 10 + 10 + 10)) - 8ull) {
+			unw_code_t stack_alloc = { .off = (uint8_t)stack_alloc_inst_end, .opc = 1, .info = 1 };
+
+			push_mc_unw_word(ctx, stack_alloc.val);
+
+			push_mc_unw_word(ctx, (uint16_t)(stack_size & 0xFFFF));
+
+			push_mc_unw_word(ctx, (uint16_t)((stack_size >> 16) & 0xFFFF));
+		}
+		else {
+			ul_assert_unreachable();
+		}
+
+		if (codes_size % 2 == 1) {
+			push_mc_unw_word(ctx, 0);
+		}
+	}
+}
+static void emit_prologue(ctx_t * ctx) {
+	mc_inst_t stack_alloc = { .type = McInstSub, .opds = McInstOpds_Reg_Imm, .reg0 = McRegRsp, .imm0_type = McInstImm32, .imm0 = (int32_t)ctx->cmpl.stack_size };
+
+	bool res = mc_inst_get_size(&stack_alloc, &ctx->cmpl.stack_alloc_inst_size);
+
+	ul_assert(res);
+
+	push_mc_inst(ctx, &stack_alloc);
 
 	emit_prologue_save_args(ctx);
+
+	emit_unw_data(ctx);
 }
 static void emit_epilogue(ctx_t * ctx) {
 	mc_inst_t stack_free = { .type = McInstAdd, .opds = McInstOpds_Reg_Imm, .reg0 = McRegRsp, .imm0_type = McInstImm32, .imm0 = (int32_t)ctx->cmpl.stack_size };
@@ -2230,7 +2376,7 @@ static void compile_blank(ctx_t * ctx, inst_t * inst) {
 	return;
 }
 static void compile_def_label(ctx_t * ctx, inst_t * inst) {
-	push_mc_label(ctx, inst->opd0.label->cmpl.global_name);
+	push_mc_label_basic(ctx, inst->opd0.label->cmpl.global_name);
 }
 static void compile_load_val(ctx_t * ctx, inst_t * inst) {
 	compile_load_val_impl(ctx, inst->opd0.var, inst->opd1.val);
@@ -2564,6 +2710,8 @@ static void compile_va_arg(ctx_t * ctx, inst_t * inst) {
 }
 
 static void compile_insts(ctx_t * ctx) {
+	push_mc_label_basic(ctx, ctx->cmpl.lo->name);
+
 	emit_prologue(ctx);
 
 	for (inst_t * inst = ctx->insts, *inst_end = inst + ctx->insts_size; inst != inst_end; ++inst) {
@@ -2615,6 +2763,8 @@ static void compile_insts(ctx_t * ctx) {
 
 		proc(ctx, inst);
 	}
+
+	push_mc_label(ctx, ctx->cmpl.lo->name, LnkSectLpLabelProcEnd);
 }
 
 static bool compile_core(ctx_t * ctx) {
@@ -2627,8 +2777,7 @@ static bool compile_core(ctx_t * ctx) {
 	ctx->pec = ira_pec_c_get_pec(ctx->cmpl.base_ctx);
 
 	ctx->cmpl.frag = ira_pec_c_get_frag(ctx->cmpl.base_ctx, McFragCode);
-
-	push_mc_label(ctx, ctx->cmpl.lo->name);
+	ctx->cmpl.unw_frag = ira_pec_c_get_frag(ctx->cmpl.base_ctx, McFragUnw);
 
 	ctx->func = ctx->cmpl.lo->func;
 

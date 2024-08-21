@@ -23,9 +23,11 @@ const lnk_pel_sett_t lnk_pel_dflt_sett = {
 	.subsys = IMAGE_SUBSYSTEM_WINDOWS_CUI,
 	.dll_chars = IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA | IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE | IMAGE_DLLCHARACTERISTICS_NX_COMPAT | IMAGE_DLLCHARACTERISTICS_NO_SEH | IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE,
 
-	.make_base_reloc = true,
+	.make_excpt_sect = true,
+	.make_base_reloc_sect = true,
 	.apply_mrgr = true,
 
-	.base_reloc_name = ".reloc"
+	.excpt_sect_name = ".pdata",
+	.base_reloc_sect_name = ".reloc"
 };
 const wchar_t * lnk_pel_dflt_file_name = L"out.exe";

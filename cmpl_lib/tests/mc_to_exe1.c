@@ -14,7 +14,7 @@ static bool test_proc(test_ctx_t * ctx) {
 	ctx->pea.frag = main_proc;
 
 	mc_inst_t main_proc_insts[] = {
-		{ .type = McInstLabel, .opds = McInstOpds_Label, .label = ep_name },
+		{ .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = LnkSectLpLabelBasic, .label = ep_name },
 		{ .type = McInstXor, .opds = McInstOpds_Reg_Reg, .reg0 = McRegEax, .reg1 = McRegEax },
 		{ .type = McInstRet, .opds = McInstOpds_None }
 	};

@@ -114,27 +114,36 @@ static bool form_sects_arr(ctx_t * ctx) {
 				case LnkSectLpMark:
 					break;
 				case LnkSectLpLabel:
-					if (lp->stype != LnkSectLpLabelNone) {
-						return false;
-					}
+					switch (lp->stype) {
+						case LnkSectLpLabelNone:
+							break;
+						case LnkSectLpLabelBasic:
 
-					{
-						if (ctx->labels_size + 1 > ctx->labels_cap) {
-							ul_arr_grow(&ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels), 1);
+						{
+							if (ctx->labels_size + 1 > ctx->labels_cap) {
+								ul_arr_grow(&ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels), 1);
+							}
+
+							label_t new_label = (label_t){ .name = lp->label_name, .sect = sect };
+
+							size_t ins_pos = ul_bs_lower_bound(sizeof(*ctx->labels), ctx->labels_size, ctx->labels, label_cmp_proc, &new_label);
+
+							if (ins_pos < ctx->labels_size && ctx->labels[ins_pos].name == new_label.name) {
+								return false;
+							}
+
+							memmove_s(ctx->labels + ins_pos + 1, sizeof(*ctx->labels) * (ctx->labels_cap - ins_pos), ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
+
+							ctx->labels[ins_pos] = new_label;
+							++ctx->labels_size;
+
+							break;
 						}
-
-						label_t new_label = (label_t){ .name = lp->label_name, .sect = sect };
-
-						size_t ins_pos = ul_bs_lower_bound(sizeof(*ctx->labels), ctx->labels_size, ctx->labels, label_cmp_proc, &new_label);
-
-						if (ins_pos < ctx->labels_size && ctx->labels[ins_pos].name == new_label.name) {
+						case LnkSectLpLabelProcEnd:
+						case LnkSectLpLabelProcUnw:
+							break;
+						default:
 							return false;
-						}
-
-						memmove_s(ctx->labels + ins_pos + 1, sizeof(*ctx->labels) * (ctx->labels_cap - ins_pos), ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
-
-						ctx->labels[ins_pos] = new_label;
-						++ctx->labels_size;
 					}
 
 					break;

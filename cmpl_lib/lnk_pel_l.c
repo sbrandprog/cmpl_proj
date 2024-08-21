@@ -18,12 +18,16 @@ struct lnk_pel_l_sect {
 
 	bool mem_r, mem_w, mem_e, mem_disc;
 
-	size_t index;
+	size_t ind;
 
 	size_t raw_size, raw_addr;
 	size_t virt_size, virt_addr;
 };
 
+typedef struct lnk_pel_l_mark {
+	sect_t * sect;
+	size_t off;
+} mark_t;
 typedef struct lnk_pel_l_label {
 	const ul_hs_t * name;
 	sect_t * sect;
@@ -35,10 +39,17 @@ typedef struct lnk_pel_l_fixup {
 	sect_t * sect;
 	size_t off;
 } fixup_t;
-typedef struct lnk_pel_l_mark {
-	sect_t * sect;
-	size_t off;
-} mark_t;
+typedef struct lnk_pel_l_proc {
+	const ul_hs_t * label_name;
+
+	sect_t * end_sect;
+	size_t end_off;
+
+	sect_t * unw_sect;
+	size_t unw_off;
+
+	label_t * label;
+} proc_t;
 
 typedef struct lnk_pel_l_br_fixup {
 	size_t off;
@@ -58,6 +69,8 @@ typedef struct lnk_pel_l_ctx {
 	size_t sect_count;
 
 
+	mark_t marks[LnkSectLpMark_Count];
+
 	size_t labels_size;
 	label_t * labels;
 	size_t labels_cap;
@@ -66,7 +79,12 @@ typedef struct lnk_pel_l_ctx {
 	fixup_t * fixups;
 	size_t fixups_cap;
 
-	mark_t marks[LnkSectLpMark_Count];
+	size_t procs_size;
+	proc_t * procs;
+	size_t procs_cap;
+
+
+	sect_t * excpt_sect;
 
 
 	size_t va64_fixups_size;
@@ -89,11 +107,13 @@ typedef struct lnk_pel_l_ctx {
 
 static const lnk_sect_lp_stype_t dir_start_mark[IMAGE_NUMBEROF_DIRECTORY_ENTRIES] = {
 	[IMAGE_DIRECTORY_ENTRY_IMPORT] = LnkSectLpMarkImpStart,
+	[IMAGE_DIRECTORY_ENTRY_EXCEPTION] = LnkSectLpMarkExcptStart,
 	[IMAGE_DIRECTORY_ENTRY_BASERELOC] = LnkSectLpMarkRelocStart,
 	[IMAGE_DIRECTORY_ENTRY_IAT] = LnkSectLpMarkImpTabStart
 };
 static const lnk_sect_lp_stype_t dir_end_mark[IMAGE_NUMBEROF_DIRECTORY_ENTRIES] = {
 	[IMAGE_DIRECTORY_ENTRY_IMPORT] = LnkSectLpMarkImpEnd,
+	[IMAGE_DIRECTORY_ENTRY_EXCEPTION] = LnkSectLpMarkExcptEnd,
 	[IMAGE_DIRECTORY_ENTRY_BASERELOC] = LnkSectLpMarkRelocEnd,
 	[IMAGE_DIRECTORY_ENTRY_IAT] = LnkSectLpMarkImpTabEnd
 };
@@ -175,6 +195,10 @@ static label_t * find_label(ctx_t * ctx, const ul_hs_t * name) {
 	return NULL;
 }
 
+static bool proc_cmp_proc(const proc_t * first, const proc_t * second) {
+	return (uint8_t *)first->label_name < (uint8_t *)second->label_name;
+}
+
 static sect_t * add_sect(ctx_t * ctx, const char * srch_name, lnk_sect_t * src) {
 	sect_t ** ins = &ctx->sect;
 
@@ -205,8 +229,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp) {
 			if (lp->stype == LnkSectLpMarkNone) {
 				return true;
 			}
-
-			if (lp->stype >= LnkSectLpMark_Count) {
+			else if (lp->stype >= LnkSectLpMark_Count) {
 				return false;
 			}
 
@@ -223,22 +246,96 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp) {
 		}
 		case LnkSectLpLabel:
 		{
-			if (ctx->labels_size + 1 > ctx->labels_cap) {
-				ul_arr_grow(&ctx->labels_cap, &ctx->labels, sizeof(label_t), 1);
+			if (lp->stype == LnkSectLpLabelNone) {
+				return true;
 			}
-
-			label_t new_label = { .name = lp->label_name, .sect = sect, .off = lp->off };
-
-			size_t ins_pos = ul_bs_lower_bound(sizeof(*ctx->labels), ctx->labels_size, ctx->labels, label_cmp_proc, &new_label);
-
-			if (ins_pos < ctx->labels_size && ctx->labels[ins_pos].name == new_label.name) {
+			else if (lp->stype >= LnkSectLpLabel_Count) {
 				return false;
 			}
 
-			memmove_s(ctx->labels + ins_pos + 1, sizeof(*ctx->labels) * (ctx->labels_cap - ins_pos), ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
+			switch (lp->stype) {
+				case LnkSectLpLabelBasic:
+				{
 
-			ctx->labels[ins_pos] = new_label;
-			++ctx->labels_size;
+					label_t new_label = { .name = lp->label_name, .sect = sect, .off = lp->off };
+
+					size_t ins_pos = ul_bs_lower_bound(sizeof(*ctx->labels), ctx->labels_size, ctx->labels, label_cmp_proc, &new_label);
+
+					if (ins_pos < ctx->labels_size && ctx->labels[ins_pos].name == new_label.name) {
+						return false;
+					}
+
+					if (ctx->labels_size + 1 > ctx->labels_cap) {
+						ul_arr_grow(&ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels), 1);
+					}
+
+					memmove_s(ctx->labels + ins_pos + 1, sizeof(*ctx->labels) * (ctx->labels_cap - ins_pos), ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
+
+					ctx->labels[ins_pos] = new_label;
+					++ctx->labels_size;
+
+					break;
+				}
+				case LnkSectLpLabelProcEnd:
+				case LnkSectLpLabelProcUnw:
+				{
+					proc_t new_proc = { .label_name = lp->label_name };
+
+					size_t ins_pos = ul_bs_lower_bound(sizeof(*ctx->procs), ctx->procs_size, ctx->procs, proc_cmp_proc, &new_proc);
+
+					if (ins_pos < ctx->procs_size && ctx->procs[ins_pos].label_name == new_proc.label_name) {
+						proc_t * proc = &ctx->procs[ins_pos];
+
+						switch (lp->stype) {
+							case LnkSectLpLabelProcEnd:
+								if (proc->end_sect != NULL) {
+									return false;
+								}
+
+								proc->end_sect = sect;
+								proc->end_off = lp->off;
+								break;
+							case LnkSectLpLabelProcUnw:
+								if (proc->unw_sect != NULL) {
+									return false;
+								}
+
+								proc->unw_sect = sect;
+								proc->unw_off = lp->off;
+								break;
+							default:
+								ul_assert_unreachable();
+						}
+					}
+					else {
+						switch (lp->stype) {
+							case LnkSectLpLabelProcEnd:
+								new_proc.end_sect = sect;
+								new_proc.end_off = lp->off;
+								break;
+							case LnkSectLpLabelProcUnw:
+								new_proc.unw_sect = sect;
+								new_proc.unw_off = lp->off;
+								break;
+							default:
+								ul_assert_unreachable();
+						}
+
+						if (ctx->procs_size + 1 > ctx->procs_cap) {
+							ul_arr_grow(&ctx->procs_cap, &ctx->procs, sizeof(*ctx->procs), 1);
+						}
+
+						memmove_s(ctx->procs + ins_pos + 1, sizeof(*ctx->procs) * (ctx->procs_cap - ins_pos), ctx->procs + ins_pos, sizeof(*ctx->procs) * (ctx->procs_size - ins_pos));
+
+						ctx->procs[ins_pos] = new_proc;
+						++ctx->procs_size;
+					}
+
+					break;
+				}
+				default:
+					ul_assert_unreachable();
+			}
 
 			return true;
 		}
@@ -247,8 +344,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp) {
 			if (lp->stype == LnkSectLpFixupNone) {
 				return true;
 			}
-
-			if (lp->stype >= LnkSectLpFixup_Count) {
+			else if (lp->stype >= LnkSectLpFixup_Count) {
 				return false;
 			}
 
@@ -257,7 +353,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp) {
 			}
 
 			if (ctx->fixups_size + 1 > ctx->fixups_cap) {
-				ul_arr_grow(&ctx->fixups_cap, &ctx->fixups, sizeof(fixup_t), 1);
+				ul_arr_grow(&ctx->fixups_cap, &ctx->fixups, sizeof(*ctx->fixups), 1);
 			}
 
 			ctx->fixups[ctx->fixups_size++] = (fixup_t){ .stype = lp->stype, .label_name = lp->label_name, .sect = sect, .off = lp->off };
@@ -289,21 +385,21 @@ static bool form_main_sects(ctx_t * ctx) {
 
 	return true;
 }
-static void set_sect_indices(ctx_t * ctx) {
+static void set_sect_inds(ctx_t * ctx) {
 	sect_t * sect = ctx->sect;
-	size_t index = 0;
+	size_t ind = 0;
 
 	for (; sect != NULL; sect = sect->next) {
-		sect->index = index++;
+		sect->ind = ind++;
 	}
 }
-static int base_reloc_cmp_proc(void * ctx_ptr, const void * first_ptr, const void * second_ptr) {
-	const fixup_t * first = *(const fixup_t **)first_ptr, * second = *(const fixup_t **)second_ptr;
+static int base_reloc_cmp_proc(void * ctx_ptr, const fixup_t * const * first_ptr, const fixup_t * const * second_ptr) {
+	const fixup_t * first = *first_ptr, * second = *second_ptr;
 
-	if (first->sect->index < second->sect->index) {
+	if (first->sect->ind < second->sect->ind) {
 		return -1;
 	}
-	else if (first->sect->index > second->sect->index) {
+	else if (first->sect->ind > second->sect->ind) {
 		return 1;
 	}
 
@@ -315,6 +411,48 @@ static int base_reloc_cmp_proc(void * ctx_ptr, const void * first_ptr, const voi
 	}
 
 	return 0;
+}
+static bool form_excpt_data_sect(ctx_t * ctx) {
+	if (ctx->marks[LnkSectLpMarkExcptStart].sect != NULL || ctx->marks[LnkSectLpMarkExcptEnd].sect != NULL) {
+		return false;
+	}
+
+	for (proc_t * proc = ctx->procs, *proc_end = proc + ctx->procs_size; proc != proc_end; ++proc) {
+		if (proc->end_sect == NULL || proc->unw_sect == NULL) {
+			return false;
+		}
+
+		proc->label = find_label(ctx, proc->label_name);
+
+		if (proc->label == NULL) {
+			return false;
+		}
+	}
+
+	sect_t * excpt = add_sect(ctx, ctx->pel->sett.excpt_sect_name, NULL);
+
+	if (excpt == NULL) {
+		return false;
+	}
+
+	size_t excpt_size = sizeof(RUNTIME_FUNCTION) * ctx->procs_size;
+
+	excpt->data = malloc(excpt_size);
+
+	ul_assert(excpt->data != NULL);
+
+	excpt->data_size = excpt_size;
+	excpt->data_cap = excpt_size;
+
+	excpt->name = ctx->pel->sett.excpt_sect_name;
+	excpt->mem_r = true;
+
+	ctx->excpt_sect = excpt;
+
+	ctx->marks[LnkSectLpMarkExcptStart] = (mark_t){ .sect = excpt, .off = 0 };
+	ctx->marks[LnkSectLpMarkExcptEnd] = (mark_t){ .sect = excpt, .off = excpt->data_size };
+
+	return true;
 }
 static bool form_base_reloc_sect(ctx_t * ctx) {
 	if (ctx->marks[LnkSectLpMarkRelocStart].sect != NULL || ctx->marks[LnkSectLpMarkRelocEnd].sect != NULL) {
@@ -337,14 +475,18 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 			}
 		}
 
-		set_sect_indices(ctx);
+		set_sect_inds(ctx);
 
 		qsort_s(ctx->va64_fixups, ctx->va64_fixups_size, sizeof(*ctx->va64_fixups), base_reloc_cmp_proc, ctx);
 	}
 
-	sect_t * reloc = add_sect(ctx, ctx->pel->sett.base_reloc_name, NULL);
+	sect_t * reloc = add_sect(ctx, ctx->pel->sett.base_reloc_sect_name, NULL);
 
-	reloc->name = ctx->pel->sett.base_reloc_name;
+	if (reloc == NULL) {
+		return false;
+	}
+
+	reloc->name = ctx->pel->sett.base_reloc_sect_name;
 	reloc->mem_r = true;
 	reloc->mem_disc = true;
 
@@ -426,7 +568,13 @@ static bool form_sects(ctx_t * ctx) {
 		return false;
 	}
 
-	if (ctx->pel->sett.make_base_reloc && ctx->va64_fixups_size != 0) {
+	if (ctx->pel->sett.make_excpt_sect && ctx->procs_size > 0) {
+		if (!form_excpt_data_sect(ctx)) {
+			return false;
+		}
+	}
+
+	if (ctx->pel->sett.make_base_reloc_sect && ctx->va64_fixups_size > 0) {
 		if (!form_base_reloc_sect(ctx)) {
 			return false;
 		}
@@ -478,6 +626,50 @@ static bool calculate_offsets(ctx_t * ctx) {
 	return true;
 }
 
+static int excpt_cmp_proc(void * ctx_ptr, const proc_t * first, const proc_t * second) {
+	size_t first_off = first->label->sect->virt_addr + first->label->off,
+		second_off = second->label->sect->virt_addr + second->label->off;
+
+	if (first_off < second_off) {
+		return -1;
+	}
+	else if (first_off > second_off) {
+		return 1;
+	}
+
+	return 0;
+}
+
+static bool apply_fixups_excpt(ctx_t * ctx) {
+	if (ctx->excpt_sect == NULL) {
+		return true;;
+	}
+
+	qsort_s(ctx->procs, ctx->procs_size, sizeof(*ctx->procs), excpt_cmp_proc, NULL);
+
+	sect_t * excpt = ctx->excpt_sect;
+
+	RUNTIME_FUNCTION * cur = (RUNTIME_FUNCTION *)excpt->data;
+
+	for (proc_t * proc = ctx->procs, *proc_end = proc + ctx->procs_size; proc != proc_end; ++proc, ++cur) {
+		*cur = (RUNTIME_FUNCTION){ .BeginAddress = (DWORD)(proc->label->sect->virt_addr + proc->label->off), .EndAddress = (DWORD)(proc->end_sect->virt_addr + proc->end_off), .UnwindData = (DWORD)(proc->unw_sect->virt_addr + proc->unw_off) };
+	}
+
+	ul_assert((uint8_t *)cur == excpt->data + excpt->data_size);
+
+	return true;
+}
+static bool apply_fixups_base_reloc(ctx_t * ctx) {
+	if (ctx->reloc_sect == NULL) {
+		return true;
+	}
+
+	for (br_fixup_t * fixup = ctx->br_fixups, *fixup_end = fixup + ctx->br_fixups_size; fixup != fixup_end; ++fixup) {
+		*(uint32_t *)(ctx->reloc_sect->data + fixup->off) = (uint32_t)(fixup->target_sect->virt_addr + fixup->target_page);
+	}
+
+	return true;
+}
 static bool apply_fixups(ctx_t * ctx) {
 	for (fixup_t * fixup = ctx->fixups, *fixup_end = fixup + ctx->fixups_size; fixup != fixup_end; ++fixup) {
 		label_t * label = find_label(ctx, fixup->label_name);
@@ -534,8 +726,12 @@ static bool apply_fixups(ctx_t * ctx) {
 		}
 	}
 
-	for (br_fixup_t * fixup = ctx->br_fixups, *fixup_end = fixup + ctx->br_fixups_size; fixup != fixup_end; ++fixup) {
-		*(uint32_t *)(ctx->reloc_sect->data + fixup->off) = (uint32_t)(fixup->target_sect->virt_addr + fixup->target_page);
+	if (!apply_fixups_excpt(ctx)) {
+		return false;
+	}
+
+	if (!apply_fixups_base_reloc(ctx)) {
+		return false;
 	}
 
 	return true;
@@ -616,6 +812,9 @@ static bool write_file_core(ctx_t * ctx, FILE * file) {
 		nt.OptionalHeader.NumberOfRvaAndSizes = IMAGE_NUMBEROF_DIRECTORY_ENTRIES;
 
 		if (!set_dir_info(ctx, &nt, IMAGE_DIRECTORY_ENTRY_IMPORT)) {
+			return false;
+		}
+		if (!set_dir_info(ctx, &nt, IMAGE_DIRECTORY_ENTRY_EXCEPTION)) {
 			return false;
 		}
 		if (!set_dir_info(ctx, &nt, IMAGE_DIRECTORY_ENTRY_BASERELOC)) {
@@ -702,8 +901,10 @@ bool lnk_pel_l_link(lnk_pel_t * pel) {
 	free(ctx.br_fixups);
 	free(ctx.va64_fixups);
 
-	free(ctx.labels);
+	free(ctx.procs);
+
 	free(ctx.fixups);
+	free(ctx.labels);
 
 	destroy_sect_chain(ctx.sect);
 

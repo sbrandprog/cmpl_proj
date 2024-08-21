@@ -16,9 +16,14 @@ enum lnk_sect_lp_stype {
 	LnkSectLpMarkImpTabEnd,
 	LnkSectLpMarkRelocStart,
 	LnkSectLpMarkRelocEnd,
+	LnkSectLpMarkExcptStart,
+	LnkSectLpMarkExcptEnd,
 	LnkSectLpMark_Count,
 
 	LnkSectLpLabelNone = 0,
+	LnkSectLpLabelBasic,
+	LnkSectLpLabelProcEnd,
+	LnkSectLpLabelProcUnw,
 	LnkSectLpLabel_Count,
 
 	LnkSectLpFixupNone = 0,
@@ -27,7 +32,7 @@ enum lnk_sect_lp_stype {
 	LnkSectLpFixupVa64,
 	LnkSectLpFixupRva32,
 	LnkSectLpFixupRva31of64,
-	LnkSectLpFixup_Count
+	LnkSectLpFixup_Count,
 };
 struct lnk_sect_lp {
 	lnk_sect_lp_type_t type;
@@ -77,7 +82,7 @@ inline lnk_sect_t * lnk_sect_create_desc(const lnk_sect_desc_t * desc) {
 
 	sect->data_align = desc->data_align;
 	
-	sect->data_align_byte = sect->data_align_byte;
+	sect->data_align_byte = desc->data_align_byte;
 
 	sect->mem_r = desc->mem_r;
 	sect->mem_w = desc->mem_w;
