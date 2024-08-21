@@ -2626,7 +2626,7 @@ static bool compile_core(ctx_t * ctx) {
 	ctx->cmpl.hst = ira_pec_c_get_hst(ctx->cmpl.base_ctx);
 	ctx->pec = ira_pec_c_get_pec(ctx->cmpl.base_ctx);
 
-	ctx->cmpl.frag = ira_pec_c_get_frag(ctx->cmpl.base_ctx, McFragProc);
+	ctx->cmpl.frag = ira_pec_c_get_frag(ctx->cmpl.base_ctx, McFragCode);
 
 	push_mc_label(ctx, ctx->cmpl.lo->name);
 

@@ -58,11 +58,10 @@ static bool test_proc(test_ctx_t * ctx) {
 		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelNone, .label_name = UL_HST_HASHADD_WS(&ctx->hst, L"#n:kernel32"), .off = 0x84 }
 	};
 
-	lnk_sect_t * text_sect = lnk_sect_create();
+	lnk_sect_t * text_sect = lnk_sect_create(".text");
 
 	ctx->pel.sect = text_sect;
 
-	text_sect->name = ".text";
 	copy_sect_data(_countof(text_sect_data), text_sect_data, text_sect);
 	text_sect->data_align = 0x10;
 	copy_sect_lps(_countof(text_sect_lps), text_sect_lps, text_sect);
@@ -70,11 +69,10 @@ static bool test_proc(test_ctx_t * ctx) {
 	text_sect->mem_r = true;
 	text_sect->mem_e = true;
 
-	lnk_sect_t * rdata_sect = lnk_sect_create();
+	lnk_sect_t * rdata_sect = lnk_sect_create(".rdata");
 
 	text_sect->next = rdata_sect;
 
-	rdata_sect->name = ".rdata";
 	copy_sect_data(_countof(rdata_sect_data), rdata_sect_data, rdata_sect);
 	rdata_sect->data_align = 0x10;
 	copy_sect_lps(_countof(rdata_sect_lps), rdata_sect_lps, rdata_sect);

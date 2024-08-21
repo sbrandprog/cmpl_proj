@@ -23,6 +23,7 @@ target_sources(cmpl_lib
 		lnk_pel_m.h
 		lnk_sect.h
 		mc.h
+		mc_defs.h
 		mc_frag.h
 		mc_inst.h
 		mc_it.h
@@ -72,6 +73,7 @@ target_sources(cmpl_lib
 		lnk_pel_l.c
 		lnk_pel_m.c
 		lnk_sect.c
+		mc_defs.c
 		mc_frag.c
 		mc_inst.c
 		mc_it.c

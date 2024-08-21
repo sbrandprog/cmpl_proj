@@ -3,6 +3,8 @@
 
 #define MC_API CMPL_API
 
+typedef enum mc_defs_sd_type mc_defs_sd_type_t;
+
 typedef uint8_t mc_size_t;
 typedef struct mc_size_info mc_size_info_t;
 

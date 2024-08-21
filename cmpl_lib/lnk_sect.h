@@ -40,6 +40,7 @@ struct lnk_sect {
 	lnk_sect_t * next;
 
 	const char * name;
+	size_t ord_ind;
 
 	size_t data_size;
 	uint8_t * data;
@@ -55,8 +56,36 @@ struct lnk_sect {
 	bool mem_r, mem_w, mem_e, mem_disc;
 };
 
-LNK_API lnk_sect_t * lnk_sect_create();
+struct lnk_sect_desc {
+	const char * name;
+	size_t ord_ind;
+
+	size_t data_align;
+
+	uint8_t data_align_byte;
+
+	bool mem_r, mem_w, mem_e, mem_disc;
+};
+
+LNK_API lnk_sect_t * lnk_sect_create(const char * name);
 LNK_API void lnk_sect_destroy(lnk_sect_t * sect);
+
+inline lnk_sect_t * lnk_sect_create_desc(const lnk_sect_desc_t * desc) {
+	lnk_sect_t * sect = lnk_sect_create(desc->name);
+
+	sect->ord_ind = desc->ord_ind;
+
+	sect->data_align = desc->data_align;
+	
+	sect->data_align_byte = sect->data_align_byte;
+
+	sect->mem_r = desc->mem_r;
+	sect->mem_w = desc->mem_w;
+	sect->mem_e = desc->mem_e;
+	sect->mem_disc = desc->mem_disc;
+
+	return sect;
+}
 
 LNK_API void lnk_sect_destroy_chain(lnk_sect_t * sect);
 

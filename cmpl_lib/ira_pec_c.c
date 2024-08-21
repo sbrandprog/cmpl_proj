@@ -271,7 +271,7 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 		return false;
 	}
 
-	mc_frag_type_t frag_type = lo->var.qdt.qual.const_q ? McFragRoData : McFragWrData;
+	mc_frag_type_t frag_type = lo->var.qdt.qual.const_q ? McFragRoData : McFragRwData;
 
 	mc_frag_t * frag = ira_pec_c_get_frag(ctx, frag_type);
 

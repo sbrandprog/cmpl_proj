@@ -19,11 +19,10 @@ static bool test_proc(test_ctx_t * ctx) {
 		{ .type = LnkSectLpLabel, .stype = LnkSectLpLabelNone, .label_name = ep_name, .off = 0 }
 	};
 
-	lnk_sect_t * text_sect = lnk_sect_create();
+	lnk_sect_t * text_sect = lnk_sect_create(".text");
 
 	ctx->pel.sect = text_sect;
 
-	text_sect->name = ".text";
 	copy_sect_data(_countof(text_sect_data), text_sect_data, text_sect);
 	text_sect->data_align = 0x10;
 	copy_sect_lps(_countof(text_sect_lps), text_sect_lps, text_sect);

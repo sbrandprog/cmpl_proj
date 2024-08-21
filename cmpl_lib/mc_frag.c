@@ -1,25 +1,10 @@
 #include "lnk_sect.h"
 #include "lnk_pel.h"
+#include "mc_defs.h"
 #include "mc_size.h"
 #include "mc_reg.h"
 #include "mc_inst.h"
 #include "mc_frag.h"
-
-typedef struct sect_info {
-	const char * name;
-
-	size_t align;
-
-	uint8_t align_byte;
-
-	bool mem_r, mem_w, mem_e, mem_disc;
-} sect_info_t;
-
-static const sect_info_t sect_infos[McFrag_Count] = {
-	[McFragProc] = { .name = ".text", .align = 16, .align_byte = 0xCC, .mem_r = true, .mem_e = true },
-	[McFragRoData] = { .name = ".rdata", .align = 16, .align_byte = 0x00, .mem_r = true },
-	[McFragWrData] = { .name = ".data", .align = 16, .align_byte = 0x00, .mem_r = true, .mem_w = true }
-};
 
 mc_frag_t * mc_frag_create(mc_frag_type_t type) {
 	mc_frag_t * frag = malloc(sizeof(*frag));
@@ -57,23 +42,16 @@ void mc_frag_push_inst(mc_frag_t * frag, const mc_inst_t * inst) {
 	frag->insts[frag->insts_size++] = *inst;
 }
 
-static bool fill_sect_info(mc_frag_t * frag, lnk_sect_t * out) {
-	if (frag->type == McFragNone || frag->type >= McFrag_Count) {
+static bool create_sect(mc_frag_t * frag, lnk_sect_t ** out) {
+	if (frag->type >= McFrag_Count) {
 		return false;
 	}
 
-	const sect_info_t * info = &sect_infos[frag->type];
+	const lnk_sect_desc_t * desc = &mc_defs_sds[mc_frag_type_to_sd[frag->type]];
 
-	out->name = info->name;
+	*out = lnk_sect_create_desc(desc);
 
-	out->data_align = frag->align == 0 ? info->align : frag->align;
-
-	out->data_align_byte = info->align_byte;
-
-	out->mem_r = info->mem_r;
-	out->mem_w = info->mem_w;
-	out->mem_e = info->mem_e;
-	out->mem_disc = info->mem_disc;
+	(*out)->data_align = frag->align == 0 ? desc->data_align : frag->align;
 
 	return true;
 }
@@ -208,13 +186,15 @@ static bool build_special_inst(mc_frag_t * frag, mc_inst_t * inst, lnk_sect_t * 
 
 	return true;
 }
-static bool build_core(mc_frag_t * frag, lnk_sect_t * out) {
-	if (!fill_sect_info(frag, out)) {
+static bool build_core(mc_frag_t * frag, lnk_sect_t ** out) {
+	if (!create_sect(frag, out)) {
 		return false;
 	}
 
+	lnk_sect_t * sect = *out;
+
 	for (mc_inst_t * inst = frag->insts, *inst_end = inst + frag->insts_size; inst != inst_end; ++inst) {
-		if (build_special_inst(frag, inst, out)) {
+		if (build_special_inst(frag, inst, sect)) {
 			continue;
 		}
 
@@ -226,14 +206,14 @@ static bool build_core(mc_frag_t * frag, lnk_sect_t * out) {
 			return false;
 		}
 
-		if (out->data_size + inst_size > out->data_cap) {
-			ul_arr_grow(&out->data_cap, &out->data, sizeof(*out->data), out->data_size + inst_size - out->data_cap);
+		if (sect->data_size + inst_size > sect->data_cap) {
+			ul_arr_grow(&sect->data_cap, &sect->data, sizeof(*sect->data), sect->data_size + inst_size - sect->data_cap);
 		}
 
-		size_t inst_start = out->data_size;
+		size_t inst_start = sect->data_size;
 
-		memcpy(out->data + out->data_size, inst_bs, inst_size);
-		out->data_size += inst_size;
+		memcpy(sect->data + sect->data_size, inst_bs, inst_size);
+		sect->data_size += inst_size;
 
 		lnk_sect_lp_stype_t stype;
 
@@ -241,14 +221,14 @@ static bool build_core(mc_frag_t * frag, lnk_sect_t * out) {
 			return false;
 		}
 		else if (stype != LnkSectLpFixupNone) {
-			lnk_sect_add_lp(out, LnkSectLpFixup, stype, inst->imm0_label, inst_start + inst_offs.off[McInstOffImm]);
+			lnk_sect_add_lp(sect, LnkSectLpFixup, stype, inst->imm0_label, inst_start + inst_offs.off[McInstOffImm]);
 		}
 
 		if (!get_disp_fixup_stype(inst, &stype)) {
 			return false;
 		}
 		else if (stype != LnkSectLpFixupNone) {
-			lnk_sect_add_lp(out, LnkSectLpFixup, stype, inst->mem_disp_label, inst_start + inst_offs.off[McInstOffDisp]);
+			lnk_sect_add_lp(sect, LnkSectLpFixup, stype, inst->mem_disp_label, inst_start + inst_offs.off[McInstOffDisp]);
 		}
 	}
 
@@ -256,7 +236,11 @@ static bool build_core(mc_frag_t * frag, lnk_sect_t * out) {
 }
 
 bool mc_frag_build(mc_frag_t * frag, lnk_sect_t ** out) {
-	*out = lnk_sect_create();
-
-	return build_core(frag, *out);
+	return build_core(frag, out);
 }
+
+const mc_defs_sd_type_t mc_frag_type_to_sd[McFrag_Count] = {
+	[McFragCode] = McDefsSdText_Code,
+	[McFragRoData] = McDefsSdRdata_Data,
+	[McFragRwData] = McDefsSdData_Data
+};

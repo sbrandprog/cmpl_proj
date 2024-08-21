@@ -67,11 +67,10 @@ static bool test_proc(test_ctx_t * ctx) {
 		{ .type = LnkSectLpMark, .stype = LnkSectLpMarkRelocEnd, .label_name = NULL, .off = 0xC },
 	};
 
-	lnk_sect_t * text_sect = lnk_sect_create();
+	lnk_sect_t * text_sect = lnk_sect_create(".text");
 
 	ctx->pel.sect = text_sect;
 
-	text_sect->name = ".text";
 	copy_sect_data(_countof(text_sect_data), text_sect_data, text_sect);
 	text_sect->data_align = 0x10;
 	copy_sect_lps(_countof(text_sect_lps), text_sect_lps, text_sect);
@@ -79,22 +78,20 @@ static bool test_proc(test_ctx_t * ctx) {
 	text_sect->mem_r = true;
 	text_sect->mem_e = true;
 
-	lnk_sect_t * rdata_sect = lnk_sect_create();
+	lnk_sect_t * rdata_sect = lnk_sect_create(".rdata");
 
 	text_sect->next = rdata_sect;
 
-	rdata_sect->name = ".rdata";
 	copy_sect_data(_countof(rdata_sect_data), rdata_sect_data, rdata_sect);
 	rdata_sect->data_align = 0x10;
 	copy_sect_lps(_countof(rdata_sect_lps), rdata_sect_lps, rdata_sect);
 	rdata_sect->data_align_byte = 0x00;
 	rdata_sect->mem_r = true;
 
-	lnk_sect_t * reloc_sect = lnk_sect_create();
+	lnk_sect_t * reloc_sect = lnk_sect_create(".reloc");
 
 	rdata_sect->next = reloc_sect;
 
-	reloc_sect->name = ".reloc";
 	copy_sect_data(_countof(reloc_sect_data), reloc_sect_data, reloc_sect);
 	reloc_sect->data_align = 0x10;
 	copy_sect_lps(_countof(reloc_sect_lps), reloc_sect_lps, reloc_sect);

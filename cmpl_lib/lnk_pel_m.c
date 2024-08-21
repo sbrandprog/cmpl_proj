@@ -9,7 +9,7 @@ struct lnk_pel_m_sect {
 
 	size_t input_ind;
 
-	size_t ord_ind;
+	size_t ref_ord_ind;
 };
 
 typedef struct lnk_pel_m_label {
@@ -63,12 +63,12 @@ static size_t get_fxd_sect_ord_ind(const char * name) {
 }
 
 
-static sect_t * create_sect(lnk_sect_t * base, size_t input_ind, size_t ord_ind) {
+static sect_t * create_sect(lnk_sect_t * base, size_t input_ind, size_t ref_ord_ind) {
 	sect_t * sect = malloc(sizeof(*sect));
 
 	ul_assert(sect != NULL);
 
-	*sect = (sect_t){ .base = base, .fxd_sect_ord_ind = get_fxd_sect_ord_ind(base->name), .input_ind = input_ind, .ord_ind = ord_ind };
+	*sect = (sect_t){ .base = base, .fxd_sect_ord_ind = get_fxd_sect_ord_ind(base->name), .input_ind = input_ind, .ref_ord_ind = ref_ord_ind };
 
 	return sect;
 }
@@ -149,14 +149,14 @@ static bool form_sects_arr(ctx_t * ctx) {
 	return true;
 }
 
-static void push_ord_buf_sect(ctx_t * ctx, sect_t * sect, size_t new_ord_ind) {
-	if (sect->ord_ind <= new_ord_ind) {
+static void push_ord_buf_sect(ctx_t * ctx, sect_t * sect, size_t ref_ord_ind) {
+	if (sect->ref_ord_ind <= ref_ord_ind) {
 		return;
 	}
 
 	for (sect_ord_data_t * data = ctx->ord_buf, *data_end = data + ctx->ord_buf_size; data != data_end; ++data) {
 		if (data->sect == sect) {
-			data->new_ord_ind = min(data->new_ord_ind, new_ord_ind);
+			data->new_ord_ind = min(data->new_ord_ind, ref_ord_ind);
 
 			return;
 		}
@@ -166,10 +166,10 @@ static void push_ord_buf_sect(ctx_t * ctx, sect_t * sect, size_t new_ord_ind) {
 		ul_arr_grow(&ctx->ord_buf_cap, &ctx->ord_buf, sizeof(*ctx->ord_buf), 1);
 	}
 
-	ctx->ord_buf[ctx->ord_buf_size++] = (sect_ord_data_t){ .sect = sect, .new_ord_ind = new_ord_ind };
+	ctx->ord_buf[ctx->ord_buf_size++] = (sect_ord_data_t){ .sect = sect, .new_ord_ind = ref_ord_ind };
 }
 static bool push_ord_buf_refs(ctx_t * ctx, sect_t * sect) {
-	size_t trg_ord_ind = sect->ord_ind + 1;
+	size_t trg_ord_ind = sect->ref_ord_ind + 1;
 
 	lnk_sect_t * base = sect->base;
 
@@ -228,11 +228,11 @@ static bool set_ord_inds(ctx_t * ctx) {
 
 		--ctx->ord_buf_size;
 
-		if (data.sect->ord_ind <= data.new_ord_ind) {
+		if (data.sect->ref_ord_ind <= data.new_ord_ind) {
 			continue;
 		}
 
-		data.sect->ord_ind = data.new_ord_ind;
+		data.sect->ref_ord_ind = data.new_ord_ind;
 
 		if (!push_ord_buf_refs(ctx, data.sect)) {
 			return false;
@@ -260,10 +260,17 @@ static int sect_cmp_proc(void * ctx_ptr, const sect_t * const * first_ptr, const
 		}
 	}
 
-	if (first->ord_ind < second->ord_ind) {
+	if (first->base->ord_ind < second->base->ord_ind) {
 		return -1;
 	}
-	else if (first->ord_ind > second->ord_ind) {
+	else if (first->base->ord_ind > second->base->ord_ind) {
+		return 1;
+	}
+
+	if (first->ref_ord_ind < second->ref_ord_ind) {
+		return -1;
+	}
+	else if (first->ref_ord_ind > second->ref_ord_ind) {
 		return 1;
 	}
 
@@ -302,12 +309,10 @@ static bool merge_sects(ctx_t * ctx) {
 			++batch;
 		}
 
-		lnk_sect_t * mrgd_sect = lnk_sect_create();
+		lnk_sect_t * mrgd_sect = lnk_sect_create(sect_base->name);
 
 		*ctx->mrgd_sect_ins = mrgd_sect;
 		ctx->mrgd_sect_ins = &mrgd_sect->next;
-
-		mrgd_sect->name = sect_base->name;
 
 		size_t data_align = 0;
 

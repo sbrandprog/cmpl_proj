@@ -9,7 +9,7 @@ static bool test_proc(test_ctx_t * ctx) {
 
 	ctx->pea.ep_name = ep_name;
 
-	mc_frag_t * main_proc = mc_frag_create(McFragProc);
+	mc_frag_t * main_proc = mc_frag_create(McFragCode);
 
 	ctx->pea.frag = main_proc;
 

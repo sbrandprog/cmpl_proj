@@ -1,8 +1,8 @@
 #include "lnk_sect.h"
 #include "lnk_pel.h"
+#include "mc_defs.h"
 #include "mc_it.h"
 
-#define SECT_NAME ".rdata"
 #define LABEL_SUFFIX L"#it:"
 #define LABEL_LIB_NAME_EXT L'n'
 #define LABEL_LIB_AT_EXT L'a'
@@ -95,22 +95,10 @@ mc_it_sym_t * mc_it_add_sym(mc_it_t * it, ul_hs_t * lib_name, ul_hs_t * sym_name
 	return new_sym;
 }
 
-static lnk_sect_t * create_sects_sect(ctx_t * ctx) {
-	lnk_sect_t * sect = lnk_sect_create();
-
-	sect->name = SECT_NAME;
-
-	sect->data_align = 8;
-	sect->data_align_byte = 0x00;
-
-	sect->mem_r = true;
-
-	return sect;
-}
 static void create_sects(ctx_t * ctx) {
-	ctx->dir_sect = create_sects_sect(ctx);
-	ctx->addr_sect = create_sects_sect(ctx);
-	ctx->hnt_sect = create_sects_sect(ctx);
+	ctx->dir_sect = lnk_sect_create_desc(&mc_defs_sds[McDefsSdRdata_ItDir]);
+	ctx->addr_sect = lnk_sect_create_desc(&mc_defs_sds[McDefsSdRdata_ItAddr]);
+	ctx->hnt_sect = lnk_sect_create_desc(&mc_defs_sds[McDefsSdRdata_ItHnt]);
 }
 
 static ul_hs_t * get_it_label_name(ctx_t * ctx, ul_hs_t * base_name, wchar_t ext_char) {

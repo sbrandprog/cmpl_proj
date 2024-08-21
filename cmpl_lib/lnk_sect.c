@@ -1,11 +1,11 @@
 #include "lnk_sect.h"
 
-lnk_sect_t * lnk_sect_create() {
+lnk_sect_t * lnk_sect_create(const char * name) {
 	lnk_sect_t * sect = malloc(sizeof(*sect));
 
 	ul_assert(sect != NULL);
 
-	*sect = (lnk_sect_t){ 0 };
+	*sect = (lnk_sect_t){ .name = name };
 
 	return sect;
 }
