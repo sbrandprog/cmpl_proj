@@ -14,3 +14,10 @@ inline size_t ul_align_to(size_t val, size_t align) {
 inline bool ul_is_pwr_of_2(size_t val) {
 	return val > 0 && (val & (val - 1)) == 0;
 }
+
+inline bool ul_is_high_surr(wchar_t ch) {
+	return 0xD800 <= ch && ch <= 0xDBFF;
+}
+inline bool ul_is_low_surr(wchar_t ch) {
+	return 0xDC00 <= ch && ch <= 0xDFFF;
+}

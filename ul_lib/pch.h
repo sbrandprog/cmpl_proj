@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <crtdbg.h>
 #include <stdlib.h>

@@ -12,6 +12,9 @@ target_sources(ul_lib
 		ul_hs.h
 		ul_hsb.h
 		ul_hst.h
+		ul_json.h
+		ul_json_p.h
+		ul_json_g.h
 		ul_lib.h
 		ul_misc.h
 		ul_ros.h
@@ -22,6 +25,9 @@ target_sources(ul_lib
 		ul_hs.c
 		ul_hsb.c
 		ul_hst.c
+		ul_json.c
+		ul_json_p.c
+		ul_json_g.c
 )
 
 set_proj_trg_props(ul_lib PCH_NAME pch.h)

@@ -20,3 +20,12 @@ typedef struct ul_hsb ul_hsb_t;
 
 typedef struct ul_hst_node ul_hst_node_t;
 typedef struct ul_hst ul_hst_t;
+
+typedef enum ul_json_type ul_json_type_t;
+typedef struct ul_json ul_json_t;
+
+typedef bool ul_json_p_get_ch_proc_t(void * src_data, wchar_t * out);
+typedef struct ul_json_p_src ul_json_p_src_t;
+
+typedef bool ul_json_g_put_ch_proc_t(void * sink_data, wchar_t ch);
+typedef struct ul_json_g_sink ul_json_g_sink_t;
