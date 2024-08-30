@@ -69,7 +69,7 @@ static int main_core(int argc, char * argv[]) {
 		first_tus_name = file_name_ext == NULL ? file_name : ul_hst_hashadd(&hst, file_name_ext - file_name->str, file_name->str);
 	}
 
-	if (!pla_bs_build_nl(&repo, first_tus_name, EXE_NAME)) {
+	if (!pla_bs_build_nl(&repo, first_tus_name, EXE_NAME, &pla_bs_dflt_sett)) {
 		wprintf(L"failed to build executable\n");
 		return -1;
 	}

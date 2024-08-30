@@ -20,6 +20,7 @@ typedef struct pla_bs_ctx {
 	pla_repo_t * repo;
 	ul_hs_t * first_tus_name;
 	const wchar_t * file_name;
+	const pla_bs_sett_t * sett;
 
 	pla_ec_buf_t pla_ec_buf;
 	pla_ec_fmtr_t pla_ec_fmtr;
@@ -216,6 +217,7 @@ static bool build_core(ctx_t * ctx) {
 	}
 
 	ctx->lnk_pe.file_name = ctx->file_name;
+	ctx->lnk_pe.sett.export_pd = ctx->sett->export_pd;
 
 	if (!lnk_pel_l_link(&ctx->lnk_pe)) {
 		return false;
@@ -223,8 +225,8 @@ static bool build_core(ctx_t * ctx) {
 
 	return true;
 }
-bool pla_bs_build_nl(pla_repo_t * repo, ul_hs_t * first_tus_name, const wchar_t * file_name) {
-	ctx_t ctx = { .repo = repo, .first_tus_name = first_tus_name, .file_name = file_name };
+bool pla_bs_build_nl(pla_repo_t * repo, ul_hs_t * first_tus_name, const wchar_t * file_name, const pla_bs_sett_t * sett) {
+	ctx_t ctx = { .repo = repo, .first_tus_name = first_tus_name, .file_name = file_name, .sett = sett };
 
 	bool res = build_core(&ctx);
 
@@ -240,3 +242,5 @@ bool pla_bs_build_nl(pla_repo_t * repo, ul_hs_t * first_tus_name, const wchar_t 
 
 	return res;
 }
+
+const pla_bs_sett_t pla_bs_dflt_sett = { .export_pd = false };

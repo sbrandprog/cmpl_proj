@@ -1350,7 +1350,11 @@ static VOID build_prog_worker(PTP_CALLBACK_INSTANCE itnc, PVOID user_data, PTP_W
 
 	wprintf(L"build started\n");
 
-	bool res = pla_bs_build_nl(data->repo, data->tus->name, data->exe_name);
+	pla_bs_sett_t sett = pla_bs_dflt_sett;
+
+	sett.export_pd = true;
+
+	bool res = pla_bs_build_nl(data->repo, data->tus->name, data->exe_name, &sett);
 
 	wprintf(L"build status: %s\n", res ? L"success" : L"failure");
 }

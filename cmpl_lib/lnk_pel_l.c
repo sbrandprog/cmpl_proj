@@ -103,6 +103,9 @@ typedef struct lnk_pel_l_ctx {
 	size_t hdrs_size;
 	size_t first_sect_va;
 	size_t image_size;
+
+	ul_json_t * pd_json;
+	ul_json_t ** pd_json_ins;
 } ctx_t;
 
 static const lnk_sect_lp_stype_t dir_start_mark[IMAGE_NUMBEROF_DIRECTORY_ENTRIES] = {
@@ -870,6 +873,99 @@ static bool write_file(ctx_t * ctx) {
 	return res && file_no_err;
 }
 
+static bool export_pd_labels(ctx_t * ctx) {
+	ul_hs_t * hs_labels = UL_HST_HASHADD_WS(ctx->pel->hst, L"labels"),
+		* hs_addr = UL_HST_HASHADD_WS(ctx->pel->hst, L"addr"),
+		* hs_name = UL_HST_HASHADD_WS(ctx->pel->hst, L"name");
+
+	*ctx->pd_json_ins = ul_json_make_arr();
+
+	ul_json_t * labels = *ctx->pd_json_ins;
+
+	labels->name = hs_labels;
+
+	ctx->pd_json_ins = &labels->next;
+
+	ul_json_t ** ins = &labels->val_json;
+
+	for (label_t * label = ctx->labels, *label_end = label + ctx->labels_size; label != label_end; ++label) {
+		*ins = ul_json_make_obj();
+
+		ul_json_t ** elem_ins = &(*ins)->val_json;
+
+		*elem_ins = ul_json_make_int((int64_t)(label->sect->virt_addr + label->off));
+		(*elem_ins)->name = hs_addr;
+		elem_ins = &(*elem_ins)->next;
+
+		*elem_ins = ul_json_make_str(label->name);
+		(*elem_ins)->name = hs_name;
+		elem_ins = &(*elem_ins)->next;
+
+		ins = &(*ins)->next;
+	}
+
+	return true;
+}
+static bool export_pd_procs(ctx_t * ctx) {
+	ul_hs_t * hs_procs = UL_HST_HASHADD_WS(ctx->pel->hst, L"procs"),
+		* hs_start = UL_HST_HASHADD_WS(ctx->pel->hst, L"start"),
+		* hs_end = UL_HST_HASHADD_WS(ctx->pel->hst, L"end");
+
+	*ctx->pd_json_ins = ul_json_make_arr();
+	
+	ul_json_t * procs = *ctx->pd_json_ins;
+
+	procs->name = hs_procs;
+
+	ctx->pd_json_ins = &procs->next;
+
+	ul_json_t ** ins = &procs->val_json;
+
+	for (proc_t * proc = ctx->procs, *proc_end = proc + ctx->procs_size; proc != proc_end; ++proc) {
+		*ins = ul_json_make_obj();
+
+		ul_json_t ** elem_ins = &(*ins)->val_json;
+
+		*elem_ins = ul_json_make_int((int64_t)(proc->label->sect->virt_addr + proc->label->off));
+		(*elem_ins)->name = hs_start;
+		elem_ins = &(*elem_ins)->next;
+
+		*elem_ins = ul_json_make_int((int64_t)(proc->end_sect->virt_addr + proc->end_off));
+		(*elem_ins)->name = hs_end;
+		elem_ins = &(*elem_ins)->next;
+
+		ins = &(*ins)->next;
+	}
+
+	return true;
+}
+static bool export_pd(ctx_t * ctx) {
+	wchar_t file_name_buf[MAX_PATH];
+
+	int res = swprintf_s(file_name_buf, _countof(file_name_buf), L"%s" LNK_PEL_PD_FILE_EXT, ctx->pel->file_name);
+
+	if (res < 0) {
+		return false;
+	}
+
+	ctx->pd_json = ul_json_make_obj();
+	ctx->pd_json_ins = &ctx->pd_json->val_json;
+
+	if (!export_pd_labels(ctx)) {
+		return false;
+	}
+
+	if (!export_pd_procs(ctx)) {
+		return false;
+	}
+
+	if (!ul_json_g_generate_file(file_name_buf, ctx->pd_json)) {
+		return false;
+	}
+
+	return true;
+}
+
 static bool link_core(ctx_t * ctx) {
 	if (!prepare_input_sects(ctx)) {
 		return false;
@@ -891,12 +987,18 @@ static bool link_core(ctx_t * ctx) {
 		return false;
 	}
 
+	if (ctx->pel->sett.export_pd && !export_pd(ctx)) {
+		return false;
+	}
+
 	return true;
 }
 bool lnk_pel_l_link(lnk_pel_t * pel) {
 	ctx_t ctx = { .pel = pel };
 
 	bool res = link_core(&ctx);
+
+	ul_json_destroy(ctx.pd_json);
 
 	free(ctx.br_fixups);
 	free(ctx.va64_fixups);

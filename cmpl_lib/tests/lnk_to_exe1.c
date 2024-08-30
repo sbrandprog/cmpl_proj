@@ -3,7 +3,7 @@
 static bool test_proc(test_ctx_t * ctx) {
 	ctx->from = TestFromLnk;
 
-	lnk_pel_init(&ctx->pel);
+	lnk_pel_init(&ctx->pel, &ctx->hst);
 
 	ctx->pel.sett.apply_mrgr = false;
 

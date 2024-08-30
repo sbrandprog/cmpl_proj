@@ -69,3 +69,5 @@ typedef struct pla_pkg pla_pkg_t;
 typedef struct pla_repo pla_repo_t;
 
 typedef struct pla_repo_lsnr pla_repo_lsnr_t;
+
+typedef struct pla_bs_sett pla_bs_sett_t;

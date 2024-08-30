@@ -25,12 +25,12 @@ enum ul_json_type {
 struct ul_json {
 	ul_json_type_t type;
 	ul_json_t * next;
-	ul_hs_t * name;
+	const ul_hs_t * name;
 	union {
 		bool val_bool;
 		int64_t val_int;
 		double val_dbl;
-		ul_hs_t * val_str;
+		const ul_hs_t * val_str;
 		ul_json_t * val_json;
 	};
 };
@@ -64,7 +64,7 @@ inline ul_json_t * ul_json_make_dbl(double val) {
 
 	return json;
 }
-inline ul_json_t * ul_json_make_str(ul_hs_t * val) {
+inline ul_json_t * ul_json_make_str(const ul_hs_t * val) {
 	ul_json_t * json = ul_json_create(UlJsonStr);
 
 	json->val_str = val;

@@ -82,28 +82,33 @@ static void put_tab(ctx_t * ctx) {
 	}
 }
 
-static void generate_str(ctx_t * ctx, ul_hs_t * str) {
+static void generate_str(ctx_t * ctx, const ul_hs_t * str) {
 	put_ch(ctx, UL_JSON_QUOT_MARK);
 
-	for (wchar_t * ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch) {
-		wchar_t code;
+	if (str != NULL) {
+		for (wchar_t * ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch) {
+			wchar_t code;
 
-		if (is_esc_ch(*ch, &code)) {
-			put_ch(ctx, L'\\');
-			put_ch(ctx, code);
-		}
-		else if (*ch < 0x20 || ul_is_high_surr(*ch) || ul_is_low_surr(*ch)) {
-			put_str(ctx, L"\\u");
+			if (is_esc_ch(*ch, &code)) {
+				put_ch(ctx, L'\\');
+				put_ch(ctx, code);
+			}
+			else if (*ch < 0x20 || ul_is_high_surr(*ch) || ul_is_low_surr(*ch)) {
+				put_str(ctx, L"\\u");
 
-			for (size_t i = 4; i > 0;) {
-				--i;
+				for (size_t i = 4; i > 0;) {
+					--i;
 
-				put_ch(ctx, (code >> (wchar_t)i * 4) & 0xF + L'0');
+					put_ch(ctx, (code >> (wchar_t)i * 4) & 0xF + L'0');
+				}
+			}
+			else {
+				put_ch(ctx, *ch);
 			}
 		}
-		else {
-			put_ch(ctx, *ch);
-		}
+	}
+	else {
+		ctx->err = true;
 	}
 
 	put_ch(ctx, UL_JSON_QUOT_MARK);
@@ -165,7 +170,11 @@ static void generate_val_arr(ctx_t * ctx, ul_json_t * val) {
 			}
 		}
 
+		put_nl(ctx);
+
 		--ctx->nest_level;
+
+		put_tab(ctx);
 	}
 	else {
 		put_spc(ctx);
@@ -206,7 +215,11 @@ static void generate_val_obj(ctx_t * ctx, ul_json_t * val) {
 			}
 		}
 
+		put_nl(ctx);
+
 		--ctx->nest_level;
+
+		put_tab(ctx);
 	}
 	else {
 		put_spc(ctx);
