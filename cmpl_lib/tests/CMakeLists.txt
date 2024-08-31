@@ -4,6 +4,8 @@ add_custom_target(cmpl_lib_tests_copy_runtime_data
 	COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${PROJECT_SOURCE_DIR}/pla_data ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+add_proj_test_exe(cmpl_lib cmpl_zic_test LIBRARIES cmpl_lib DEPENDENCIES cmpl_lib_tests_copy_runtime_data)
+
 add_proj_test_exe(cmpl_lib lnk_to_exe1 LIBRARIES cmpl_lib DEPENDENCIES cmpl_lib_tests_copy_runtime_data)
 add_proj_test_exe(cmpl_lib lnk_to_exe2 LIBRARIES cmpl_lib DEPENDENCIES cmpl_lib_tests_copy_runtime_data)
 add_proj_test_exe(cmpl_lib lnk_to_exe3 LIBRARIES cmpl_lib DEPENDENCIES cmpl_lib_tests_copy_runtime_data)

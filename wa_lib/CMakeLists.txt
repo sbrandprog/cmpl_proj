@@ -31,3 +31,5 @@ set_proj_trg_props(wa_lib PCH_NAME pch.h)
 target_link_libraries(wa_lib ul_lib uxtheme.lib)
 
 target_compile_definitions(wa_lib PRIVATE WA_BUILD_DLL)
+
+add_subdirectory(tests)
