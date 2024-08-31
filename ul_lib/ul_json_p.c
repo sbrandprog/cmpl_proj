@@ -110,9 +110,7 @@ static void consume_wss(ctx_t * ctx) {
 }
 
 static void push_str_ch(ctx_t * ctx, wchar_t ch) {
-	if (ctx->str_size + 1 > ctx->str_cap) {
-		ul_arr_grow(&ctx->str_cap, &ctx->str, sizeof(*ctx->str), 1);
-	}
+	ul_arr_grow(ctx->str_size + 1, &ctx->str_cap, &ctx->str, sizeof(*ctx->str));
 
 	ctx->str[ctx->str_size++] = ch;
 }

@@ -33,9 +33,7 @@ size_t ul_hsb_format_nl_va(ul_hsb_t * hsb, const wchar_t * fmt, va_list args) {
 
 	size_t str_size_null = str_size + 1;
 
-	if (str_size_null > hsb->cap) {
-		ul_arr_grow(&hsb->cap, &hsb->buf, sizeof(*hsb->buf), str_size_null - hsb->cap);
-	}
+	ul_arr_grow(str_size_null, &hsb->cap, &hsb->buf, sizeof(*hsb->buf));
 
 	{
 		va_list new_args;

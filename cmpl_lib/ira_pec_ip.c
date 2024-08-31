@@ -585,15 +585,11 @@ static void make_var_bb_ref(ctx_t * ctx, var_t * var, bb_t * bb) {
 	}
 
 
-	if (var->bb_refs_size + 1 > var->bb_refs_cap) {
-		ul_arr_grow(&var->bb_refs_cap, &var->bb_refs, sizeof(*var->bb_refs), 1);
-	}
+	ul_arr_grow(var->bb_refs_size + 1, &var->bb_refs_cap, &var->bb_refs, sizeof(*var->bb_refs));
 
 	var->bb_refs[var->bb_refs_size++] = (var_bb_ref_t){ .bb = bb };
 
-	if (bb->var_refs_size + 1 > bb->var_refs_cap) {
-		ul_arr_grow(&bb->var_refs_cap, &bb->var_refs, sizeof(*bb->var_refs), 1);
-	}
+	ul_arr_grow(bb->var_refs_size + 1, &bb->var_refs_cap, &bb->var_refs, sizeof(*bb->var_refs));
 
 	bb->var_refs[bb->var_refs_size++] = (bb_var_ref_t){ .var = var };
 }

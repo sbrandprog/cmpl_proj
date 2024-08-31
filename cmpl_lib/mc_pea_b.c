@@ -47,9 +47,7 @@ static VOID build_frags_worker_proc(PTP_CALLBACK_INSTANCE itnc, PVOID user_data,
 
 static void form_frags_list(ctx_t * ctx) {
 	for (mc_frag_t * frag = ctx->pea->frag; frag != NULL; frag = frag->next) {
-		if (ctx->frags_size + 1 >= ctx->frags_cap) {
-			ul_arr_grow(&ctx->frags_cap, &ctx->frags, sizeof(*ctx->frags), 1);
-		}
+		ul_arr_grow(ctx->frags_size + 1, &ctx->frags_cap, &ctx->frags, sizeof(*ctx->frags));
 
 		ctx->frags[ctx->frags_size++] = (frag_t){ .frag = frag };
 	}

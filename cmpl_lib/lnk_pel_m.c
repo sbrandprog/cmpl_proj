@@ -101,9 +101,7 @@ static bool form_sects_arr(ctx_t * ctx) {
 	size_t input_ind = 0;
 
 	for (lnk_sect_t * lnk_sect = ctx->pel->sect; lnk_sect != NULL; lnk_sect = lnk_sect->next) {
-		if (ctx->sects_size + 1 > ctx->sects_cap) {
-			ul_arr_grow(&ctx->sects_cap, (void**)&ctx->sects, sizeof(*ctx->sects), 1);
-		}
+		ul_arr_grow(ctx->sects_size + 1, &ctx->sects_cap, (void**)&ctx->sects, sizeof(*ctx->sects));
 
 		sect_t * sect = create_sect(lnk_sect, input_ind++, SIZE_MAX);
 
@@ -118,11 +116,8 @@ static bool form_sects_arr(ctx_t * ctx) {
 						case LnkSectLpLabelNone:
 							break;
 						case LnkSectLpLabelBasic:
-
 						{
-							if (ctx->labels_size + 1 > ctx->labels_cap) {
-								ul_arr_grow(&ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels), 1);
-							}
+							ul_arr_grow(ctx->labels_size + 1, &ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels));
 
 							label_t new_label = (label_t){ .name = lp->label_name, .sect = sect };
 
@@ -171,9 +166,7 @@ static void push_ord_buf_sect(ctx_t * ctx, sect_t * sect, size_t ref_ord_ind) {
 		}
 	}
 
-	if (ctx->ord_buf_size + 1 > ctx->ord_buf_cap) {
-		ul_arr_grow(&ctx->ord_buf_cap, &ctx->ord_buf, sizeof(*ctx->ord_buf), 1);
-	}
+	ul_arr_grow(ctx->ord_buf_size + 1, &ctx->ord_buf_cap, &ctx->ord_buf, sizeof(*ctx->ord_buf));
 
 	ctx->ord_buf[ctx->ord_buf_size++] = (sect_ord_data_t){ .sect = sect, .new_ord_ind = ref_ord_ind };
 }
@@ -332,9 +325,7 @@ static bool merge_sects(ctx_t * ctx) {
 
 			size_t cur_start = ul_align_to(mrgd_sect->data_size, cur_base->data_align);
 
-			if (cur_start + cur_base->data_size > mrgd_sect->data_cap) {
-				ul_arr_grow(&mrgd_sect->data_cap, &mrgd_sect->data, sizeof(*mrgd_sect->data), cur_start + cur_base->data_size - mrgd_sect->data_cap);
-			}
+			ul_arr_grow(cur_start + cur_base->data_size, &mrgd_sect->data_cap, &mrgd_sect->data, sizeof(*mrgd_sect->data));
 
 			memset(mrgd_sect->data + mrgd_sect->data_size, cur_base->data_align_byte, cur_start - mrgd_sect->data_size);
 			memcpy_s(mrgd_sect->data + cur_start, sizeof(*mrgd_sect->data) * (mrgd_sect->data_cap - cur_start), cur_base->data, sizeof(*cur_base->data) * cur_base->data_size);

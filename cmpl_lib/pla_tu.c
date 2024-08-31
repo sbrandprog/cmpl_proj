@@ -37,9 +37,7 @@ void pla_tu_destroy_chain(pla_tu_t * tu) {
 }
 
 pla_tu_ref_t * pla_tu_push_ref(pla_tu_t * tu) {
-	if (tu->refs_size + 1 > tu->refs_cap) {
-		ul_arr_grow(&tu->refs_cap, (void **)&tu->refs, sizeof(*tu->refs), 1);
-	}
+	ul_arr_grow(tu->refs_size + 1, &tu->refs_cap, (void **)&tu->refs, sizeof(*tu->refs));
 
 	pla_tu_ref_t * ref = &tu->refs[tu->refs_size++];
 

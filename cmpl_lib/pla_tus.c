@@ -37,9 +37,7 @@ void pla_tus_destroy_chain(pla_tus_t * tus) {
 void pla_tus_insert_str_nl(pla_tus_t * tus, size_t ins_pos, size_t str_size, wchar_t * str) {
 	ul_assert(ins_pos <= tus->src_size);
 
-	if (tus->src_size + str_size > tus->src_cap) {
-		ul_arr_grow(&tus->src_cap, &tus->src, sizeof(*tus->src), tus->src_size + str_size - tus->src_cap);
-	}
+	ul_arr_grow(tus->src_size + str_size, &tus->src_cap, &tus->src, sizeof(*tus->src));
 
 	wmemmove_s(tus->src + ins_pos + str_size, tus->src_cap - ins_pos, tus->src + ins_pos, tus->src_size - ins_pos);
 	wmemcpy_s(tus->src + ins_pos, tus->src_cap - ins_pos, str, str_size);

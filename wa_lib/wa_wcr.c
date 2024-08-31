@@ -15,9 +15,7 @@ static bool register_d_nl(wa_wcr_t * wcr, WNDCLASSEXW * wnd_cls_desc) {
 		return false;
 	}
 
-	if (wcr->wnd_clss_size + 1 > wcr->wnd_clss_cap) {
-		ul_arr_grow(&wcr->wnd_clss_cap, &wcr->wnd_clss, sizeof(*wcr->wnd_clss), 1);
-	}
+	ul_arr_grow(wcr->wnd_clss_size + 1, &wcr->wnd_clss_cap, &wcr->wnd_clss, sizeof(*wcr->wnd_clss));
 
 	wcr->wnd_clss[wcr->wnd_clss_size++] = wnd_cls;
 
@@ -67,7 +65,7 @@ void wa_wcr_cleanup(wa_wcr_t * wcr) {
 	DeleteCriticalSection(&wcr->lock);
 
 	for (ATOM * wnd_cls = wcr->wnd_clss, *wnd_cls_end = wnd_cls + wcr->wnd_clss_size; wnd_cls != wnd_cls_end; ++wnd_cls) {
-		UnregisterClassW(wnd_cls, wcr->ctx->itnc);
+		UnregisterClassW(MAKEINTATOM(*wnd_cls), wcr->ctx->itnc);
 	}
 
 	free(wcr->wnd_clss);

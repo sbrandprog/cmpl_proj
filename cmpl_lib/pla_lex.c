@@ -91,9 +91,7 @@ static void clear_str(pla_lex_t * lex) {
 	lex->str_hash = 0;
 }
 static void push_str_ch(pla_lex_t * lex, wchar_t ch) {
-	if (lex->str_size + 1 > lex->str_cap) {
-		ul_arr_grow(&lex->str_cap, &lex->str, sizeof(*lex->str), 1);
-	}
+	ul_arr_grow(lex->str_size + 1, &lex->str_cap, &lex->str, sizeof(*lex->str));
 
 	lex->str[lex->str_size++] = ch;
 	lex->str_hash = ul_hs_hash_ch(lex->str_hash, ch);

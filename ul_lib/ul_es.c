@@ -53,9 +53,7 @@ static void attach_node_nl(ul_es_node_t * first, ul_es_node_t * second) {
 		}
 	}
 
-	if (first->nodes_size + 1 > first->nodes_cap) {
-		ul_arr_grow(&first->nodes_cap, (void **)&first->nodes, sizeof(*first->nodes), 1);
-	}
+	ul_arr_grow(first->nodes_size + 1, &first->nodes_cap, (void **)&first->nodes, sizeof(*first->nodes));
 
 	first->nodes[first->nodes_size++] = second;
 }

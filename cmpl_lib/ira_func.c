@@ -25,9 +25,7 @@ void ira_func_destroy(ira_func_t * func) {
 }
 
 ira_inst_t * ira_func_push_inst(ira_func_t * func, ira_inst_t * inst) {
-	if (func->insts_size + 1 > func->insts_cap) {
-		ul_arr_grow(&func->insts_cap, &func->insts, sizeof(*func->insts), 1);
-	}
+	ul_arr_grow(func->insts_size + 1, &func->insts_cap, &func->insts, sizeof(*func->insts));
 
 	func->insts[func->insts_size++] = *inst;
 

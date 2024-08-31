@@ -241,9 +241,7 @@ static void push_cl_elem_nl(ctx_t * ctx, ira_lo_t * lo) {
 		}
 	}
 	
-	if (ctx->cl_elems_size + 1 >= ctx->cl_elems_cap) {
-		ul_arr_grow(&ctx->cl_elems_cap, &ctx->cl_elems, sizeof(*ctx->cl_elems), 1);
-	}
+	ul_arr_grow(ctx->cl_elems_size + 1, &ctx->cl_elems_cap, &ctx->cl_elems, sizeof(*ctx->cl_elems));
 
 	ctx->cl_elems[ctx->cl_elems_size++] = (cl_elem_t){ .lo = lo };
 }

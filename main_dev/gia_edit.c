@@ -160,9 +160,7 @@ static void cleanup_line(text_line_t * line) {
 static void insert_line_str(text_line_t * line, size_t pos, size_t str_size, wchar_t * str) {
 	ul_assert(pos <= line->size);
 
-	if (line->size + str_size > line->cap) {
-		ul_arr_grow(&line->cap, &line->str, sizeof(*line->str), line->size + str_size - line->cap);
-	}
+	ul_arr_grow(line->size + str_size, &line->cap, &line->str, sizeof(*line->str));
 
 	wmemmove_s(line->str + pos + str_size, line->cap - pos, line->str + pos, line->size - pos);
 	wmemcpy_s(line->str + pos, line->cap - pos, str, str_size);
@@ -181,7 +179,7 @@ static void remove_line_str(text_line_t * line, size_t pos_start, size_t pos_end
 static void text_init(text_t * text, ul_es_ctx_t * es_ctx) {
 	*text = (text_t){ 0 };
 
-	ul_arr_grow(&text->lines_cap, &text->lines, sizeof(*text->lines), 1);
+	ul_arr_grow(text->lines_size + 1, &text->lines_cap, &text->lines, sizeof(*text->lines));
 
 	init_line(&text->lines[text->lines_size++]);
 
@@ -200,9 +198,7 @@ static void text_cleanup(text_t * text) {
 }
 
 static void insert_text_line_nl(text_t * text, size_t ins_pos) {
-	if (text->lines_size + 1 > text->lines_cap) {
-		ul_arr_grow(&text->lines_cap, &text->lines, sizeof(*text->lines), 1);
-	}
+	ul_arr_grow(text->lines_size + 1, &text->lines_cap, &text->lines, sizeof(*text->lines));
 
 	memmove_s(text->lines + ins_pos + 1, (text->lines_cap - ins_pos) * sizeof(*text->lines), text->lines + ins_pos, (text->lines_size - ins_pos) * sizeof(*text->lines));
 
@@ -328,9 +324,7 @@ static void process_text_actn_read_tus_nl(text_t * text, text_actn_t * actn) {
 		}
 
 		while (line_i >= text->lines_size) {
-			if (text->lines_size + 1 > text->lines_cap) {
-				ul_arr_grow(&text->lines_cap, &text->lines, sizeof(*text->lines), 1);
-			}
+			ul_arr_grow(text->lines_size + 1, &text->lines_cap, &text->lines, sizeof(*text->lines));
 
 			init_line(&text->lines[text->lines_size++]);
 		}
@@ -341,9 +335,7 @@ static void process_text_actn_read_tus_nl(text_t * text, text_actn_t * actn) {
 
 		size_t ins_size = nl_ch - ch;
 
-		if (ins_size > line->cap) {
-			ul_arr_grow(&line->cap, &line->str, sizeof(*line->str), ins_size - line->cap);
-		}
+		ul_arr_grow(ins_size, &line->cap, &line->str, sizeof(*line->str));
 
 		wmemcpy_s(line->str, line->cap, ch, ins_size);
 

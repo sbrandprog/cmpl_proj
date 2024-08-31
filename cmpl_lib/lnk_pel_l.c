@@ -268,9 +268,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp) {
 						return false;
 					}
 
-					if (ctx->labels_size + 1 > ctx->labels_cap) {
-						ul_arr_grow(&ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels), 1);
-					}
+					ul_arr_grow(ctx->labels_size + 1, &ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels));
 
 					memmove_s(ctx->labels + ins_pos + 1, sizeof(*ctx->labels) * (ctx->labels_cap - ins_pos), ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
 
@@ -324,9 +322,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp) {
 								ul_assert_unreachable();
 						}
 
-						if (ctx->procs_size + 1 > ctx->procs_cap) {
-							ul_arr_grow(&ctx->procs_cap, &ctx->procs, sizeof(*ctx->procs), 1);
-						}
+						ul_arr_grow(ctx->procs_size + 1, &ctx->procs_cap, &ctx->procs, sizeof(*ctx->procs));
 
 						memmove_s(ctx->procs + ins_pos + 1, sizeof(*ctx->procs) * (ctx->procs_cap - ins_pos), ctx->procs + ins_pos, sizeof(*ctx->procs) * (ctx->procs_size - ins_pos));
 
@@ -355,9 +351,7 @@ static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp) {
 				return false;
 			}
 
-			if (ctx->fixups_size + 1 > ctx->fixups_cap) {
-				ul_arr_grow(&ctx->fixups_cap, &ctx->fixups, sizeof(*ctx->fixups), 1);
-			}
+			ul_arr_grow(ctx->fixups_size + 1, &ctx->fixups_cap, &ctx->fixups, sizeof(*ctx->fixups));
 
 			ctx->fixups[ctx->fixups_size++] = (fixup_t){ .stype = lp->stype, .label_name = lp->label_name, .sect = sect, .off = lp->off };
 
@@ -514,9 +508,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 			return false;
 		}
 
-		if (block_start + block_size > reloc->data_cap) {
-			ul_arr_grow(&reloc->data_cap, &reloc->data, sizeof(*reloc->data), block_start + block_size - reloc->data_cap);
-		}
+		ul_arr_grow(block_start + block_size, &reloc->data_cap, &reloc->data, sizeof(*reloc->data));
 
 		memset(reloc->data + reloc->data_size, 0, block_start - reloc->data_size);
 
@@ -529,9 +521,7 @@ static bool form_base_reloc_sect(ctx_t * ctx) {
 
 			data_cur += sizeof(block_hdr);
 
-			if (ctx->br_fixups_size + 1 > ctx->br_fixups_cap) {
-				ul_arr_grow(&ctx->br_fixups_cap, &ctx->br_fixups, sizeof(*ctx->br_fixups), 1);
-			}
+			ul_arr_grow(ctx->br_fixups_size + 1, &ctx->br_fixups_cap, &ctx->br_fixups, sizeof(*ctx->br_fixups));
 
 			ctx->br_fixups[ctx->br_fixups_size++] = (br_fixup_t){
 				.off = block_start + offsetof(IMAGE_BASE_RELOCATION, VirtualAddress),

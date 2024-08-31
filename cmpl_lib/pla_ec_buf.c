@@ -1,9 +1,7 @@
 #include "pla_ec_buf.h"
 
 static void insert_err_sorted_nl(pla_ec_buf_t * buf, pla_ec_err_t * err) {
-	if (buf->errs_size + 1 > buf->errs_cap) {
-		ul_arr_grow(&buf->errs_cap, &buf->errs, sizeof(*buf->errs), 1);
-	}
+	ul_arr_grow(buf->errs_size + 1, &buf->errs_cap, &buf->errs, sizeof(*buf->errs));
 
 	size_t ins_pos = ul_bs_upper_bound(sizeof(*buf->errs), buf->errs_size, buf->errs, pla_ec_err_is_less, err);
 
