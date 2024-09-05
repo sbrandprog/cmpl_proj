@@ -38,10 +38,6 @@ target_sources(cmpl_lib
 		pla_cn.h
 		pla_dclr.h
 		pla_ec.h
-		pla_ec_buf.h
-		pla_ec_fmtr.h
-		pla_ec_rcvr.h
-		pla_ec_sndr.h
 		pla_expr.h
 		pla_keyw.h
 		pla_lex.h
@@ -86,10 +82,6 @@ target_sources(cmpl_lib
 		pla_cn.c
 		pla_dclr.c
 		pla_ec.c
-		pla_ec_buf.c
-		pla_ec_fmtr.c
-		pla_ec_rcvr.c
-		pla_ec_sndr.c
 		pla_expr.c
 		pla_keyw.c
 		pla_lex.c

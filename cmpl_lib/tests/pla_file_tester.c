@@ -11,8 +11,8 @@ static const wchar_t * file_name = NULL;
 static ul_hst_t hst;
 static ul_es_ctx_t es_ctx;
 static pla_repo_t repo;
-static pla_ec_buf_t ec_buf;
-static pla_ec_fmtr_t ec_fmtr;
+static ul_ec_buf_t ec_buf;
+static ul_ec_fmtr_t ec_fmtr;
 
 static ul_hs_t * make_hs_from_char(char * nt_str) {
 	wchar_t cvt_buf[FILE_NAME_BUF_SIZE];
@@ -52,9 +52,9 @@ static int main_core(int argc, char * argv[]) {
 
 	repo.root = pla_pkg_create(NULL);
 
-	pla_ec_buf_init(&ec_buf);
+	ul_ec_buf_init(&ec_buf);
 
-	pla_ec_fmtr_init(&ec_fmtr, &ec_buf.ec, &hst);
+	ul_ec_fmtr_init(&ec_fmtr, &ec_buf.ec);
 
 	if (!pla_pkg_fill_from_list(repo.root, &hst, L"pla_lib", file_name->str, NULL)) {
 		wprintf(L"failed to fill repo\n");
@@ -88,9 +88,9 @@ static int main_core(int argc, char * argv[]) {
 int main(int argc, char * argv[]) {
 	int res = main_core(argc, argv);
 
-	pla_ec_fmtr_cleanup(&ec_fmtr);
+	ul_ec_fmtr_cleanup(&ec_fmtr);
 
-	pla_ec_buf_cleanup(&ec_buf);
+	ul_ec_buf_cleanup(&ec_buf);
 
 	pla_repo_cleanup(&repo);
 

@@ -21,6 +21,20 @@ typedef struct ul_hsb ul_hsb_t;
 typedef struct ul_hst_node ul_hst_node_t;
 typedef struct ul_hst ul_hst_t;
 
+typedef struct ul_ec_rec ul_ec_rec_t;
+typedef enum ul_ec_actn_type ul_ec_actn_type_t;
+typedef struct ul_ec_actn ul_ec_actn_t;
+typedef void (ul_ec_process_actn_proc_t)(void * user_data, const ul_ec_actn_t * actn);
+typedef struct ul_ec ul_ec_t;
+
+typedef struct ul_ec_buf ul_ec_buf_t;
+
+typedef struct ul_ec_rn ul_ec_rn_t;
+
+typedef struct ul_ec_sn ul_ec_sn_t;
+
+typedef struct ul_ec_fmtr ul_ec_fmtr_t;
+
 typedef enum ul_json_type ul_json_type_t;
 typedef struct ul_json ul_json_t;
 

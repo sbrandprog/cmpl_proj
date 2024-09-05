@@ -1,7 +1,7 @@
 #pragma once
 #include "pla_tok.h"
 
-#define PLA_LEX_EC_GROUP 1
+#define PLA_LEX_MOD_NAME L"pla_lex"
 
 struct pla_lex_src {
 	ul_hs_t * name;
@@ -12,7 +12,7 @@ struct pla_lex_src {
 };
 struct pla_lex {
 	ul_hst_t * hst;
-	pla_ec_fmtr_t * ec_fmtr;
+	ul_ec_fmtr_t * ec_fmtr;
 
 	ul_hs_t * emp_hs;
 
@@ -35,7 +35,7 @@ struct pla_lex {
 	bool is_rptd;
 };
 
-PLA_API void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, pla_ec_fmtr_t * ec_fmtr);
+PLA_API void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr);
 PLA_API void pla_lex_cleanup(pla_lex_t * lex);
 
 PLA_API void pla_lex_set_src(pla_lex_t * lex, const pla_lex_src_t * src);

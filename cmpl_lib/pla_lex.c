@@ -1,4 +1,4 @@
-#include "pla_ec_fmtr.h"
+#include "pla_ec.h"
 #include "pla_punc.h"
 #include "pla_keyw.h"
 #include "pla_lex.h"
@@ -6,7 +6,7 @@
 typedef bool ch_pred_t(wchar_t ch);
 typedef void ch_proc_t(pla_lex_t * lex, wchar_t * out);
 
-void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, pla_ec_fmtr_t * ec_fmtr) {
+void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr) {
 	*lex = (pla_lex_t){ .hst = hst, .ec_fmtr = ec_fmtr };
 
 	static const ul_ros_t emp_str_raw = UL_ROS_MAKE(L"");
@@ -81,7 +81,7 @@ static void report_lex(pla_lex_t * lex, const wchar_t * fmt, ...) {
 
 	va_start(args, fmt);
 
-	pla_ec_fmtr_formatpost_va(lex->ec_fmtr, PLA_LEX_EC_GROUP, (lex->src != NULL ? lex->src->name : NULL), lex->tok.pos_start, get_ec_pos(lex), fmt, args);
+	pla_ec_formatpost_va(lex->ec_fmtr, PLA_LEX_MOD_NAME, (lex->src != NULL ? lex->src->name->str : NULL), lex->tok.pos_start, get_ec_pos(lex), fmt, args);
 
 	va_end(args);
 }

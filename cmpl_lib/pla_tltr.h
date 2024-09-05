@@ -2,7 +2,7 @@
 #include "ira.h"
 #include "pla_pds.h"
 
-#define PLA_TLTR_EC_GROUP 3
+#define PLA_TLTR_MOD_NAME L"pla_tltr"
 
 struct pla_tltr_src {
 	ul_hs_t * name;
@@ -44,7 +44,7 @@ struct pla_tltr_vse {
 };
 struct pla_tltr {
 	ul_hst_t * hst;
-	pla_ec_fmtr_t * ec_fmtr;
+	ul_ec_fmtr_t * ec_fmtr;
 	ira_pec_t * out;
 
 	ul_hs_t * pds[PlaPds_Count];
@@ -57,7 +57,7 @@ struct pla_tltr {
 	pla_tltr_vse_t * vse;
 };
 
-PLA_API void pla_tltr_init(pla_tltr_t * tltr, ul_hst_t * hst, pla_ec_fmtr_t * ec_fmtr, ira_pec_t * out);
+PLA_API void pla_tltr_init(pla_tltr_t * tltr, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr, ira_pec_t * out);
 PLA_API void pla_tltr_cleanup(pla_tltr_t * tltr);
 
 

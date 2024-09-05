@@ -1,8 +1,7 @@
 #include "lnk_pel_l.h"
 #include "mc_pea_b.h"
 #include "ira_pec_c.h"
-#include "pla_ec_buf.h"
-#include "pla_ec_fmtr.h"
+#include "pla_ec.h"
 #include "pla_lex.h"
 #include "pla_tu.h"
 #include "pla_prsr.h"
@@ -22,29 +21,35 @@ typedef struct pla_bs_ctx {
 	const wchar_t * file_name;
 	const pla_bs_sett_t * sett;
 
-	pla_ec_buf_t pla_ec_buf;
-	pla_ec_fmtr_t pla_ec_fmtr;
+	ul_ec_buf_t ec_buf;
+	ul_ec_fmtr_t ec_fmtr;
 	ira_pec_t ira_pec;
 	mc_pea_t mc_pea;
 	lnk_pel_t lnk_pe;
 } ctx_t;
 
-static wchar_t get_group_letter(size_t group) {
-	switch (group) {
-		case PLA_LEX_EC_GROUP:
-			return L'L';
-		case PLA_PRSR_EC_GROUP:
-			return L'P';
-		case PLA_TLTR_EC_GROUP:
-			return L'T';
-		default:
-			return L'.';
+static wchar_t get_mod_letter(const wchar_t * mod_name) {
+	if (wcscmp(mod_name, PLA_LEX_MOD_NAME) == 0) {
+		return L'L';
+	}
+	else if (wcscmp(mod_name, PLA_PRSR_MOD_NAME) == 0) {
+		return L'P';
+	}
+	else if (wcscmp(mod_name, PLA_TLTR_MOD_NAME) == 0) {
+		return L'T';
+	}
+	else {
+		return L'.';
 	}
 }
-static pla_tus_t * get_tus_from_src_name(pla_repo_t * repo, ul_hs_t * src_name) {
+static pla_tus_t * get_tus_from_src_name(pla_repo_t * repo, const wchar_t * src_name) {
+	if (src_name == NULL) {
+		return NULL;
+	}
+	
 	pla_pkg_t * pkg = repo->root;
 
-	wchar_t * name = src_name->str, * name_end = name + src_name->size;
+	const wchar_t * name = src_name, * name_end = name + wcslen(src_name);
 
 	while (true) {
 		wchar_t * delim = wmemchr(name, PLA_TU_NAME_DELIM, name_end - name);
@@ -170,22 +175,24 @@ static void print_tus_err_data(pla_tus_t * tus, pla_ec_err_t * err) {
 		src = src_nl + 1;
 	}
 }
-void pla_bs_print_ec_buf_errs(pla_repo_t * repo, pla_ec_buf_t * ec_buf) {
-	for (pla_ec_err_t * err = ec_buf->errs, *err_end = err + ec_buf->errs_size; err != err_end; ++err) {
-		wchar_t group_letter = get_group_letter(err->group);
+void pla_bs_print_ec_buf_errs(pla_repo_t * repo, ul_ec_buf_t * ec_buf) {
+	for (ul_ec_rec_t * rec = ec_buf->rec; rec != NULL; rec = rec->next) {
+		pla_ec_err_t err;
 
-		const wchar_t * src_name_str = L"/ no source name /";
-
-		if (err->src_name != NULL) {
-			src_name_str = err->src_name->str;
+		if (!pla_ec_scan(rec, &err)) {
+			continue;
 		}
+
+		wchar_t group_letter = get_mod_letter(err.mod_name);
+
+		const wchar_t * src_name_str = err.src_name != NULL ? err.src_name : L"/ no source name /";
 
 		wprintf(L"%c %s\n", group_letter, src_name_str);
 
-		pla_tus_t * tus = get_tus_from_src_name(repo, err->src_name);
+		pla_tus_t * tus = get_tus_from_src_name(repo, err.src_name);
 
 		if (tus != NULL) {
-			print_tus_err_data(tus, err);
+			print_tus_err_data(tus, &err);
 		}
 		else {
 			putnwc(L' ', PRINT_ERR_INDENT, stdout);
@@ -193,18 +200,18 @@ void pla_bs_print_ec_buf_errs(pla_repo_t * repo, pla_ec_buf_t * ec_buf) {
 		}
 
 		putnwc(L' ', PRINT_ERR_INDENT, stdout);
-		wprintf(L"%s\n", err->msg->str);
+		wprintf(L"%s\n", err.msg);
 	}
 }
 
 static bool build_core(ctx_t * ctx) {
-	pla_ec_buf_init(&ctx->pla_ec_buf);
+	ul_ec_buf_init(&ctx->ec_buf);
 
-	pla_ec_fmtr_init(&ctx->pla_ec_fmtr, &ctx->pla_ec_buf.ec, ctx->repo->hst);
+	ul_ec_fmtr_init(&ctx->ec_fmtr, &ctx->ec_buf.ec);
 	
-	if (!pla_bs_lpt_form_pec_nl(ctx->repo, &ctx->pla_ec_fmtr, ctx->first_tus_name, &ctx->ira_pec)
-		|| ctx->pla_ec_buf.errs_size > 0) {
-		pla_bs_print_ec_buf_errs(ctx->repo, &ctx->pla_ec_buf);
+	if (!pla_bs_lpt_form_pec_nl(ctx->repo, &ctx->ec_fmtr, ctx->first_tus_name, &ctx->ira_pec)
+		|| ctx->ec_buf.rec != NULL) {
+		pla_bs_print_ec_buf_errs(ctx->repo, &ctx->ec_buf);
 		return false;
 	}
 
@@ -236,9 +243,9 @@ bool pla_bs_build_nl(pla_repo_t * repo, ul_hs_t * first_tus_name, const wchar_t 
 
 	ira_pec_cleanup(&ctx.ira_pec);
 
-	pla_ec_fmtr_cleanup(&ctx.pla_ec_fmtr);
+	ul_ec_fmtr_cleanup(&ctx.ec_fmtr);
 
-	pla_ec_buf_cleanup(&ctx.pla_ec_buf);
+	ul_ec_buf_cleanup(&ctx.ec_buf);
 
 	return res;
 }

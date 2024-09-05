@@ -1,4 +1,4 @@
-#include "pla_ec_fmtr.h"
+#include "pla_ec.h"
 #include "pla_punc.h"
 #include "pla_keyw.h"
 #include "pla_tok.h"
@@ -74,7 +74,7 @@ static const bin_optr_info_t bin_optr_infos[] = {
 static const size_t bin_optr_infos_size = _countof(bin_optr_infos);
 
 
-void pla_prsr_init(pla_prsr_t * prsr, pla_ec_fmtr_t * ec_fmtr) {
+void pla_prsr_init(pla_prsr_t * prsr, ul_ec_fmtr_t * ec_fmtr) {
 	*prsr = (pla_prsr_t){ .ec_fmtr = ec_fmtr };
 }
 void pla_prsr_cleanup(pla_prsr_t * prsr) {
@@ -117,7 +117,7 @@ static void report(pla_prsr_t * prsr, const wchar_t * fmt, ...) {
 
 	va_start(args, fmt);
 
-	pla_ec_fmtr_formatpost_va(prsr->ec_fmtr, PLA_PRSR_EC_GROUP, (prsr->src != NULL ? prsr->src->name : NULL), prsr->tok.pos_start, prsr->tok.pos_end, fmt, args);
+	pla_ec_formatpost_va(prsr->ec_fmtr, PLA_PRSR_MOD_NAME, (prsr->src != NULL ? prsr->src->name->str : NULL), prsr->tok.pos_start, prsr->tok.pos_end, fmt, args);
 
 	va_end(args);
 }

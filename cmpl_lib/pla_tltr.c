@@ -2,7 +2,7 @@
 #include "ira_func.h"
 #include "ira_lo.h"
 #include "ira_pec_ip.h"
-#include "pla_ec_fmtr.h"
+#include "pla_ec.h"
 #include "pla_expr.h"
 #include "pla_stmt.h"
 #include "pla_dclr.h"
@@ -14,7 +14,7 @@ typedef pla_tltr_tse_t tse_t;
 typedef pla_tltr_vse_t vse_t;
 
 
-void pla_tltr_init(pla_tltr_t * tltr, ul_hst_t * hst, pla_ec_fmtr_t * ec_fmtr, ira_pec_t * out) {
+void pla_tltr_init(pla_tltr_t * tltr, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr, ira_pec_t * out) {
 	*tltr = (pla_tltr_t){ .hst = hst, .ec_fmtr = ec_fmtr, .out = out };
 
 	for (pla_pds_t pds = 0; pds < PlaPds_Count; ++pds) {
@@ -64,13 +64,13 @@ void pla_tltr_report(pla_tltr_t * tltr, const wchar_t * fmt, ...) {
 
 	va_start(args, fmt);
 
-	ul_hs_t * src_name = tltr->src != NULL ? tltr->src->name : UL_HST_HASHADD_WS(tltr->hst, L"/ no source name /");
+	const wchar_t * src_name = tltr->src != NULL ? tltr->src->name->str : NULL;
 
 	pla_ec_pos_t pos_start, pos_end;
 
 	get_report_pos(tltr, &pos_start, &pos_end);
 
-	pla_ec_fmtr_formatpost_va(tltr->ec_fmtr, PLA_TLTR_EC_GROUP, src_name, pos_start, pos_end, fmt, args);
+	pla_ec_formatpost_va(tltr->ec_fmtr, PLA_TLTR_MOD_NAME, src_name, pos_start, pos_end, fmt, args);
 
 	va_end(args);
 }

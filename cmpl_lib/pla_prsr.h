@@ -1,7 +1,7 @@
 #pragma once
 #include "pla_tok.h"
 
-#define PLA_PRSR_EC_GROUP 2
+#define PLA_PRSR_MOD_NAME L"pla_prsr"
 
 struct pla_prsr_src {
 	ul_hs_t * name;
@@ -15,7 +15,7 @@ struct pla_prsr_rse {
 	bool get_next;
 };
 struct pla_prsr {
-	pla_ec_fmtr_t * ec_fmtr;
+	ul_ec_fmtr_t * ec_fmtr;
 
 	const pla_prsr_src_t * src;
 
@@ -28,7 +28,7 @@ struct pla_prsr {
 	pla_prsr_rse_t * rse;
 };
 
-PLA_API void pla_prsr_init(pla_prsr_t * prsr, pla_ec_fmtr_t * ec_fmtr);
+PLA_API void pla_prsr_init(pla_prsr_t * prsr, ul_ec_fmtr_t * ec_fmtr);
 PLA_API void pla_prsr_cleanup(pla_prsr_t * prsr);
 
 PLA_API void pla_prsr_set_src(pla_prsr_t * prsr, const pla_prsr_src_t * src);

@@ -8,6 +8,11 @@ target_sources(ul_lib
 		ul_arr.h
 		ul_assert.h
 		ul_bs.h
+		ul_ec.h
+		ul_ec_buf.h
+		ul_ec_fmtr.h
+		ul_ec_rn.h
+		ul_ec_sn.h
 		ul_es.h
 		ul_hs.h
 		ul_hsb.h
@@ -21,6 +26,11 @@ target_sources(ul_lib
 	PRIVATE
 		ul_assert.c
 		ul_bs.c
+		ul_ec.c
+		ul_ec_buf.c
+		ul_ec_fmtr.c
+		ul_ec_rn.c
+		ul_ec_sn.c
 		ul_es.c
 		ul_hs.c
 		ul_hsb.c

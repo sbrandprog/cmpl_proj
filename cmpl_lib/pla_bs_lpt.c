@@ -33,7 +33,7 @@ typedef struct pla_bs_lpt_tus {
 
 typedef struct pla_bs_lpt_ctx {
 	pla_repo_t * repo;
-	pla_ec_fmtr_t * ec_fmtr;
+	ul_ec_fmtr_t * ec_fmtr;
 	ul_hs_t * first_tus_name;
 	ira_pec_t * out;
 
@@ -271,7 +271,7 @@ static bool form_core(ctx_t * ctx) {
 
 	return true;
 }
-bool pla_bs_lpt_form_pec_nl(pla_repo_t * repo, pla_ec_fmtr_t * ec_fmtr, ul_hs_t * first_tus_name, ira_pec_t * out) {
+bool pla_bs_lpt_form_pec_nl(pla_repo_t * repo, ul_ec_fmtr_t * ec_fmtr, ul_hs_t * first_tus_name, ira_pec_t * out) {
 	ctx_t ctx = { .repo = repo, .ec_fmtr = ec_fmtr, .first_tus_name = first_tus_name, .out = out };
 
 	bool res = form_core(&ctx);
