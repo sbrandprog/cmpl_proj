@@ -5,9 +5,18 @@
 
 typedef enum pla_pds pla_pds_t;
 
-typedef struct pla_ec_pos pla_ec_pos_t;
+typedef struct pla_tus pla_tus_t;
 
+typedef struct pla_pkg pla_pkg_t;
+
+typedef struct pla_repo pla_repo_t;
+
+typedef struct pla_repo_lsnr pla_repo_lsnr_t;
+
+typedef struct pla_ec_pos pla_ec_pos_t;
 typedef struct pla_ec_err pla_ec_err_t;
+
+typedef struct pla_ec_prntr pla_ec_prntr_t;
 
 typedef enum pla_punc pla_punc_t;
 
@@ -50,13 +59,5 @@ typedef struct pla_tltr_tse pla_tltr_tse_t;
 typedef enum pla_tltr_vse_type pla_tltr_vse_type_t;
 typedef struct pla_tltr_vse pla_tltr_vse_t;
 typedef struct pla_tltr pla_tltr_t;
-
-typedef struct pla_tus pla_tus_t;
-
-typedef struct pla_pkg pla_pkg_t;
-
-typedef struct pla_repo pla_repo_t;
-
-typedef struct pla_repo_lsnr pla_repo_lsnr_t;
 
 typedef struct pla_bs_sett pla_bs_sett_t;

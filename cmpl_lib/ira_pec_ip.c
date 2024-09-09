@@ -11,6 +11,8 @@
 #include "mc_frag.h"
 #include "mc_pea.h"
 
+#define MOD_NAME L"ira_pec_ip"
+
 #define GLOBAL_LABEL_DELIM L'$'
 
 #define STACK_ALIGN 16
@@ -140,8 +142,6 @@ typedef struct ira_pec_ip_ctx {
 
 	ira_pec_t * pec;
 	ira_func_t * func;
-
-	bool report_hdr_printed;
 
 	union {
 		struct {
@@ -404,37 +404,37 @@ static void ctx_cleanup(ctx_t * ctx) {
 }
 
 
-static void report(ctx_t * ctx, const wchar_t * format, ...) {
+static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
+	if (ctx->pec->ec_fmtr == NULL) {
+		return;
+	}
+
 	ul_assert(ctx->trg < Trg_Count);
 
-	if (!ctx->report_hdr_printed) {
-		fwprintf(stderr, L"reporting error in instruction processor [%s]\n", trg_to_str[ctx->trg]);
+	ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"reporting error in instruction processor [%s]\n", trg_to_str[ctx->trg]);
 
-		switch (ctx->trg) {
-			case TrgCmpl:
-				fwprintf(stderr, L"processing [%s] function language object\n", ctx->cmpl.lo->name->str);
-				break;
-			case TrgIntr:
-				fwprintf(stderr, L"processing anonymous function\n");
-				break;
-			default:
-				ul_assert_unreachable();
-		}
-
-		ctx->report_hdr_printed = true;
+	switch (ctx->trg) {
+		case TrgCmpl:
+			ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"processing [%s] function language object\n", ctx->cmpl.lo->name->str);
+			break;
+		case TrgIntr:
+			ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"processing anonymous function\n");
+			break;
+		default:
+			ul_assert_unreachable();
 	}
 
 	{
 		va_list args;
 
-		va_start(args, format);
+		va_start(args, fmt);
 
-		vfwprintf(stderr, format, args);
+		ul_ec_fmtr_format_va(ctx->pec->ec_fmtr, fmt, args);
 
 		va_end(args);
-
-		fputwc(L'\n', stderr);
 	}
+
+	ul_ec_fmtr_post(ctx->pec->ec_fmtr, NULL, MOD_NAME);
 }
 static void report_opds_not_equ(ctx_t * ctx, inst_t * inst, size_t first, size_t second) {
 	const ira_inst_info_t * info = &ira_inst_infos[inst->base->type];
@@ -1645,21 +1645,24 @@ static void load_int(ctx_t * ctx, mc_reg_t reg, int64_t imm) {
 
 	reset_bb_cmpl_gpr_from_reg(ctx, reg);
 }
-static void load_label_off(ctx_t * ctx, mc_reg_t reg, ul_hs_t * label) {
+static void load_label_addr(ctx_t * ctx, mc_reg_t reg, ul_hs_t * label) {
 	ul_assert(mc_reg_get_size(reg) == McSize64);
 
-	mc_inst_t lea = { .type = McInstLea, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp_label = label };
+	mc_inst_t lea = { .type = McInstLea, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp = 0, .mem_disp_label = label };
 
 	push_mc_inst(ctx, &lea);
 
 	reset_bb_cmpl_gpr_from_reg(ctx, reg);
 }
-static void load_label_val(ctx_t * ctx, mc_reg_t reg, ul_hs_t * label) {
-	mc_inst_t mov = { .type = McInstMov, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_size = mc_reg_get_size(reg), .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp_label = label };
+static void load_label_val_off(ctx_t * ctx, mc_reg_t reg, ul_hs_t * label, size_t off) {
+	mc_inst_t mov = { .type = McInstMov, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_size = mc_reg_get_size(reg), .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp = (int32_t)off, .mem_disp_label = label };
 
 	push_mc_inst(ctx, &mov);
 
 	reset_bb_cmpl_gpr_from_reg(ctx, reg);
+}
+static void load_label_val(ctx_t * ctx, mc_reg_t reg, ul_hs_t * label) {
+	load_label_val_off(ctx, reg, label, 0);
 }
 static void load_stack_gpr(ctx_t * ctx, mc_reg_t reg, int32_t off) {
 	mc_inst_t load = { .type = McInstMov, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_size = mc_reg_get_size(reg), .mem_base = McRegRsp, .mem_disp_type = McInstDispAuto, .mem_disp = off };
@@ -2261,7 +2264,7 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 			switch (val->lo_val->type) {
 				case IraLoFunc:
 				case IraLoVar:
-					load_label_off(ctx, McRegRax, val->lo_val->name);
+					load_label_addr(ctx, McRegRax, val->lo_val->name);
 					save_stack_var(ctx, var, McRegRax);
 					break;
 				case IraLoImpt:
@@ -2285,11 +2288,11 @@ static void compile_load_val_impl(ctx_t * ctx, var_t * var, ira_val_t * val) {
 			size_t off;
 
 			off = ira_pec_get_tpl_elem_off(arr_tpl, IRA_DT_ARR_SIZE_IND);
-			load_int(ctx, McRegRax, (int64_t)val->arr_val.size);
+			load_label_val_off(ctx, McRegRax, arr_label, off);
 			save_stack_var_off(ctx, var, McRegRax, off);
 
 			off = ira_pec_get_tpl_elem_off(arr_tpl, IRA_DT_ARR_DATA_IND);
-			load_label_off(ctx, McRegRax, arr_label);
+			load_label_val_off(ctx, McRegRax, arr_label, off);
 			save_stack_var_off(ctx, var, McRegRax, off);
 
 			break;
@@ -2706,8 +2709,6 @@ static void compile_va_arg(ctx_t * ctx, inst_t * inst) {
 }
 
 static void compile_insts(ctx_t * ctx) {
-	push_mc_label_basic(ctx, ctx->cmpl.lo->name);
-
 	emit_prologue(ctx);
 
 	for (inst_t * inst = ctx->insts, *inst_end = inst + ctx->insts_size; inst != inst_end; ++inst) {
@@ -2772,8 +2773,8 @@ static bool compile_core(ctx_t * ctx) {
 	ctx->cmpl.hst = ira_pec_c_get_hst(ctx->cmpl.base_ctx);
 	ctx->pec = ira_pec_c_get_pec(ctx->cmpl.base_ctx);
 
-	ctx->cmpl.frag = ira_pec_c_get_frag(ctx->cmpl.base_ctx, McFragCode);
-	ctx->cmpl.unw_frag = ira_pec_c_get_frag(ctx->cmpl.base_ctx, McFragUnw);
+	ctx->cmpl.frag = ira_pec_c_get_frag(ctx->cmpl.base_ctx, McFragCode, ctx->cmpl.lo->name);
+	ctx->cmpl.unw_frag = ira_pec_c_get_frag(ctx->cmpl.base_ctx, McFragUnw, NULL);
 
 	ctx->func = ctx->cmpl.lo->func;
 

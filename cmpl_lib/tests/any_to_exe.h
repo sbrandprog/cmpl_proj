@@ -12,6 +12,10 @@ typedef enum test_from {
 } test_from_t;
 typedef struct test_ctx {
 	ul_hst_t hst;
+
+	ul_ec_buf_t ec_buf;
+	ul_ec_fmtr_t ec_fmtr;
+
 	lnk_pel_t pel;
 	mc_pea_t pea;
 	ira_pec_t pec;
@@ -55,6 +59,12 @@ static bool test_proc(test_ctx_t * ctx);
 
 static bool process_test_core(test_ctx_t * ctx) {
 	ctx->from = TestFrom_Count;
+
+	ul_hst_init(&ctx->hst);
+	
+	ul_ec_buf_init(&ctx->ec_buf);
+
+	ul_ec_fmtr_init(&ctx->ec_fmtr, &ctx->ec_buf.ec);
 
 	if (!test_proc(ctx)) {
 		wprintf(L"error point: test_proc\n");
@@ -100,15 +110,35 @@ static bool process_test_core(test_ctx_t * ctx) {
 static bool process_test() {
 	test_ctx_t ctx = { 0 };
 
-	ul_hst_init(&ctx.hst);
-
 	bool res = process_test_core(&ctx);
+
+	if (ctx.ec_buf.rec != NULL) {
+		if (res) {
+			wprintf(L"error: positive exit status with records in error collector\n");
+		}
+
+		res = false;
+
+		ul_ec_prntr_t dflt_prntr;
+
+		ul_ec_prntr_init_dflt(&dflt_prntr);
+
+		ul_ec_prntr_t * prntrs[1] = { &dflt_prntr };
+
+		ul_ec_buf_print(&ctx.ec_buf, _countof(prntrs), prntrs);
+
+		ul_ec_prntr_cleanup(&dflt_prntr);
+	}
 
 	ira_pec_cleanup(&ctx.pec);
 
 	mc_pea_cleanup(&ctx.pea);
 
 	lnk_pel_cleanup(&ctx.pel);
+
+	ul_ec_fmtr_cleanup(&ctx.ec_fmtr);
+
+	ul_ec_buf_cleanup(&ctx.ec_buf);
 
 	ul_hst_cleanup(&ctx.hst);
 

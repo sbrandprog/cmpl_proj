@@ -134,8 +134,8 @@ struct mc_inst {
 	mc_size_t mem_size;
 	mc_inst_disp_type_t mem_disp_type;
 	mc_inst_imm_type_t imm0_type;
+	int32_t mem_disp;
 	union {
-		int32_t mem_disp;
 		ul_hs_t * mem_disp_label;
 		lnk_sect_lp_stype_t label_stype;
 	};

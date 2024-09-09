@@ -211,8 +211,8 @@ static ira_dt_func_vas_t * push_dt_func_vas(ira_pec_t * pec, ira_dt_func_vas_typ
 }
 
 
-bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst) {
-	*pec = (ira_pec_t){ .hst = hst };
+bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr) {
+	*pec = (ira_pec_t){ .hst = hst, .ec_fmtr = ec_fmtr };
 
 	ul_hsb_init(&pec->hsb);
 
@@ -389,7 +389,7 @@ bool ira_pec_get_dt_size(ira_dt_t * dt, size_t * out) {
 	return true;
 }
 bool ira_pec_get_dt_align(ira_dt_t * dt, size_t * out) {
-		switch (dt->type) {
+	switch (dt->type) {
 		case IraDtVoid:
 		case IraDtDt:
 		case IraDtBool:
@@ -740,7 +740,7 @@ bool ira_pec_apply_qual(ira_pec_t * pec, ira_dt_t * dt, ira_dt_qual_t qual, ira_
 		*out = dt;
 		return true;
 	}
-	
+
 	switch (dt->type) {
 		case IraDtVoid:
 		case IraDtDt:
@@ -1042,7 +1042,7 @@ ira_lo_t * ira_pec_push_unq_lo(ira_pec_t * pec, ira_lo_type_t type, ul_hs_t * hi
 	ul_assert(type_name != NULL);
 
 	ul_hs_t * unq_name;
-	
+
 	if (hint_name != NULL) {
 		unq_name = ul_hsb_formatadd(&pec->hsb, pec->hst, L"%s:%s%zi", hint_name->str, type_name, pec->lo_index++);
 	}

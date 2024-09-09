@@ -1,4 +1,5 @@
 #include "ul_assert.h"
+#include "ul_ec_prntr.h"
 #include "ul_ec_buf.h"
 
 static void process_actn_post(ul_ec_buf_t * buf, const ul_ec_actn_t * actn) {
@@ -54,5 +55,24 @@ void ul_ec_buf_cleanup(ul_ec_buf_t * buf) {
 void ul_ec_buf_repost(ul_ec_buf_t * buf, ul_ec_t * ec) {
 	for (ul_ec_rec_t * rec = buf->rec; rec != NULL; rec = rec->next) {
 		ul_ec_post(ec, rec);
+	}
+}
+
+void ul_ec_buf_print(ul_ec_buf_t * buf, size_t prntrs_size, ul_ec_prntr_t ** prntrs) {
+	for (ul_ec_rec_t * rec = buf->rec; rec != NULL; rec = rec->next) {
+		ul_ec_prntr_t ** prntr = prntrs, ** prntr_end = prntr + prntrs_size;
+
+		for (; prntr != prntr_end; ++prntr) {
+			if (ul_ec_prntr_print(*prntr, rec)) {
+				break;
+			}
+		}
+
+		if (prntr == prntr_end) {
+			wprintf(L"print error: no printer assigned for type [%s]\n", rec->type);
+			ul_ec_rec_dump(rec);
+		}
+
+		putwchar(L'\n');
 	}
 }

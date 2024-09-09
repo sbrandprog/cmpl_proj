@@ -8,6 +8,7 @@
 #include "ul_ec.h"
 #include "ul_ec_buf.h"
 #include "ul_ec_fmtr.h"
+#include "ul_ec_prntr.h"
 #include "ul_ec_rn.h"
 #include "ul_ec_sn.h"
 #include "ul_es.h"

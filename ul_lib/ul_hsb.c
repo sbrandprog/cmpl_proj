@@ -75,14 +75,3 @@ ul_hs_t * ul_hsb_formatadd_va(ul_hsb_t * hsb, ul_hst_t * hst, const wchar_t * fm
 
 	return res;
 }
-ul_hs_t * ul_hsb_formatadd(ul_hsb_t * hsb, ul_hst_t * hst, const wchar_t * fmt, ...) {
-	va_list args;
-
-	va_start(args, fmt);
-
-	ul_hs_t * res = ul_hsb_formatadd_va(hsb, hst, fmt, args);
-
-	va_end(args);
-
-	return res;
-}

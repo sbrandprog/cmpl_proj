@@ -24,15 +24,6 @@ void ul_ec_fmtr_format_va(ul_ec_fmtr_t * fmtr, const wchar_t * fmt, va_list args
 		fmtr->strs_pos = _countof(fmtr->rec.strs);
 	}
 }
-void ul_ec_fmtr_format(ul_ec_fmtr_t * fmtr, const wchar_t * fmt, ...) {
-	va_list args;
-
-	va_start(args, fmt);
-
-	ul_ec_fmtr_format_va(fmtr, fmt, args);
-
-	va_end(args);
-}
 
 void ul_ec_fmtr_post(ul_ec_fmtr_t * fmtr, const wchar_t * type, const wchar_t * mod_name) {
 	fmtr->rec.type = type;

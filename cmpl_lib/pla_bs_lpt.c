@@ -231,7 +231,7 @@ static bool form_core(ctx_t * ctx) {
 
 	ul_hsb_init(&ctx->hsb);
 
-	ira_pec_init(ctx->out, ctx->hst);
+	ira_pec_init(ctx->out, ctx->hst, ctx->ec_fmtr);
 
 	pla_lex_init(&ctx->lex, ctx->hst, ctx->ec_fmtr);
 

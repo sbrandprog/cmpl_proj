@@ -171,6 +171,9 @@ static bool is_disp_value(mc_inst_disp_type_t disp_type) {
 		case McInstDispAuto:
 		case McInstDisp8:
 		case McInstDisp32:
+		case McInstDispLabelRel8:
+		case McInstDispLabelRel32:
+		case McInstDispLabelRva32:
 			return true;
 	}
 

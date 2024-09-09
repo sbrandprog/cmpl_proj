@@ -5,6 +5,7 @@
 
 struct ira_pec {
 	ul_hst_t * hst;
+	ul_ec_fmtr_t * ec_fmtr;
 
 	ul_hsb_t hsb;
 
@@ -45,7 +46,7 @@ struct ira_pec {
 	ul_hs_t * ep_name;
 };
 
-IRA_API bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst);
+IRA_API bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr);
 IRA_API void ira_pec_cleanup(ira_pec_t * pec);
 
 

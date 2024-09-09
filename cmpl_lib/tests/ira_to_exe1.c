@@ -3,7 +3,7 @@
 static bool test_proc(test_ctx_t * ctx) {
 	ctx->from = TestFromIra;
 	
-	ira_pec_init(&ctx->pec, &ctx->hst);
+	ira_pec_init(&ctx->pec, &ctx->hst, &ctx->ec_fmtr);
 
 	ctx->pec.root = ira_pec_push_unq_lo(&ctx->pec, IraLoNspc, NULL);
 

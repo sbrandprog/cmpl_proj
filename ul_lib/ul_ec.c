@@ -37,6 +37,25 @@ void ul_ec_rec_destroy_chain(ul_ec_rec_t * rec) {
 	}
 }
 
+void ul_ec_rec_dump(ul_ec_rec_t * rec) {
+	wprintf(L"error record [%s] from [%s]:\n", rec->type, rec->mod_name);
+
+	wchar_t * cur = rec->strs, * cur_end = rec->strs + _countof(rec->strs);
+	for (size_t str = 0; str < rec->strs_size; ++str) {
+		wprintf(L"%s\n", cur);
+
+		if (str + 1 < rec->strs_size) {
+			cur = wmemchr(cur, 0, cur_end - cur);
+
+			if (cur == NULL) {
+				return;
+			}
+
+			++cur;
+		}
+	}
+}
+
 void ul_ec_init(ul_ec_t * ec, void * user_data, ul_ec_process_actn_proc_t * process_actn_proc) {
 	*ec = (ul_ec_t){ .user_data = user_data, .process_actn_proc = process_actn_proc };
 }

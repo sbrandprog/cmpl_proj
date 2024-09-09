@@ -2,7 +2,7 @@
 #include "ira_pec.h"
 #include "mc.h"
 
-IRA_API mc_frag_t * ira_pec_c_get_frag(ira_pec_c_ctx_t * ctx, mc_frag_type_t frag_type);
+IRA_API mc_frag_t * ira_pec_c_get_frag(ira_pec_c_ctx_t * ctx, mc_frag_type_t frag_type, ul_hs_t * frag_label);
 
 IRA_API bool ira_pec_c_process_val_compl(ira_pec_c_ctx_t * ctx, ira_val_t * val);
 IRA_API bool ira_pec_c_compile_val_frag(ira_pec_c_ctx_t * ctx, ira_val_t * val, ul_hs_t * hint_name, ul_hs_t ** out_label);

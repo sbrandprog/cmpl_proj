@@ -681,32 +681,40 @@ static bool apply_fixups(ctx_t * ctx) {
 				break;
 			case LnkSectLpFixupRel8:
 			{
-				int64_t var = (int64_t)(lpos - fpos - sizeof(uint8_t));
+				int64_t val = (int64_t)(lpos - fpos - sizeof(uint8_t)) + *(int8_t *)write_pos;
 
-				if (var > INT8_MAX || INT8_MIN > var) {
+				if (val > INT8_MAX || INT8_MIN > val) {
 					return false;
 				}
 
-				*(int8_t *)write_pos = (int8_t)var;
+				*(int8_t *)write_pos = (int8_t)val;
 				break;
 			}
 			case LnkSectLpFixupRel32:
 			{
-				int64_t var = (int64_t)(lpos - fpos - sizeof(uint32_t));
+				int64_t val = (int64_t)(lpos - fpos - sizeof(uint32_t)) + *(int32_t *)write_pos;
 
-				if (var > INT32_MAX || INT32_MIN > var) {
+				if (val > INT32_MAX || INT32_MIN > val) {
 					return false;
 				}
 
-				*(int32_t *)write_pos = (int32_t)var;
+				*(int32_t *)write_pos = (int32_t)val;
 				break;
 			}
 			case LnkSectLpFixupVa64:
-				*(uint64_t *)write_pos = (uint64_t)(lpos + ctx->pel->sett.image_base);
+				*(uint64_t *)write_pos += (uint64_t)(lpos + ctx->pel->sett.image_base);
 				break;
 			case LnkSectLpFixupRva32:
-				*(uint32_t *)write_pos = (uint32_t)lpos;
+			{
+				uint64_t val = lpos + *(uint32_t *)write_pos;
+
+				if (val > UINT32_MAX) {
+					return false;
+				}
+
+				*(uint32_t *)write_pos = (uint32_t)val;
 				break;
+			}
 			case LnkSectLpFixupRva31of64:
 				if ((lpos & ~0x7FFFFFFFull) != 0) {
 					return false;

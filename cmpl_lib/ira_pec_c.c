@@ -6,6 +6,8 @@
 #include "mc_frag.h"
 #include "mc_pea.h"
 
+#define MOD_NAME L"ira_pec_c"
+
 #define LO_NAME_DELIM L'.'
 
 #define VAL_FRAG_UNQ_SUFFIX L"#val_frag"
@@ -43,6 +45,22 @@ typedef struct ira_pec_c_ctx {
 	mc_frag_t ** cl_frag_ins;
 } ctx_t;
 
+static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
+	if (ctx->pec->ec_fmtr == NULL) {
+		return;
+	}
+
+	va_list args;
+
+	va_start(args, fmt);
+
+	ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"ira_pec_c error");
+	ul_ec_fmtr_format_va(ctx->pec->ec_fmtr, fmt, args);
+	ul_ec_fmtr_post(ctx->pec->ec_fmtr, UL_EC_REC_TYPE_DFLT, MOD_NAME);
+
+	va_end(args);
+}
+
 static mc_frag_t * get_frag_nl(ctx_t * ctx, mc_frag_type_t frag_type) {
 	*ctx->cl_frag_ins = mc_frag_create(frag_type);
 
@@ -52,12 +70,18 @@ static mc_frag_t * get_frag_nl(ctx_t * ctx, mc_frag_type_t frag_type) {
 
 	return frag;
 }
-mc_frag_t * ira_pec_c_get_frag(ira_pec_c_ctx_t * ctx, mc_frag_type_t frag_type) {
+mc_frag_t * ira_pec_c_get_frag(ira_pec_c_ctx_t * ctx, mc_frag_type_t frag_type, ul_hs_t * frag_label) {
 	EnterCriticalSection(&ctx->cl_frag_lock);
 
 	mc_frag_t * res = get_frag_nl(ctx, frag_type);
 
 	LeaveCriticalSection(&ctx->cl_frag_lock);
+
+	if (frag_label != NULL) {
+		mc_inst_t label = { .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = LnkSectLpLabelBasic, .label = frag_label };
+
+		mc_frag_push_inst(res, &label);
+	}
 
 	return res;
 }
@@ -93,6 +117,7 @@ bool ira_pec_c_process_val_compl(ira_pec_c_ctx_t * ctx, ira_val_t * val) {
 			break;
 		case IraValLoPtr:
 			if (!is_lo_compilable(val->lo_val)) {
+				report(ctx, L"reference to non-compilable language object [%s]", val->lo_val->name->str);
 				return false;
 			}
 
@@ -123,7 +148,7 @@ bool ira_pec_c_process_val_compl(ira_pec_c_ctx_t * ctx, ira_val_t * val) {
 
 	return true;
 }
-static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ira_val_t * val) {
+static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ul_hs_t * hint_name, ira_val_t * val) {
 	{
 		size_t dt_align;
 		
@@ -157,7 +182,7 @@ static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ira_val_t * val) {
 			break;
 		case IraValImmVec:
 			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + val->dt->vec.size; elem != elem_end; ++elem) {
-				if (!compile_val(ctx, frag, *elem)) {
+				if (!compile_val(ctx, frag, hint_name, *elem)) {
 					return false;
 				}
 			}
@@ -170,6 +195,7 @@ static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ira_val_t * val) {
 			break;
 		case IraValLoPtr:
 			if (!is_lo_compilable(val->lo_val)) {
+				report(ctx, L"reference to non-compilable language object [%s]", val->lo_val->name->str);
 				return false;
 			}
 
@@ -180,23 +206,42 @@ static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ira_val_t * val) {
 			break;
 		case IraValImmTpl:
 			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + val->dt->tpl.elems_size; elem != elem_end; ++elem) {
-				if (!compile_val(ctx, frag, *elem)) {
+				if (!compile_val(ctx, frag, hint_name, *elem)) {
 					return false;
 				}
 			}
 			break;
 		case IraValImmStct:
-			if (!compile_val(ctx, frag, val->val_val)) {
+			if (!compile_val(ctx, frag, hint_name, val->val_val)) {
 				return false;
 			}
 			break;
 		case IraValImmArr:
+		{
+			ul_hs_t * arr_label = get_val_frag_label(ctx, hint_name);
+
+			mc_frag_t * arr_frag = ira_pec_c_get_frag(ctx, frag->type, arr_label);
+
 			for (ira_val_t ** elem = val->arr_val.data, **elem_end = elem + val->arr_val.size; elem != elem_end; ++elem) {
-				if (!compile_val(ctx, frag, *elem)) {
+				if (!compile_val(ctx, arr_frag, hint_name, *elem)) {
 					return false;
 				}
 			}
+
+			{
+				mc_inst_t data = { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm64, .imm0 = (int64_t)val->arr_val.size };
+
+				mc_frag_push_inst(frag, &data);
+			}
+
+			{
+				mc_inst_t data = { .type = McInstData, .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImmLabelVa64, .imm0_label = arr_label };
+
+				mc_frag_push_inst(frag, &data);
+			}
+
 			break;
+		}
 		default:
 			ul_assert_unreachable();
 	}
@@ -205,17 +250,11 @@ static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ira_val_t * val) {
 	return true;
 }
 bool ira_pec_c_compile_val_frag(ira_pec_c_ctx_t * ctx, ira_val_t * val, ul_hs_t * hint_name, ul_hs_t ** out_label) {
-	mc_frag_t * frag = ira_pec_c_get_frag(ctx, McFragRoData);
-
 	ul_hs_t * frag_label = get_val_frag_label(ctx, hint_name);
 
-	{
-		mc_inst_t label = { .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = LnkSectLpLabelBasic, .label = frag_label };
+	mc_frag_t * frag = ira_pec_c_get_frag(ctx, McFragRoData, frag_label);
 
-		mc_frag_push_inst(frag, &label);
-	}
-
-	if (!compile_val(ctx, frag, val)) {
+	if (!compile_val(ctx, frag, hint_name, val)) {
 		return false;
 	}
 
@@ -266,22 +305,16 @@ static bool compile_lo_impt(ctx_t * ctx, ira_lo_t * lo) {
 }
 static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 	if (!ira_pec_is_dt_complete(lo->var.qdt.dt)) {
+		report(ctx, L"variable [%s] has incomplete data type", lo->name->str);
 		return false;
 	}
 
 	mc_frag_type_t frag_type = lo->var.qdt.qual.const_q ? McFragRoData : McFragRwData;
 
-	mc_frag_t * frag = ira_pec_c_get_frag(ctx, frag_type);
-
-	{
-		mc_inst_t label = { .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = LnkSectLpLabelBasic, .label = lo->name };
-
-		mc_frag_push_inst(frag, &label);
-	}
+	mc_frag_t * frag = ira_pec_c_get_frag(ctx, frag_type, lo->name);
 
 	switch (lo->var.val->type) {
 		case IraValImmDt:
-			return false;
 		case IraValImmVoid:
 		case IraValImmBool:
 		case IraValImmInt:
@@ -289,32 +322,12 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 		case IraValLoPtr:
 		case IraValImmTpl:
 		case IraValImmStct:
-			if (!compile_val(ctx, frag, lo->var.val)) {
-				return false;
-			}
-			break;
 		case IraValImmArr:
-		{
-			ul_hs_t * arr_label;
-
-			if (!ira_pec_c_compile_val_frag(ctx, lo->var.val, lo->name, &arr_label)) {
+			if (!compile_val(ctx, frag, lo->name, lo->var.val)) {
+				report(ctx, L"failed to compile value for variable [%s]", lo->name->str);
 				return false;
 			}
-
-			{
-				mc_inst_t data = { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm64, .imm0 = (int64_t)lo->var.val->arr_val.size };
-
-				mc_frag_push_inst(frag, &data);
-			}
-
-			{
-				mc_inst_t data = { .type = McInstData, .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImmLabelVa64, .imm0_label = arr_label };
-
-				mc_frag_push_inst(frag, &data);
-			}
-
 			break;
-		}
 		default:
 			ul_assert_unreachable();
 	}
@@ -411,6 +424,7 @@ static bool prepare_data(ctx_t * ctx) {
 	ira_lo_t * ep_lo = find_lo(ctx->pec->root, ctx->pec->ep_name);
 
 	if (ep_lo == NULL) {
+		report(ctx, L"failed to find entry point [%s]", ctx->pec->ep_name->str);
 		return false;
 	}
 

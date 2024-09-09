@@ -27,6 +27,9 @@ typedef struct ul_ec_actn ul_ec_actn_t;
 typedef void (ul_ec_process_actn_proc_t)(void * user_data, const ul_ec_actn_t * actn);
 typedef struct ul_ec ul_ec_t;
 
+typedef bool ul_ec_prntr_print_proc_t(void * user_data, ul_ec_rec_t * rec);
+typedef struct ul_ec_prntr ul_ec_prntr_t;
+
 typedef struct ul_ec_buf ul_ec_buf_t;
 
 typedef struct ul_ec_rn ul_ec_rn_t;

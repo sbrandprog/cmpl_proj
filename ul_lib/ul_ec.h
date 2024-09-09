@@ -3,6 +3,8 @@
 
 #define UL_EC_REC_STRS_SIZE_MAX (256 - (sizeof(const wchar_t *) * 2 + sizeof(void *) + sizeof(size_t)) / sizeof(wchar_t))
 
+#define UL_EC_REC_TYPE_DFLT L"ul_ec_rec"
+
 struct ul_ec_rec {
 	const wchar_t * type;
 	ul_ec_rec_t * next;
@@ -38,6 +40,8 @@ UL_API ul_ec_rec_t * ul_ec_rec_create(const wchar_t * type);
 UL_API ul_ec_rec_t * ul_ec_rec_copy(const ul_ec_rec_t * rec);
 UL_API void ul_ec_rec_destroy(ul_ec_rec_t * rec);
 UL_API void ul_ec_rec_destroy_chain(ul_ec_rec_t * rec);
+
+UL_API void ul_ec_rec_dump(ul_ec_rec_t * rec);
 
 UL_API void ul_ec_init(ul_ec_t * ec, void * user_data, ul_ec_process_actn_proc_t * process_actn_proc);
 UL_API void ul_ec_cleanup(ul_ec_t * ec);
