@@ -1,70 +1,12 @@
 #pragma once
-#include "cmpl_lib/cmpl_lib.h"
+#include "cmmn.h"
 
-#define EXE_NAME L"test.exe"
-#define EXE_CMD EXE_NAME
-
-typedef enum test_from {
-	TestFromLnk,
-	TestFromMc,
-	TestFromIra,
-	TestFrom_Count
-} test_from_t;
-typedef struct test_ctx {
-	ul_hst_t hst;
-
-	ul_ec_buf_t ec_buf;
-	ul_ec_fmtr_t ec_fmtr;
-
-	lnk_pel_t pel;
-	mc_pea_t pea;
-	ira_pec_t pec;
-
-	test_from_t from;
-} test_ctx_t;
-
-static void copy_frag_insts(size_t insts_size, const mc_inst_t * insts, mc_frag_t * frag) {
-	frag->insts_size = 0;
-
-	for (const mc_inst_t * inst = insts, *inst_end = inst + insts_size; inst != inst_end; ++inst) {
-		mc_frag_push_inst(frag, inst);
-	}
-}
-
-static void copy_sect_data(size_t data_size, const uint8_t * data, lnk_sect_t * sect) {
-	free(sect->data);
-	sect->data_size = 0;
-	sect->data = NULL;
-	sect->data_cap = 0;
-
-	uint8_t * new_data = malloc(sizeof(*new_data) * data_size);
-
-	ul_assert(new_data != NULL);
-
-	memcpy_s(new_data, sizeof(*new_data) * data_size, data, sizeof(*data) * data_size);
-
-	sect->data_size = data_size;
-	sect->data = new_data;
-	sect->data_cap = data_size;
-}
-static void copy_sect_lps(size_t lps_size, const lnk_sect_lp_t * lps, lnk_sect_t * sect) {
-	sect->lps_size = 0;
-
-	for (const lnk_sect_lp_t * lp = lps, *lp_end = lp + lps_size; lp != lp_end; ++lp) {
-		lnk_sect_add_lp(sect, lp->type, lp->stype, lp->label_name, lp->off);
-	}
-}
+static test_ctx_t ctx;
 
 static bool test_proc(test_ctx_t * ctx);
 
 static bool process_test_core(test_ctx_t * ctx) {
-	ctx->from = TestFrom_Count;
-
-	ul_hst_init(&ctx->hst);
-	
-	ul_ec_buf_init(&ctx->ec_buf);
-
-	ul_ec_fmtr_init(&ctx->ec_fmtr, &ctx->ec_buf.ec);
+	test_ctx_init(ctx, TestFrom_Count);
 
 	if (!test_proc(ctx)) {
 		wprintf(L"error point: test_proc\n");
@@ -108,8 +50,6 @@ static bool process_test_core(test_ctx_t * ctx) {
 	return true;
 }
 static bool process_test() {
-	test_ctx_t ctx = { 0 };
-
 	bool res = process_test_core(&ctx);
 
 	if (ctx.ec_buf.rec != NULL) {
@@ -119,28 +59,8 @@ static bool process_test() {
 
 		res = false;
 
-		ul_ec_prntr_t dflt_prntr;
-
-		ul_ec_prntr_init_dflt(&dflt_prntr);
-
-		ul_ec_prntr_t * prntrs[1] = { &dflt_prntr };
-
-		ul_ec_buf_print(&ctx.ec_buf, _countof(prntrs), prntrs);
-
-		ul_ec_prntr_cleanup(&dflt_prntr);
+		print_test_errs(&ctx);
 	}
-
-	ira_pec_cleanup(&ctx.pec);
-
-	mc_pea_cleanup(&ctx.pea);
-
-	lnk_pel_cleanup(&ctx.pel);
-
-	ul_ec_fmtr_cleanup(&ctx.ec_fmtr);
-
-	ul_ec_buf_cleanup(&ctx.ec_buf);
-
-	ul_hst_cleanup(&ctx.hst);
 
 	return res;
 }
@@ -149,6 +69,8 @@ int main() {
 	if (!process_test()) {
 		return -1;
 	}
+
+	test_ctx_cleanup(&ctx);
 
 	if (_CrtDumpMemoryLeaks() == TRUE) {
 		wprintf(L"detected leaks\n");

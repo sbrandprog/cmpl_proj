@@ -2,6 +2,8 @@
 #include "lnk_pel_m.h"
 #include "lnk_pel_l.h"
 
+#define MOD_NAME L"lnk_pel_l"
+
 #define PAGE_SIZE 4096
 
 #define SECT_NAME_SIZE _countof(((IMAGE_SECTION_HEADER*)NULL)->Name)
@@ -60,6 +62,8 @@ typedef struct lnk_pel_l_br_fixup {
 
 typedef struct lnk_pel_l_ctx {
 	lnk_pel_t * pel;
+
+	bool is_rptd;
 
 	lnk_sect_t * mrgd_sect;
 	lnk_sect_t * input_sect;
@@ -168,9 +172,30 @@ static void destroy_sect_chain(sect_t * sect) {
 }
 
 
+static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
+	ctx->is_rptd = true;
+
+	if (ctx->pel->ec_fmtr == NULL) {
+		return;
+	}
+
+	{
+		va_list args;
+
+		va_start(args, fmt);
+
+		ul_ec_fmtr_format_va(ctx->pel->ec_fmtr, fmt, args);
+
+		va_end(args);
+	}
+
+	ul_ec_fmtr_post(ctx->pel->ec_fmtr, UL_EC_REC_TYPE_DFLT, MOD_NAME);
+}
+
 static bool prepare_input_sects(ctx_t * ctx) {
 	if (ctx->pel->sett.apply_mrgr) {
 		if (!lnk_pel_m_merge(ctx->pel, &ctx->mrgd_sect)) {
+			report(ctx, L"failed to merge sections");
 			return false;
 		}
 
@@ -219,168 +244,213 @@ static sect_t * add_sect(ctx_t * ctx, const char * srch_name, lnk_sect_t * src) 
 
 	return *ins;
 }
-static bool add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp) {
+static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp) {
 	if (lp->off > sect->data_size) {
-		return false;
+		report(ctx, L"invalid link point offset");
+		return;
 	}
 
 	switch (lp->type) {
 		case LnkSectLpNone:
-			return true;
+			break;
 		case LnkSectLpMark:
-		{
 			if (lp->stype == LnkSectLpMarkNone) {
-				return true;
+				(void)0;
 			}
 			else if (lp->stype >= LnkSectLpMark_Count) {
-				return false;
+				report(ctx, L"invalid mark subtype");
 			}
+			else {
+				mark_t * mark = &ctx->marks[lp->stype];
 
-			mark_t * mark = &ctx->marks[lp->stype];
-
-			if (mark->sect != NULL) {
-				return false;
+				if (mark->sect != NULL) {
+					report(ctx, L"invalid mark: [%s] already set", lnk_sect_lp_mark_strs[lp->stype].str);
+				}
+				else {
+					mark->sect = sect;
+					mark->off = lp->off;
+				}
 			}
-
-			mark->sect = sect;
-			mark->off = lp->off;
-
-			return true;
-		}
+			break;
 		case LnkSectLpLabel:
-		{
 			if (lp->stype == LnkSectLpLabelNone) {
-				return true;
+				(void)0;
 			}
 			else if (lp->stype >= LnkSectLpLabel_Count) {
-				return false;
+				report(ctx, L"invalid label subtype");
 			}
+			else {
+				switch (lp->stype) {
+					case LnkSectLpLabelBasic:
+					{
+						label_t new_label = { .name = lp->label_name, .sect = sect, .off = lp->off };
 
-			switch (lp->stype) {
-				case LnkSectLpLabelBasic:
-				{
+						size_t ins_pos = ul_bs_lower_bound(sizeof(*ctx->labels), ctx->labels_size, ctx->labels, label_cmp_proc, &new_label);
 
-					label_t new_label = { .name = lp->label_name, .sect = sect, .off = lp->off };
-
-					size_t ins_pos = ul_bs_lower_bound(sizeof(*ctx->labels), ctx->labels_size, ctx->labels, label_cmp_proc, &new_label);
-
-					if (ins_pos < ctx->labels_size && ctx->labels[ins_pos].name == new_label.name) {
-						return false;
-					}
-
-					ul_arr_grow(ctx->labels_size + 1, &ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels));
-
-					memmove_s(ctx->labels + ins_pos + 1, sizeof(*ctx->labels) * (ctx->labels_cap - ins_pos), ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
-
-					ctx->labels[ins_pos] = new_label;
-					++ctx->labels_size;
-
-					break;
-				}
-				case LnkSectLpLabelProcEnd:
-				case LnkSectLpLabelProcUnw:
-				{
-					proc_t new_proc = { .label_name = lp->label_name };
-
-					size_t ins_pos = ul_bs_lower_bound(sizeof(*ctx->procs), ctx->procs_size, ctx->procs, proc_cmp_proc, &new_proc);
-
-					if (ins_pos < ctx->procs_size && ctx->procs[ins_pos].label_name == new_proc.label_name) {
-						proc_t * proc = &ctx->procs[ins_pos];
-
-						switch (lp->stype) {
-							case LnkSectLpLabelProcEnd:
-								if (proc->end_sect != NULL) {
-									return false;
-								}
-
-								proc->end_sect = sect;
-								proc->end_off = lp->off;
-								break;
-							case LnkSectLpLabelProcUnw:
-								if (proc->unw_sect != NULL) {
-									return false;
-								}
-
-								proc->unw_sect = sect;
-								proc->unw_off = lp->off;
-								break;
-							default:
-								ul_assert_unreachable();
+						if (ins_pos < ctx->labels_size && ctx->labels[ins_pos].name == new_label.name) {
+							report(ctx, L"invalid label: non-unique name [%s]", new_label.name->str);
 						}
-					}
-					else {
-						switch (lp->stype) {
-							case LnkSectLpLabelProcEnd:
-								new_proc.end_sect = sect;
-								new_proc.end_off = lp->off;
-								break;
-							case LnkSectLpLabelProcUnw:
-								new_proc.unw_sect = sect;
-								new_proc.unw_off = lp->off;
-								break;
-							default:
-								ul_assert_unreachable();
+						else {
+							ul_arr_grow(ctx->labels_size + 1, &ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels));
+
+							memmove_s(ctx->labels + ins_pos + 1, sizeof(*ctx->labels) * (ctx->labels_cap - ins_pos), ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
+
+							ctx->labels[ins_pos] = new_label;
+							++ctx->labels_size;
 						}
 
-						ul_arr_grow(ctx->procs_size + 1, &ctx->procs_cap, &ctx->procs, sizeof(*ctx->procs));
-
-						memmove_s(ctx->procs + ins_pos + 1, sizeof(*ctx->procs) * (ctx->procs_cap - ins_pos), ctx->procs + ins_pos, sizeof(*ctx->procs) * (ctx->procs_size - ins_pos));
-
-						ctx->procs[ins_pos] = new_proc;
-						++ctx->procs_size;
+						break;
 					}
+					case LnkSectLpLabelProcEnd:
+					case LnkSectLpLabelProcUnw:
+					{
+						proc_t new_proc = { .label_name = lp->label_name };
 
-					break;
+						size_t ins_pos = ul_bs_lower_bound(sizeof(*ctx->procs), ctx->procs_size, ctx->procs, proc_cmp_proc, &new_proc);
+
+						if (ins_pos < ctx->procs_size && ctx->procs[ins_pos].label_name == new_proc.label_name) {
+							proc_t * proc = &ctx->procs[ins_pos];
+
+							switch (lp->stype) {
+								case LnkSectLpLabelProcEnd:
+									if (proc->end_sect != NULL) {
+										report(ctx, L"invalid label, procedure end: end point already set");
+									}
+									else {
+										proc->end_sect = sect;
+										proc->end_off = lp->off;
+									}
+									
+									break;
+								case LnkSectLpLabelProcUnw:
+									if (proc->unw_sect != NULL) {
+										report(ctx, L"invalid label, unwind: unwind data already set");
+									}
+									else {
+										proc->unw_sect = sect;
+										proc->unw_off = lp->off;
+									}
+									
+									break;
+								default:
+									ul_assert_unreachable();
+							}
+						}
+						else {
+							switch (lp->stype) {
+								case LnkSectLpLabelProcEnd:
+									new_proc.end_sect = sect;
+									new_proc.end_off = lp->off;
+									break;
+								case LnkSectLpLabelProcUnw:
+									new_proc.unw_sect = sect;
+									new_proc.unw_off = lp->off;
+									break;
+								default:
+									ul_assert_unreachable();
+							}
+
+							ul_arr_grow(ctx->procs_size + 1, &ctx->procs_cap, &ctx->procs, sizeof(*ctx->procs));
+
+							memmove_s(ctx->procs + ins_pos + 1, sizeof(*ctx->procs) * (ctx->procs_cap - ins_pos), ctx->procs + ins_pos, sizeof(*ctx->procs) * (ctx->procs_size - ins_pos));
+
+							ctx->procs[ins_pos] = new_proc;
+							++ctx->procs_size;
+						}
+
+						break;
+					}
+					default:
+						ul_assert_unreachable();
 				}
-				default:
-					ul_assert_unreachable();
 			}
-
-			return true;
-		}
+			break;
 		case LnkSectLpFixup:
-		{
 			if (lp->stype == LnkSectLpFixupNone) {
-				return true;
+				(void)0;
 			}
 			else if (lp->stype >= LnkSectLpFixup_Count) {
-				return false;
+				report(ctx, L"invalid fixup subtype");
 			}
+			else {
+				if (lp->off + lnk_sect_fixups_size[lp->stype] > sect->data_size) {
+					report(ctx, L"invalid fixup offset: (offset + fixup data) exceeds section boundary");
+				}
+				else {
+					ul_arr_grow(ctx->fixups_size + 1, &ctx->fixups_cap, &ctx->fixups, sizeof(*ctx->fixups));
 
-			if (lp->off + lnk_sect_fixups_size[lp->stype] > sect->data_size) {
-				return false;
+					ctx->fixups[ctx->fixups_size++] = (fixup_t){ .stype = lp->stype, .label_name = lp->label_name, .sect = sect, .off = lp->off };
+
+					if (lp->stype == LnkSectLpFixupVa64) {
+						++ctx->va64_fixups_size;
+					}
+				}
 			}
-
-			ul_arr_grow(ctx->fixups_size + 1, &ctx->fixups_cap, &ctx->fixups, sizeof(*ctx->fixups));
-
-			ctx->fixups[ctx->fixups_size++] = (fixup_t){ .stype = lp->stype, .label_name = lp->label_name, .sect = sect, .off = lp->off };
-
-			if (lp->stype == LnkSectLpFixupVa64) {
-				++ctx->va64_fixups_size;
-			}
-
-			return true;
-		}
+			break;
 		default:
-			return false;
+			report(ctx, L"invalid link point type");
+			break;
 	}
 }
-static bool form_main_sects(ctx_t * ctx) {
+static void form_main_sects(ctx_t * ctx) {
 	for (lnk_sect_t * lnk_sect = ctx->input_sect; lnk_sect != NULL; lnk_sect = lnk_sect->next) {
 		sect_t * sect = add_sect(ctx, lnk_sect->name, lnk_sect);
 
 		if (sect == NULL) {
-			return false;
+			report(ctx, L"invalid section: non-unique section name");
+			continue;
 		}
-
+		
 		for (lnk_sect_lp_t * lp = lnk_sect->lps, *lp_end = lp + lnk_sect->lps_size; lp != lp_end; ++lp) {
-			if (!add_lp(ctx, sect, lp)) {
-				return false;
-			}
+			add_lp(ctx, sect, lp);
+		}
+	}
+}
+static bool process_excpt_data(ctx_t * ctx) {
+	bool err_flag = false;
+
+	for (proc_t * proc = ctx->procs, *proc_end = proc + ctx->procs_size; proc != proc_end; ++proc) {
+		proc->label = find_label(ctx, proc->label_name);
+
+		if (proc->label == NULL || proc->end_sect == NULL || proc->unw_sect == NULL) {
+			report(ctx, L"invalid procedure data: data for procedure [%s] is incomplete", proc->label_name->str);
+			err_flag = true;
 		}
 	}
 
-	return true;
+	return !err_flag;
+}
+static void form_excpt_data_sect(ctx_t * ctx) {
+	if (ctx->marks[LnkSectLpMarkExcptStart].sect != NULL || ctx->marks[LnkSectLpMarkExcptEnd].sect != NULL) {
+		report(ctx, L"invalid input: exception data marks already set");
+		return;
+	}
+
+	if (process_excpt_data(ctx)) {
+		sect_t * excpt = add_sect(ctx, ctx->pel->sett.excpt_sect_name, NULL);
+
+		if (excpt == NULL) {
+			report(ctx, L"failed to add exception data section");
+		}
+		else {
+			size_t excpt_size = sizeof(RUNTIME_FUNCTION) * ctx->procs_size;
+
+			excpt->data = malloc(excpt_size);
+
+			ul_assert(excpt->data != NULL);
+
+			excpt->data_size = excpt_size;
+			excpt->data_cap = excpt_size;
+
+			excpt->name = ctx->pel->sett.excpt_sect_name;
+			excpt->mem_r = true;
+
+			ctx->excpt_sect = excpt;
+
+			ctx->marks[LnkSectLpMarkExcptStart] = (mark_t){ .sect = excpt, .off = 0 };
+			ctx->marks[LnkSectLpMarkExcptEnd] = (mark_t){ .sect = excpt, .off = excpt->data_size };
+		}
+	}
 }
 static void set_sect_inds(ctx_t * ctx) {
 	sect_t * sect = ctx->sect;
@@ -409,175 +479,122 @@ static int base_reloc_cmp_proc(void * ctx_ptr, const fixup_t * const * first_ptr
 
 	return 0;
 }
-static bool form_excpt_data_sect(ctx_t * ctx) {
-	if (ctx->marks[LnkSectLpMarkExcptStart].sect != NULL || ctx->marks[LnkSectLpMarkExcptEnd].sect != NULL) {
-		return false;
-	}
-
-	for (proc_t * proc = ctx->procs, *proc_end = proc + ctx->procs_size; proc != proc_end; ++proc) {
-		if (proc->end_sect == NULL || proc->unw_sect == NULL) {
-			return false;
-		}
-
-		proc->label = find_label(ctx, proc->label_name);
-
-		if (proc->label == NULL) {
-			return false;
-		}
-	}
-
-	sect_t * excpt = add_sect(ctx, ctx->pel->sett.excpt_sect_name, NULL);
-
-	if (excpt == NULL) {
-		return false;
-	}
-
-	size_t excpt_size = sizeof(RUNTIME_FUNCTION) * ctx->procs_size;
-
-	excpt->data = malloc(excpt_size);
-
-	ul_assert(excpt->data != NULL);
-
-	excpt->data_size = excpt_size;
-	excpt->data_cap = excpt_size;
-
-	excpt->name = ctx->pel->sett.excpt_sect_name;
-	excpt->mem_r = true;
-
-	ctx->excpt_sect = excpt;
-
-	ctx->marks[LnkSectLpMarkExcptStart] = (mark_t){ .sect = excpt, .off = 0 };
-	ctx->marks[LnkSectLpMarkExcptEnd] = (mark_t){ .sect = excpt, .off = excpt->data_size };
-
-	return true;
-}
-static bool form_base_reloc_sect(ctx_t * ctx) {
-	if (ctx->marks[LnkSectLpMarkRelocStart].sect != NULL || ctx->marks[LnkSectLpMarkRelocEnd].sect != NULL) {
-		return false;
-	}
-
+static void form_base_reloc_arr(ctx_t * ctx) {
 	ctx->va64_fixups = malloc(ctx->va64_fixups_size * sizeof(*ctx->va64_fixups));
-	
+
 	ul_assert(ctx->va64_fixups != NULL);
 
-	{
-		fixup_t ** cur = ctx->va64_fixups, ** cur_end = cur + ctx->va64_fixups_size;
-		fixup_t * fixup = ctx->fixups, * fixup_end = fixup + ctx->fixups_size;
+	fixup_t ** cur = ctx->va64_fixups, ** cur_end = cur + ctx->va64_fixups_size;
+	fixup_t * fixup = ctx->fixups, * fixup_end = fixup + ctx->fixups_size;
 
-		for (; fixup != fixup_end; ++fixup) {
-			if (fixup->stype == LnkSectLpFixupVa64) {
-				ul_assert(cur != cur_end);
+	for (; fixup != fixup_end; ++fixup) {
+		if (fixup->stype == LnkSectLpFixupVa64) {
+			ul_assert(cur != cur_end);
 
-				*cur++ = fixup;
-			}
+			*cur++ = fixup;
 		}
-
-		set_sect_inds(ctx);
-
-		qsort_s(ctx->va64_fixups, ctx->va64_fixups_size, sizeof(*ctx->va64_fixups), base_reloc_cmp_proc, ctx);
 	}
+
+	set_sect_inds(ctx);
+
+	qsort_s(ctx->va64_fixups, ctx->va64_fixups_size, sizeof(*ctx->va64_fixups), base_reloc_cmp_proc, ctx);
+}
+static void form_base_reloc_sect(ctx_t * ctx) {
+	if (ctx->marks[LnkSectLpMarkRelocStart].sect != NULL || ctx->marks[LnkSectLpMarkRelocEnd].sect != NULL) {
+		report(ctx, L"invalid input: base relocations marks already set");
+		return;
+	}
+
+	form_base_reloc_arr(ctx);
 
 	sect_t * reloc = add_sect(ctx, ctx->pel->sett.base_reloc_sect_name, NULL);
 
 	if (reloc == NULL) {
-		return false;
+		report(ctx, L"failed to add base relocations section");
 	}
+	else {
+		reloc->name = ctx->pel->sett.base_reloc_sect_name;
+		reloc->mem_r = true;
+		reloc->mem_disc = true;
 
-	reloc->name = ctx->pel->sett.base_reloc_sect_name;
-	reloc->mem_r = true;
-	reloc->mem_disc = true;
+		for (fixup_t ** va64_f = ctx->va64_fixups, **va64_f_end = va64_f + ctx->va64_fixups_size; va64_f != va64_f_end;) {
+			fixup_t * first = *va64_f;
 
-	for (fixup_t ** va64_f = ctx->va64_fixups, **va64_f_end = va64_f + ctx->va64_fixups_size; va64_f != va64_f_end;) {
-		fixup_t * first = *va64_f;
+			size_t cur_page = first->off & ~(PAGE_SIZE - 1);
 
-		size_t cur_page = first->off & ~(PAGE_SIZE - 1);
+			fixup_t ** cur = va64_f;
 
-		fixup_t ** cur = va64_f;
+			while (cur != va64_f_end && (*cur)->sect == first->sect && ((*cur)->off & ~(PAGE_SIZE - 1)) == cur_page) {
+				++cur;
+			}
 
-		while (cur != va64_f_end && (*cur)->sect == first->sect && ((*cur)->off & ~(PAGE_SIZE - 1)) == cur_page) {
-			++cur;
+			fixup_t ** last_ptr = cur;
+
+			size_t block_start = ul_align_to(reloc->data_size, sizeof(uint32_t));
+
+			size_t block_size = sizeof(IMAGE_BASE_RELOCATION) + (last_ptr - va64_f) * sizeof(WORD);
+
+			ul_arr_grow(block_start + block_size, &reloc->data_cap, &reloc->data, sizeof(*reloc->data));
+
+			memset(reloc->data + reloc->data_size, 0, block_start - reloc->data_size);
+
+			uint8_t * data_cur = reloc->data + block_start;
+
+			{
+				IMAGE_BASE_RELOCATION block_hdr = { .VirtualAddress = 0, .SizeOfBlock = (DWORD)block_size };
+
+				*(IMAGE_BASE_RELOCATION *)data_cur = block_hdr;
+
+				data_cur += sizeof(block_hdr);
+
+				ul_arr_grow(ctx->br_fixups_size + 1, &ctx->br_fixups_cap, &ctx->br_fixups, sizeof(*ctx->br_fixups));
+
+				ctx->br_fixups[ctx->br_fixups_size++] = (br_fixup_t){
+					.off = block_start + offsetof(IMAGE_BASE_RELOCATION, VirtualAddress),
+					.target_sect = first->sect,
+					.target_page = cur_page
+				};
+			}
+
+			for (fixup_t ** cur = va64_f; cur != last_ptr; ++cur) {
+				fixup_t * fixup = *cur;
+
+				typedef struct br {
+					WORD off : 12;
+					WORD type : 4;
+				} br_t;
+
+				br_t br = (br_t){ .off = (WORD)(fixup->off - cur_page), .type = IMAGE_REL_BASED_DIR64 };
+
+				*(br_t *)data_cur = br;
+
+				data_cur += sizeof(br);
+			}
+
+			reloc->data_size = block_start + block_size;
+			va64_f = last_ptr;
 		}
 
-		fixup_t ** last_ptr = cur;
+		ctx->reloc_sect = reloc;
 
-		size_t block_start = ul_align_to(reloc->data_size, sizeof(uint32_t));
-
-		size_t block_size = sizeof(IMAGE_BASE_RELOCATION) + (last_ptr - va64_f) * sizeof(WORD);
-
-		if (block_size >= UINT32_MAX) {
-			return false;
-		}
-
-		ul_arr_grow(block_start + block_size, &reloc->data_cap, &reloc->data, sizeof(*reloc->data));
-
-		memset(reloc->data + reloc->data_size, 0, block_start - reloc->data_size);
-
-		uint8_t * data_cur = reloc->data + block_start;
-
-		{
-			IMAGE_BASE_RELOCATION block_hdr = { .VirtualAddress = 0, .SizeOfBlock = (DWORD)block_size };
-
-			*(IMAGE_BASE_RELOCATION *)data_cur = block_hdr;
-
-			data_cur += sizeof(block_hdr);
-
-			ul_arr_grow(ctx->br_fixups_size + 1, &ctx->br_fixups_cap, &ctx->br_fixups, sizeof(*ctx->br_fixups));
-
-			ctx->br_fixups[ctx->br_fixups_size++] = (br_fixup_t){
-				.off = block_start + offsetof(IMAGE_BASE_RELOCATION, VirtualAddress),
-				.target_sect = first->sect,
-				.target_page = cur_page
-			};
-		}
-
-		for (fixup_t ** cur = va64_f; cur != last_ptr; ++cur) {
-			fixup_t * fixup = *cur;
-
-			typedef struct br {
-				WORD off : 12;
-				WORD type : 4;
-			} br_t;
-
-			br_t br = (br_t){ .off = (WORD)(fixup->off - cur_page), .type = IMAGE_REL_BASED_DIR64 };
-
-			*(br_t *)data_cur = br;
-
-			data_cur += sizeof(br);
-		}
-
-		reloc->data_size = block_start + block_size;
-		va64_f = last_ptr;
+		ctx->marks[LnkSectLpMarkRelocStart] = (mark_t){ .sect = reloc, .off = 0 };
+		ctx->marks[LnkSectLpMarkRelocEnd] = (mark_t){ .sect = reloc, .off = reloc->data_size };
 	}
-
-	ctx->reloc_sect = reloc;
-
-	ctx->marks[LnkSectLpMarkRelocStart] = (mark_t){ .sect = reloc, .off = 0 };
-	ctx->marks[LnkSectLpMarkRelocEnd] = (mark_t){ .sect = reloc, .off = reloc->data_size };
-
-	return true;
 }
-static bool form_sects(ctx_t * ctx) {
-	if (!form_main_sects(ctx)) {
-		return false;
-	}
+static void form_sects(ctx_t * ctx) {
+	form_main_sects(ctx);
 
 	if (ctx->pel->sett.make_excpt_sect && ctx->procs_size > 0) {
-		if (!form_excpt_data_sect(ctx)) {
-			return false;
-		}
+		form_excpt_data_sect(ctx);
 	}
 
 	if (ctx->pel->sett.make_base_reloc_sect && ctx->va64_fixups_size > 0) {
-		if (!form_base_reloc_sect(ctx)) {
-			return false;
-		}
+		form_base_reloc_sect(ctx);
 	}
 
 	for (sect_t * sect = ctx->sect; sect != NULL; sect = sect->next) {
 		++ctx->sect_count;
 	}
-
-	return true;
 }
 
 static bool calculate_offsets(ctx_t * ctx) {
@@ -600,6 +617,7 @@ static bool calculate_offsets(ctx_t * ctx) {
 		next_virt_addr += sect->virt_size;
 
 		if (next_virt_addr >= LNK_PEL_MODULE_MAX_SIZE) {
+			report(ctx, L"invalid sections: size of final executable exceeds 2GiB");
 			return false;
 		}
 	}
@@ -610,6 +628,7 @@ static bool calculate_offsets(ctx_t * ctx) {
 		label_t * ep_label = find_label(ctx, pel->ep_name);
 
 		if (ep_label == NULL) {
+			report(ctx, L"invalid entry point: label [%s] not found", ctx->pel->ep_name->str);
 			return false;
 		}
 
@@ -633,9 +652,9 @@ static int excpt_cmp_proc(void * ctx_ptr, const proc_t * first, const proc_t * s
 	return 0;
 }
 
-static bool apply_fixups_excpt(ctx_t * ctx) {
+static void apply_fixups_excpt(ctx_t * ctx) {
 	if (ctx->excpt_sect == NULL) {
-		return true;;
+		return;
 	}
 
 	qsort_s(ctx->procs, ctx->procs_size, sizeof(*ctx->procs), excpt_cmp_proc, NULL);
@@ -649,32 +668,31 @@ static bool apply_fixups_excpt(ctx_t * ctx) {
 	}
 
 	ul_assert((uint8_t *)cur == excpt->data + excpt->data_size);
-
-	return true;
 }
-static bool apply_fixups_base_reloc(ctx_t * ctx) {
+static void apply_fixups_base_reloc(ctx_t * ctx) {
 	if (ctx->reloc_sect == NULL) {
-		return true;
+		return;
 	}
 
 	for (br_fixup_t * fixup = ctx->br_fixups, *fixup_end = fixup + ctx->br_fixups_size; fixup != fixup_end; ++fixup) {
 		*(uint32_t *)(ctx->reloc_sect->data + fixup->off) = (uint32_t)(fixup->target_sect->virt_addr + fixup->target_page);
 	}
-
-	return true;
 }
-static bool apply_fixups(ctx_t * ctx) {
+static void apply_fixups(ctx_t * ctx) {
 	for (fixup_t * fixup = ctx->fixups, *fixup_end = fixup + ctx->fixups_size; fixup != fixup_end; ++fixup) {
 		label_t * label = find_label(ctx, fixup->label_name);
 
 		if (label == NULL) {
-			return false;
+			report(ctx, L"invalid fixup: label [%s] not found", fixup->label_name->str);
+			continue;
 		}
 
 		uint64_t lpos = label->sect->virt_addr + label->off,
 			fpos = fixup->sect->virt_addr + fixup->off;
 
 		void * write_pos = fixup->sect->data + fixup->off;
+
+		bool prec_limit_exc = false;
 
 		switch (fixup->stype) {
 			case LnkSectLpFixupNone:
@@ -684,10 +702,12 @@ static bool apply_fixups(ctx_t * ctx) {
 				int64_t val = (int64_t)(lpos - fpos - sizeof(uint8_t)) + *(int8_t *)write_pos;
 
 				if (val > INT8_MAX || INT8_MIN > val) {
-					return false;
+					prec_limit_exc = true;
+				}
+				else {
+					*(int8_t *)write_pos = (int8_t)val;
 				}
 
-				*(int8_t *)write_pos = (int8_t)val;
 				break;
 			}
 			case LnkSectLpFixupRel32:
@@ -695,10 +715,12 @@ static bool apply_fixups(ctx_t * ctx) {
 				int64_t val = (int64_t)(lpos - fpos - sizeof(uint32_t)) + *(int32_t *)write_pos;
 
 				if (val > INT32_MAX || INT32_MIN > val) {
-					return false;
+					prec_limit_exc = true;
 				}
-
-				*(int32_t *)write_pos = (int32_t)val;
+				else {
+					*(int32_t *)write_pos = (int32_t)val;
+				}
+				
 				break;
 			}
 			case LnkSectLpFixupVa64:
@@ -709,56 +731,56 @@ static bool apply_fixups(ctx_t * ctx) {
 				uint64_t val = lpos + *(uint32_t *)write_pos;
 
 				if (val > UINT32_MAX) {
-					return false;
+					prec_limit_exc = true;
 				}
-
-				*(uint32_t *)write_pos = (uint32_t)val;
+				else {
+					*(uint32_t *)write_pos = (uint32_t)val;
+				}
+				
 				break;
 			}
 			case LnkSectLpFixupRva31of64:
 				if ((lpos & ~0x7FFFFFFFull) != 0) {
-					return false;
+					prec_limit_exc = true;
 				}
-
-				*(uint64_t *)write_pos = (uint64_t)((lpos & 0x7FFFFFFFull) | (*(uint64_t *)write_pos & 0xFFFFFFFF80000000ull));
+				else {
+					*(uint64_t *)write_pos = (uint64_t)((lpos & 0x7FFFFFFFull) | (*(uint64_t *)write_pos & 0xFFFFFFFF80000000ull));
+				}
+				
 				break;
 			default:
 				ul_assert_unreachable();
 		}
+
+		if (prec_limit_exc) {
+			report(ctx, L"invalid fixup: fixup data exceeded precision limit, name: [%s]", label->name->str);
+		}
 	}
 
-	if (!apply_fixups_excpt(ctx)) {
-		return false;
-	}
+	apply_fixups_excpt(ctx);
 
-	if (!apply_fixups_base_reloc(ctx)) {
-		return false;
-	}
-
-	return true;
+	apply_fixups_base_reloc(ctx);
 }
 
-static bool set_dir_info(ctx_t * ctx, IMAGE_NT_HEADERS64 * nt, DWORD dir_ent) {
+static void set_dir_info(ctx_t * ctx, IMAGE_NT_HEADERS64 * nt, size_t dir_ent) {
 	lnk_sect_lp_stype_t start = dir_start_mark[dir_ent], end = dir_end_mark[dir_ent];
 
 	ul_assert(start != LnkSectLpNone && end != LnkSectLpNone);
 
 	mark_t * start_mark = &ctx->marks[start], * end_mark = &ctx->marks[end];
 
-	if (start_mark->sect == NULL) {
-		return true;
+	if (start_mark->sect == NULL && end_mark->sect == NULL) {
+		return;
 	}
-
-	if (start_mark->sect != end_mark->sect) {
-		return false;
+	else if (start_mark->sect != end_mark->sect) {
+		report(ctx, L"invalid marks: start & end marks set in different sections (or one of them is not set)");
 	}
+	else {
+		IMAGE_DATA_DIRECTORY * dir = &nt->OptionalHeader.DataDirectory[dir_ent];
 
-	IMAGE_DATA_DIRECTORY * dir = &nt->OptionalHeader.DataDirectory[dir_ent];
-
-	dir->VirtualAddress = (DWORD)(start_mark->sect->virt_addr + start_mark->off);
-	dir->Size = (DWORD)(end_mark->off - start_mark->off);
-
-	return true;
+		dir->VirtualAddress = (DWORD)(start_mark->sect->virt_addr + start_mark->off);
+		dir->Size = (DWORD)(end_mark->off - start_mark->off);
+	}
 }
 static void write_zeros(FILE * file, size_t size) {
 	static const uint8_t zero_obj[1024] = { 0 };
@@ -771,7 +793,7 @@ static void write_zeros(FILE * file, size_t size) {
 
 	fwrite(zero_obj, sizeof(*zero_obj), mod, file);
 }
-static bool write_file_core(ctx_t * ctx, FILE * file) {
+static void write_file_core(ctx_t * ctx, FILE * file) {
 	lnk_pel_sett_t * sett = &ctx->pel->sett;
 
 	{
@@ -812,17 +834,15 @@ static bool write_file_core(ctx_t * ctx, FILE * file) {
 		nt.OptionalHeader.SizeOfHeapCommit = (ULONGLONG)sett->heap_com;
 		nt.OptionalHeader.NumberOfRvaAndSizes = IMAGE_NUMBEROF_DIRECTORY_ENTRIES;
 
-		if (!set_dir_info(ctx, &nt, IMAGE_DIRECTORY_ENTRY_IMPORT)) {
-			return false;
-		}
-		if (!set_dir_info(ctx, &nt, IMAGE_DIRECTORY_ENTRY_EXCEPTION)) {
-			return false;
-		}
-		if (!set_dir_info(ctx, &nt, IMAGE_DIRECTORY_ENTRY_BASERELOC)) {
-			return false;
-		}
-		if (!set_dir_info(ctx, &nt, IMAGE_DIRECTORY_ENTRY_IAT)) {
-			return false;
+		static const size_t dirs_to_set[] = {
+			IMAGE_DIRECTORY_ENTRY_IMPORT,
+			IMAGE_DIRECTORY_ENTRY_EXCEPTION,
+			IMAGE_DIRECTORY_ENTRY_BASERELOC,
+			IMAGE_DIRECTORY_ENTRY_IAT
+		};
+
+		for (const size_t * dir = dirs_to_set, *dir_end = dir + _countof(dirs_to_set); dir != dir_end; ++dir) {
+			set_dir_info(ctx, &nt, *dir);
 		}
 
 		fwrite(&nt, sizeof(nt), 1, file);
@@ -852,26 +872,25 @@ static bool write_file_core(ctx_t * ctx, FILE * file) {
 
 		write_zeros(file, sect->raw_size - sect->data_size);
 	}
-
-	return true;
 }
-static bool write_file(ctx_t * ctx) {
-	FILE * file;
+static void write_file(ctx_t * ctx) {
+	FILE * file = NULL;
 
 	if (_wfopen_s(&file, ctx->pel->file_name, L"wb") != 0) {
-		return false;
+		report(ctx, L"failed to open file [%s]", ctx->pel->file_name);
 	}
+	else {
+		write_file_core(ctx, file);
 
-	bool res = write_file_core(ctx, file);
+		if (ferror(file) != 0) {
+			report(ctx, L"error flag on file [%s] is set", ctx->pel->file_name);
+		}
 
-	bool file_no_err = ferror(file) == 0;
-
-	fclose(file);
-
-	return res && file_no_err;
+		fclose(file);
+	}
 }
 
-static bool export_pd_labels(ctx_t * ctx) {
+static void export_pd_labels(ctx_t * ctx) {
 	ul_hs_t * hs_labels = UL_HST_HASHADD_WS(ctx->pel->hst, L"labels"),
 		* hs_addr = UL_HST_HASHADD_WS(ctx->pel->hst, L"addr"),
 		* hs_name = UL_HST_HASHADD_WS(ctx->pel->hst, L"name");
@@ -901,10 +920,8 @@ static bool export_pd_labels(ctx_t * ctx) {
 
 		ins = &(*ins)->next;
 	}
-
-	return true;
 }
-static bool export_pd_procs(ctx_t * ctx) {
+static void export_pd_procs(ctx_t * ctx) {
 	ul_hs_t * hs_procs = UL_HST_HASHADD_WS(ctx->pel->hst, L"procs"),
 		* hs_start = UL_HST_HASHADD_WS(ctx->pel->hst, L"start"),
 		* hs_end = UL_HST_HASHADD_WS(ctx->pel->hst, L"end");
@@ -920,6 +937,10 @@ static bool export_pd_procs(ctx_t * ctx) {
 	ul_json_t ** ins = &procs->val_json;
 
 	for (proc_t * proc = ctx->procs, *proc_end = proc + ctx->procs_size; proc != proc_end; ++proc) {
+		if (proc->label == NULL || proc->end_sect == NULL) {
+			continue;
+		}
+
 		*ins = ul_json_make_obj();
 
 		ul_json_t ** elem_ins = &(*ins)->val_json;
@@ -934,34 +955,27 @@ static bool export_pd_procs(ctx_t * ctx) {
 
 		ins = &(*ins)->next;
 	}
-
-	return true;
 }
-static bool export_pd(ctx_t * ctx) {
+static void export_pd(ctx_t * ctx) {
 	wchar_t file_name_buf[MAX_PATH];
 
 	int res = swprintf_s(file_name_buf, _countof(file_name_buf), L"%s" LNK_PEL_PD_FILE_EXT, ctx->pel->file_name);
 
 	if (res < 0) {
-		return false;
+		report(ctx, L"failed to format file name of program database");
 	}
+	else {
+		ctx->pd_json = ul_json_make_obj();
+		ctx->pd_json_ins = &ctx->pd_json->val_json;
 
-	ctx->pd_json = ul_json_make_obj();
-	ctx->pd_json_ins = &ctx->pd_json->val_json;
+		export_pd_labels(ctx);
 
-	if (!export_pd_labels(ctx)) {
-		return false;
+		export_pd_procs(ctx);
+
+		if (!ul_json_g_generate_file(file_name_buf, ctx->pd_json)) {
+			report(ctx, L"failed to write program database");
+		}
 	}
-
-	if (!export_pd_procs(ctx)) {
-		return false;
-	}
-
-	if (!ul_json_g_generate_file(file_name_buf, ctx->pd_json)) {
-		return false;
-	}
-
-	return true;
 }
 
 static bool link_core(ctx_t * ctx) {
@@ -969,24 +983,18 @@ static bool link_core(ctx_t * ctx) {
 		return false;
 	}
 
-	if (!form_sects(ctx)) {
-		return false;
-	}
+	form_sects(ctx);
 
 	if (!calculate_offsets(ctx)) {
 		return false;
 	}
 
-	if (!apply_fixups(ctx)) {
-		return false;
-	}
+	apply_fixups(ctx);
 
-	if (!write_file(ctx)) {
-		return false;
-	}
+	write_file(ctx);
 
-	if (ctx->pel->sett.export_pd && !export_pd(ctx)) {
-		return false;
+	if (ctx->pel->sett.export_pd) {
+		export_pd(ctx);
 	}
 
 	return true;
@@ -1010,5 +1018,5 @@ bool lnk_pel_l_link(lnk_pel_t * pel) {
 
 	lnk_sect_destroy_chain(ctx.mrgd_sect);
 
-	return res;
+	return res && !ctx.is_rptd;
 }

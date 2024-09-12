@@ -1,6 +1,8 @@
 #include "lnk_sect.h"
 #include "lnk_pel_m.h"
 
+#define MOD_NAME L"lnk_pel_m"
+
 typedef struct lnk_pel_m_sect sect_t;
 struct lnk_pel_m_sect {
 	lnk_sect_t * base;
@@ -25,6 +27,8 @@ typedef struct lnk_pel_m_sect_ord_data {
 typedef struct lnk_pel_m_ctx {
 	lnk_pel_t * pel;
 	lnk_sect_t ** out;
+
+	bool is_rptd;
 
 	size_t sects_size;
 	sect_t ** sects;
@@ -97,7 +101,71 @@ static label_t * find_label(ctx_t * ctx, ul_hs_t * name) {
 }
 
 
-static bool form_sects_arr(ctx_t * ctx) {
+static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
+	ctx->is_rptd = true;
+
+	if (ctx->pel->ec_fmtr == NULL) {
+		return;
+	}
+
+	{
+		va_list args;
+
+		va_start(args, fmt);
+
+		ul_ec_fmtr_format_va(ctx->pel->ec_fmtr, fmt, args);
+
+		va_end(args);
+	}
+
+	ul_ec_fmtr_post(ctx->pel->ec_fmtr, UL_EC_REC_TYPE_DFLT, MOD_NAME);
+}
+
+static void process_sect_lp(ctx_t * ctx, sect_t * sect, lnk_sect_lp_t * lp) {
+	switch (lp->type) {
+		case LnkSectLpNone:
+		case LnkSectLpMark:
+			break;
+		case LnkSectLpLabel:
+			switch (lp->stype) {
+				case LnkSectLpLabelNone:
+					break;
+				case LnkSectLpLabelBasic:
+				{
+					ul_arr_grow(ctx->labels_size + 1, &ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels));
+
+					label_t new_label = (label_t){ .name = lp->label_name, .sect = sect };
+
+					size_t ins_pos = ul_bs_lower_bound(sizeof(*ctx->labels), ctx->labels_size, ctx->labels, label_cmp_proc, &new_label);
+
+					if (ins_pos < ctx->labels_size && ctx->labels[ins_pos].name == new_label.name) {
+						report(ctx, L"invalid label: non-unique name [%s]", new_label.name->str);
+					}
+					else {
+						memmove_s(ctx->labels + ins_pos + 1, sizeof(*ctx->labels) * (ctx->labels_cap - ins_pos), ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
+
+						ctx->labels[ins_pos] = new_label;
+						++ctx->labels_size;
+					}
+					break;
+				}
+				case LnkSectLpLabelProcEnd:
+				case LnkSectLpLabelProcUnw:
+					break;
+				default:
+					report(ctx, L"invalid label subtype");
+					break;
+			}
+
+			break;
+		case LnkSectLpFixup:
+			break;
+		default:
+			report(ctx, L"invalid link point type");
+			break;
+	}
+}
+static void form_sects_arr(ctx_t * ctx) {
 	size_t input_ind = 0;
 
 	for (lnk_sect_t * lnk_sect = ctx->pel->sect; lnk_sect != NULL; lnk_sect = lnk_sect->next) {
@@ -108,49 +176,9 @@ static bool form_sects_arr(ctx_t * ctx) {
 		ctx->sects[ctx->sects_size++] = sect;
 
 		for (lnk_sect_lp_t * lp = lnk_sect->lps, *lp_end = lp + lnk_sect->lps_size; lp != lp_end; ++lp) {
-			switch (lp->type) {
-				case LnkSectLpMark:
-					break;
-				case LnkSectLpLabel:
-					switch (lp->stype) {
-						case LnkSectLpLabelNone:
-							break;
-						case LnkSectLpLabelBasic:
-						{
-							ul_arr_grow(ctx->labels_size + 1, &ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels));
-
-							label_t new_label = (label_t){ .name = lp->label_name, .sect = sect };
-
-							size_t ins_pos = ul_bs_lower_bound(sizeof(*ctx->labels), ctx->labels_size, ctx->labels, label_cmp_proc, &new_label);
-
-							if (ins_pos < ctx->labels_size && ctx->labels[ins_pos].name == new_label.name) {
-								return false;
-							}
-
-							memmove_s(ctx->labels + ins_pos + 1, sizeof(*ctx->labels) * (ctx->labels_cap - ins_pos), ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
-
-							ctx->labels[ins_pos] = new_label;
-							++ctx->labels_size;
-
-							break;
-						}
-						case LnkSectLpLabelProcEnd:
-						case LnkSectLpLabelProcUnw:
-							break;
-						default:
-							return false;
-					}
-
-					break;
-				case LnkSectLpFixup:
-					break;
-				default:
-					ul_assert_unreachable();
-			}
+			process_sect_lp(ctx, sect, lp);
 		}
 	}
-
-	return true;
 }
 
 static void push_ord_buf_sect(ctx_t * ctx, sect_t * sect, size_t ref_ord_ind) {
@@ -170,13 +198,14 @@ static void push_ord_buf_sect(ctx_t * ctx, sect_t * sect, size_t ref_ord_ind) {
 
 	ctx->ord_buf[ctx->ord_buf_size++] = (sect_ord_data_t){ .sect = sect, .new_ord_ind = ref_ord_ind };
 }
-static bool push_ord_buf_refs(ctx_t * ctx, sect_t * sect) {
+static void push_ord_buf_refs(ctx_t * ctx, sect_t * sect) {
 	size_t trg_ord_ind = sect->ref_ord_ind + 1;
 
 	lnk_sect_t * base = sect->base;
 
 	for (lnk_sect_lp_t * lp = base->lps, *lp_end = lp + base->lps_size; lp != lp_end; ++lp) {
 		switch (lp->type) {
+			case LnkSectLpNone:
 			case LnkSectLpMark:
 			case LnkSectLpLabel:
 				break;
@@ -192,31 +221,29 @@ static bool push_ord_buf_refs(ctx_t * ctx, sect_t * sect) {
 						label_t * label = find_label(ctx, lp->label_name);
 
 						if (label == NULL) {
-							return false;
+							report(ctx, L"invalid fixup: label [%s] not found", lp->label_name->str);
 						}
-
-						if (label->sect != sect) {
-							push_ord_buf_sect(ctx, label->sect, trg_ord_ind);
+						else {
+							if (label->sect != sect) {
+								push_ord_buf_sect(ctx, label->sect, trg_ord_ind);
+							}
 						}
-
 						break;
 					}
 					default:
-						ul_assert_unreachable();
+						report(ctx, L"invalid fixup subtype");
+						break;
 				}
 				break;
-			default:
-				ul_assert_unreachable();
 		}
 	}
-
-	return true;
 }
 static bool set_ord_inds(ctx_t * ctx) {
 	{
 		label_t * ep_label = find_label(ctx, ctx->pel->ep_name);
 
 		if (ep_label == NULL) {
+			report(ctx, L"invalid entry point: label [%s] not found", ctx->pel->ep_name->str);
 			return false;
 		}
 
@@ -236,9 +263,7 @@ static bool set_ord_inds(ctx_t * ctx) {
 
 		data.sect->ref_ord_ind = data.new_ord_ind;
 
-		if (!push_ord_buf_refs(ctx, data.sect)) {
-			return false;
-		}
+		push_ord_buf_refs(ctx, data.sect);
 	}
 
 	return true;
@@ -289,7 +314,7 @@ static void sort_sects(ctx_t * ctx) {
 	qsort_s(ctx->sects, ctx->sects_size, sizeof(*ctx->sects), sect_cmp_proc, NULL);
 }
 
-static bool merge_sects(ctx_t * ctx) {
+static void merge_sects(ctx_t * ctx) {
 	ctx->mrgd_sect_ins = &ctx->mrgd_sect;
 
 	for (sect_t ** sect = ctx->sects, **sect_end = sect + ctx->sects_size; sect != sect_end; ) {
@@ -305,7 +330,7 @@ static bool merge_sects(ctx_t * ctx) {
 				|| batch_base->mem_w != sect_base->mem_w
 				|| batch_base->mem_e != sect_base->mem_e
 				|| batch_base->mem_disc != sect_base->mem_disc) {
-				return false;
+				report(ctx, L"invalid sections: [%S] sections have different description data", sect_base->name);
 			}
 
 			++batch;
@@ -348,8 +373,6 @@ static bool merge_sects(ctx_t * ctx) {
 
 		sect = batch;
 	}
-
-	return true;
 }
 
 static void assign_sects(ctx_t * ctx) {
@@ -360,9 +383,7 @@ static void assign_sects(ctx_t * ctx) {
 
 
 static bool merge_core(ctx_t * ctx) {
-	if (!form_sects_arr(ctx)) {
-		return false;
-	}
+	form_sects_arr(ctx);
 
 	if (!set_ord_inds(ctx)) {
 		return false;
@@ -370,9 +391,7 @@ static bool merge_core(ctx_t * ctx) {
 
 	sort_sects(ctx);
 
-	if (!merge_sects(ctx)) {
-		return false;
-	}
+	merge_sects(ctx);
 
 	assign_sects(ctx);
 
@@ -395,5 +414,5 @@ bool lnk_pel_m_merge(lnk_pel_t * pel, lnk_sect_t ** out) {
 
 	free(ctx.sects);
 
-	return res;
+	return res && !ctx.is_rptd;
 }

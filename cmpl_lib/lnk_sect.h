@@ -96,4 +96,5 @@ LNK_API void lnk_sect_destroy_chain(lnk_sect_t * sect);
 
 LNK_API void lnk_sect_add_lp(lnk_sect_t * sect, lnk_sect_lp_type_t type, lnk_sect_lp_stype_t stype, ul_hs_t * label_name, size_t off);
 
+extern LNK_API const ul_ros_t lnk_sect_lp_mark_strs[LnkSectLpMark_Count];
 extern LNK_API const size_t lnk_sect_fixups_size[LnkSectLpFixup_Count];

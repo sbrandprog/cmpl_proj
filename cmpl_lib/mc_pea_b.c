@@ -128,7 +128,7 @@ static void fill_props(ctx_t * ctx) {
 }
 
 static void build_core(ctx_t * ctx) {
-	lnk_pel_init(ctx->out, ctx->pea->hst);
+	lnk_pel_init(ctx->out, ctx->pea->hst, ctx->pea->ec_fmtr);
 
 	build_frags(ctx);
 
