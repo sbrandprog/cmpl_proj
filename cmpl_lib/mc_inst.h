@@ -162,15 +162,14 @@ enum mc_inst_off_type {
 struct mc_inst_offs {
 	uint8_t off[McInstOff_Count];
 };
+struct mc_inst_bs {
+	uint8_t mem[MC_INST_BS_SIZE];
+};
 
-typedef uint8_t mc_inst_bs_t[MC_INST_BS_SIZE];
-
-MC_API bool mc_inst_build(mc_inst_t * inst, size_t * inst_size, mc_inst_bs_t out, mc_inst_offs_t * offs_out);
+MC_API bool mc_inst_build(mc_inst_t * inst, ul_ec_fmtr_t * ec_fmtr, size_t * inst_size_out, mc_inst_bs_t * bs_out, mc_inst_offs_t * offs_out);
 
 inline bool mc_inst_get_size(mc_inst_t * inst, size_t * out) {
-	mc_inst_bs_t bs;
-
-	return mc_inst_build(inst, out, bs, NULL);
+	return mc_inst_build(inst, NULL, out, NULL, NULL);
 }
 
 extern MC_API const mc_inst_opd_t mc_inst_opds_to_opd[McInstOpds__Count][MC_INST_OPDS_SIZE];

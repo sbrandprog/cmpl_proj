@@ -27,6 +27,6 @@ MC_API void mc_frag_destroy_chain(mc_frag_t * frag);
 
 MC_API void mc_frag_push_inst(mc_frag_t * frag, const mc_inst_t * inst);
 
-MC_API bool mc_frag_build(mc_frag_t * frag, lnk_sect_t ** out);
+MC_API bool mc_frag_build(mc_frag_t * frag, ul_ec_fmtr_t * ec_fmtr, lnk_sect_t ** out);
 
 MC_API extern const mc_defs_sd_type_t mc_frag_type_to_sd[McFrag_Count];

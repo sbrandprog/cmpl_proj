@@ -3,6 +3,7 @@
 #include "mc.h"
 
 enum mc_defs_sd_type {
+	McDefsSdInv_Inv,
 	McDefsSdText_Code,
 	McDefsSdRdata_ItAddr,
 	McDefsSdRdata_Data,

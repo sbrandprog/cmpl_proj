@@ -21,6 +21,7 @@ typedef uint8_t mc_inst_disp_type_t;
 typedef struct mc_inst mc_inst_t;
 typedef enum mc_inst_off_type mc_inst_off_type_t;
 typedef struct mc_inst_offs mc_inst_offs_t;
+typedef struct mc_inst_bs mc_inst_bs_t;
 
 typedef enum mc_frag_type mc_frag_type_t;
 typedef struct mc_frag mc_frag_t;

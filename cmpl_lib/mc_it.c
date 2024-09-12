@@ -3,6 +3,8 @@
 #include "mc_defs.h"
 #include "mc_it.h"
 
+#define MOD_NAME L"mc_it"
+
 #define LABEL_SUFFIX L"#it:"
 #define LABEL_LIB_NAME_EXT L'n'
 #define LABEL_LIB_AT_EXT L'a'
@@ -13,8 +15,9 @@ typedef IMAGE_IMPORT_DESCRIPTOR impt_desc_t;
 
 typedef struct mc_it_ctx {
 	mc_it_t * it;
-	ul_hst_t * hst;
 	lnk_pel_t * out;
+
+	bool is_rptd;
 
 	ul_hsb_t hsb;
 
@@ -23,8 +26,8 @@ typedef struct mc_it_ctx {
 	lnk_sect_t * hnt_sect;
 } ctx_t;
 
-void mc_it_init(mc_it_t * it) {
-	*it = (mc_it_t){ 0 };
+void mc_it_init(mc_it_t * it, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr) {
+	*it = (mc_it_t){ .hst = hst, .ec_fmtr = ec_fmtr };
 }
 void mc_it_cleanup(mc_it_t * it) {
 	for (mc_it_lib_t * lib = it->lib; lib != NULL; ) {
@@ -95,6 +98,36 @@ mc_it_sym_t * mc_it_add_sym(mc_it_t * it, ul_hs_t * lib_name, ul_hs_t * sym_name
 	return new_sym;
 }
 
+static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
+	ctx->is_rptd = true;
+
+	if (ctx->it->ec_fmtr == NULL) {
+		return;
+	}
+
+	{
+		va_list args;
+
+		va_start(args, fmt);
+
+		ul_ec_fmtr_format_va(ctx->it->ec_fmtr, fmt, args);
+
+		va_end(args);
+	}
+
+	ul_ec_fmtr_post(ctx->it->ec_fmtr, UL_EC_REC_TYPE_DFLT, MOD_NAME);
+}
+
+static bool is_empty(ctx_t * ctx) {
+	for (mc_it_lib_t * lib = ctx->it->lib; lib != NULL; lib = lib->next) {
+		if (lib->sym != NULL) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static void create_sects(ctx_t * ctx) {
 	ctx->dir_sect = lnk_sect_create_desc(&mc_defs_sds[McDefsSdRdata_ItDir]);
 	ctx->addr_sect = lnk_sect_create_desc(&mc_defs_sds[McDefsSdRdata_ItAddr]);
@@ -102,7 +135,7 @@ static void create_sects(ctx_t * ctx) {
 }
 
 static ul_hs_t * get_it_label_name(ctx_t * ctx, ul_hs_t * base_name, wchar_t ext_char) {
-	return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%s%c", base_name->str, LABEL_SUFFIX, ext_char);
+	return ul_hsb_formatadd(&ctx->hsb, ctx->it->hst, L"%s%s%c", base_name->str, LABEL_SUFFIX, ext_char);
 }
 static void write_data(lnk_sect_t * sect, size_t data_size, void * data) {
 	ul_arr_grow(sect->data_size + data_size, &sect->data_cap, &sect->data, sizeof(*sect->data));
@@ -117,9 +150,12 @@ static bool write_ascii_str(lnk_sect_t * sect, ul_hs_t * str) {
 
 	uint8_t * cur = sect->data + sect->data_size;
 
+	bool err = false;
+
 	for (wchar_t * ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch) {
 		if ((*ch & ~0x7F) != 0) {
-			return false;
+			err = true;
+			continue;
 		}
 
 		*cur++ = (uint8_t)*ch;
@@ -131,10 +167,10 @@ static bool write_ascii_str(lnk_sect_t * sect, ul_hs_t * str) {
 
 	sect->data_size += str_size;
 
-	return true;
+	return !err;
 }
 
-static bool process_lib(ctx_t * ctx, mc_it_lib_t * lib) {
+static void process_lib(ctx_t * ctx, mc_it_lib_t * lib) {
 	ul_hs_t * lib_name_label = get_it_label_name(ctx, lib->name, LABEL_LIB_NAME_EXT);
 	ul_hs_t * lib_at_label = get_it_label_name(ctx, lib->name, LABEL_LIB_AT_EXT);
 
@@ -154,7 +190,7 @@ static bool process_lib(ctx_t * ctx, mc_it_lib_t * lib) {
 		lnk_sect_add_lp(hnt_sect, LnkSectLpLabel, LnkSectLpLabelBasic, lib_name_label, hnt_sect->data_size);
 
 		if (!write_ascii_str(hnt_sect, lib->name)) {
-			return false;
+			report(ctx, L"invalid library name [%s]", lib->name->str);
 		}
 	}
 
@@ -179,13 +215,13 @@ static bool process_lib(ctx_t * ctx, mc_it_lib_t * lib) {
 
 			write_data(hnt_sect, sizeof(sym_hint), &sym_hint);
 
-			write_ascii_str(hnt_sect, sym->name);
+			if (!write_ascii_str(hnt_sect, sym->name)) {
+				report(ctx, L"invalid symbol name [%s] in library [%s]", sym->name->str, lib->name->str);
+			}
 		}
 
 		write_data(addr_sect, sizeof(sym_rec), &sym_rec);
 	}
-
-	return true;
 }
 
 static lnk_sect_t ** push_sect(ctx_t * ctx, lnk_sect_t ** ins, lnk_sect_t ** sect_loc) {
@@ -209,11 +245,11 @@ static void push_sects(ctx_t * ctx) {
 	ins = push_sect(ctx, ins, &ctx->hnt_sect);
 }
 
-static bool build_core(ctx_t * ctx) {
+static void build_core(ctx_t * ctx) {
 	mc_it_t * it = ctx->it;
 
-	if (it->lib == NULL) {
-		return true;
+	if (is_empty(ctx)) {
+		return;
 	}
 
 	ul_hsb_init(&ctx->hsb);
@@ -223,9 +259,7 @@ static bool build_core(ctx_t * ctx) {
 	lnk_sect_add_lp(ctx->dir_sect, LnkSectLpMark, LnkSectLpMarkImpStart, NULL, ctx->dir_sect->data_size);
 
 	for (mc_it_lib_t * lib = it->lib; lib != NULL; lib = lib->next) {
-		if (!process_lib(ctx, lib)) {
-			return false;
-		}
+		process_lib(ctx, lib);
 	}
 
 	{
@@ -237,14 +271,12 @@ static bool build_core(ctx_t * ctx) {
 	lnk_sect_add_lp(ctx->dir_sect, LnkSectLpMark, LnkSectLpMarkImpEnd, NULL, ctx->dir_sect->data_size);
 
 	push_sects(ctx);
-
-	return true;
 }
 
-bool mc_it_build(mc_it_t * it, ul_hst_t * hst, lnk_pel_t * out) {
-	ctx_t ctx = { .it = it, .hst = hst, .out = out };
+bool mc_it_build(mc_it_t * it, lnk_pel_t * out) {
+	ctx_t ctx = { .it = it, .out = out };
 
-	bool res = build_core(&ctx);
+	build_core(&ctx);
 
 	ul_hsb_cleanup(&ctx.hsb);
 
@@ -252,5 +284,5 @@ bool mc_it_build(mc_it_t * it, ul_hst_t * hst, lnk_pel_t * out) {
 	lnk_sect_destroy(ctx.addr_sect);
 	lnk_sect_destroy(ctx.hnt_sect);
 
-	return res;
+	return !ctx.is_rptd;
 }

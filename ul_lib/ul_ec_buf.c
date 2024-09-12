@@ -23,6 +23,8 @@ static void process_actn_clear(ul_ec_buf_t * buf, const ul_ec_actn_t * actn) {
 			rec_ins = &rec->next;
 		}
 	}
+
+	buf->rec_ins = rec_ins;
 }
 static void process_actn_proc(ul_ec_buf_t * buf, const ul_ec_actn_t * actn) {
 	switch (actn->type) {

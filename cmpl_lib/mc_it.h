@@ -13,13 +13,16 @@ struct mc_it_lib {
 	mc_it_sym_t * sym;
 };
 struct mc_it {
+	ul_hst_t * hst;
+	ul_ec_fmtr_t * ec_fmtr;
+
 	mc_it_lib_t * lib;
 };
 
-MC_API void mc_it_init(mc_it_t * it);
+MC_API void mc_it_init(mc_it_t * it, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr);
 MC_API void mc_it_cleanup(mc_it_t * it);
 
 MC_API mc_it_lib_t * mc_it_get_lib(mc_it_t * it, ul_hs_t * name);
 MC_API mc_it_sym_t * mc_it_add_sym(mc_it_t * it, ul_hs_t * lib_name, ul_hs_t * sym_name, ul_hs_t * sym_link_name);
 
-MC_API bool mc_it_build(mc_it_t * it, ul_hst_t * hst, lnk_pel_t * out);
+MC_API bool mc_it_build(mc_it_t * it, lnk_pel_t * out);

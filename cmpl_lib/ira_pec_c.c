@@ -50,15 +50,17 @@ static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
 		return;
 	}
 
-	va_list args;
+	{
+		va_list args;
 
-	va_start(args, fmt);
+		va_start(args, fmt);
 
-	ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"ira_pec_c error");
-	ul_ec_fmtr_format_va(ctx->pec->ec_fmtr, fmt, args);
+		ul_ec_fmtr_format_va(ctx->pec->ec_fmtr, fmt, args);
+
+		va_end(args);
+	}
+
 	ul_ec_fmtr_post(ctx->pec->ec_fmtr, UL_EC_REC_TYPE_DFLT, MOD_NAME);
-
-	va_end(args);
 }
 
 static mc_frag_t * get_frag_nl(ctx_t * ctx, mc_frag_type_t frag_type) {
@@ -434,7 +436,7 @@ static bool prepare_data(ctx_t * ctx) {
 
 	ul_hsb_init(&ctx->hsb);
 
-	mc_pea_init(ctx->out, ctx->hst);
+	mc_pea_init(ctx->out, ctx->hst, ctx->pec->ec_fmtr);
 
 	ctx->out->ep_name = ep_lo->name;
 
@@ -454,6 +456,7 @@ static bool do_work(ctx_t * ctx) {
 	ctx->cl_work = CreateThreadpoolWork(compile_lo_worker, ctx, NULL);
 
 	if (ctx->cl_work == NULL) {
+		report(ctx, L"failed to initialize parallel worker");
 		return false;
 	}
 

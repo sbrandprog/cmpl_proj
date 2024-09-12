@@ -20,7 +20,7 @@ function(set_proj_trg_props trg)
 	target_compile_definitions(${trg} PRIVATE UNICODE=1 _UNICODE=1)
 	
 	if (MSVC)
-		target_compile_options(${trg} PRIVATE /W3)
+		target_compile_options(${trg} PRIVATE /W3 /utf-8)
 	endif()
 
 	if (ARGS_COPY_DLLS)

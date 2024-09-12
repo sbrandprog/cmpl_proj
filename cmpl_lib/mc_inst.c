@@ -2,6 +2,8 @@
 #include "mc_size.h"
 #include "mc_reg.h"
 
+#define MOD_NAME L"mc_inst"
+
 #define BS_BUF_SIZE 64
 
 #define OSIZE 0x66
@@ -16,7 +18,7 @@
 #define REX_W 0x08
 
 
-enum inst_rec_opds_enc {
+enum mc_inst_rec_opds_enc {
 	InstRecOpds_None,
 	InstRecOpds_Label,
 	InstRecOpds_Imm,
@@ -40,7 +42,7 @@ enum inst_rec_opds_enc {
 };
 typedef uint8_t inst_rec_opds_enc_t;
 
-enum inst_rec_imm_type {
+enum mc_inst_rec_imm_type {
 	InstRecImm8,
 	InstRecImm16,
 	InstRecImm32,
@@ -49,7 +51,7 @@ enum inst_rec_imm_type {
 	InstRecImm_Count
 };
 typedef uint8_t inst_rec_imm_type_t;
-enum inst_rec_reg_type {
+enum mc_inst_rec_reg_type {
 	InstRecRegGprOpc8,
 	InstRecRegGprOpc16,
 	InstRecRegGprOpc32,
@@ -74,7 +76,7 @@ enum inst_rec_reg_type {
 };
 typedef uint8_t inst_rec_reg_type_t;
 
-typedef struct inst_rec {
+typedef struct mc_inst_rec {
 	mc_inst_type_t type;
 	uint8_t opc;
 	mc_inst_opds_t opds;
@@ -89,7 +91,7 @@ typedef struct inst_rec {
 	uint8_t no_opc : 1;
 } inst_rec_t;
 
-typedef struct inst_desc {
+typedef struct mc_inst_desc {
 	uint8_t opc;
 
 	bool req_rex, no_rex;
@@ -110,6 +112,23 @@ typedef struct inst_desc {
 
 	int64_t imm0;
 } inst_desc_t;
+
+typedef struct mc_inst_ctx {
+	mc_inst_t * inst;
+	ul_ec_fmtr_t * ec_fmtr;
+	size_t * inst_size_out;
+	mc_inst_bs_t * bs_out;
+	mc_inst_offs_t * offs_out;
+
+	bool is_rptd;
+
+	bool valid_res;
+	bool req_rex, no_rex, use_ext;
+
+	const inst_rec_t * rec;
+
+	inst_desc_t desc;
+} ctx_t;
 
 const mc_size_t imm_type_to_size[InstRecImm_Count] = {
 	[InstRecImm8] = McSize8,
@@ -143,6 +162,26 @@ const mc_reg_grps_t reg_type_to_grps[InstRecReg_Count] = {
 
 const inst_rec_t inst_recs[];
 static const size_t inst_recs_size;
+
+static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
+	ctx->is_rptd = true;
+
+	if (ctx->ec_fmtr == NULL) {
+		return;
+	}
+
+	{
+		va_list args;
+
+		va_start(args, fmt);
+
+		ul_ec_fmtr_format_va(ctx->ec_fmtr, fmt, args);
+
+		va_end(args);
+	}
+
+	ul_ec_fmtr_post(ctx->ec_fmtr, UL_EC_REC_TYPE_DFLT, MOD_NAME);
+}
 
 static bool is_imm_value(mc_inst_imm_type_t imm_type) {
 	switch (imm_type) {
@@ -180,33 +219,47 @@ static bool is_disp_value(mc_inst_disp_type_t disp_type) {
 	return false;
 }
 
-static bool validate_imm(mc_inst_imm_type_t imm_type) {
+static void validate_imm(ctx_t * ctx, mc_inst_imm_type_t imm_type) {
 	if (imm_type >= McInstImm_Count) {
-		return false;
+		report(ctx, L"invalid immediate");
+		ctx->valid_res = false;
 	}
-
-	return true;
 }
-static bool validate_reg(mc_reg_t reg, bool * req_rex, bool * no_rex, bool * use_ext) {
+static void validate_reg(ctx_t * ctx, mc_reg_t reg) {
 	if (reg >= McReg_Count) {
-		return false;
+		report(ctx, L"invalid register");
+		ctx->valid_res = false;
 	}
 
 	const mc_reg_info_t * info = &mc_reg_infos[reg];
 
-	*req_rex = *req_rex || info->grps.req_rex;
-	*no_rex = *no_rex || info->grps.no_rex;
-	*use_ext = *use_ext || info->ext;
-
-	return true;
+	ctx->req_rex = ctx->req_rex || info->grps.req_rex;
+	ctx->no_rex = ctx->no_rex || info->grps.no_rex;
+	ctx->use_ext = ctx->use_ext || info->ext;
 }
-static bool validate_mem(mc_inst_t * inst, bool * use_ext) {
-	if (inst->mem_base >= McReg_Count || inst->mem_index >= McReg_Count) {
-		return false;
-	}
+static void validate_mem(ctx_t * ctx, mc_inst_t * inst) {
+	bool err = false;
 
 	if (inst->mem_disp_type >= McInstDisp_Count) {
-		return false;
+		report(ctx, L"invalid memory: displacement type");
+		ctx->valid_res = false;
+		err = true;
+	}
+
+	if (inst->mem_base >= McReg_Count) {
+		report(ctx, L"invalid memory: base register");
+		ctx->valid_res = false;
+		err = true;
+	}
+
+	if (inst->mem_index >= McReg_Count) {
+		report(ctx, L"invalid memory: index register");
+		ctx->valid_res = false;
+		err = true;
+	}
+
+	if (err) {
+		return;
 	}
 
 	const mc_reg_info_t * base = &mc_reg_infos[inst->mem_base],
@@ -214,154 +267,151 @@ static bool validate_mem(mc_inst_t * inst, bool * use_ext) {
 
 	if (base->grps.ip && index->grps.none) {
 		if (!base->grps.s_32 && !base->grps.s_64) {
-			return false;
+			report(ctx, L"invalid memory, ip: instruction pointer must be 32 or 64 bit");
+			ctx->valid_res = false;
 		}
 
 		if (!is_disp_32(inst->mem_disp_type)) {
-			return false;
+			report(ctx, L"invalid memory, ip: 32 bit displacement required");
+			ctx->valid_res = false;
 		}
 	}
 	else if (base->grps.gpr && index->grps.none) {
 		if (!base->grps.s_32 && !base->grps.s_64) {
-			return false;
+			report(ctx, L"invalid memory, base: base register must be 32 or 64 bit");
+			ctx->valid_res = false;
 		}
 
 		if (inst->mem_disp_type != McInstDispAuto) {
 			if (mc_inst_disp_type_to_size[inst->mem_disp_type] == McSizeNone && base->enc == 0b101) {
-				return false;
+				report(ctx, L"invalid memory, base: impossible to encode 0bX101 register without displacement");
+				ctx->valid_res = false;
 			}
 		}
 
-		*use_ext = *use_ext || base->ext;
+		ctx->use_ext = ctx->use_ext || base->ext;
 	}
 	else if (base->grps.none && index->grps.gpr) {
 		if (!index->grps.s_32 && !index->grps.s_64) {
-			return false;
+			report(ctx, L"invalid memory, index: index register must be 32 or 64 bit");
+			ctx->valid_res = false;
 		}
 
 		if (index->enc == 0b100 && !index->ext) {
-			return false;
+			report(ctx, L"invalid memory, index: impossible to encode stack pointer as an index register");
+			ctx->valid_res = false;
 		}
 
-		if (!mc_size_infos[inst->mem_scale].is_int) {
-			return false;
+		if (inst->mem_scale >= McSize_Count
+			|| !mc_size_infos[inst->mem_scale].is_int) {
+			report(ctx, L"invalid memory, index: invalid scale value");
+			ctx->valid_res = false;
 		}
 
 		if (!is_disp_32(inst->mem_disp_type)) {
-			return false;
+			report(ctx, L"invalid memory, index: 32 bit displacement required");
+			ctx->valid_res = false;
 		}
 
-		*use_ext = *use_ext || index->ext;
+		ctx->use_ext = ctx->use_ext || index->ext;
 	}
 	else if (base->grps.gpr && index->grps.gpr) {
 		if ((!base->grps.s_32 || !index->grps.s_32)
 			&& (!base->grps.s_64 || !index->grps.s_64)) {
-			return false;
+			report(ctx, L"invalid memory, base && index: base and index registers must be 32 or 64 bit");
+			ctx->valid_res = false;
 		}
 
 		if (index->enc == 0b100 && !index->ext) {
-			return false;
+			report(ctx, L"invalid memory, base && index: impossible to encode stack pointer as an index register");
+			ctx->valid_res = false;
 		}
 
-		if (!mc_size_infos[inst->mem_scale].is_int) {
-			return false;
+		if (inst->mem_scale >= McSize_Count
+			|| !mc_size_infos[inst->mem_scale].is_int) {
+			report(ctx, L"invalid memory, base && index: invalid scale value");
+			ctx->valid_res = false;
 		}
 
 		if (inst->mem_disp_type != McInstDispAuto) {
 			if (mc_inst_disp_type_to_size[inst->mem_disp_type] == McSizeNone && base->enc == 0b101) {
-				return false;
+				report(ctx, L"invalid memory, base: impossible to encode 0bX101 register without displacement");
+				ctx->valid_res = false;
 			}
 		}
 
-		*use_ext = *use_ext || base->ext || index->ext;
+		ctx->use_ext = ctx->use_ext || base->ext || index->ext;
 	}
 	else {
-		return false;
+		report(ctx, L"invalid memory: coding combination");
+		ctx->valid_res = false;
 	}
-
-	return true;
 }
-static bool validate_opds(mc_inst_t * inst) {
-	bool req_rex = false, no_rex = false, use_ext = false;
+static void validate_opds(ctx_t * ctx) {
+	mc_inst_t * inst = ctx->inst;
 
 	switch (inst->opds) {
 		case InstRecOpds_None:
 		case InstRecOpds_Label:
 			break;
 		case McInstOpds_Imm:
-			if (!validate_imm(inst->imm0_type)) {
-				return false;
-			}
+			validate_imm(ctx, inst->imm0_type);
 			break;
 		case McInstOpds_Reg:
-			if (!validate_reg(inst->reg0, &req_rex, &no_rex, &use_ext)) {
-				return false;
-			}
+			validate_reg(ctx, inst->reg0);
 			break;
 		case McInstOpds_Mem:
-			if (!validate_mem(inst, &use_ext)) {
-				return false;
-			}
+			validate_mem(ctx, inst);
 			break;
 		case McInstOpds_Reg_Imm:
-			if (!validate_reg(inst->reg0, &req_rex, &no_rex, &use_ext)
-				|| !validate_imm(inst->imm0_type)) {
-				return false;
-			}
+			validate_reg(ctx, inst->reg0);
+			validate_imm(ctx, inst->imm0_type);
 			break;
 		case McInstOpds_Mem_Imm:
-			if (!validate_mem(inst, &use_ext)
-				|| !validate_imm(inst->imm0_type)) {
-				return false;
-			}
+			validate_mem(ctx, inst);
+			validate_imm(ctx, inst->imm0_type);
 			break;
 		case McInstOpds_Reg_Reg:
-			if (!validate_reg(inst->reg0, &req_rex, &no_rex, &use_ext)
-				|| !validate_reg(inst->reg1, &req_rex, &no_rex, &use_ext)) {
-				return false;
-			}
+			validate_reg(ctx, inst->reg0);
+			validate_reg(ctx, inst->reg1);
 			break;
 		case McInstOpds_Reg_Mem:
 		case McInstOpds_Mem_Reg:
-			if (!validate_reg(inst->reg0, &req_rex, &no_rex, &use_ext)
-				|| !validate_mem(inst, &use_ext)) {
-				return false;
-			}
+			validate_reg(ctx, inst->reg0);
+			validate_mem(ctx, inst);
 			break;
 		case McInstOpds_Reg_Reg_Imm:
-			if (!validate_reg(inst->reg0, &req_rex, &no_rex, &use_ext)
-				|| !validate_reg(inst->reg1, &req_rex, &no_rex, &use_ext)
-				|| !validate_imm(inst->imm0_type)) {
-				return false;
-			}
+			validate_reg(ctx, inst->reg0);
+			validate_reg(ctx, inst->reg1);
+			validate_imm(ctx, inst->imm0_type);
 			break;
 		case McInstOpds_Reg_Mem_Imm:
-			if (!validate_reg(inst->reg0, &req_rex, &no_rex, &use_ext)
-				|| !validate_mem(inst, &use_ext)
-				|| !validate_imm(inst->imm0_type)) {
-				return false;
-			}
+			validate_reg(ctx, inst->reg0);
+			validate_mem(ctx, inst);
+			validate_imm(ctx, inst->imm0_type);
 			break;
 		default:
-			ul_assert_unreachable();
+			report(ctx, L"invalid instruction operands type");
+			ctx->valid_res = false;
+			break;
 	}
 
-	if (no_rex && (req_rex || use_ext)) {
-		return false;
+	if (ctx->no_rex && (ctx->req_rex || ctx->use_ext)) {
+		report(ctx, L"invalid combination of registers [no_rex && (req_rex || use_ext)]");
+		ctx->valid_res = false;
 	}
-
-	return true;
 }
-static bool validate_inst(mc_inst_t * inst) {
-	if (inst->type >= McInst_Count) {
-		return false;
+static bool validate_inst(ctx_t * ctx) {
+	ctx->valid_res = true;
+
+	if (ctx->inst->type >= McInst_Count) {
+		report(ctx, L"invalid instruction type");
+		ctx->valid_res = false;
 	}
 
-	if (!validate_opds(inst)) {
-		return false;
-	}
+	validate_opds(ctx);
 
-	return true;
+	return ctx->valid_res;
 }
 
 static bool is_imm_match(mc_inst_t * inst, const inst_rec_t * rec, size_t imm_i) {
@@ -461,20 +511,34 @@ static bool is_opds_match(mc_inst_t * inst, const inst_rec_t * rec) {
 
 	return true;
 }
-static const inst_rec_t * find_rec(mc_inst_t * inst) {
-	size_t i = 0;
+static void find_rec(ctx_t * ctx) {
+	if (validate_inst(ctx)) {
+		mc_inst_t * inst = ctx->inst;
+		size_t i = 0;
 
-	while (i < inst_recs_size && inst->type != inst_recs[i].type) {
-		++i;
-	}
+		while (i < inst_recs_size && inst->type != inst_recs[i].type) {
+			++i;
+		}
 
-	for (; i < inst_recs_size && inst->type == inst_recs[i].type; ++i) {
-		if (is_opds_match(inst, &inst_recs[i])) {
-			return &inst_recs[i];
+		for (; i < inst_recs_size && inst->type == inst_recs[i].type; ++i) {
+			if (is_opds_match(inst, &inst_recs[i])) {
+				ctx->rec = &inst_recs[i];
+				break;
+			}
+		}
+
+		if (ctx->rec == NULL) {
+			report(ctx, L"acceptable instruction record not found");
 		}
 	}
 
-	return NULL;
+	if (ctx->rec == NULL) {
+		ctx->rec = &inst_recs[0];
+
+		ul_assert(ctx->rec->type == McInstNone
+			&& ctx->rec->opds == InstRecOpds_None
+			&& ctx->rec->no_opc);
+	}
 }
 
 static void make_desc_imm(inst_desc_t * desc, mc_inst_t * inst, const inst_rec_t * rec, size_t imm_i) {
@@ -702,8 +766,10 @@ static void make_desc_mem(inst_desc_t * desc, mc_inst_t * inst, const inst_rec_t
 		ul_assert_unreachable();
 	}
 }
-static void make_desc(inst_desc_t * desc, mc_inst_t * inst, const inst_rec_t * rec) {
-	memset(desc, 0, sizeof(*desc));
+static void make_desc(ctx_t * ctx) {
+	inst_desc_t * desc = &ctx->desc;
+	const inst_rec_t * rec = ctx->rec;
+	mc_inst_t * inst = ctx->inst;
 
 	desc->ext_w = rec->ext_w;
 
@@ -745,26 +811,35 @@ static void make_desc(inst_desc_t * desc, mc_inst_t * inst, const inst_rec_t * r
 	}
 }
 
-static bool build_desc(const inst_desc_t * desc, size_t * inst_size, mc_inst_bs_t bs_out, mc_inst_offs_t * offs_out) {
+static void build_desc(ctx_t * ctx) {
+	inst_desc_t * desc = &ctx->desc;
+
 	uint8_t buf[BS_BUF_SIZE];
 	uint8_t * data = buf;
 
+	mc_inst_offs_t offs = { 0 };
+
+	offs.off[McInstOffPrLock] = (uint8_t)(data - buf);
+	
 	if (desc->use_lock) {
-		offs_out->off[McInstOffPrLock] = (uint8_t)(data - buf);
 		*data++ = LOCK;
 	}
+	
+	offs.off[McInstOffPrAsize] = (uint8_t)(data - buf);
+	
 	if (desc->use_asize) {
-		offs_out->off[McInstOffPrAsize] = (uint8_t)(data - buf);
 		*data++ = ASIZE;
 	}
+
+	offs.off[McInstOffPrOsize] = (uint8_t)(data - buf);
+
 	if (desc->use_osize) {
-		offs_out->off[McInstOffPrOsize] = (uint8_t)(data - buf);
 		*data++ = OSIZE;
 	}
 
-	if (desc->use_rex) {
-		offs_out->off[McInstOffPrRex] = (uint8_t)(data - buf);
+	offs.off[McInstOffPrRex] = (uint8_t)(data - buf);
 
+	if (desc->use_rex) {
 		uint8_t rex = REX_BASE;
 
 		if (desc->ext_b) {
@@ -783,33 +858,33 @@ static bool build_desc(const inst_desc_t * desc, size_t * inst_size, mc_inst_bs_
 		*data++ = rex;
 	}
 
-	if (desc->use_0f) {
-		offs_out->off[McInstOffPr0f] = (uint8_t)(data - buf);
+	offs.off[McInstOffPr0f] = (uint8_t)(data - buf);
 
+	if (desc->use_0f) {
 		*data++ = 0x0F;
 	}
 
-	if (desc->use_opc) {
-		offs_out->off[McInstOffOpc] = (uint8_t)(data - buf);
+	offs.off[McInstOffOpc] = (uint8_t)(data - buf);
 
+	if (desc->use_opc) {
 		*data++ = desc->opc | (desc->opc_reg & 0b111);
 	}
 
-	if (desc->use_modrm) {
-		offs_out->off[McInstOffModrm] = (uint8_t)(data - buf);
+	offs.off[McInstOffModrm] = (uint8_t)(data - buf);
 
+	if (desc->use_modrm) {
 		*data++ = (desc->modrm_rm & 0b111) | (desc->modrm_reg & 0b111) << 3 | (desc->modrm_mod & 0b11) << 6;
 	}
 
-	if (desc->use_sib) {
-		offs_out->off[McInstOffSib] = (uint8_t)(data - buf);
+	offs.off[McInstOffSib] = (uint8_t)(data - buf);
 
+	if (desc->use_sib) {
 		*data++ = (desc->sib_base & 0b111) | (desc->sib_index & 0b111) << 3 | (desc->sib_scale & 0b11) << 6;
 	}
 
-	if (desc->disp_size != McSizeNone) {
-		offs_out->off[McInstOffDisp] = (uint8_t)(data - buf);
+	offs.off[McInstOffDisp] = (uint8_t)(data - buf);
 
+	if (desc->disp_size != McSizeNone) {
 		uint8_t * var = (uint8_t *)&desc->disp;
 		switch (desc->disp_size) {
 			case McSize32:
@@ -821,14 +896,14 @@ static bool build_desc(const inst_desc_t * desc, size_t * inst_size, mc_inst_bs_
 				*data++ = *var++;
 				break;
 			default:
-				__debugbreak();
+				ul_assert_unreachable();
 				break;
 		}
 	}
 
-	if (desc->imm0_size != McSizeNone) {
-		offs_out->off[McInstOffImm] = (uint8_t)(data - buf);
+	offs.off[McInstOffImm] = (uint8_t)(data - buf);
 
+	if (desc->imm0_size != McSizeNone) {
 		uint8_t * var = (uint8_t *)&desc->imm0;
 		switch (desc->imm0_size) {
 			case McSize64:
@@ -845,53 +920,49 @@ static bool build_desc(const inst_desc_t * desc, size_t * inst_size, mc_inst_bs_
 				*data++ = *var++;
 				break;
 			default:
-				__debugbreak();
+				ul_assert_unreachable();
 				break;
 		}
 	}
 
+	offs.off[McInstOffEnd] = (uint8_t)(data - buf);
+
 	size_t size = (uint8_t)(data - buf);
 
-	if (size >= BS_BUF_SIZE) {
+	if (size > BS_BUF_SIZE) {
 		exit(EXIT_FAILURE);
 	}
-
-	if (size >= MC_INST_BS_SIZE) {
-		return false;
+	else if (size > MC_INST_BS_SIZE) {
+		report(ctx, L"resulted instruction exceeded maximum instruction size");
 	}
+	else {
+		if (ctx->inst_size_out != NULL) {
+			*ctx->inst_size_out = size;
+		}
 
-	memcpy(bs_out, buf, size);
-	*inst_size = size;
+		if (ctx->bs_out != NULL) {
+			memcpy(ctx->bs_out->mem, buf, size);
+		}
 
-	return true;
+		if (ctx->offs_out != NULL) {
+			*ctx->offs_out = offs;
+		}
+	}
 }
 
-bool mc_inst_build(mc_inst_t * inst, size_t * inst_size, mc_inst_bs_t bs_out, mc_inst_offs_t * offs_out) {
-	if (!validate_inst(inst)) {
-		return false;
-	}
+static void build_core(ctx_t * ctx) {
+	find_rec(ctx);
 
-	const inst_rec_t * rec = find_rec(inst);
+	make_desc(ctx);
 
-	if (rec == NULL) {
-		return false;
-	}
+	build_desc(ctx);
+}
+bool mc_inst_build(mc_inst_t * inst, ul_ec_fmtr_t * ec_fmtr, size_t * inst_size_out, mc_inst_bs_t * bs_out, mc_inst_offs_t * offs_out) {
+	ctx_t ctx = { .inst = inst, .ec_fmtr = ec_fmtr, .inst_size_out = inst_size_out, .bs_out = bs_out, .offs_out = offs_out };
 
-	inst_desc_t desc;
+	build_core(&ctx);
 
-	make_desc(&desc, inst, rec);
-
-	mc_inst_offs_t offs;
-
-	if (!build_desc(&desc, inst_size, bs_out, &offs)) {
-		return false;
-	}
-
-	if (offs_out != NULL) {
-		*offs_out = offs;
-	}
-
-	return true;
+	return !ctx.is_rptd;
 }
 
 const mc_inst_opd_t mc_inst_opds_to_opd[McInstOpds__Count][MC_INST_OPDS_SIZE] = {
@@ -1033,6 +1104,8 @@ const mc_size_t mc_inst_disp_type_to_size[McInstDisp_Count] = {
 	q_func_bwdq_bbbb(q_mem_imm, name, 0xC0, 0xC1, Size, Imm, d_modrm_reg(i))
 
 static const inst_rec_t inst_recs[] = {
+	q_none(None, 0x00, d_no_opc),
+
 	q_imm(Data, 0x00, Imm8, d_no_opc),
 	q_imm(Data, 0x00, Imm16, d_no_opc),
 	q_imm(Data, 0x00, Imm32, d_no_opc),

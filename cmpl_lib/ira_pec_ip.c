@@ -411,14 +411,14 @@ static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
 
 	ul_assert(ctx->trg < Trg_Count);
 
-	ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"reporting error in instruction processor [%s]\n", trg_to_str[ctx->trg]);
+	ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"error in [%s]\n", trg_to_str[ctx->trg]);
 
 	switch (ctx->trg) {
 		case TrgCmpl:
-			ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"processing [%s] function language object\n", ctx->cmpl.lo->name->str);
+			ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"[%s] function language object\n", ctx->cmpl.lo->name->str);
 			break;
 		case TrgIntr:
-			ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"processing anonymous function\n");
+			ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"anonymous function\n");
 			break;
 		default:
 			ul_assert_unreachable();
@@ -434,7 +434,7 @@ static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
 		va_end(args);
 	}
 
-	ul_ec_fmtr_post(ctx->pec->ec_fmtr, NULL, MOD_NAME);
+	ul_ec_fmtr_post(ctx->pec->ec_fmtr, UL_EC_REC_TYPE_DFLT, MOD_NAME);
 }
 static void report_opds_not_equ(ctx_t * ctx, inst_t * inst, size_t first, size_t second) {
 	const ira_inst_info_t * info = &ira_inst_infos[inst->base->type];
