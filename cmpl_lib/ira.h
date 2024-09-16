@@ -40,5 +40,6 @@ typedef enum ira_lo_type ira_lo_type_t;
 typedef struct ira_lo ira_lo_t;
 
 typedef struct ira_pec ira_pec_t;
+typedef struct ira_pec_optr_res ira_pec_optr_res_t;
 
 typedef struct ira_pec_c_ctx ira_pec_c_ctx_t;

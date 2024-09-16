@@ -19,7 +19,7 @@ function print_hello_world : $() -> void {
 
 	variable str := "Hello world!\n"a, written : u32;
 
-	w64::write_file(handle, %[const * void]str.data, %[u32]str.size, &written, nullof[*void]);
+	w64::write_file(handle, str.data, %[u32]str.size, &written, null);
 
 	return;
 }
@@ -36,7 +36,7 @@ function print_nums : $(vararg.cstyle) -> s32 {
 			return 0's32;
 		}
 
-		if !std::write_con_dec(%[const * void]&num, 4'u8, true) {
+		if !std::write_con_dec(&num, 4'u8, true) {
 			return -1's32;
 		}
 
@@ -56,17 +56,17 @@ function main : $() -> s32 {
 	variable a : s32, b : s32;
 
 	while:loop true {
-		if !std::read_con_dec(4'u8, true, %[* void]&a) {
+		if !std::read_con_dec(4'u8, true, &a) {
 			return -1's32;
 		}
 
-		if !std::read_con_dec(4'u8, true, %[* void]&b) {
+		if !std::read_con_dec(4'u8, true, &b) {
 			return -1's32;
 		}
 
 		variable res := a + b;
 
-		if !std::write_con_dec(%[const * void]&res, 4'u8, true) {
+		if !std::write_con_dec(&res, 4'u8, true) {
 			return -1's32;
 		}
 
@@ -74,7 +74,7 @@ function main : $() -> s32 {
 
 		res = a - b;
 
-		if !std::write_con_dec(%[const * void]&res, 4'u8, true) {
+		if !std::write_con_dec(&res, 4'u8, true) {
 			return -1's32;
 		}
 

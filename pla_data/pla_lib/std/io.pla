@@ -35,16 +35,16 @@ namespace std {
 	variable con_out : con_out_t;
 
 	function init_con_io : $() -> void {
-		con_in.handle = w64::create_file_w(con_handle_name.data, 0x8000_0000'u32, 0'u32, nullof[* void], 3'u32, 0'u32, nullof[* void]);
+		con_in.handle = w64::create_file_w(con_handle_name.data, 0x8000_0000'u32, 0'u32, null, 3'u32, 0'u32, null);
 
 		if con_in.handle == %[* void]-1's64 {
-			w64::exit_process(%[u32]-1's32);
+			w64::exit_process(-1'u32);
 		}
 
-		con_out.handle = w64::create_file_w(con_handle_name.data, 0x4000_0000'u32, 0'u32, nullof[* void], 3'u32, 0'u32, nullof[* void]);
+		con_out.handle = w64::create_file_w(con_handle_name.data, 0x4000_0000'u32, 0'u32, null, 3'u32, 0'u32, null);
 
 		if con_out.handle == %[* void]-1's64 {
-			w64::exit_process(%[u32]-1's32);
+			w64::exit_process(-1'u32);
 		}
 
 		con_in_rd0.hdr.next = &con_in_rd1;
@@ -77,11 +77,11 @@ namespace std {
 		
 		variable read : u32;
 
-		if w64::read_console_w(con_in.handle, %[* void](&rd_buf!data[con_in.rd_buf_cap]), %[u32](con_in_buf_size - con_in.rd_buf_cap), &read, nullof[* void]) == 0's32 || read < 1'u32 {
+		if w64::read_console_w(con_in.handle, &rd_buf!data[con_in.rd_buf_cap], %[u32](con_in_buf_size - con_in.rd_buf_cap), &read, null) == 0's32 || read < 1'u32 {
 			return 0xFFFF'u16; 
 		}
 
-		con_in.rd_buf_cap = con_in.rd_buf_cap + %[u64]read;
+		con_in.rd_buf_cap = con_in.rd_buf_cap + read;
 
 		ch = rd_buf!data[con_in.rd_buf_cur];
 
@@ -233,7 +233,7 @@ namespace std {
 	function write_con_ch : $(ch : u16) -> void {
 		variable written : u32;
 
-		w64::write_console_w(con_out.handle, %[const * void]&ch, 1'u32, &written, nullof[* void]);
+		w64::write_console_w(con_out.handle, &ch, 1'u32, &written, null);
 
 		return;
 	}

@@ -584,7 +584,7 @@ static void parse_expr_unit(pla_prsr_t * prsr, pla_expr_t ** out) {
 					break;
 				}
 
-				case PlaKeywVoidval:
+				case PlaKeywNull:
 					*out = pla_expr_create(PlaExprValVoid);
 					(*out)->pos_start = prsr->tok.pos_start;
 					(*out)->pos_end = prsr->tok.pos_end;
@@ -597,21 +597,6 @@ static void parse_expr_unit(pla_prsr_t * prsr, pla_expr_t ** out) {
 					(*out)->pos_start = prsr->tok.pos_start;
 					(*out)->pos_end = prsr->tok.pos_end;
 					next_tok(prsr);
-					break;
-				case PlaKeywNullof:
-					*out = pla_expr_create(PlaExprNullofDt);
-
-					(*out)->pos_start = prsr->tok.pos_start;
-
-					next_tok(prsr);
-
-					consume_punc_exact_crit(prsr, PlaPuncLeBrack);
-
-					parse_expr(prsr, &(*out)->opd0.expr);
-
-					consume_punc_exact_crit(prsr, PlaPuncRiBrack);
-
-					(*out)->pos_end = prsr->prev_tok_pos_end;
 					break;
 
 				default:

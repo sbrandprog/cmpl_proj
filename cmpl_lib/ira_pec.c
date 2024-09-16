@@ -967,57 +967,88 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 }
 
 
-bool ira_pec_get_optr_dt(ira_pec_t * pec, ira_optr_t * optr, ira_dt_t * first, ira_dt_t * second, ira_dt_t ** out) {
+bool ira_pec_get_optr_dt(ira_pec_t * pec, ira_optr_t * optr, ira_dt_t * left, ira_dt_t * right, ira_pec_optr_res_t * out) {
+	ira_pec_optr_res_t res = { .optr = optr };
+
 	switch (optr->impl_type) {
 		case IraOptrImplInstUnrBool:
-			if (first->type != IraDtBool) {
+			if (left->type != IraDtBool) {
 				return false;
 			}
 
-			*out = first;
+			res.res_dt = left;
 			break;
 		case IraOptrImplInstUnrInt:
-			if (first->type != IraDtInt) {
+			if (left->type != IraDtInt) {
 				return false;
 			}
 
-			*out = first;
+			res.res_dt = left;
 			break;
 		case IraOptrImplInstBinInt:
-			if (first->type != IraDtInt || !ira_dt_is_equivalent(first, second)) {
+			if (left->type != IraDtInt) {
 				return false;
 			}
 
-			*out = first;
+			if (!ira_dt_is_equivalent(left, right)) {
+				if (ira_dt_is_castable(right, left, true)) {
+					res.right_implct_cast_to = left;
+				}
+				else {
+					return false;
+				}
+			}
+
+			res.res_dt = left;
+
 			break;
 		case IraOptrImplInstBinIntBool:
-			if (first->type != IraDtInt || !ira_dt_is_equivalent(first, second)) {
-				return false;
-			}
-
-			*out = &pec->dt_bool;
-			break;
 		case IraOptrImplInstBinPtrBool:
-			if (first->type != IraDtPtr || !ira_dt_is_equivalent(first, second)) {
+		{
+			ira_dt_type_t dt_type;
+
+			switch (optr->impl_type) {
+				case IraOptrImplInstBinIntBool:
+					dt_type = IraDtInt;
+					break;
+				case IraOptrImplInstBinPtrBool:
+					dt_type = IraDtPtr;
+					break;
+				default:
+					ul_assert_unreachable();
+			}
+
+			if (left->type != dt_type && right->type != dt_type) {
 				return false;
 			}
 
-			*out = &pec->dt_bool;
+			if (!ira_dt_is_equivalent(left, right)) {
+				if (left->type == dt_type && ira_dt_is_castable(right, left, true)) {
+					res.right_implct_cast_to = left;
+				}
+				else if (right->type == dt_type && ira_dt_is_castable(left, right, true)) {
+					res.left_implct_cast_to = right;
+				}
+				else {
+					return false;
+				}
+			}
+
+			res.res_dt = &pec->dt_bool;
+
 			break;
+		}
 		default:
 			ul_assert_unreachable();
 	}
 
+	*out = res;
+
 	return true;
 }
-bool ira_pec_get_best_optr(ira_pec_t * pec, ira_optr_type_t optr_type, ira_dt_t * first, ira_dt_t * second, ira_optr_t ** optr_out, ira_dt_t ** res_dt_out) {
+bool ira_pec_get_best_optr(ira_pec_t * pec, ira_optr_type_t optr_type, ira_dt_t * left, ira_dt_t * right, ira_pec_optr_res_t * out) {
 	for (ira_optr_t * optr = pec->optrs[optr_type]; optr != NULL; optr = optr->next) {
-		ira_dt_t * res_dt;
-
-		if (ira_pec_get_optr_dt(pec, optr, first, second, &res_dt)) {
-			*optr_out = optr;
-			*res_dt_out = res_dt;
-
+		if (ira_pec_get_optr_dt(pec, optr, left, right, out)) {
 			return true;
 		}
 	}

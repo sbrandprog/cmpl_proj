@@ -93,11 +93,11 @@ IRA_API bool ira_dt_is_func_vas_equivalent(ira_dt_func_vas_t * first, ira_dt_fun
 
 IRA_API bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second);
 
-IRA_API bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to);
+IRA_API bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to, bool implct);
 
 IRA_API ira_dt_qual_t ira_dt_get_qual(ira_dt_t * dt);
 
-IRA_API ira_dt_qual_t ira_dt_apply_qual(ira_dt_qual_t first, ira_dt_qual_t second);
+IRA_API ira_dt_qual_t ira_dt_apply_qual(ira_dt_qual_t to, ira_dt_qual_t from);
 
 extern IRA_API const ira_dt_qual_t ira_dt_qual_none;
 extern IRA_API const ira_dt_qual_t ira_dt_qual_const;

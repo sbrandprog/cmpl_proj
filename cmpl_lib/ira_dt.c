@@ -130,7 +130,7 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 	return true;
 }
 
-static bool is_castable_to_void(ira_dt_t * from, ira_dt_t * to) {
+static bool is_castable_to_void(ira_dt_t * from, ira_dt_t * to, bool implct) {
 	switch (from->type) {
 		case IraDtVoid:
 		case IraDtDt:
@@ -149,7 +149,7 @@ static bool is_castable_to_void(ira_dt_t * from, ira_dt_t * to) {
 
 	return true;
 }
-static bool is_castable_to_dt(ira_dt_t * from, ira_dt_t * to) {
+static bool is_castable_to_dt(ira_dt_t * from, ira_dt_t * to, bool implct) {
 	switch (from->type) {
 		case IraDtVoid:
 		case IraDtDt:
@@ -169,18 +169,25 @@ static bool is_castable_to_dt(ira_dt_t * from, ira_dt_t * to) {
 
 	return true;
 }
-static bool is_castable_to_bool(ira_dt_t * from, ira_dt_t * to) {
+static bool is_castable_to_bool(ira_dt_t * from, ira_dt_t * to, bool implct) {
 	switch (from->type) {
 		case IraDtVoid:
 			break;
 		case IraDtDt:
 			return false;
 		case IraDtBool:
+			break;
 		case IraDtInt:
+			if (implct) {
+				return false;
+			}
 			break;
 		case IraDtVec:
 			return false;
 		case IraDtPtr:
+			if (implct) {
+				return false;
+			}
 			break;
 		case IraDtTpl:
 		case IraDtStct:
@@ -193,18 +200,29 @@ static bool is_castable_to_bool(ira_dt_t * from, ira_dt_t * to) {
 
 	return true;
 }
-static bool is_castable_to_int(ira_dt_t * from, ira_dt_t * to) {
+static bool is_castable_to_int(ira_dt_t * from, ira_dt_t * to, bool implct) {
 	switch (from->type) {
 		case IraDtVoid:
 			break;
 		case IraDtDt:
 			return false;
 		case IraDtBool:
+			break;
 		case IraDtInt:
+			if (implct) {
+				const ira_int_info_t * from_info = &ira_int_infos[from->int_type], * to_info = &ira_int_infos[to->int_type];
+
+				if (from_info->sign != to_info->sign || from_info->size > to_info->size) {
+					return false;
+				}
+			}
 			break;
 		case IraDtVec:
 			return false;
 		case IraDtPtr:
+			if (implct) {
+				return false;
+			}
 			break;
 		case IraDtTpl:
 		case IraDtStct:
@@ -217,7 +235,7 @@ static bool is_castable_to_int(ira_dt_t * from, ira_dt_t * to) {
 
 	return true;
 }
-static bool is_castable_to_vec(ira_dt_t * from, ira_dt_t * to) {
+static bool is_castable_to_vec(ira_dt_t * from, ira_dt_t * to, bool implct) {
 	switch (from->type) {
 		case IraDtVoid:
 			break;
@@ -226,8 +244,16 @@ static bool is_castable_to_vec(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtInt:
 			return false;
 		case IraDtVec:
-			__debugbreak();
-			return false;
+			if (!ira_dt_is_equivalent(from->vec.body, to->vec.body)) {
+				return false;
+			}
+
+			if (implct) {
+				if (from->vec.size != to->vec.size) {
+					return false;
+				}
+			}
+			break;
 		case IraDtPtr:
 		case IraDtTpl:
 		case IraDtStct:
@@ -240,7 +266,7 @@ static bool is_castable_to_vec(ira_dt_t * from, ira_dt_t * to) {
 
 	return true;
 }
-static bool is_castable_to_ptr(ira_dt_t * from, ira_dt_t * to) {
+static bool is_castable_to_ptr(ira_dt_t * from, ira_dt_t * to, bool implct) {
 	switch (from->type) {
 		case IraDtVoid:
 			break;
@@ -248,10 +274,22 @@ static bool is_castable_to_ptr(ira_dt_t * from, ira_dt_t * to) {
 			return false;
 		case IraDtBool:
 		case IraDtInt:
+			if (implct) {
+				return false;
+			}
 			break;
 		case IraDtVec:
 			return false;
 		case IraDtPtr:
+			if (implct) {
+				if (!ira_dt_is_castable(from->ptr.body, to->ptr.body, implct)) {
+					return false;
+				}
+
+				if (!ira_dt_is_qual_equal(ira_dt_apply_qual(from->ptr.qual, to->ptr.qual), to->ptr.qual)) {
+					return false;
+				}
+			}
 			break;
 		case IraDtTpl:
 		case IraDtStct:
@@ -264,29 +302,7 @@ static bool is_castable_to_ptr(ira_dt_t * from, ira_dt_t * to) {
 
 	return true;
 }
-static bool is_castable_to_tpl(ira_dt_t * from, ira_dt_t * to) {
-	switch (from->type) {
-		case IraDtVoid:
-			break;
-		case IraDtDt:
-		case IraDtBool:
-		case IraDtInt:
-		case IraDtVec:
-		case IraDtPtr:
-		case IraDtTpl:
-			__debugbreak();
-			return false;
-		case IraDtStct:
-		case IraDtArr:
-		case IraDtFunc:
-			return false;
-		default:
-			ul_assert_unreachable();
-	}
-
-	return true;
-}
-static bool is_castable_to_stct(ira_dt_t * from, ira_dt_t * to) {
+static bool is_castable_to_tpl(ira_dt_t * from, ira_dt_t * to, bool implct) {
 	switch (from->type) {
 		case IraDtVoid:
 			break;
@@ -296,9 +312,13 @@ static bool is_castable_to_stct(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtVec:
 		case IraDtPtr:
 			return false;
+		case IraDtTpl:
+			if (!ira_dt_is_equivalent(from, to)) {
+				return false;
+			}
+
+			break;
 		case IraDtStct:
-			__debugbreak();
-			return false;
 		case IraDtArr:
 		case IraDtFunc:
 			return false;
@@ -308,7 +328,33 @@ static bool is_castable_to_stct(ira_dt_t * from, ira_dt_t * to) {
 
 	return true;
 }
-static bool is_castable_to_arr(ira_dt_t * from, ira_dt_t * to) {
+static bool is_castable_to_stct(ira_dt_t * from, ira_dt_t * to, bool implct) {
+	switch (from->type) {
+		case IraDtVoid:
+			break;
+		case IraDtDt:
+		case IraDtBool:
+		case IraDtInt:
+		case IraDtVec:
+		case IraDtPtr:
+		case IraDtTpl:
+			return false;
+		case IraDtStct:
+			if (!ira_dt_is_equivalent(from, to)) {
+				return false;
+			}
+
+			break;
+		case IraDtArr:
+		case IraDtFunc:
+			return false;
+		default:
+			ul_assert_unreachable();
+	}
+
+	return true;
+}
+static bool is_castable_to_arr(ira_dt_t * from, ira_dt_t * to, bool implct) {
 	switch (from->type) {
 		case IraDtVoid:
 			break;
@@ -321,8 +367,11 @@ static bool is_castable_to_arr(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtStct:
 			return false;
 		case IraDtArr:
-			__debugbreak();
-			return false;
+			if (!ira_dt_is_equivalent(from, to)) {
+				return false;
+			}
+
+			break;
 		case IraDtFunc:
 			return false;
 		default:
@@ -331,7 +380,7 @@ static bool is_castable_to_arr(ira_dt_t * from, ira_dt_t * to) {
 
 	return true;
 }
-static bool is_castable_to_func(ira_dt_t * from, ira_dt_t * to) {
+static bool is_castable_to_func(ira_dt_t * from, ira_dt_t * to, bool implct) {
 	switch (from->type) {
 		case IraDtVoid:
 		case IraDtDt:
@@ -342,48 +391,58 @@ static bool is_castable_to_func(ira_dt_t * from, ira_dt_t * to) {
 		case IraDtTpl:
 		case IraDtStct:
 		case IraDtArr:
-		case IraDtFunc:
 			return false;
+		case IraDtFunc:
+			if (!ira_dt_is_equivalent(from, to)) {
+				return false;
+			}
+
+			break;
 		default:
 			ul_assert_unreachable();
 	}
 
 	return true;
 }
-bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to) {
+bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to, bool implct) {
+	if (from->type >= IraDt_Count || to->type >= IraDt_Count) {
+		ul_assert_unreachable();
+		return false;
+	}
+
 	switch (to->type) {
 		case IraDtVoid:
-			if (!is_castable_to_void(from, to)) {
+			if (!is_castable_to_void(from, to, implct)) {
 				return false;
 			}
 			break;
 		case IraDtDt:
-			if (!is_castable_to_dt(from, to)) {
+			if (!is_castable_to_dt(from, to, implct)) {
 				return false;
 			}
 			break;
 		case IraDtBool:
-			if (!is_castable_to_bool(from, to)) {
+			if (!is_castable_to_bool(from, to, implct)) {
 				return false;
 			}
 			break;
 		case IraDtInt:
-			if (!is_castable_to_int(from, to)) {
+			if (!is_castable_to_int(from, to, implct)) {
 				return false;
 			}
 			break;
 		case IraDtVec:
-			if (!is_castable_to_vec(from, to)) {
+			if (!is_castable_to_vec(from, to, implct)) {
 				return false;
 			}
 			break;
 		case IraDtPtr:
-			if (!is_castable_to_ptr(from, to)) {
+			if (!is_castable_to_ptr(from, to, implct)) {
 				return false;
 			}
 			break;
 		case IraDtTpl:
-			if (!is_castable_to_tpl(from, to)) {
+			if (!is_castable_to_tpl(from, to, implct)) {
 				return false;
 			}
 			break;
@@ -392,17 +451,17 @@ bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to) {
 				return false;
 			}
 
-			if (!is_castable_to_stct(from, to)) {
+			if (!is_castable_to_stct(from, to, implct)) {
 				return false;
 			}
 			break;
 		case IraDtArr:
-			if (!is_castable_to_arr(from, to)) {
+			if (!is_castable_to_arr(from, to, implct)) {
 				return false;
 			}
 			break;
 		case IraDtFunc:
-			if (!is_castable_to_func(from, to)) {
+			if (!is_castable_to_func(from, to, implct)) {
 				return false;
 			}
 			break;
@@ -437,9 +496,9 @@ ira_dt_qual_t ira_dt_get_qual(ira_dt_t * dt) {
 	}
 }
 
-ira_dt_qual_t ira_dt_apply_qual(ira_dt_qual_t first, ira_dt_qual_t second) {
-	first.const_q = first.const_q || second.const_q;
-	return first;
+ira_dt_qual_t ira_dt_apply_qual(ira_dt_qual_t to, ira_dt_qual_t from) {
+	to.const_q = to.const_q || from.const_q;
+	return to;
 }
 
 const ira_dt_qual_t ira_dt_qual_none = { 0 };

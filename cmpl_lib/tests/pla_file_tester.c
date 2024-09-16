@@ -43,6 +43,7 @@ static int main_core(int argc, char * argv[]) {
 	ul_hs_t * file_name = make_hs_from_char(argv[1]);
 
 	if (file_name == NULL) {
+		wprintf(L"failed to convert file name to hashed string\n");
 		return -1;
 	}
 

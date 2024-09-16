@@ -5,7 +5,7 @@ function main : $() -> s32 {
 
 	variable str := "Hello world!\n"a, written : u32;
 
-	w64::write_file(handle, %[const * void]str.data, %[u32]str.size - 1'u32, &written, nullof[*void]);
+	w64::write_file(handle, str.data, %[u32]str.size - 1'u32, &written, null);
 
 	return 0's32;
 }

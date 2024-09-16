@@ -123,6 +123,9 @@ struct ira_pec_ip_inst {
 			size_t scale;
 		} shift_ptr;
 		struct {
+			ira_dt_t * func_dt;
+		} call_func_ptr;
+		struct {
 			ira_dt_t * res_dt;
 			struct {
 				size_t off;
@@ -184,11 +187,11 @@ static const wchar_t * trg_to_str[Trg_Count] = {
 	[TrgIntr] = L"interpreter",
 };
 
-static const mc_reg_t w64_int_arg_to_reg[4][IraInt_Count] = {
-	[0] = { McRegCl, McRegCx, McRegEcx, McRegRcx, McRegCl, McRegCx, McRegEcx, McRegRcx },
-	[1] = { McRegDl, McRegDx, McRegEdx, McRegRdx, McRegDl, McRegDx, McRegEdx, McRegRdx },
-	[2] = { McRegR8b, McRegR8w, McRegR8d, McRegR8, McRegR8b, McRegR8w, McRegR8d, McRegR8 },
-	[3] = { McRegR9b, McRegR9w, McRegR9d, McRegR9, McRegR9b, McRegR9w, McRegR9d, McRegR9 }
+static const mc_reg_gpr_t w64_gpr_args[4] = {
+	[0] = McRegGprCx,
+	[1] = McRegGprDx,
+	[2] = McRegGprR8,
+	[3] = McRegGprR9,
 };
 
 static const int_cast_info_t int_cast_infos[IraInt_Count][IraInt_Count] = {
@@ -411,18 +414,20 @@ static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
 
 	ul_assert(ctx->trg < Trg_Count);
 
-	ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"error in [%s]\n", trg_to_str[ctx->trg]);
+	const wchar_t * func_name;
 
 	switch (ctx->trg) {
 		case TrgCmpl:
-			ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"[%s] function language object\n", ctx->cmpl.lo->name->str);
+			func_name = ctx->cmpl.lo->name->str;
 			break;
 		case TrgIntr:
-			ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"anonymous function\n");
+			func_name = L"anonymous";
 			break;
 		default:
 			ul_assert_unreachable();
 	}
+
+	ul_ec_fmtr_format(ctx->pec->ec_fmtr, L"error in [%s], [%s] function", trg_to_str[ctx->trg], func_name);
 
 	{
 		va_list args;
@@ -685,6 +690,11 @@ static bool prepare_insts_opds_vars(ctx_t * ctx, inst_t * inst, size_t opd_size,
 
 	ul_hs_t ** var_name = base->opds[opd].hss;
 	for (var_t ** var = vars, **var_end = var + vars_size; var != var_end; ++var, ++var_name) {
+		if (*var_name == NULL) {
+			report(ctx, L"[%s]: [%zi]th variable name in [%zi] operand is invalid", ira_inst_infos[base->type].type_str.str, (size_t)(var_name - base->opds[opd].hss), opd);
+			return false;
+		}
+		
 		*var = find_var(ctx, *var_name);
 
 		if (*var == NULL) {
@@ -1175,7 +1185,7 @@ static bool prepare_cast(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * inf
 	ira_dt_t * from = inst->opd1.var->qdt.dt;
 	ira_dt_t * to = inst->opd2.dt;
 
-	if (!ira_dt_is_castable(from, to)) {
+	if (!ira_dt_is_castable(from, to, false)) {
 		report(ctx, L"cannot cast operand of [%s] data type to a [%s] data type", ira_dt_infos[from->type].type_str.str, ira_dt_infos[to->type].type_str.str);
 		return false;
 	}
@@ -1212,6 +1222,8 @@ static bool prepare_call_func_ptr(ctx_t * ctx, inst_t * inst, const ira_inst_inf
 		default:
 			ul_assert_unreachable();
 	}
+
+	inst->call_func_ptr.func_dt = func_dt;
 
 	ira_dt_ndt_t * arg_dt = func_dt->func.args;
 	for (var_t ** var = inst->opd3.vars, **var_end = var + func_dt->func.args_size; var != var_end; ++var, ++arg_dt) {
@@ -1743,24 +1755,7 @@ static mc_reg_t get_gpr_reg_dt(mc_reg_gpr_t gpr, ira_dt_t * dt) {
 
 static mc_reg_t w64_get_arg_reg(ira_dt_t * dt, size_t arg) {
 	ul_assert(arg < 4);
-
-	mc_reg_t reg;
-
-	switch (dt->type) {
-		case IraDtBool:
-			reg = w64_int_arg_to_reg[arg][IraIntU8];
-			break;
-		case IraDtInt:
-			reg = w64_int_arg_to_reg[arg][dt->int_type];
-			break;
-		case IraDtPtr:
-			reg = w64_int_arg_to_reg[arg][IraIntU64];
-			break;
-		default:
-			ul_assert_unreachable();
-	}
-
-	return reg;
+	return get_gpr_reg_dt(w64_gpr_args[arg], dt);
 }
 
 static bool w64_load_callee_ret_link(ctx_t * ctx, var_t * var) {
@@ -1776,7 +1771,7 @@ static bool w64_load_callee_ret_link(ctx_t * ctx, var_t * var) {
 			ul_assert_unreachable();
 	}
 }
-static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg) {
+static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg, bool force_null) {
 	ira_dt_t * var_dt = var->qdt.dt;
 
 	mc_reg_t reg;
@@ -1785,24 +1780,31 @@ static void w64_load_callee_arg(ctx_t * ctx, var_t * var, size_t arg) {
 
 	switch (var_dt->type) {
 		case IraDtVoid:
+			if (force_null) {
+				if (arg < 4) {
+					reg = mc_reg_gprs[w64_gpr_args[arg]][McSize64];
+					load_int(ctx, reg, 0);
+				}
+				else {
+					load_int(ctx, McRegRax, 0);
+					save_stack_gpr(ctx, arg_off, McRegRax);
+				}
+			}
+			
 			break;
 		case IraDtBool:
 		case IraDtInt:
 		case IraDtPtr:
-			switch (arg) {
-				case 0:
-				case 1:
-				case 2:
-				case 3:
-					reg = w64_get_arg_reg(var_dt, arg);
-					load_stack_var(ctx, reg, var);
-					break;
-				default:
-					reg = get_gpr_reg_dt(McRegGprAx, var_dt);
-					load_stack_var(ctx, reg, var);
-					save_stack_gpr(ctx, arg_off, reg);
-					break;
+			if (arg < 4) {
+				reg = w64_get_arg_reg(var_dt, arg);
+				load_stack_var(ctx, reg, var);
 			}
+			else {
+				reg = get_gpr_reg_dt(McRegGprAx, var_dt);
+				load_stack_var(ctx, reg, var);
+				save_stack_gpr(ctx, arg_off, reg);
+			}
+
 			break;
 		default:
 			ul_assert_unreachable();
@@ -1887,7 +1889,7 @@ static void w64_save_caller_arg(ctx_t * ctx, ul_hs_t * arg_name, size_t arg) {
 }
 static void w64_save_caller_var_args(ctx_t * ctx, size_t arg) {
 	for (; arg < 4; ++arg) {
-		mc_reg_t reg = w64_int_arg_to_reg[arg][IraIntU64];
+		mc_reg_t reg = mc_reg_gprs[w64_gpr_args[arg]][McSize64];
 
 		int32_t arg_off = w64_calculate_caller_arg_off(ctx, arg);
 
@@ -2618,6 +2620,10 @@ static void compile_cast_to_int(ctx_t * ctx, inst_t * inst, ira_dt_t * from, ira
 }
 static void compile_cast_to_ptr(ctx_t * ctx, inst_t * inst, ira_dt_t * from, ira_dt_t * to) {
 	switch (from->type) {
+		case IraDtVoid:
+			load_int(ctx, McRegRax, 0);
+			save_stack_var(ctx, inst->opd0.var, McRegRax);
+			break;
 		case IraDtInt:
 			compile_int_like_cast(ctx, inst->opd0.var, inst->opd1.var, from->int_type, IraIntU64);
 			break;
@@ -2645,14 +2651,31 @@ static void compile_cast(ctx_t * ctx, inst_t * inst) {
 	}
 }
 static void compile_call_func_ptr(ctx_t * ctx, inst_t * inst) {
+	ira_dt_t * func_dt = inst->call_func_ptr.func_dt;
+
 	size_t arg_off = 0;
 
 	if (w64_load_callee_ret_link(ctx, inst->opd0.var)) {
 		++arg_off;
 	}
 
-	for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var, ++arg_off) {
-		w64_load_callee_arg(ctx, *var, arg_off);
+	size_t arg_cur = 0;
+	for (var_t ** var = inst->opd3.vars, **var_end = var + inst->opd2.size; var != var_end; ++var, ++arg_off, ++arg_cur) {
+		bool force_null = false;
+
+		switch (func_dt->func.vas->type) {
+			case IraDtFuncVasNone:
+				break;
+			case IraDtFuncVasCstyle:
+				if (arg_cur >= func_dt->func.args_size) {
+					force_null = true;
+				}
+				break;
+			default:
+				ul_assert_unreachable();
+		}
+
+		w64_load_callee_arg(ctx, *var, arg_off, force_null);
 	}
 
 	load_stack_var(ctx, McRegRax, inst->opd1.var);

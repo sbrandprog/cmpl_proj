@@ -34,6 +34,13 @@ struct pla_ast_t_s_cfb {
 };
 
 typedef struct pla_ast_t_s_expr expr_t;
+typedef union pla_ast_t_s_expr_opd {
+	bool boolean;
+	ira_int_type_t int_type;
+	ul_hs_t * hs;
+	pla_cn_t * cn;
+	expr_t * expr;
+} expr_opd_t;
 typedef enum pla_ast_t_s_expr_val_type {
 	ExprValImmVar,
 	ExprValImmDeref,
@@ -44,13 +51,10 @@ typedef enum pla_ast_t_s_expr_val_type {
 typedef union pla_ast_t_s_expr_val {
 	var_t * var;
 } expr_val_t;
-typedef union pla_ast_t_s_expr_opd {
-	bool boolean;
-	ira_int_type_t int_type;
-	ul_hs_t * hs;
-	pla_cn_t * cn;
-	expr_t * expr;
-} expr_opd_t;
+typedef struct pla_ast_t_s_expr_call_arg {
+	expr_t * val_expr;
+	ira_dt_t * implct_cast_to;
+} expr_call_arg_t;
 struct pla_ast_t_s_expr {
 	pla_expr_t * base;
 	union {
@@ -89,11 +93,17 @@ struct pla_ast_t_s_expr {
 		} ident;
 		struct {
 			size_t args_size;
+			expr_call_arg_t * args;
 		} call;
 		struct {
 			ira_dt_t * res_dt;
 		} mmbr_acc;
-		ira_optr_t * optr;
+		struct {
+			ira_pec_optr_res_t res;
+		} optr;
+		struct {
+			ira_dt_t * implct_cast_to;
+		} asgn;
 	};
 };
 
@@ -230,9 +240,11 @@ static void destroy_expr(ctx_t * ctx, expr_t * expr) {
 		case PlaExprValBool:
 		case PlaExprChStr:
 		case PlaExprNumStr:
-		case PlaExprNullofDt:
 			ira_val_destroy(expr->load_val.val);
 			expr->load_val.val = NULL;
+			break;
+		case PlaExprCall:
+			free(expr->call.args);
 			break;
 	}
 
@@ -614,20 +626,6 @@ static bool get_ns_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) {
 
 	return true;
 }
-static bool get_null_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out) {
-	ira_dt_t * dt;
-
-	if (!pla_tltr_calculate_expr_dt(ctx->tltr, expr->opd0.expr, &dt)) {
-		return false;
-	}
-
-	if (!ira_pec_make_val_null(ctx->pec, dt, out)) {
-		pla_tltr_report_pec_err(ctx->tltr);
-		return false;
-	}
-
-	return true;
-}
 
 static ira_lo_t * find_cn_lo(ctx_t * ctx, ira_lo_t * nspc, pla_cn_t * cn) {
 	for (ira_lo_nspc_node_t * node = nspc->nspc.body; node != NULL; node = node->next) {
@@ -835,9 +833,6 @@ static bool translate_expr0_load_val(ctx_t * ctx, expr_t * expr) {
 		case PlaExprNumStr:
 			proc = get_ns_val_proc;
 			break;
-		case PlaExprNullofDt:
-			proc = get_null_val_proc;
-			break;
 		default:
 			ul_assert_unreachable();
 	}
@@ -1010,49 +1005,64 @@ static bool translate_expr0_ident(ctx_t * ctx, expr_t * expr) {
 static bool translate_expr0_call_func_ptr(ctx_t * ctx, expr_t * expr, ira_dt_t * callee_dt) {
 	ira_dt_t * func_dt = callee_dt->ptr.body;
 
-	size_t args_size = 0;
+	{
+		size_t args_size = 0;
 
-	ira_dt_ndt_t * arg_dt = func_dt->func.args, * arg_dt_end = arg_dt + func_dt->func.args_size;
-	expr_t * arg = expr->opd1.expr;
-	for (; arg != NULL && arg_dt != arg_dt_end; arg = arg->opd1.expr, ++arg_dt, ++args_size) {
-		if (arg->base->type != PlaExprCallArg) {
-			pla_tltr_report(ctx->tltr, L"unexpected expression [%s] in function call", pla_expr_infos[arg->base->type].type_str.str);
-			return false;
+		for (expr_t * arg = expr->opd1.expr; arg != NULL; arg = arg->opd1.expr) {
+			++args_size;
 		}
 
-		expr_t * arg_expr = arg->opd0.expr;
-
-		if (!ira_dt_is_equivalent(arg_expr->val_qdt.dt, arg_dt->dt)) {
-			pla_tltr_report(ctx->tltr, L"data type of [%zi]th call argument does not match data type of function argument", (size_t)(args_size + 1));
-			return false;
+		switch (func_dt->func.vas->type) {
+			case IraDtFuncVasNone:
+				if (args_size != func_dt->func.args_size) {
+					pla_tltr_report(ctx->tltr, L"count of call arguments [%zi] must be equal to count of function arguments [%zi]", args_size, func_dt->func.args_size);
+					return false;
+				}
+				break;
+			case IraDtFuncVasCstyle:
+				if (args_size < func_dt->func.args_size) {
+					pla_tltr_report(ctx->tltr, L"count of call arguments [%zi] must be equal or greater than count of function arguments [%zi]", args_size, func_dt->func.args_size);
+					return false;
+				}
+				break;
+			default:
+				ul_assert_unreachable();
 		}
+
+		expr->call.args_size = args_size;
+
+		expr->call.args = malloc(sizeof(*expr->call.args) * args_size);
+
+		ul_assert(expr->call.args != NULL);
+
+		memset(expr->call.args, 0, sizeof(*expr->call.args) * args_size);
 	}
 
-	for (; arg != NULL; arg = arg = arg->opd1.expr, ++args_size) {
-		if (arg->base->type != PlaExprCallArg) {
-			pla_tltr_report(ctx->tltr, L"unexpected expression [%s] in function call", pla_expr_infos[arg->base->type].type_str.str);
+	ira_dt_ndt_t * arg_func_dt = func_dt->func.args, * arg_func_dt_end = arg_func_dt + func_dt->func.args_size;
+	expr_call_arg_t * arg = expr->call.args;
+	for (expr_t * arg_expr = expr->opd1.expr; arg_expr != NULL; arg_expr = arg_expr->opd1.expr, ++arg) {
+		if (arg_expr->base->type != PlaExprCallArg) {
+			pla_tltr_report(ctx->tltr, L"unexpected expression [%s] in function call", pla_expr_infos[arg_expr->base->type].type_str.str);
 			return false;
 		}
-	}
 
-	switch (func_dt->func.vas->type) {
-		case IraDtFuncVasNone:
-			if (args_size != func_dt->func.args_size) {
-				pla_tltr_report(ctx->tltr, L"count of call arguments [%zi] must be equal to count of function arguments [%zi]", args_size, func_dt->func.args_size);
-				return false;
+		expr_t * arg_expr_val = arg_expr->opd0.expr;
+
+		*arg = (expr_call_arg_t){ .val_expr = arg_expr_val, .implct_cast_to = NULL };
+
+		if (arg_func_dt != arg_func_dt_end) {
+			if (!ira_dt_is_equivalent(arg_expr_val->val_qdt.dt, arg_func_dt->dt)) {
+				if (!ira_dt_is_castable(arg_expr_val->val_qdt.dt, arg_func_dt->dt, true)) {
+					pla_tltr_report(ctx->tltr, L"data type of [%zi]th call argument does not match and cannot be implicitly converted to a data type of function argument", (size_t)(arg_func_dt - func_dt->func.args + 1));
+					return false;
+				}
+
+				arg->implct_cast_to = arg_func_dt->dt;
 			}
-			break;
-		case IraDtFuncVasCstyle:
-			if (args_size < func_dt->func.args_size) {
-				pla_tltr_report(ctx->tltr, L"count of call arguments [%zi] must be equal or greater than count of function arguments [%zi]", args_size, func_dt->func.args_size);
-				return false;
-			}
-			break;
-		default:
-			ul_assert_unreachable();
-	}
 
-	expr->call.args_size = args_size;
+			++arg_func_dt;
+		}
+	}
 
 	expr->val_qdt.dt = func_dt->func.ret;
 
@@ -1193,7 +1203,7 @@ static bool translate_expr0_cast(ctx_t * ctx, expr_t * expr) {
 		return false;
 	}
 
-	if (!ira_dt_is_castable(from, to)) {
+	if (!ira_dt_is_castable(from, to, false)) {
 		pla_tltr_report(ctx->tltr, L"cannot cast operand of [%s] data type to a [%s] data type", ira_dt_infos[from->type].type_str.str, ira_dt_infos[to->type].type_str.str);
 		return false;
 	}
@@ -1203,25 +1213,29 @@ static bool translate_expr0_cast(ctx_t * ctx, expr_t * expr) {
 	return true;
 }
 static bool translate_expr0_unr(ctx_t * ctx, expr_t * expr) {
-	ira_dt_t * first = expr->opd0.expr->val_qdt.dt;
+	ira_dt_t * left = expr->opd0.expr->val_qdt.dt;
 	const pla_expr_info_t * info = &pla_expr_infos[expr->base->type];
 
-	if (!ira_pec_get_best_optr(ctx->pec, info->optr_type, first, NULL, &expr->optr, &expr->val_qdt.dt)) {
-		pla_tltr_report(ctx->tltr, L"could not find an operator for [%s] expression with [%s] operand", pla_expr_infos[expr->base->type].type_str.str, ira_dt_infos[first->type].type_str.str);
+	if (!ira_pec_get_best_optr(ctx->pec, info->optr_type, left, NULL, &expr->optr.res)) {
+		pla_tltr_report(ctx->tltr, L"could not find an operator for [%s] expression with [%s] operand", pla_expr_infos[expr->base->type].type_str.str, ira_dt_infos[left->type].type_str.str);
 		return false;
 	}
+
+	expr->val_qdt.dt = expr->optr.res.res_dt;
 
 	return true;
 }
 static bool translate_expr0_bin(ctx_t * ctx, expr_t * expr) {
-	ira_dt_t * first = expr->opd0.expr->val_qdt.dt;
-	ira_dt_t * second = expr->opd1.expr->val_qdt.dt;
+	ira_dt_t * left = expr->opd0.expr->val_qdt.dt;
+	ira_dt_t * right = expr->opd1.expr->val_qdt.dt;
 	const pla_expr_info_t * info = &pla_expr_infos[expr->base->type];
 
-	if (!ira_pec_get_best_optr(ctx->pec, info->optr_type, first, second, &expr->optr, &expr->val_qdt.dt)) {
-		pla_tltr_report(ctx->tltr, L"could not find an operator for [%s] expression with [%s], [%s] operands", pla_expr_infos[expr->base->type].type_str.str, ira_dt_infos[first->type].type_str.str, ira_dt_infos[second->type].type_str.str);
+	if (!ira_pec_get_best_optr(ctx->pec, info->optr_type, left, right, &expr->optr.res)) {
+		pla_tltr_report(ctx->tltr, L"could not find an operator for [%s] expression with [%s], [%s] operands", pla_expr_infos[expr->base->type].type_str.str, ira_dt_infos[left->type].type_str.str, ira_dt_infos[right->type].type_str.str);
 		return false;
 	}
+
+	expr->val_qdt.dt = expr->optr.res.res_dt;
 
 	return true;
 }
@@ -1252,8 +1266,12 @@ static bool translate_expr0_asgn(ctx_t * ctx, expr_t * expr) {
 	}
 
 	if (!ira_dt_is_equivalent(opd0_qdt->dt, opd1_dt)) {
-		pla_tltr_report(ctx->tltr, L"assignment operator requires operands to be of equivalent data types");
-		return false;
+		if (!ira_dt_is_castable(opd1_dt, opd0_qdt->dt, true)) {
+			pla_tltr_report(ctx->tltr, L"assignment operator requires operands to be of equivalent data types or implicitly convertible");
+			return false;
+		}
+
+		expr->asgn.implct_cast_to = opd0_qdt->dt;
 	}
 
 	expr->val_qdt = *opd0_qdt;
@@ -1288,7 +1306,6 @@ static bool translate_expr0_tse(ctx_t * ctx, pla_expr_t * base, expr_t ** out) {
 		[PlaExprValBool] = translate_expr0_load_val,
 		[PlaExprChStr] = translate_expr0_load_val,
 		[PlaExprNumStr] = translate_expr0_load_val,
-		[PlaExprNullofDt] = translate_expr0_load_val,
 		[PlaExprIdent] = translate_expr0_ident,
 		[PlaExprCall] = translate_expr0_call,
 		[PlaExprCallArg] = translate_expr0_blank,
@@ -1627,25 +1644,31 @@ static bool translate_expr1_ident(ctx_t * ctx, expr_t * expr) {
 static bool translate_expr1_call_func_ptr(ctx_t * ctx, expr_t * expr, var_t * callee) {
 	ira_dt_t * func_dt = callee->qdt.dt->ptr.body;
 
-	size_t args_size = expr->call.args_size;
-
-	ul_hs_t ** args = malloc(args_size * sizeof(*args));
+	ul_hs_t ** args = malloc(sizeof(*args) * expr->call.args_size);
 
 	ul_assert(args != NULL);
 
+	memset(args, 0, sizeof(*args) * expr->call.args_size);
+
 	ul_hs_t ** arg_var_ins = args;
-	for (expr_t * arg = expr->opd1.expr; arg != NULL; arg = arg->opd1.expr, ++arg_var_ins) {
+	for (expr_call_arg_t * arg = expr->call.args, *arg_end = arg + expr->call.args_size; arg != arg_end; ++arg, ++arg_var_ins) {
 		var_t * arg_var;
 
-		if (!translate_expr1_imm_var(ctx, arg->opd0.expr, &arg_var)) {
+		if (!translate_expr1_imm_var(ctx, arg->val_expr, &arg_var)) {
 			free(args);
 			return false;
+		}
+
+		if (arg->implct_cast_to != NULL) {
+			ira_inst_t cast = { .type = IraInstCast, .opd1.hs = arg_var->inst_name, .opd2.dt = arg->implct_cast_to };
+
+			push_inst_imm_var0(ctx, &cast, arg->implct_cast_to, &arg_var);
 		}
 
 		*arg_var_ins = arg_var->inst_name;
 	}
 
-	ira_inst_t call = { .type = IraInstCallFuncPtr, .opd1.hs = callee->inst_name, .opd2.size = args_size, .opd3.hss = args };
+	ira_inst_t call = { .type = IraInstCallFuncPtr, .opd1.hs = callee->inst_name, .opd2.size = expr->call.args_size, .opd3.hss = args };
 
 	push_inst_imm_var0_expr(ctx, expr, &call);
 
@@ -1879,7 +1902,7 @@ static bool translate_expr1_unr(ctx_t * ctx, expr_t * expr) {
 		return false;
 	}
 
-	ira_optr_t * optr = expr->optr;
+	ira_optr_t * optr = expr->optr.res.optr;
 
 	switch (optr->impl_type) {
 		case IraOptrImplInstUnrBool:
@@ -1911,11 +1934,23 @@ static bool translate_expr1_bin(ctx_t * ctx, expr_t * expr) {
 		return false;
 	}
 
+	if (expr->optr.res.left_implct_cast_to != NULL) {
+		ira_inst_t cast = { .type = IraInstCast, .opd1.hs = opd0_var->inst_name, .opd2.dt = expr->optr.res.left_implct_cast_to };
+
+		push_inst_imm_var0(ctx, &cast, expr->optr.res.left_implct_cast_to, &opd0_var);
+	}
+
 	if (!translate_expr1_imm_var(ctx, expr->opd1.expr, &opd1_var)) {
 		return false;
 	}
 
-	ira_optr_t * optr = expr->optr;
+	if (expr->optr.res.right_implct_cast_to != NULL) {
+		ira_inst_t cast = { .type = IraInstCast, .opd1.hs = opd1_var->inst_name, .opd2.dt = expr->optr.res.right_implct_cast_to };
+
+		push_inst_imm_var0(ctx, &cast, expr->optr.res.right_implct_cast_to, &opd1_var);
+	}
+
+	ira_optr_t * optr = expr->optr.res.optr;
 
 	switch (optr->impl_type) {
 		case IraOptrImplInstBinInt:
@@ -2004,6 +2039,12 @@ static bool translate_expr1_asgn(ctx_t * ctx, expr_t * expr) {
 		return false;
 	}
 
+	if (expr->asgn.implct_cast_to != NULL) {
+		ira_inst_t cast = { .type = IraInstCast, .opd1.hs = opd1_var->inst_name, .opd2.dt = expr->asgn.implct_cast_to };
+
+		push_inst_imm_var0(ctx, &cast, expr->asgn.implct_cast_to, &opd1_var);
+	}
+
 	if (!translate_expr1(ctx, opd0)) {
 		return false;
 	}
@@ -2057,7 +2098,6 @@ static bool translate_expr1_tse(ctx_t * ctx, expr_t * expr) {
 		[PlaExprValBool] = translate_expr1_load_val,
 		[PlaExprChStr] = translate_expr1_load_val,
 		[PlaExprNumStr] = translate_expr1_load_val,
-		[PlaExprNullofDt] = translate_expr1_load_val,
 		[PlaExprIdent] = translate_expr1_ident,
 		[PlaExprCall] = translate_expr1_call,
 		[PlaExprSubscr] = translate_expr1_subscr,
