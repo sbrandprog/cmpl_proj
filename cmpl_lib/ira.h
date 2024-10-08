@@ -30,8 +30,9 @@ typedef struct ira_inst ira_inst_t;
 typedef struct ira_inst_info ira_inst_info_t;
 
 typedef enum ira_optr_type ira_optr_type_t;
-typedef enum ira_optr_impl_type ira_optr_impl_type_t;
 typedef struct ira_optr ira_optr_t;
+typedef enum ira_optr_ctg ira_optr_ctg_t;
+typedef struct ira_optr_info ira_optr_info_t;
 
 typedef struct ira_func ira_func_t;
 

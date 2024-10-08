@@ -101,6 +101,7 @@ typedef union ira_pec_ip_inst_opd {
 	ira_val_t * val;
 	var_t * var;
 	var_t ** vars;
+	ira_optr_t * optr;
 	ira_lo_t * lo;
 } inst_opd_t;
 struct ira_pec_ip_inst {
@@ -307,6 +308,7 @@ static void cleanup_inst(ctx_t * ctx, inst_t * inst) {
 			case IraInstOpdVal:
 			case IraInstOpdVarDef:
 			case IraInstOpdVar:
+			case IraInstOpdOptr:
 			case IraInstOpdMmbr:
 			case IraInstOpdVarsSize:
 			case IraInstOpdIds2:
@@ -774,6 +776,14 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
 				make_var_bb_ref(ctx, inst->opds[opd].var, inst->bb);
 
 				break;
+			case IraInstOpdOptr:
+				if (ira_inst->opds[opd].optr == NULL) {
+					report(ctx, L"[%s]: value in [%zi]th operand is invalid", ira_inst_infos[ira_inst->type].type_str.str, opd);
+					return false;
+				}
+
+				inst->opds[opd].optr = ira_inst->opds[opd].optr;
+				break;
 			case IraInstOpdMmbr:
 				inst->opds[opd].hs = inst->base->opds[opd].hs;
 
@@ -1071,84 +1081,62 @@ static bool prepare_make_dt_const(ctx_t * ctx, inst_t * inst, const ira_inst_inf
 
 	return true;
 }
-static bool prepare_unr_bool(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
-	ira_dt_t * dt = inst->opd1.var->qdt.dt;
+static bool prepare_unr_optr(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_optr_t * optr = inst->opd1.optr;
+	ira_dt_t * dt = inst->opd2.var->qdt.dt;
 
-	if (dt->type != IraDtBool) {
-		report(ctx, L"[%s]: opd[1] must have an boolean data type", info->type_str.str);
-		return false;
-	}
+	switch (optr->type) {
+		case IraOptrNone:
+			report(ctx, L"[%s]: opd[1]: cannot apply null operator", info->type_str.str);
+			return false;
+		case IraOptrBltnNegBool:
+			if (dt->type != IraDtBool) {
+				report(ctx, L"[%s]: opd[2] must have an boolean data type", info->type_str.str);
+				return false;
+			}
 
-	if (inst->opd0.var->qdt.dt != dt) {
-		report_opds_not_equ(ctx, inst, 1, 0);
-		return false;
-	}
+			if (inst->opd0.var->qdt.dt != dt) {
+				report_opds_not_equ(ctx, inst, 1, 0);
+				return false;
+			}
+			break;
+		case IraOptrBltnNegInt:
+			if (dt->type != IraDtInt) {
+				report(ctx, L"[%s]: opd[2] must have an integer data type", info->type_str.str);
+				return false;
+			}
 
-	if (check_var_for_not_const_q(ctx, inst, 0)) {
-		return false;
-	}
-
-	return true;
-}
-static bool prepare_unr_int(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
-	ira_dt_t * dt = inst->opd1.var->qdt.dt;
-
-	if (dt->type != IraDtInt) {
-		report(ctx, L"[%s]: opd[1] must have an integer data type", info->type_str.str);
-		return false;
-	}
-
-	if (inst->opd0.var->qdt.dt != dt) {
-		report_opds_not_equ(ctx, inst, 1, 0);
-		return false;
-	}
-
-	if (check_var_for_not_const_q(ctx, inst, 0)) {
-		return false;
-	}
-
-	return true;
-}
-static bool prepare_bin_int(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
-	ira_dt_t * dt = inst->opd1.var->qdt.dt;
-
-	if (dt->type != IraDtInt) {
-		report(ctx, L"[%s]: opd[1] must have an integer data type", info->type_str.str);
-		return false;
-	}
-
-	if (inst->opd2.var->qdt.dt != dt) {
-		report_opds_not_equ(ctx, inst, 1, 2);
-		return false;
-	}
-
-	if (inst->opd0.var->qdt.dt != dt) {
-		report_opds_not_equ(ctx, inst, 1, 0);
-		return false;
-	}
-
-	if (check_var_for_not_const_q(ctx, inst, 0)) {
-		return false;
-	}
-
-	return true;
-}
-static bool prepare_cmp_int(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
-	ira_dt_t * dt = inst->opd1.var->qdt.dt;
-
-	if (dt->type != IraDtInt) {
-		report(ctx, L"[%s]: opd[1] must have an integer data type", info->type_str.str);
-		return false;
-	}
-
-	if (inst->opd2.var->qdt.dt != dt) {
-		report_opds_not_equ(ctx, inst, 1, 2);
-		return false;
-	}
-
-	if (inst->opd0.var->qdt.dt != &ctx->pec->dt_bool) {
-		report(ctx, L"[%s]: opd[0] must have a boolean data type", info->type_str.str);
-		return false;
+			if (inst->opd0.var->qdt.dt != dt) {
+				report_opds_not_equ(ctx, inst, 1, 0);
+				return false;
+			}
+			break;
+		case IraOptrBltnMulInt:
+		case IraOptrBltnDivInt:
+		case IraOptrBltnModInt:
+		case IraOptrBltnAddInt:
+		case IraOptrBltnSubInt:
+		case IraOptrBltnLeShiftInt:
+		case IraOptrBltnRiShiftInt:
+		case IraOptrBltnLessInt:
+		case IraOptrBltnLessEqInt:
+		case IraOptrBltnGrtrInt:
+		case IraOptrBltnGrtrEqInt:
+		case IraOptrBltnEqInt:
+		case IraOptrBltnNeqInt:
+		case IraOptrBltnAndInt:
+		case IraOptrBltnXorInt:
+		case IraOptrBltnOrInt:
+		case IraOptrBltnLessPtr:
+		case IraOptrBltnLessEqPtr:
+		case IraOptrBltnGrtrPtr:
+		case IraOptrBltnGrtrEqPtr:
+		case IraOptrBltnEqPtr:
+		case IraOptrBltnNeqPtr:
+			report(ctx, L"[%s]: opd[1]: binary operator in unary instruction", info->type_str.str);
+			return false;
+		default:
+			ul_assert_unreachable();
 	}
 
 	if (check_var_for_not_const_q(ctx, inst, 0)) {
@@ -1157,22 +1145,87 @@ static bool prepare_cmp_int(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * 
 
 	return true;
 }
-static bool prepare_cmp_ptr(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
-	ira_dt_t * dt = inst->opd1.var->qdt.dt;
+static bool prepare_bin_optr(ctx_t * ctx, inst_t * inst, const ira_inst_info_t * info) {
+	ira_optr_t * optr = inst->opd1.optr;
+	ira_dt_t * left_dt = inst->opd2.var->qdt.dt, * right_dt = inst->opd3.var->qdt.dt;
 
-	if (dt->type != IraDtPtr) {
-		report(ctx, L"[%s]: opd[1] must have a pointer data type", info->type_str.str);
-		return false;
-	}
+	switch (optr->type) {
+		case IraOptrNone:
+			report(ctx, L"[%s]: opd[1]: cannot apply null operator");
+			return false;
+		case IraOptrBltnNegBool:
+		case IraOptrBltnNegInt:
+			report(ctx, L"[%s]: opd[1]: unary operator in binary instruction");
+			return false;
+		case IraOptrBltnMulInt:
+		case IraOptrBltnDivInt:
+		case IraOptrBltnModInt:
+		case IraOptrBltnAddInt:
+		case IraOptrBltnSubInt:
+		case IraOptrBltnLeShiftInt:
+		case IraOptrBltnRiShiftInt:
+		case IraOptrBltnAndInt:
+		case IraOptrBltnXorInt:
+		case IraOptrBltnOrInt:
+			if (left_dt->type != IraDtInt) {
+				report(ctx, L"[%s]: opd[2] must have an integer data type", info->type_str.str);
+				return false;
+			}
 
-	if (!ira_dt_is_equivalent(inst->opd2.var->qdt.dt, dt)) {
-		report_opds_not_equ(ctx, inst, 1, 2);
-		return false;
-	}
+			if (right_dt != left_dt) {
+				report_opds_not_equ(ctx, inst, 2, 3);
+				return false;
+			}
 
-	if (inst->opd0.var->qdt.dt != &ctx->pec->dt_bool) {
-		report(ctx, L"[%s]: opd[0] must have a boolean data type", info->type_str.str);
-		return false;
+			if (inst->opd0.var->qdt.dt != left_dt) {
+				report_opds_not_equ(ctx, inst, 2, 0);
+				return false;
+			}
+			break;
+		case IraOptrBltnLessInt:
+		case IraOptrBltnLessEqInt:
+		case IraOptrBltnGrtrInt:
+		case IraOptrBltnGrtrEqInt:
+		case IraOptrBltnEqInt:
+		case IraOptrBltnNeqInt:
+			if (left_dt->type != IraDtInt) {
+				report(ctx, L"[%s]: opd[2] must have an integer data type", info->type_str.str);
+				return false;
+			}
+
+			if (right_dt != left_dt) {
+				report_opds_not_equ(ctx, inst, 2, 3);
+				return false;
+			}
+
+			if (inst->opd0.var->qdt.dt != &ctx->pec->dt_bool) {
+				report(ctx, L"[%s]: opd[0] must have a boolean data type", info->type_str.str);
+				return false;
+			}
+			break;
+		case IraOptrBltnLessPtr:
+		case IraOptrBltnLessEqPtr:
+		case IraOptrBltnGrtrPtr:
+		case IraOptrBltnGrtrEqPtr:
+		case IraOptrBltnEqPtr:
+		case IraOptrBltnNeqPtr:
+			if (left_dt->type != IraDtPtr) {
+				report(ctx, L"[%s]: opd[2] must have a pointer data type", info->type_str.str);
+				return false;
+			}
+
+			if (!ira_dt_is_equivalent(right_dt, left_dt)) {
+				report_opds_not_equ(ctx, inst, 2, 3);
+				return false;
+			}
+
+			if (inst->opd0.var->qdt.dt != &ctx->pec->dt_bool) {
+				report(ctx, L"[%s]: opd[0] must have a boolean data type", info->type_str.str);
+				return false;
+			}
+			break;
+		default:
+			ul_assert_unreachable();
 	}
 
 	if (check_var_for_not_const_q(ctx, inst, 0)) {
@@ -1439,20 +1492,8 @@ static bool prepare_insts(ctx_t * ctx) {
 			[IraInstMakeDtArr] = prepare_make_dt_arr,
 			[IraInstMakeDtFunc] = prepare_make_dt_func,
 			[IraInstMakeDtConst] = prepare_make_dt_const,
-			[IraInstNegBool] = prepare_unr_bool,
-			[IraInstNegInt] = prepare_unr_int,
-			[IraInstAddInt] = prepare_bin_int,
-			[IraInstSubInt] = prepare_bin_int,
-			[IraInstMulInt] = prepare_bin_int,
-			[IraInstDivInt] = prepare_bin_int,
-			[IraInstModInt] = prepare_bin_int,
-			[IraInstLeShiftInt] = prepare_bin_int,
-			[IraInstRiShiftInt] = prepare_bin_int,
-			[IraInstCmpInt] = prepare_cmp_int,
-			[IraInstAndInt] = prepare_bin_int,
-			[IraInstXorInt] = prepare_bin_int,
-			[IraInstOrInt] = prepare_bin_int,
-			[IraInstCmpPtr] = prepare_cmp_ptr,
+			[IraInstUnrOptr] = prepare_unr_optr,
+			[IraInstBinOptr] = prepare_bin_optr,
 			[IraInstMmbrAccPtr] = prepare_mmbr_acc_ptr,
 			[IraInstCast] = prepare_cast,
 			[IraInstCallFuncPtr] = prepare_call_func_ptr,
@@ -2202,6 +2243,30 @@ static void div_int(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_out, va
 		save_stack_var(ctx, mod_out, reg2);
 	}
 }
+static ira_int_cmp_t get_int_cmp(ira_optr_type_t optr_type) {
+	switch (optr_type) {
+		case IraOptrBltnLessInt:
+		case IraOptrBltnLessPtr:
+			return IraIntCmpLess;
+		case IraOptrBltnLessEqInt:
+		case IraOptrBltnLessEqPtr:
+			return IraIntCmpLessEq;
+		case IraOptrBltnGrtrInt:
+		case IraOptrBltnGrtrPtr:
+			return IraIntCmpGrtr;
+		case IraOptrBltnGrtrEqInt:
+		case IraOptrBltnGrtrEqPtr:
+			return IraIntCmpGrtrEq;
+		case IraOptrBltnEqInt:
+		case IraOptrBltnEqPtr:
+			return IraIntCmpEq;
+		case IraOptrBltnNeqInt:
+		case IraOptrBltnNeqPtr:
+			return IraIntCmpNeq;
+		default:
+			ul_assert_unreachable();
+	}
+}
 static mc_inst_type_t get_set_inst_type(bool sign, ira_int_cmp_t int_cmp) {
 	if (sign) {
 		switch (int_cmp) {
@@ -2468,132 +2533,186 @@ static void compile_shift_ptr(ctx_t * ctx, inst_t * inst) {
 
 	reset_bb_cmpl_gpr_from_reg(ctx, McRegRcx);
 }
-static void compile_neg_bool(ctx_t * ctx, inst_t * inst) {
-	load_stack_var(ctx, McRegAl, inst->opd1.var);
+static void compile_unr_optr(ctx_t * ctx, inst_t * inst) {
+	ira_optr_t * optr = inst->opd1.optr;
 
-	mc_inst_t test = { .type = McInstTest, .opds = McInstOpds_Reg_Reg, .reg0 = McRegAl, .reg1 = McRegAl };
+	switch (optr->type) {
+		case IraOptrBltnNegBool:
+		{
+			load_stack_var(ctx, McRegAl, inst->opd2.var);
 
-	push_mc_inst(ctx, &test);
+			mc_inst_t test = { .type = McInstTest, .opds = McInstOpds_Reg_Reg, .reg0 = McRegAl, .reg1 = McRegAl };
 
-	mc_inst_t set = { .type = McInstSetz, .opds = McInstOpds_Reg, .reg0 = McRegAl };
+			push_mc_inst(ctx, &test);
 
-	push_mc_inst(ctx, &set);
+			mc_inst_t set = { .type = McInstSetz, .opds = McInstOpds_Reg, .reg0 = McRegAl };
 
-	save_stack_var(ctx, inst->opd0.var, McRegAl);
-}
-static void compile_unr_int(ctx_t * ctx, inst_t * inst) {
-	mc_inst_type_t inst_type;
+			push_mc_inst(ctx, &set);
 
-	switch (inst->base->type) {
-		case IraInstNegInt:
-			inst_type = McInstNeg;
+			save_stack_var(ctx, inst->opd0.var, McRegAl);
+
 			break;
+		}
+		case IraOptrBltnNegInt:
+		{
+			mc_inst_type_t inst_type;
+
+			switch (optr->type) {
+				case IraOptrBltnNegInt:
+					inst_type = McInstNeg;
+					break;
+				default:
+					ul_assert_unreachable();
+			}
+
+			ira_int_type_t int_type = inst->opd0.var->qdt.dt->int_type;
+
+			mc_reg_t reg = get_gpr_reg_int(McRegGprAx, int_type);
+
+			load_stack_var(ctx, reg, inst->opd2.var);
+
+			mc_inst_t unr_opr = { .type = inst_type, .opds = McInstOpds_Reg, .reg0 = reg };
+
+			push_mc_inst(ctx, &unr_opr);
+
+			save_stack_var(ctx, inst->opd0.var, reg);
+
+			break;
+		}
 		default:
 			ul_assert_unreachable();
 	}
-
-	ira_int_type_t int_type = inst->opd0.var->qdt.dt->int_type;
-
-	mc_reg_t reg = get_gpr_reg_int(McRegGprAx, int_type);
-
-	load_stack_var(ctx, reg, inst->opd1.var);
-
-	mc_inst_t unr_opr = { .type = inst_type, .opds = McInstOpds_Reg, .reg0 = reg };
-
-	push_mc_inst(ctx, &unr_opr);
-
-	save_stack_var(ctx, inst->opd0.var, reg);
 }
-static void compile_bin_int(ctx_t * ctx, inst_t * inst) {
-	ira_int_type_t int_type = inst->opd0.var->qdt.dt->int_type;
+static void compile_bin_optr(ctx_t * ctx, inst_t * inst) {
+	ira_optr_t * optr = inst->opd1.optr;
 
-	mc_inst_type_t inst_type;
+	switch (optr->type) {
+		case IraOptrBltnDivInt:
+			div_int(ctx, inst->opd2.var, inst->opd3.var, inst->opd0.var, NULL);
+			break;
+		case IraOptrBltnModInt:
+			div_int(ctx, inst->opd2.var, inst->opd3.var, NULL, inst->opd0.var);
+			break;
+		case IraOptrBltnMulInt:
+		case IraOptrBltnAddInt:
+		case IraOptrBltnSubInt:
+		case IraOptrBltnAndInt:
+		case IraOptrBltnXorInt:
+		case IraOptrBltnOrInt:
+		{
+			ira_int_type_t int_type = inst->opd0.var->qdt.dt->int_type;
 
-	switch (inst->base->type) {
-		case IraInstAddInt:
-			inst_type = McInstAdd;
+			mc_inst_type_t inst_type;
+
+			switch (optr->type) {
+				case IraOptrBltnMulInt:
+					inst_type = McInstImul;
+					break;
+				case IraOptrBltnAddInt:
+					inst_type = McInstAdd;
+					break;
+				case IraOptrBltnSubInt:
+					inst_type = McInstSub;
+					break;
+				case IraOptrBltnAndInt:
+					inst_type = McInstAnd;
+					break;
+				case IraOptrBltnXorInt:
+					inst_type = McInstXor;
+					break;
+				case IraOptrBltnOrInt:
+					inst_type = McInstOr;
+					break;
+				default:
+					ul_assert_unreachable();
+			}
+
+			mc_reg_t reg0 = get_gpr_reg_int(McRegGprAx, int_type), reg1 = get_gpr_reg_int(McRegGprCx, int_type);
+
+			load_stack_var(ctx, reg0, inst->opd2.var);
+			load_stack_var(ctx, reg1, inst->opd3.var);
+
+			mc_inst_t bin_opr = { .type = inst_type, .opds = McInstOpds_Reg_Reg, .reg0 = reg0, .reg1 = reg1 };
+
+			push_mc_inst(ctx, &bin_opr);
+
+			save_stack_var(ctx, inst->opd0.var, reg0);
+
 			break;
-		case IraInstSubInt:
-			inst_type = McInstSub;
+		}
+		case IraOptrBltnLeShiftInt:
+		case IraOptrBltnRiShiftInt:
+		{
+			ira_int_type_t int_type = inst->opd0.var->qdt.dt->int_type;
+
+			mc_inst_type_t inst_type;
+
+			switch (optr->type) {
+				case IraOptrBltnLeShiftInt:
+					if (ira_int_infos[int_type].sign) {
+						inst_type = McInstSal;
+					}
+					else {
+						inst_type = McInstShl;
+					}
+					break;
+				case IraOptrBltnRiShiftInt:
+					if (ira_int_infos[int_type].sign) {
+						inst_type = McInstSar;
+					}
+					else {
+						inst_type = McInstShr;
+					}
+					break;
+				default:
+					ul_assert_unreachable();
+			}
+
+			load_stack_var(ctx, get_gpr_reg_int(McRegGprCx, int_type), inst->opd3.var);
+
+			mc_reg_t shift_reg = get_gpr_reg_int(McRegGprAx, int_type);
+
+			load_stack_var(ctx, shift_reg, inst->opd2.var);
+
+			mc_inst_t shift = { .type = inst_type, .opds = McInstOpds_Reg_Reg, .reg0 = shift_reg, .reg1 = McRegCl };
+
+			push_mc_inst(ctx, &shift);
+
+			save_stack_var(ctx, inst->opd0.var, shift_reg);
+
 			break;
-		case IraInstMulInt:
-			inst_type = McInstImul;
+		}
+		case IraOptrBltnLessInt:
+		case IraOptrBltnLessEqInt:
+		case IraOptrBltnGrtrInt:
+		case IraOptrBltnGrtrEqInt:
+		case IraOptrBltnEqInt:
+		case IraOptrBltnNeqInt:
+		{
+			ira_int_type_t int_type = inst->opd2.var->qdt.dt->int_type;
+
+			ira_int_cmp_t int_cmp = get_int_cmp(optr->type);
+
+			compile_int_like_cmp(ctx, inst->opd0.var, inst->opd2.var, inst->opd3.var, int_cmp, ira_int_infos[int_type].sign);
+
 			break;
-		case IraInstAndInt:
-			inst_type = McInstAnd;
+		}
+		case IraOptrBltnLessPtr:
+		case IraOptrBltnLessEqPtr:
+		case IraOptrBltnGrtrPtr:
+		case IraOptrBltnGrtrEqPtr:
+		case IraOptrBltnEqPtr:
+		case IraOptrBltnNeqPtr:
+		{
+			ira_int_cmp_t int_cmp = get_int_cmp(optr->type);
+
+			compile_int_like_cmp(ctx, inst->opd0.var, inst->opd2.var, inst->opd3.var, int_cmp, false);
+
 			break;
-		case IraInstXorInt:
-			inst_type = McInstXor;
-			break;
-		case IraInstOrInt:
-			inst_type = McInstOr;
-			break;
+		}
 		default:
 			ul_assert_unreachable();
 	}
-
-	mc_reg_t reg0 = get_gpr_reg_int(McRegGprAx, int_type), reg1 = get_gpr_reg_int(McRegGprCx, int_type);
-
-	load_stack_var(ctx, reg0, inst->opd1.var);
-	load_stack_var(ctx, reg1, inst->opd2.var);
-
-	mc_inst_t bin_opr = { .type = inst_type, .opds = McInstOpds_Reg_Reg, .reg0 = reg0, .reg1 = reg1 };
-
-	push_mc_inst(ctx, &bin_opr);
-
-	save_stack_var(ctx, inst->opd0.var, reg0);
-}
-static void compile_div_int(ctx_t * ctx, inst_t * inst) {
-	div_int(ctx, inst->opd1.var, inst->opd2.var, inst->opd0.var, NULL);
-}
-static void compile_mod_int(ctx_t * ctx, inst_t * inst) {
-	div_int(ctx, inst->opd1.var, inst->opd2.var, NULL, inst->opd0.var);
-}
-static void compile_shift_int(ctx_t * ctx, inst_t * inst) {
-	ira_int_type_t int_type = inst->opd0.var->qdt.dt->int_type;
-
-	mc_inst_type_t inst_type;
-
-	switch (inst->base->type) {
-		case IraInstLeShiftInt:
-			if (ira_int_infos[int_type].sign) {
-				inst_type = McInstSal;
-			}
-			else {
-				inst_type = McInstShl;
-			}
-			break;
-		case IraInstRiShiftInt:
-			if (ira_int_infos[int_type].sign) {
-				inst_type = McInstSar;
-			}
-			else {
-				inst_type = McInstShr;
-			}
-			break;
-		default:
-			ul_assert_unreachable();
-	}
-
-	load_stack_var(ctx, get_gpr_reg_int(McRegGprCx, int_type), inst->opd2.var);
-
-	mc_reg_t shift_reg = get_gpr_reg_int(McRegGprAx, int_type);
-
-	load_stack_var(ctx, shift_reg, inst->opd1.var);
-
-	mc_inst_t shift = { .type = inst_type, .opds = McInstOpds_Reg_Reg, .reg0 = shift_reg, .reg1 = McRegCl };
-
-	push_mc_inst(ctx, &shift);
-
-	save_stack_var(ctx, inst->opd0.var, shift_reg);
-}
-static void compile_cmp_int(ctx_t * ctx, inst_t * inst) {
-	ira_int_type_t int_type = inst->opd1.var->qdt.dt->int_type;
-
-	compile_int_like_cmp(ctx, inst->opd0.var, inst->opd1.var, inst->opd2.var, inst->opd3.int_cmp, ira_int_infos[int_type].sign);
-}
-static void compile_cmp_ptr(ctx_t * ctx, inst_t * inst) {
-	compile_int_like_cmp(ctx, inst->opd0.var, inst->opd1.var, inst->opd2.var, inst->opd3.int_cmp, false);
 }
 static void compile_mmbr_acc_ptr(ctx_t * ctx, inst_t * inst) {
 	var_t * opd_var = inst->opd1.var;
@@ -2752,20 +2871,8 @@ static void compile_insts(ctx_t * ctx) {
 			[IraInstReadPtr] = compile_read_ptr,
 			[IraInstWritePtr] = compile_write_ptr,
 			[IraInstShiftPtr] = compile_shift_ptr,
-			[IraInstNegBool] = compile_neg_bool,
-			[IraInstNegInt] = compile_unr_int,
-			[IraInstAddInt] = compile_bin_int,
-			[IraInstSubInt] = compile_bin_int,
-			[IraInstMulInt] = compile_bin_int,
-			[IraInstDivInt] = compile_div_int,
-			[IraInstModInt] = compile_mod_int,
-			[IraInstLeShiftInt] = compile_shift_int,
-			[IraInstRiShiftInt] = compile_shift_int,
-			[IraInstAndInt] = compile_bin_int,
-			[IraInstXorInt] = compile_bin_int,
-			[IraInstOrInt] = compile_bin_int,
-			[IraInstCmpInt] = compile_cmp_int,
-			[IraInstCmpPtr] = compile_cmp_ptr,
+			[IraInstUnrOptr] = compile_unr_optr,
+			[IraInstBinOptr] = compile_bin_optr,
 			[IraInstMmbrAccPtr] = compile_mmbr_acc_ptr,
 			[IraInstCast] = compile_cast,
 			[IraInstCallFuncPtr] = compile_call_func_ptr,

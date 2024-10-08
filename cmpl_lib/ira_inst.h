@@ -13,6 +13,7 @@ enum ira_inst_opd_type {
 	IraInstOpdVal,
 	IraInstOpdVarDef,
 	IraInstOpdVar,
+	IraInstOpdOptr,
 	IraInstOpdMmbr,
 	IraInstOpdVarsSize,
 	IraInstOpdVars2,
@@ -28,6 +29,7 @@ union ira_inst_opd {
 	ira_dt_func_vas_t * dt_func_vas;
 	ira_dt_t * dt;
 	ira_val_t * val;
+	ira_optr_t * optr;
 };
 
 enum ira_inst_type {

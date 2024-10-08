@@ -1216,7 +1216,7 @@ static bool translate_expr0_unr(ctx_t * ctx, expr_t * expr) {
 	ira_dt_t * left = expr->opd0.expr->val_qdt.dt;
 	const pla_expr_info_t * info = &pla_expr_infos[expr->base->type];
 
-	if (!ira_pec_get_best_optr(ctx->pec, info->optr_type, left, NULL, &expr->optr.res)) {
+	if (!ira_pec_get_best_optr(ctx->pec, info->optr_ctg, left, NULL, &expr->optr.res)) {
 		pla_tltr_report(ctx->tltr, L"could not find an operator for [%s] expression with [%s] operand", pla_expr_infos[expr->base->type].type_str.str, ira_dt_infos[left->type].type_str.str);
 		return false;
 	}
@@ -1230,7 +1230,7 @@ static bool translate_expr0_bin(ctx_t * ctx, expr_t * expr) {
 	ira_dt_t * right = expr->opd1.expr->val_qdt.dt;
 	const pla_expr_info_t * info = &pla_expr_infos[expr->base->type];
 
-	if (!ira_pec_get_best_optr(ctx->pec, info->optr_type, left, right, &expr->optr.res)) {
+	if (!ira_pec_get_best_optr(ctx->pec, info->optr_ctg, left, right, &expr->optr.res)) {
 		pla_tltr_report(ctx->tltr, L"could not find an operator for [%s] expression with [%s], [%s] operands", pla_expr_infos[expr->base->type].type_str.str, ira_dt_infos[left->type].type_str.str, ira_dt_infos[right->type].type_str.str);
 		return false;
 	}
@@ -1902,28 +1902,9 @@ static bool translate_expr1_unr(ctx_t * ctx, expr_t * expr) {
 		return false;
 	}
 
-	ira_optr_t * optr = expr->optr.res.optr;
+	ira_inst_t optr = { .type = IraInstUnrOptr, .opd1.optr = expr->optr.res.optr, .opd2.hs = opd_var->inst_name };
 
-	switch (optr->impl_type) {
-		case IraOptrImplInstUnrBool:
-		{
-			ira_inst_t unr_op = { .type = optr->inst.type, .opd1.hs = opd_var->inst_name };
-
-			push_inst_imm_var0_expr(ctx, expr, &unr_op);
-
-			break;
-		}
-		case IraOptrImplInstUnrInt:
-		{
-			ira_inst_t unr_op = { .type = optr->inst.type, .opd1.hs = opd_var->inst_name };
-
-			push_inst_imm_var0_expr(ctx, expr, &unr_op);
-
-			break;
-		}
-		default:
-			ul_assert_unreachable();
-	}
+	push_inst_imm_var0_expr(ctx, expr, &optr);
 
 	return true;
 }
@@ -1932,12 +1913,6 @@ static bool translate_expr1_bin(ctx_t * ctx, expr_t * expr) {
 
 	if (!translate_expr1_imm_var(ctx, expr->opd0.expr, &opd0_var)) {
 		return false;
-	}
-
-	if (expr->optr.res.left_implct_cast_to != NULL) {
-		ira_inst_t cast = { .type = IraInstCast, .opd1.hs = opd0_var->inst_name, .opd2.dt = expr->optr.res.left_implct_cast_to };
-
-		push_inst_imm_var0(ctx, &cast, expr->optr.res.left_implct_cast_to, &opd0_var);
 	}
 
 	if (!translate_expr1_imm_var(ctx, expr->opd1.expr, &opd1_var)) {
@@ -1950,36 +1925,9 @@ static bool translate_expr1_bin(ctx_t * ctx, expr_t * expr) {
 		push_inst_imm_var0(ctx, &cast, expr->optr.res.right_implct_cast_to, &opd1_var);
 	}
 
-	ira_optr_t * optr = expr->optr.res.optr;
+	ira_inst_t optr = { .type = IraInstBinOptr, .opd1.optr = expr->optr.res.optr, .opd2.hs = opd0_var->inst_name, .opd3.hs = opd1_var->inst_name };
 
-	switch (optr->impl_type) {
-		case IraOptrImplInstBinInt:
-		{
-			ira_inst_t bin_op = { .type = optr->inst.type, .opd1.hs = opd0_var->inst_name, .opd2.hs = opd1_var->inst_name };
-
-			push_inst_imm_var0_expr(ctx, expr, &bin_op);
-
-			break;
-		}
-		case IraOptrImplInstBinIntBool:
-		{
-			ira_inst_t bin_op = { .type = optr->inst.type, .opd1.hs = opd0_var->inst_name, .opd2.hs = opd1_var->inst_name, .opd3.int_cmp = optr->inst.int_cmp };
-
-			push_inst_imm_var0_expr(ctx, expr, &bin_op);
-
-			break;
-		}
-		case IraOptrImplInstBinPtrBool:
-		{
-			ira_inst_t bin_op = { .type = optr->inst.type, .opd1.hs = opd0_var->inst_name, .opd2.hs = opd1_var->inst_name, .opd3.int_cmp = optr->inst.int_cmp };
-
-			push_inst_imm_var0_expr(ctx, expr, &bin_op);
-
-			break;
-		}
-		default:
-			ul_assert_unreachable();
-	}
+	push_inst_imm_var0_expr(ctx, expr, &optr);
 
 	return true;
 }

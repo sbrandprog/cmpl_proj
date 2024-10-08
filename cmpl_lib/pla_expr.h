@@ -47,7 +47,7 @@ struct pla_expr {
 
 struct pla_expr_info {
 	ul_ros_t type_str;
-	ira_optr_type_t optr_type;
+	ira_optr_ctg_t optr_ctg;
 	union {
 		pla_expr_opd_type_t opds[PLA_EXPR_OPDS_SIZE];
 		struct {

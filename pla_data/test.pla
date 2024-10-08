@@ -19,7 +19,7 @@ function print_hello_world : $() -> void {
 
 	variable str := "Hello world!\n"a, written : u32;
 
-	w64::write_file(handle, str.data, %[u32]str.size, &written, null);
+	w64::write_file(handle, str.data, %[u32](str.size - 1'u64), &written, null);
 
 	return;
 }

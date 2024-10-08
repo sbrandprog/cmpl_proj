@@ -16,6 +16,7 @@ void ira_inst_cleanup(ira_inst_t * inst) {
 			case IraInstOpdLabel:
 			case IraInstOpdVarDef:
 			case IraInstOpdVar:
+			case IraInstOpdOptr:
 			case IraInstOpdMmbr:
 			case IraInstOpdVarsSize:
 				break;

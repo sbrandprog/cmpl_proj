@@ -36,7 +36,7 @@ struct ira_pec {
 		ira_dt_t * wide_str;
 	} dt_spcl;
 
-	ira_optr_t * optrs[IraOptr_Count];
+	ira_optr_t * optrs[IraOptrCtg_Count];
 
 	ira_lo_t * root;
 
@@ -48,7 +48,6 @@ struct ira_pec {
 
 struct ira_pec_optr_res {
 	ira_optr_t * optr;
-	ira_dt_t * left_implct_cast_to;
 	ira_dt_t * right_implct_cast_to;
 	ira_dt_t * res_dt;
 };
@@ -87,6 +86,6 @@ IRA_API bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** 
 
 
 IRA_API bool ira_pec_get_optr_dt(ira_pec_t * pec, ira_optr_t * optr, ira_dt_t * left, ira_dt_t * right, ira_pec_optr_res_t * out);
-IRA_API bool ira_pec_get_best_optr(ira_pec_t * pec, ira_optr_type_t optr_type, ira_dt_t * left, ira_dt_t * right, ira_pec_optr_res_t * out);
+IRA_API bool ira_pec_get_best_optr(ira_pec_t * pec, ira_optr_ctg_t optr_ctg, ira_dt_t * left, ira_dt_t * right, ira_pec_optr_res_t * out);
 
 IRA_API ira_lo_t * ira_pec_push_unq_lo(ira_pec_t * pec, ira_lo_type_t type, ul_hs_t * hint_name);
