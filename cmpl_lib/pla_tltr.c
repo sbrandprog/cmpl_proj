@@ -246,13 +246,18 @@ static ira_lo_t * push_lo(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_type_t lo
 	return ira_pec_push_unq_lo(tltr->out, lo_type, hint_name);
 }
 
-static bool init_lo_stct_var(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t ** out) {
-	*out = push_lo(tltr, dclr, IraLoVar);
+static bool init_lo_stct_var(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t ** lo_out, ira_dt_stct_tag_t ** tag_out) {
+	*lo_out = push_lo(tltr, dclr, IraLoVar);
 
-	(*out)->var.qdt.dt = &tltr->out->dt_dt;
-	(*out)->var.qdt.qual = ira_dt_qual_const;
+	(*lo_out)->var.qdt.dt = &tltr->out->dt_dt;
+	(*lo_out)->var.qdt.qual = ira_dt_qual_const;
 
-	ira_dt_stct_tag_t * tag = ira_pec_get_dt_stct_tag(tltr->out);
+	ira_dt_stct_tag_t * tag;
+
+	if (!ira_pec_get_dt_stct_tag(tltr->out, &tag)) {
+		pla_tltr_report_pec_err(tltr);
+		return false;
+	}
 
 	ira_dt_t * stct;
 
@@ -261,9 +266,13 @@ static bool init_lo_stct_var(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t ** o
 		return false;
 	}
 
-	if (!ira_pec_make_val_imm_dt(tltr->out, stct, &(*out)->var.val)) {
+	if (!ira_pec_make_val_imm_dt(tltr->out, stct, &(*lo_out)->var.val)) {
 		pla_tltr_report_pec_err(tltr);
 		return false;
+	}
+
+	if (tag_out != NULL) {
+		*tag_out = tag;
 	}
 
 	return true;
@@ -383,6 +392,8 @@ static bool translate_dclr_var_val(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_
 	return true;
 }
 static bool translate_dclr_stct(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t ** out) {
+	ira_dt_stct_tag_t * tag = NULL;
+
 	if (*out != NULL) {
 		if ((*out)->type != IraLoVar) {
 			pla_tltr_report(tltr, L"language object with [%s] name already exists", dclr->name->str);
@@ -397,13 +408,15 @@ static bool translate_dclr_stct(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t *
 			return false;
 		}
 
-		if ((*out)->var.val->dt_val->stct.tag->tpl != NULL) {
+		if ((*out)->var.val->dt_val->stct.tag->body != NULL) {
 			pla_tltr_report(tltr, L"struct [%s] already defined", dclr->name->str);
 			return false;
 		}
+
+		tag = (*out)->var.val->dt_val->stct.tag;
 	}
 	else {
-		if (!init_lo_stct_var(tltr, dclr, out)) {
+		if (!init_lo_stct_var(tltr, dclr, out, &tag)) {
 			return false;
 		}
 	}
@@ -414,12 +427,10 @@ static bool translate_dclr_stct(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t *
 		return false;
 	}
 
-	if (dt->type != IraDtTpl) {
-		pla_tltr_report(tltr, L"invalid struct %[s] binding, expected tuple body expression", dclr->name->str);
+	if (!ira_pec_set_dt_stct_tag_body(tltr->out, tag, dt)) {
+		pla_tltr_report_pec_err(tltr);
 		return false;
 	}
-
-	(*out)->var.val->dt_val->stct.tag->tpl = dt;
 
 	return true;
 }
@@ -431,7 +442,79 @@ static bool translate_dclr_stct_decl(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_l
 		}
 	}
 	else {
-		if (!init_lo_stct_var(tltr, dclr, out)) {
+		if (!init_lo_stct_var(tltr, dclr, out, NULL)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+static bool translate_dclr_enmn(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t ** out) {
+	if (*out != NULL) {
+		pla_tltr_report(tltr, L"language object with [%s] name already exists", dclr->name->str);
+		return false;
+	}
+
+	*out = push_lo(tltr, dclr, IraLoVar);
+
+	(*out)->var.qdt.dt = &tltr->out->dt_dt;
+	(*out)->var.qdt.qual = ira_dt_qual_const;
+
+	ira_dt_t * enmn_body_dt;
+
+	if (!pla_tltr_calculate_expr_dt(tltr, dclr->enmn.dt_expr, &enmn_body_dt)) {
+		return false;
+	}
+
+	ira_dt_t * enmn_dt;
+	
+	{
+		ira_dt_enmn_tag_t * tag;
+
+		if (!ira_pec_get_dt_enmn_tag(tltr->out, enmn_body_dt, &tag)) {
+			pla_tltr_report_pec_err(tltr);
+			return false;
+		}
+
+		if (!ira_pec_get_dt_enmn(tltr->out, tag, &enmn_dt)) {
+			pla_tltr_report_pec_err(tltr);
+			return false;
+		}
+
+		if (!ira_pec_make_val_imm_dt(tltr->out, enmn_dt, &(*out)->var.val)) {
+			pla_tltr_report_pec_err(tltr);
+			return false;
+		}
+	}
+
+	for (pla_dclr_t * elem = dclr->enmn.elem; elem != NULL; elem = elem->next) {
+		if (elem->type != PlaDclrEnmnElem) {
+			pla_tltr_report(tltr, L"invalid enumeration element [%s] in [%s] enumeration", elem->name->str, dclr->name->str);
+			return false;
+		}
+
+		ira_lo_t ** elem_ins = get_vse_lo_ins(tltr, elem->name);
+
+		if (*elem_ins != NULL) {
+			pla_tltr_report(tltr, L"language object with [%s] name already exists", elem->name->str);
+			return false;
+		}
+
+		*elem_ins = push_lo(tltr, elem, IraLoVar);
+
+		ira_lo_t * elem_lo = *elem_ins;
+
+		elem_lo->var.qdt.dt = enmn_dt;
+		elem_lo->var.qdt.qual = ira_dt_qual_const;
+		elem_lo->var.val = ira_val_create(IraValImmEnmn, enmn_dt);
+
+		if (!pla_tltr_calculate_expr(tltr, elem->enmn_elem.val, &elem_lo->var.val->val_val)) {
+			pla_tltr_report(tltr, L"invalid enumeration element [%s] value", elem->name->str);
+			return false;
+		}
+
+		if (elem_lo->var.val->val_val->dt != enmn_body_dt) {
+			pla_tltr_report(tltr, L"enumeration element's [%s] data type does not match data type of enumeration [%s]", elem->name->str, dclr->name->str);
 			return false;
 		}
 	}
@@ -479,6 +562,14 @@ static bool translate_dclr_tse(pla_tltr_t * tltr, pla_dclr_t * dclr) {
 				return false;
 			}
 			break;
+		case PlaDclrEnmn:
+			if (!translate_dclr_enmn(tltr, dclr, ins)) {
+				return false;
+			}
+			break;
+		case PlaDclrEnmnElem:
+			pla_tltr_report(tltr, L"unexpected enumeration element in declarator scope");
+			return false;
 		default:
 			ul_assert_unreachable();
 	}

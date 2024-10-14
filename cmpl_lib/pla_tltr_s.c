@@ -717,9 +717,9 @@ static bool get_mmbr_acc_dt(ctx_t * ctx, ira_dt_t * opd_dt, ul_hs_t * mmbr, ira_
 			break;
 		case IraDtStct:
 		{
-			ira_dt_t * tpl = opd_dt->stct.tag->tpl;
+			ira_dt_t * body = opd_dt->stct.tag->body;
 
-			if (tpl == NULL || !get_tpl_mmbr_dt(ctx, tpl, mmbr, out)) {
+			if (body == NULL || !get_tpl_mmbr_dt(ctx, body, mmbr, out)) {
 				return false;
 			}
 

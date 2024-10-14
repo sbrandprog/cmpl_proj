@@ -21,9 +21,11 @@ struct ira_pec {
 	ira_dt_t * dt_stct;
 	ira_dt_t * dt_arr;
 	ira_dt_t * dt_func;
+	ira_dt_t * dt_enmn;
 
 	ira_dt_stct_tag_t * dt_stct_tag;
 	ira_dt_func_vas_t * dt_func_vas;
+	ira_dt_enmn_tag_t * dt_enmn_tag;
 
 	struct {
 		ira_dt_func_vas_t * none;
@@ -64,7 +66,10 @@ IRA_API bool ira_pec_get_dt_align(ira_dt_t * dt, size_t * out);
 IRA_API size_t ira_pec_get_tpl_elem_off(ira_dt_t * dt, size_t elem_i);
 
 
-IRA_API ira_dt_stct_tag_t * ira_pec_get_dt_stct_tag(ira_pec_t * pec);
+IRA_API bool ira_pec_get_dt_stct_tag(ira_pec_t * pec, ira_dt_stct_tag_t ** out);
+IRA_API bool ira_pec_set_dt_stct_tag_body(ira_pec_t * pec, ira_dt_stct_tag_t * tag, ira_dt_t * body);
+IRA_API bool ira_pec_get_dt_enmn_tag(ira_pec_t * pec, ira_dt_t * body, ira_dt_enmn_tag_t ** out);
+
 
 IRA_API bool ira_pec_get_dt_vec(ira_pec_t * pec, size_t size, ira_dt_t * body, ira_dt_qual_t qual, ira_dt_t ** out);
 IRA_API bool ira_pec_get_dt_ptr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual, ira_dt_t ** out);
@@ -72,6 +77,7 @@ IRA_API bool ira_pec_get_dt_tpl(ira_pec_t * pec, size_t elems_size, ira_dt_ndt_t
 IRA_API bool ira_pec_get_dt_stct(ira_pec_t * pec, ira_dt_stct_tag_t * tag, ira_dt_qual_t qual, ira_dt_t ** out);
 IRA_API bool ira_pec_get_dt_arr(ira_pec_t * pec, ira_dt_t * body, ira_dt_qual_t qual, ira_dt_t ** out);
 IRA_API bool ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_dt_ndt_t * args, ira_dt_func_vas_t * vas, ira_dt_t ** out);
+IRA_API bool ira_pec_get_dt_enmn(ira_pec_t * pec, ira_dt_enmn_tag_t * tag, ira_dt_t ** out);
 
 IRA_API bool ira_pec_apply_qual(ira_pec_t * pec, ira_dt_t * dt, ira_dt_qual_t qual, ira_dt_t ** out);
 

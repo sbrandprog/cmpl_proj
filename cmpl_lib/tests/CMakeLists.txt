@@ -25,8 +25,9 @@ add_proj_test_exe(cmpl_lib pla_file_tester
 	NO_TEST
 	LIBRARIES cmpl_lib
 	DEPENDENCIES cmpl_lib_tests_copy_runtime_data
-	COPY_LOCAL pla_to_exe1.pla pla_va_test.pla
+	COPY_LOCAL pla_to_exe1.pla pla_va_test.pla pla_enmn_test.pla
 )
 
 add_test(NAME cmpl_lib_pla_test1 COMMAND cmpl_lib_pla_file_tester pla_to_exe1.pla)
 add_test(NAME cmpl_lib_pla_test2 COMMAND cmpl_lib_pla_file_tester pla_va_test.pla)
+add_test(NAME cmpl_lib_pla_test3 COMMAND cmpl_lib_pla_file_tester pla_enmn_test.pla)

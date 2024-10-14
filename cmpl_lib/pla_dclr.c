@@ -20,13 +20,7 @@ void pla_dclr_destroy(pla_dclr_t * dclr) {
 		case PlaDclrNone:
 			break;
 		case PlaDclrNspc:
-			for (pla_dclr_t * it = dclr->nspc.body; it != NULL; ) {
-				pla_dclr_t * next = it->next;
-
-				pla_dclr_destroy(it);
-
-				it = next;
-			}
+			pla_dclr_destroy_chain(dclr->nspc.body);
 			break;
 		case PlaDclrFunc:
 			pla_expr_destroy(dclr->func.dt_expr);
@@ -46,11 +40,27 @@ void pla_dclr_destroy(pla_dclr_t * dclr) {
 			break;
 		case PlaDclrDtStctDecl:
 			break;
+		case PlaDclrEnmn:
+			pla_expr_destroy(dclr->enmn.dt_expr);
+			pla_dclr_destroy_chain(dclr->enmn.elem);
+			break;
+		case PlaDclrEnmnElem:
+			pla_expr_destroy(dclr->enmn_elem.val);
+			break;
 		default:
 			ul_assert_unreachable();
 	}
 
 	free(dclr);
+}
+void pla_dclr_destroy_chain(pla_dclr_t * dclr) {
+	while (dclr != NULL) {
+		pla_dclr_t * next = dclr->next;
+
+		pla_dclr_destroy(dclr);
+
+		dclr = next;
+	}
 }
 
 const pla_dclr_info_t pla_dclr_infos[PlaDclr_Count] = {
@@ -61,5 +71,7 @@ const pla_dclr_info_t pla_dclr_infos[PlaDclr_Count] = {
 	[PlaDclrVarDt] = { .type_str = UL_ROS_MAKE(L"DclrVarDt") },
 	[PlaDclrVarVal] = { .type_str = UL_ROS_MAKE(L"DclrVarVal") },
 	[PlaDclrDtStct] = { .type_str = UL_ROS_MAKE(L"DclrDtStct") },
-	[PlaDclrDtStctDecl] = { .type_str = UL_ROS_MAKE(L"DclrDtStctDecl") }
+	[PlaDclrDtStctDecl] = { .type_str = UL_ROS_MAKE(L"DclrDtStctDecl") },
+	[PlaDclrEnmn] = { .type_str = UL_ROS_MAKE(L"DclrEnmn") },
+	[PlaDclrEnmnElem] = { .type_str = UL_ROS_MAKE(L"DclrEnmnElem") }
 };

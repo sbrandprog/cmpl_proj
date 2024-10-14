@@ -59,6 +59,9 @@ void ira_val_destroy(ira_val_t * val) {
 			destroy_val_arr(val->arr_val.size, val->arr_val.data);
 			free(val->arr_val.data);
 			break;
+		case IraValImmEnmn:
+			ira_val_destroy(val->val_val);
+			break;
 		default:
 			ul_assert_unreachable();
 	}
@@ -99,6 +102,9 @@ ira_val_t * ira_val_copy(ira_val_t * val) {
 		case IraValImmArr:
 			new_val->arr_val.size = val->arr_val.size;
 			new_val->arr_val.data = copy_val_arr(val->arr_val.size, val->arr_val.data);
+			break;
+		case IraValImmEnmn:
+			new_val->val_val = ira_val_copy(val->val_val);
 			break;
 		default:
 			ul_assert_unreachable();

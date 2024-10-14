@@ -35,13 +35,13 @@ namespace std {
 	variable con_out : con_out_t;
 
 	function init_con_io : $() -> void {
-		con_in.handle = w64::create_file_w(con_handle_name.data, 0x8000_0000'u32, 0'u32, null, 3'u32, 0'u32, null);
+		con_in.handle = w64::create_file_w(con_handle_name.data, w64::GenericRead, w64::FileShareNone, null, w64::OpenExisting, w64::FileAttributesNone, null);
 
 		if con_in.handle == %[* void]-1's64 {
 			w64::exit_process(-1'u32);
 		}
 
-		con_out.handle = w64::create_file_w(con_handle_name.data, 0x4000_0000'u32, 0'u32, null, 3'u32, 0'u32, null);
+		con_out.handle = w64::create_file_w(con_handle_name.data, w64::GenericWrite, w64::FileShareNone, null, w64::OpenExisting, w64::FileAttributesNone, null);
 
 		if con_out.handle == %[* void]-1's64 {
 			w64::exit_process(-1'u32);

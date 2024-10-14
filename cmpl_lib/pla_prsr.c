@@ -1122,14 +1122,13 @@ static void parse_dclr_impt(pla_prsr_t * prsr, pla_dclr_t ** out) {
 
 	consume_ch_str_crit(prsr, &(*out)->impt.sym_name, NULL);
 
-	(*out)->pos_end = prsr->prev_tok_pos_end;
-
 	consume_punc_exact_crit(prsr, PlaPuncSemicolon);
+
+	(*out)->pos_end = prsr->prev_tok_pos_end;
 }
 static void parse_dclr_var(pla_prsr_t * prsr, pla_dclr_t ** out) {
 	pla_ec_pos_t pos_start = prsr->tok.pos_start;
-	pla_dclr_t ** pos_cur = out;
-
+	
 	consume_keyw_exact_crit(prsr, PlaKeywVariable);
 
 	while (true) {
@@ -1137,9 +1136,9 @@ static void parse_dclr_var(pla_prsr_t * prsr, pla_dclr_t ** out) {
 
 		parse_quals(prsr, &qual);
 
-		ul_hs_t * var_name;
+		ul_hs_t * name;
 
-		consume_ident_crit(prsr, &var_name);
+		consume_ident_crit(prsr, &name);
 
 		if (consume_punc_exact(prsr, PlaPuncColonAsgn)) {
 			*out = pla_dclr_create(PlaDclrVarVal);
@@ -1158,8 +1157,9 @@ static void parse_dclr_var(pla_prsr_t * prsr, pla_dclr_t ** out) {
 			parse_expr(prsr, &(*out)->var_dt.dt_expr);
 		}
 
+		(*out)->name = name;
 		(*out)->pos_start = pos_start;
-		(*out)->name = var_name;
+		(*out)->pos_end = prsr->prev_tok_pos_end;
 
 		if (consume_punc_exact(prsr, PlaPuncComma)) {
 			(void)0;
@@ -1171,14 +1171,8 @@ static void parse_dclr_var(pla_prsr_t * prsr, pla_dclr_t ** out) {
 		}
 
 		out = &(*out)->next;
-	}
 
-	(*pos_cur)->pos_end = prsr->prev_tok_pos_end;
-
-	while (pos_cur != out) {
-		pos_cur = &(*pos_cur)->next;
-
-		(*pos_cur)->pos_end = prsr->prev_tok_pos_end;
+		pos_start = prsr->tok.pos_start;
 	}
 }
 static void parse_dclr_stct(pla_prsr_t * prsr, pla_dclr_t ** out) {
@@ -1216,8 +1210,57 @@ static void parse_dclr_stct(pla_prsr_t * prsr, pla_dclr_t ** out) {
 
 	(*out)->pos_end = prsr->prev_tok_pos_end;
 }
+static void parse_dclr_enmn(pla_prsr_t * prsr, pla_dclr_t ** out) {
+	*out = pla_dclr_create(PlaDclrEnmn);
 
+	(*out)->pos_start = prsr->tok.pos_start;
 
+	consume_keyw_exact_crit(prsr, PlaKeywEnumeration);
+
+	consume_ident_crit(prsr, &(*out)->name);
+
+	consume_punc_exact_crit(prsr, PlaPuncColon);
+
+	parse_expr(prsr, &(*out)->enmn.dt_expr);
+
+	consume_punc_exact_crit(prsr, PlaPuncLeBrace);
+
+	pla_dclr_t ** ins = &(*out)->enmn.elem;
+
+	while (true) {
+		*ins = pla_dclr_create(PlaDclrEnmnElem);
+
+		(*ins)->pos_start = prsr->tok.pos_start;
+
+		consume_ident_crit(prsr, &(*ins)->name);
+
+		if (consume_punc_exact(prsr, PlaPuncAsgn)) {
+			parse_expr(prsr, &(*ins)->enmn_elem.val);
+		}
+		else {
+			(*ins)->enmn_elem.val = pla_expr_create(PlaExprNone);
+		}
+
+		(*ins)->pos_end = prsr->prev_tok_pos_end;
+
+		if (consume_punc_exact(prsr, PlaPuncComma)) {
+			if (consume_punc_exact(prsr, PlaPuncRiBrace)) {
+				break;
+			}
+		}
+		else {
+			consume_punc_exact_crit(prsr, PlaPuncRiBrace);
+
+			break;
+		}
+
+		ins = &(*ins)->next;
+	}
+
+	consume_punc_exact_crit(prsr, PlaPuncSemicolon);
+
+	(*out)->pos_end = prsr->prev_tok_pos_end;
+}
 static void parse_dclr_rse(pla_prsr_t * prsr, pla_dclr_t ** out) {
 	switch (prsr->tok.type) {
 		case PlaTokNone:
@@ -1238,6 +1281,9 @@ static void parse_dclr_rse(pla_prsr_t * prsr, pla_dclr_t ** out) {
 					return;
 				case PlaKeywStruct:
 					parse_dclr_stct(prsr, out);
+					return;
+				case PlaKeywEnumeration:
+					parse_dclr_enmn(prsr, out);
 					return;
 			}
 			break;

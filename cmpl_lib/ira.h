@@ -16,6 +16,7 @@ typedef struct ira_dt_ndt ira_dt_ndt_t;
 typedef struct ira_dt_stct_tag ira_dt_stct_tag_t;
 typedef enum ira_dt_func_vas_type ira_dt_func_vas_type_t;
 typedef struct ira_dt_func_vas ira_dt_func_vas_t;
+typedef struct ira_dt_enmn_tag ira_dt_enmn_tag_t;
 typedef enum ira_dt_type ira_dt_type_t;
 typedef struct ira_dt ira_dt_t;
 typedef struct ira_dt_info ira_dt_info_t;

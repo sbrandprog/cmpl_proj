@@ -19,7 +19,7 @@ struct ira_dt_ndt {
 
 struct ira_dt_stct_tag {
 	ira_dt_stct_tag_t * next;
-	ira_dt_t * tpl;
+	ira_dt_t * body;
 };
 
 enum ira_dt_func_vas_type {
@@ -30,6 +30,11 @@ enum ira_dt_func_vas_type {
 struct ira_dt_func_vas {
 	ira_dt_func_vas_type_t type;
 	ira_dt_func_vas_t * next;
+};
+
+struct ira_dt_enmn_tag {
+	ira_dt_enmn_tag_t * next;
+	ira_dt_t * body;
 };
 
 enum ira_dt_type {
@@ -43,6 +48,7 @@ enum ira_dt_type {
 	IraDtStct,
 	IraDtArr,
 	IraDtFunc,
+	IraDtEnmn,
 	IraDt_Count
 };
 struct ira_dt {
@@ -80,6 +86,9 @@ struct ira_dt {
 			ira_dt_ndt_t * args;
 			ira_dt_func_vas_t * vas;
 		} func;
+		struct {
+			ira_dt_enmn_tag_t * tag;
+		} enmn;
 	};
 };
 

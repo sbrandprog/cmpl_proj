@@ -59,6 +59,33 @@ static void destroy_dt_func_vas_chain(ira_dt_func_vas_t * vas) {
 }
 
 
+static ira_dt_enmn_tag_t * create_dt_enmn_tag() {
+	ira_dt_enmn_tag_t * tag = malloc(sizeof(*tag));
+
+	ul_assert(tag != NULL);
+
+	*tag = (ira_dt_enmn_tag_t){ 0 };
+
+	return tag;
+}
+static void destroy_dt_enmn_tag(ira_dt_enmn_tag_t * tag) {
+	if (tag == NULL) {
+		return;
+	}
+
+	free(tag);
+}
+static void destroy_dt_enmn_tag_chain(ira_dt_enmn_tag_t * tag) {
+	while (tag != NULL) {
+		ira_dt_enmn_tag_t * next = tag->next;
+
+		destroy_dt_enmn_tag(tag);
+
+		tag = next;
+	}
+}
+
+
 static void destroy_dt(ira_dt_t * dt) {
 	if (dt == NULL) {
 		return;
@@ -76,6 +103,8 @@ static void destroy_dt(ira_dt_t * dt) {
 			break;
 		case IraDtFunc:
 			free(dt->func.args);
+			break;
+		case IraDtEnmn:
 			break;
 		default:
 			ul_assert_unreachable();
@@ -210,7 +239,11 @@ bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr) {
 		pec->dt_spcl.size = &pec->dt_ints[IraIntU64];
 
 		{
-			ira_dt_stct_tag_t * va_elem_stct_tag = ira_pec_get_dt_stct_tag(pec);
+			ira_dt_stct_tag_t * va_elem_stct_tag;
+
+			if (!ira_pec_get_dt_stct_tag(pec, &va_elem_stct_tag)) {
+				return false;
+			}
 
 			ira_dt_t * va_elem_stct;
 
@@ -254,9 +287,11 @@ void ira_pec_cleanup(ira_pec_t * pec) {
 	destroy_dt_chain(pec->dt_stct);
 	destroy_dt_chain(pec->dt_arr);
 	destroy_dt_chain(pec->dt_func);
+	destroy_dt_chain(pec->dt_enmn);
 
 	destroy_dt_stct_tag_chain(pec->dt_stct_tag);
 	destroy_dt_func_vas_chain(pec->dt_func_vas);
+	destroy_dt_enmn_tag_chain(pec->dt_enmn_tag);
 
 	ul_hsb_cleanup(&pec->hsb);
 
@@ -275,12 +310,13 @@ bool ira_pec_is_dt_complete(ira_dt_t * dt) {
 		case IraDtTpl:
 			break;
 		case IraDtStct:
-			if (dt->stct.tag->tpl == NULL) {
+			if (dt->stct.tag->body == NULL) {
 				return false;
 			}
 			break;
 		case IraDtArr:
 		case IraDtFunc:
+		case IraDtEnmn:
 			break;
 		default:
 			ul_assert_unreachable();
@@ -337,9 +373,9 @@ bool ira_pec_get_dt_size(ira_dt_t * dt, size_t * out) {
 		}
 		case IraDtStct:
 		{
-			ira_dt_t * tpl = dt->stct.tag->tpl;
+			ira_dt_t * body = dt->stct.tag->body;
 
-			if (tpl == NULL || !ira_pec_get_dt_size(tpl, out)) {
+			if (body == NULL || !ira_pec_get_dt_size(body, out)) {
 				return false;
 			}
 
@@ -352,6 +388,11 @@ bool ira_pec_get_dt_size(ira_dt_t * dt, size_t * out) {
 			break;
 		case IraDtFunc:
 			*out = 0;
+			break;
+		case IraDtEnmn:
+			if (!ira_pec_get_dt_size(dt->enmn.tag->body, out)) {
+				return false;
+			}
 			break;
 		default:
 			ul_assert_unreachable();
@@ -397,7 +438,7 @@ bool ira_pec_get_dt_align(ira_dt_t * dt, size_t * out) {
 		}
 		case IraDtStct:
 		{
-			ira_dt_t * tpl = dt->stct.tag->tpl;
+			ira_dt_t * tpl = dt->stct.tag->body;
 
 			if (tpl == NULL || !ira_pec_get_dt_align(tpl, out)) {
 				return false;
@@ -412,6 +453,11 @@ bool ira_pec_get_dt_align(ira_dt_t * dt, size_t * out) {
 			break;
 		case IraDtFunc:
 			*out = 1;
+			break;
+		case IraDtEnmn:
+			if (!ira_pec_get_dt_align(dt->enmn.tag->body, out)) {
+				return false;
+			}
 			break;
 		default:
 			ul_assert_unreachable();
@@ -440,13 +486,40 @@ size_t ira_pec_get_tpl_elem_off(ira_dt_t * dt, size_t elem_i) {
 }
 
 
-ira_dt_stct_tag_t * ira_pec_get_dt_stct_tag(ira_pec_t * pec) {
+bool ira_pec_get_dt_stct_tag(ira_pec_t * pec, ira_dt_stct_tag_t ** out) {
 	ira_dt_stct_tag_t * tag = create_dt_stct_tag();
 
 	tag->next = pec->dt_stct_tag;
 	pec->dt_stct_tag = tag;
 
-	return tag;
+	*out = tag;
+
+	return true;
+}
+bool ira_pec_set_dt_stct_tag_body(ira_pec_t * pec, ira_dt_stct_tag_t * tag, ira_dt_t * body) {
+	if (tag->body != NULL || body->type != IraDtTpl) {
+		return false;
+	}
+
+	tag->body = body;
+
+	return true;
+}
+bool ira_pec_get_dt_enmn_tag(ira_pec_t * pec, ira_dt_t * body, ira_dt_enmn_tag_t ** out) {
+	if (body == NULL || body->type != IraDtInt) {
+		return false;
+	}
+
+	ira_dt_enmn_tag_t * tag = create_dt_enmn_tag();
+
+	tag->next = pec->dt_enmn_tag;
+	pec->dt_enmn_tag = tag;
+
+	tag->body = body;
+
+	*out = tag;
+
+	return true;
 }
 
 static bool get_listed_dt_check(ira_pec_t * pec, ira_dt_t * pred) {
@@ -486,6 +559,8 @@ static bool get_listed_dt_check(ira_pec_t * pec, ira_dt_t * pred) {
 			if (pred->func.vas == NULL) {
 				return false;
 			}
+			break;
+		case IraDtEnmn:
 			break;
 		default:
 			ul_assert_unreachable();
@@ -552,7 +627,6 @@ static bool get_listed_dt_cmp(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * dt) {
 				return false;
 			}
 			break;
-
 		case IraDtFunc:
 			if (dt->func.args_size != pred->func.args_size) {
 				return false;
@@ -570,6 +644,11 @@ static bool get_listed_dt_cmp(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * dt) {
 				if (arg->dt != pred_arg->dt || arg->name != pred_arg->name) {
 					return false;
 				}
+			}
+			break;
+		case IraDtEnmn:
+			if (dt->enmn.tag != pred->enmn.tag) {
+				return false;
 			}
 			break;
 		default:
@@ -632,6 +711,9 @@ static bool get_listed_dt_copy(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * out)
 			*out = (ira_dt_t){ .type = pred->type, .func = { .ret = pred->func.ret, .args_size = pred->func.args_size, .args = new_args, .vas = pred->func.vas } };
 			break;
 		}
+		case IraDtEnmn:
+			*out = (ira_dt_t){ .type = pred->type, .enmn.tag = pred->enmn.tag };
+			break;
 		default:
 			ul_assert_unreachable();
 	}
@@ -701,6 +783,11 @@ bool ira_pec_get_dt_func(ira_pec_t * pec, ira_dt_t * ret, size_t args_size, ira_
 
 	return get_listed_dt(pec, &pred, &pec->dt_func, out);
 }
+bool ira_pec_get_dt_enmn(ira_pec_t * pec, ira_dt_enmn_tag_t * tag, ira_dt_t ** out) {
+	ira_dt_t pred = { .type = IraDtEnmn, .enmn.tag = tag };
+
+	return get_listed_dt(pec, &pred, &pec->dt_enmn, out);
+}
 
 bool ira_pec_apply_qual(ira_pec_t * pec, ira_dt_t * dt, ira_dt_qual_t qual, ira_dt_t ** out) {
 	ira_dt_qual_t dt_qual = ira_dt_get_qual(dt);
@@ -745,6 +832,7 @@ bool ira_pec_apply_qual(ira_pec_t * pec, ira_dt_t * dt, ira_dt_qual_t qual, ira_
 			}
 			break;
 		case IraDtFunc:
+		case IraDtEnmn:
 			*out = dt;
 			break;
 		default:
@@ -839,7 +927,7 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 			val_type = IraValImmTpl;
 			break;
 		case IraDtStct:
-			if (dt->stct.tag->tpl == NULL) {
+			if (dt->stct.tag->body == NULL) {
 				return false;
 			}
 
@@ -847,6 +935,9 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 			break;
 		case IraDtArr:
 			val_type = IraValImmArr;
+			break;
+		case IraDtEnmn:
+			val_type = IraValImmEnmn;
 			break;
 		default:
 			ul_assert_unreachable();
@@ -912,7 +1003,7 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 			break;
 		}
 		case IraDtStct:
-			if (!ira_pec_make_val_null(pec, dt->stct.tag->tpl, &(*out)->val_val)) {
+			if (!ira_pec_make_val_null(pec, dt->stct.tag->body, &(*out)->val_val)) {
 				return false;
 			}
 			break;
@@ -930,6 +1021,11 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out) {
 
 			break;
 		}
+		case IraDtEnmn:
+			if (!ira_pec_make_val_null(pec, dt->enmn.tag->body, &(*out)->val_val)) {
+				return false;
+			}
+			break;
 		default:
 			ul_assert_unreachable();
 	}
@@ -967,15 +1063,10 @@ bool ira_pec_get_optr_dt(ira_pec_t * pec, ira_optr_t * optr, ira_dt_t * left, ir
 	ira_pec_optr_res_t res = { .optr = optr };
 
 	switch (optr->type) {
-		case IraOptrBltnNegBool:
-			if (left->type != IraDtBool) {
-				return false;
-			}
-
-			res.res_dt = left;
-			break;
-		case IraOptrBltnNegInt:
-			if (left->type != IraDtInt) {
+		case IraOptrBltnLogicNegBool:
+		case IraOptrBltnArithNegInt:
+		case IraOptrBltnArithNegEnmn:
+			if (left->type != info->bltn.opd_dt_type) {
 				return false;
 			}
 
@@ -991,7 +1082,17 @@ bool ira_pec_get_optr_dt(ira_pec_t * pec, ira_optr_t * optr, ira_dt_t * left, ir
 		case IraOptrBltnAndInt:
 		case IraOptrBltnXorInt:
 		case IraOptrBltnOrInt:
-			if (left->type != IraDtInt) {
+		case IraOptrBltnMulEnmn:
+		case IraOptrBltnDivEnmn:
+		case IraOptrBltnModEnmn:
+		case IraOptrBltnAddEnmn:
+		case IraOptrBltnSubEnmn:
+		case IraOptrBltnLeShiftEnmn:
+		case IraOptrBltnRiShiftEnmn:
+		case IraOptrBltnAndEnmn:
+		case IraOptrBltnXorEnmn:
+		case IraOptrBltnOrEnmn:
+			if (left->type != info->bltn.opd_dt_type) {
 				return false;
 			}
 
@@ -1013,18 +1114,19 @@ bool ira_pec_get_optr_dt(ira_pec_t * pec, ira_optr_t * optr, ira_dt_t * left, ir
 		case IraOptrBltnGrtrEqInt:
 		case IraOptrBltnEqInt:
 		case IraOptrBltnNeqInt:
-			if (!get_cmp_dt(pec, optr, left, right, &res, IraDtInt)) {
-				return false;
-			}
-
-			break;
 		case IraOptrBltnLessPtr:
 		case IraOptrBltnLessEqPtr:
 		case IraOptrBltnGrtrPtr:
 		case IraOptrBltnGrtrEqPtr:
 		case IraOptrBltnEqPtr:
 		case IraOptrBltnNeqPtr:
-			if (!get_cmp_dt(pec, optr, left, right, &res, IraDtPtr)) {
+		case IraOptrBltnLessEnmn:
+		case IraOptrBltnLessEqEnmn:
+		case IraOptrBltnGrtrEnmn:
+		case IraOptrBltnGrtrEqEnmn:
+		case IraOptrBltnEqEnmn:
+		case IraOptrBltnNeqEnmn:
+			if (!get_cmp_dt(pec, optr, left, right, &res, info->bltn.opd_dt_type)) {
 				return false;
 			}
 

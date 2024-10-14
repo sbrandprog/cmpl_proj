@@ -84,13 +84,13 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 			}
 
 			if (first->stct.tag != second->stct.tag) {
-				ira_dt_t * first_tpl = first->stct.tag->tpl, * second_tpl = second->stct.tag->tpl;
+				ira_dt_t * first_body = first->stct.tag->body, * second_body = second->stct.tag->body;
 
-				if (first_tpl == NULL || second_tpl == NULL) {
+				if (first_body == NULL || second_body == NULL) {
 					return false;
 				}
 
-				if (!ira_dt_is_equivalent(first_tpl, second_tpl)) {
+				if (!ira_dt_is_equivalent(first_body, second_body)) {
 					return false;
 				}
 			}
@@ -123,6 +123,14 @@ bool ira_dt_is_equivalent(ira_dt_t * first, ira_dt_t * second) {
 				}
 			}
 			break;
+		case IraDtEnmn:
+			if (first->enmn.tag != second->enmn.tag) {
+				if (!ira_dt_is_equivalent(first->enmn.tag->body, second->enmn.tag->body)) {
+					return false;
+				}
+			}
+
+			break;
 		default:
 			ul_assert_unreachable();
 	}
@@ -142,6 +150,7 @@ static bool is_castable_to_void(ira_dt_t * from, ira_dt_t * to, bool implct) {
 		case IraDtStct:
 		case IraDtArr:
 		case IraDtFunc:
+		case IraDtEnmn:
 			break;
 		default:
 			ul_assert_unreachable();
@@ -162,6 +171,7 @@ static bool is_castable_to_dt(ira_dt_t * from, ira_dt_t * to, bool implct) {
 		case IraDtStct:
 		case IraDtArr:
 		case IraDtFunc:
+		case IraDtEnmn:
 			return false;
 		default:
 			ul_assert_unreachable();
@@ -194,6 +204,8 @@ static bool is_castable_to_bool(ira_dt_t * from, ira_dt_t * to, bool implct) {
 		case IraDtArr:
 		case IraDtFunc:
 			return false;
+		case IraDtEnmn:
+			break;
 		default:
 			ul_assert_unreachable();
 	}
@@ -229,6 +241,11 @@ static bool is_castable_to_int(ira_dt_t * from, ira_dt_t * to, bool implct) {
 		case IraDtArr:
 		case IraDtFunc:
 			return false;
+		case IraDtEnmn:
+			if (!is_castable_to_int(from->enmn.tag->body, to, implct)) {
+				return false;
+			}
+			break;
 		default:
 			ul_assert_unreachable();
 	}
@@ -259,6 +276,7 @@ static bool is_castable_to_vec(ira_dt_t * from, ira_dt_t * to, bool implct) {
 		case IraDtStct:
 		case IraDtArr:
 		case IraDtFunc:
+		case IraDtEnmn:
 			return false;
 		default:
 			ul_assert_unreachable();
@@ -296,6 +314,11 @@ static bool is_castable_to_ptr(ira_dt_t * from, ira_dt_t * to, bool implct) {
 		case IraDtArr:
 		case IraDtFunc:
 			return false;
+		case IraDtEnmn:
+			if (!is_castable_to_ptr(from->enmn.tag->body, to, implct)) {
+				return false;
+			}
+			break;
 		default:
 			ul_assert_unreachable();
 	}
@@ -316,11 +339,11 @@ static bool is_castable_to_tpl(ira_dt_t * from, ira_dt_t * to, bool implct) {
 			if (!ira_dt_is_equivalent(from, to)) {
 				return false;
 			}
-
 			break;
 		case IraDtStct:
 		case IraDtArr:
 		case IraDtFunc:
+		case IraDtEnmn:
 			return false;
 		default:
 			ul_assert_unreachable();
@@ -343,10 +366,10 @@ static bool is_castable_to_stct(ira_dt_t * from, ira_dt_t * to, bool implct) {
 			if (!ira_dt_is_equivalent(from, to)) {
 				return false;
 			}
-
 			break;
 		case IraDtArr:
 		case IraDtFunc:
+		case IraDtEnmn:
 			return false;
 		default:
 			ul_assert_unreachable();
@@ -370,9 +393,9 @@ static bool is_castable_to_arr(ira_dt_t * from, ira_dt_t * to, bool implct) {
 			if (!ira_dt_is_equivalent(from, to)) {
 				return false;
 			}
-
 			break;
 		case IraDtFunc:
+		case IraDtEnmn:
 			return false;
 		default:
 			ul_assert_unreachable();
@@ -396,7 +419,42 @@ static bool is_castable_to_func(ira_dt_t * from, ira_dt_t * to, bool implct) {
 			if (!ira_dt_is_equivalent(from, to)) {
 				return false;
 			}
+			break;
+		case IraDtEnmn:
+			return false;
+		default:
+			ul_assert_unreachable();
+	}
 
+	return true;
+}
+static bool is_castable_to_enmn(ira_dt_t * from, ira_dt_t * to, bool implct) {
+	switch (from->type) {
+		case IraDtVoid:
+			break;
+		case IraDtDt:
+		case IraDtBool:
+			return false;
+		case IraDtInt:
+			if (implct) {
+				return false;
+			}
+			break;
+		case IraDtVec:
+		case IraDtPtr:
+		case IraDtTpl:
+		case IraDtStct:
+		case IraDtArr:
+		case IraDtFunc:
+			return false;
+		case IraDtEnmn:
+			if (implct) {
+				return false;
+			}
+
+			if (!ira_dt_is_equivalent(from, to)) {
+				return false;
+			}
 			break;
 		default:
 			ul_assert_unreachable();
@@ -407,6 +465,11 @@ static bool is_castable_to_func(ira_dt_t * from, ira_dt_t * to, bool implct) {
 bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to, bool implct) {
 	if (from->type >= IraDt_Count || to->type >= IraDt_Count) {
 		ul_assert_unreachable();
+		return false;
+	}
+
+	if (from->type == IraDtStct && from->stct.tag->body == NULL
+		|| to->type == IraDtStct && to->stct.tag->body == NULL) {
 		return false;
 	}
 
@@ -447,10 +510,6 @@ bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to, bool implct) {
 			}
 			break;
 		case IraDtStct:
-			if (to->stct.tag->tpl == NULL) {
-				return false;
-			}
-
 			if (!is_castable_to_stct(from, to, implct)) {
 				return false;
 			}
@@ -462,6 +521,11 @@ bool ira_dt_is_castable(ira_dt_t * from, ira_dt_t * to, bool implct) {
 			break;
 		case IraDtFunc:
 			if (!is_castable_to_func(from, to, implct)) {
+				return false;
+			}
+			break;
+		case IraDtEnmn:
+			if (!is_castable_to_enmn(from, to, implct)) {
 				return false;
 			}
 			break;
@@ -514,5 +578,6 @@ const ira_dt_info_t ira_dt_infos[IraDt_Count] = {
 	[IraDtTpl] = { .type_str = UL_ROS_MAKE(L"DtTpl") },
 	[IraDtStct] = { .type_str = UL_ROS_MAKE(L"DtStct") },
 	[IraDtArr] = { .type_str = UL_ROS_MAKE(L"DtArr") },
-	[IraDtFunc] = { .type_str = UL_ROS_MAKE(L"DtFunc") }
+	[IraDtFunc] = { .type_str = UL_ROS_MAKE(L"DtFunc") },
+	[IraDtEnmn] = { .type_str = UL_ROS_MAKE(L"DtEnmn") }
 };

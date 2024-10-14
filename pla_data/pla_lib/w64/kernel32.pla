@@ -1,7 +1,55 @@
 namespace w64 {
 	variable const handle_t := * void;
 
-	import create_file_w : $(file_name : const * u16, access : u32, share_mode : u32, security_attributes : * void, creation_disposition : u32, flags_attributes : u32, template_file : * void) -> handle_t : "kernel32.dll"a, "CreateFileW"a;
+	enumeration access_rights_t : u32 {
+		GenericRead =							0x80000_000'u32,
+		GenericWrite =							0x4000_0000'u32,
+		GenericExecute =						0x2000_0000'u32,
+		GenericAll =							0x1000_0000'u32
+	};
+
+	enumeration file_share_t : u32 {
+		FileShareNone =							0x0000_0000'u32,
+		FileShareRead =							0x0000_0001'u32,
+		FileShareWrite =						0x0000_0002'u32,
+		FileShareDelete =						0x0000_0004'u32
+	};
+
+	enumeration action_consts_t : u32 {
+		CreateNew =								1'u32,
+		CreateAlways =							2'u32,
+		OpenExisting =							3'u32,
+		OpenAlways =							4'u32,
+		TruncateExisting =						5'u32
+	};
+
+	enumeration file_attributes_t : u32 {
+		FileAttributesNone =					0x0000_0000'u32,
+		FileAttributeReadOnly =					0x0000_0001'u32,
+		FileAttributeHidden =					0x0000_0002'u32,
+		FileAttributeSystem =					0x0000_0004'u32,
+		FileAttributeDirectory =				0x0000_0010'u32,
+		FileAttributeArchive =					0x0000_0020'u32,
+		FileAttributeDevice =					0x0000_0040'u32,
+		FileAttributeNormal =					0x0000_0080'u32,
+		FileAttributeTemporary =				0x0000_0100'u32,
+		FileAttributeSparseFile =				0x0000_0200'u32,
+		FileAttributeReparsePoint =				0x0000_0400'u32,
+		FileAttributeCompressed =				0x0000_0800'u32,
+		FileAttributeOffline =					0x0000_1000'u32,
+		FileAttributeNotContentIndexed =		0x0000_2000'u32,
+		FileAttributeEncrypted =				0x0000_4000'u32,
+		FileAttributeIntegrityStream =			0x0000_8000'u32,
+		FileAttributeVirtual =					0x0001_0000'u32,
+		FileAttributeNoScrubData =				0x0002_0000'u32,
+		FileAttributeEa =						0x0004_0000'u32,
+		FileAttributePinned =					0x0008_0000'u32,
+		FileAttributeUnpinned =					0x0010_0000'u32,
+		FileAttributeRecallOnOpen =				0x0040_0000'u32,
+		FileAttributeRecallOnDataAccess =		0x0040_0000'u32
+	};
+
+	import create_file_w : $(file_name : const * u16, access : access_rights_t, share_mode : file_share_t, security_attributes : * void, creation_disposition : action_consts_t, flags_attributes : file_attributes_t, template_file : * void) -> handle_t : "kernel32.dll"a, "CreateFileW"a;
 	import exit_process : $(exit_code : u32) -> void : "kernel32.dll"a, "ExitProcess"a;
 	import get_std_handle : $(std_handle : u32) -> handle_t : "kernel32.dll"a, "GetStdHandle"a;
 	import read_console_w : $(handle : handle_t, buf : * void, buf_size : u32, read : * u32, control : * void) -> s32 : "kernel32.dll"a, "ReadConsoleW"a;

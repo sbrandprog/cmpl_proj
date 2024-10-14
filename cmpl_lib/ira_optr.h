@@ -3,8 +3,8 @@
 
 enum ira_optr_type {
 	IraOptrNone,
-	IraOptrBltnNegBool,
-	IraOptrBltnNegInt,
+	IraOptrBltnLogicNegBool,
+	IraOptrBltnArithNegInt,
 	IraOptrBltnMulInt,
 	IraOptrBltnDivInt,
 	IraOptrBltnModInt,
@@ -27,6 +27,23 @@ enum ira_optr_type {
 	IraOptrBltnGrtrEqPtr,
 	IraOptrBltnEqPtr,
 	IraOptrBltnNeqPtr,
+	IraOptrBltnArithNegEnmn,
+	IraOptrBltnMulEnmn,
+	IraOptrBltnDivEnmn,
+	IraOptrBltnModEnmn,
+	IraOptrBltnAddEnmn,
+	IraOptrBltnSubEnmn,
+	IraOptrBltnLeShiftEnmn,
+	IraOptrBltnRiShiftEnmn,
+	IraOptrBltnLessEnmn,
+	IraOptrBltnLessEqEnmn,
+	IraOptrBltnGrtrEnmn,
+	IraOptrBltnGrtrEqEnmn,
+	IraOptrBltnEqEnmn,
+	IraOptrBltnNeqEnmn,
+	IraOptrBltnAndEnmn,
+	IraOptrBltnXorEnmn,
+	IraOptrBltnOrEnmn,
 	IraOptr_Count,
 };
 struct ira_optr {
@@ -67,6 +84,7 @@ struct ira_optr_info {
 		struct {
 			bool is_unr;
 			ira_optr_ctg_t ctg;
+			ira_dt_type_t opd_dt_type;
 		} bltn;
 	};
 };

@@ -11,6 +11,8 @@ enum pla_dclr_type {
 	PlaDclrVarVal,
 	PlaDclrDtStct,
 	PlaDclrDtStctDecl,
+	PlaDclrEnmn,
+	PlaDclrEnmnElem,
 	PlaDclr_Count
 };
 struct pla_dclr {
@@ -48,8 +50,12 @@ struct pla_dclr {
 			pla_expr_t * dt_stct_expr;
 		} dt_stct;
 		struct {
-			pla_expr_t * val_expr;
-		} ro_val;
+			pla_expr_t * dt_expr;
+			pla_dclr_t * elem;
+		} enmn;
+		struct {
+			pla_expr_t * val;
+		} enmn_elem;
 	};
 };
 
@@ -59,5 +65,6 @@ struct pla_dclr_info {
 
 PLA_API pla_dclr_t * pla_dclr_create(pla_dclr_type_t type);
 PLA_API void pla_dclr_destroy(pla_dclr_t * dclr);
+PLA_API void pla_dclr_destroy_chain(pla_dclr_t * dclr);
 
 extern PLA_API const pla_dclr_info_t pla_dclr_infos[PlaDclr_Count];

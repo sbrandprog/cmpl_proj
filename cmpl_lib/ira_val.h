@@ -12,6 +12,7 @@ enum ira_val_type {
 	IraValImmTpl,
 	IraValImmStct,
 	IraValImmArr,
+	IraValImmEnmn,
 	IraVal_Count
 };
 struct ira_val {

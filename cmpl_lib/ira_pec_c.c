@@ -244,6 +244,11 @@ static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ul_hs_t * hint_name, ira_
 
 			break;
 		}
+		case IraValImmEnmn:
+			if (!compile_val(ctx, frag, hint_name, val->val_val)) {
+				return false;
+			}
+			break;
 		default:
 			ul_assert_unreachable();
 	}
@@ -315,23 +320,9 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo) {
 
 	mc_frag_t * frag = ira_pec_c_get_frag(ctx, frag_type, lo->name);
 
-	switch (lo->var.val->type) {
-		case IraValImmDt:
-		case IraValImmVoid:
-		case IraValImmBool:
-		case IraValImmInt:
-		case IraValImmPtr:
-		case IraValLoPtr:
-		case IraValImmTpl:
-		case IraValImmStct:
-		case IraValImmArr:
-			if (!compile_val(ctx, frag, lo->name, lo->var.val)) {
-				report(ctx, L"failed to compile value for variable [%s]", lo->name->str);
-				return false;
-			}
-			break;
-		default:
-			ul_assert_unreachable();
+	if (!compile_val(ctx, frag, lo->name, lo->var.val)) {
+		report(ctx, L"failed to compile value for variable [%s]", lo->name->str);
+		return false;
 	}
 
 	return true;

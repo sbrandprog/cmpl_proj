@@ -1,0 +1,78 @@
+
+enumeration abc_t : u32 {
+	AbcNone = 0'u32,
+	AbcA = 1'u32,
+	AbcB = 2'u32,
+	AbcC = 3'u32,
+	AbcD = 4'u32,
+	AbcE = 5'u32,
+	AbcF = 6'u32,
+	AbcG = 7'u32,
+	AbcH = 8'u32,
+	AbcI = 9'u32,
+	AbcJ = 10'u32,
+	AbcK = 11'u32
+};
+
+function enmn_func0 : $(a : abc_t, b : abc_t) -> abc_t {
+	return a + b;
+}
+
+function enmn_func1 : $(n : u64, vararg.cstyle) -> abc_t { 
+	variable sum := AbcNone, arg_list := vararg.start();
+
+	while n > 0'u64 {
+		n = n - 1'u64;
+		sum = enmn_func0(sum, vararg[abc_t](arg_list));
+	}
+
+	return sum;
+}
+
+function main : $() -> s32 {
+	if AbcA != AbcA {
+		return -1's32;
+	}
+
+	if AbcA > AbcD {
+		return -2's32;
+	}
+
+	if AbcD != %[abc_t]4'u32 {
+		return -3's32;
+	}
+
+	if AbcC < AbcA {
+		return -4's32;
+	}
+
+	if AbcA + AbcB != AbcC || AbcA + AbcB != %[abc_t]3'u32 {
+		return -5's32;
+	}
+
+	if AbcE - AbcC != AbcB || AbcE + -AbcC != AbcB {
+		return -6's32;
+	}
+
+	if AbcA * AbcB != AbcB || AbcA * AbcB != %[abc_t]2'u32 {
+		return -7's32;
+	}
+
+	if AbcD / AbcB != AbcB {
+		return -8's32;
+	}
+
+	if AbcB << AbcA != AbcD || AbcJ >> AbcB != AbcK >> AbcB {
+		return -9's32;
+	}
+
+	if AbcC % AbcB != AbcA {
+		return -10's32;
+	}
+
+	if enmn_func1(4'u64, AbcA, AbcB, AbcC, AbcD) != AbcJ {
+		return -11's32;
+	}
+
+	return 0's32;
+}

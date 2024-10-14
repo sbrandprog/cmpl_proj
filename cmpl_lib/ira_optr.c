@@ -17,8 +17,8 @@ void ira_optr_destroy(ira_optr_t * optr) {
 
 	switch (optr->type) {
 		case IraOptrNone:
-		case IraOptrBltnNegBool:
-		case IraOptrBltnNegInt:
+		case IraOptrBltnLogicNegBool:
+		case IraOptrBltnArithNegInt:
 		case IraOptrBltnMulInt:
 		case IraOptrBltnDivInt:
 		case IraOptrBltnModInt:
@@ -41,6 +41,23 @@ void ira_optr_destroy(ira_optr_t * optr) {
 		case IraOptrBltnGrtrEqPtr:
 		case IraOptrBltnEqPtr:
 		case IraOptrBltnNeqPtr:
+		case IraOptrBltnArithNegEnmn:
+		case IraOptrBltnMulEnmn:
+		case IraOptrBltnDivEnmn:
+		case IraOptrBltnModEnmn:
+		case IraOptrBltnAddEnmn:
+		case IraOptrBltnSubEnmn:
+		case IraOptrBltnLeShiftEnmn:
+		case IraOptrBltnRiShiftEnmn:
+		case IraOptrBltnLessEnmn:
+		case IraOptrBltnLessEqEnmn:
+		case IraOptrBltnGrtrEnmn:
+		case IraOptrBltnGrtrEqEnmn:
+		case IraOptrBltnEqEnmn:
+		case IraOptrBltnNeqEnmn:
+		case IraOptrBltnAndEnmn:
+		case IraOptrBltnXorEnmn:
+		case IraOptrBltnOrEnmn:
 			break;
 		default:
 			ul_assert_unreachable();
@@ -66,15 +83,15 @@ bool ira_optr_is_equivalent(ira_optr_t * first, ira_optr_t * second) {
 	switch (first->type) {
 		case IraOptrNone:
 			break;
-		case IraOptrBltnNegBool:
+		case IraOptrBltnLogicNegBool:
 			switch (second->type) {
-				case IraOptrBltnNegBool:
+				case IraOptrBltnLogicNegBool:
 					return true;
 			}
 			break;
-		case IraOptrBltnNegInt:
+		case IraOptrBltnArithNegInt:
 			switch (second->type) {
-				case IraOptrBltnNegInt:
+				case IraOptrBltnArithNegInt:
 					return true;
 			}
 			break;
@@ -130,6 +147,47 @@ bool ira_optr_is_equivalent(ira_optr_t * first, ira_optr_t * second) {
 					return true;
 			}
 			break;
+		case IraOptrBltnArithNegEnmn:
+			switch (second->type) {
+				case IraOptrBltnArithNegEnmn:
+					return true;
+			}
+			break;
+		case IraOptrBltnMulEnmn:
+		case IraOptrBltnDivEnmn:
+		case IraOptrBltnModEnmn:
+		case IraOptrBltnAddEnmn:
+		case IraOptrBltnSubEnmn:
+		case IraOptrBltnLeShiftEnmn:
+		case IraOptrBltnRiShiftEnmn:
+		case IraOptrBltnLessEnmn:
+		case IraOptrBltnLessEqEnmn:
+		case IraOptrBltnGrtrEnmn:
+		case IraOptrBltnGrtrEqEnmn:
+		case IraOptrBltnEqEnmn:
+		case IraOptrBltnNeqEnmn:
+		case IraOptrBltnAndEnmn:
+		case IraOptrBltnXorEnmn:
+		case IraOptrBltnOrEnmn:
+			switch (second->type) {
+				case IraOptrBltnMulEnmn:
+				case IraOptrBltnDivEnmn:
+				case IraOptrBltnModEnmn:
+				case IraOptrBltnAddEnmn:
+				case IraOptrBltnSubEnmn:
+				case IraOptrBltnLeShiftEnmn:
+				case IraOptrBltnRiShiftEnmn:
+				case IraOptrBltnLessEnmn:
+				case IraOptrBltnLessEqEnmn:
+				case IraOptrBltnGrtrEnmn:
+				case IraOptrBltnGrtrEqEnmn:
+				case IraOptrBltnEqEnmn:
+				case IraOptrBltnNeqEnmn:
+				case IraOptrBltnAndEnmn:
+				case IraOptrBltnXorEnmn:
+				case IraOptrBltnOrEnmn:
+					return true;
+			}
 		default:
 			ul_assert_unreachable();
 	}
@@ -142,8 +200,8 @@ ira_optr_t * ira_optr_copy(ira_optr_t * optr) {
 
 	switch (optr->type) {
 		case IraOptrNone:
-		case IraOptrBltnNegBool:
-		case IraOptrBltnNegInt:
+		case IraOptrBltnLogicNegBool:
+		case IraOptrBltnArithNegInt:
 		case IraOptrBltnMulInt:
 		case IraOptrBltnDivInt:
 		case IraOptrBltnModInt:
@@ -166,6 +224,23 @@ ira_optr_t * ira_optr_copy(ira_optr_t * optr) {
 		case IraOptrBltnGrtrEqPtr:
 		case IraOptrBltnEqPtr:
 		case IraOptrBltnNeqPtr:
+		case IraOptrBltnArithNegEnmn:
+		case IraOptrBltnMulEnmn:
+		case IraOptrBltnDivEnmn:
+		case IraOptrBltnModEnmn:
+		case IraOptrBltnAddEnmn:
+		case IraOptrBltnSubEnmn:
+		case IraOptrBltnLeShiftEnmn:
+		case IraOptrBltnRiShiftEnmn:
+		case IraOptrBltnLessEnmn:
+		case IraOptrBltnLessEqEnmn:
+		case IraOptrBltnGrtrEnmn:
+		case IraOptrBltnGrtrEqEnmn:
+		case IraOptrBltnEqEnmn:
+		case IraOptrBltnNeqEnmn:
+		case IraOptrBltnAndEnmn:
+		case IraOptrBltnXorEnmn:
+		case IraOptrBltnOrEnmn:
 			break;
 		default:
 			ul_assert_unreachable();
@@ -175,29 +250,46 @@ ira_optr_t * ira_optr_copy(ira_optr_t * optr) {
 }
 
 const ira_optr_info_t ira_optr_infos[IraOptr_Count] = {
-	[IraOptrNone] = { .is_bltn = false, .bltn = { .ctg = IraOptrCtgNone, .is_unr = false } },
-	[IraOptrBltnNegBool] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgLogicNeg, .is_unr = true } },
-	[IraOptrBltnNegInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgArithNeg, .is_unr = true } },
-	[IraOptrBltnMulInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgMul, .is_unr = false } },
-	[IraOptrBltnDivInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgDiv, .is_unr = false } },
-	[IraOptrBltnModInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgMod, .is_unr = false } },
-	[IraOptrBltnAddInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgAdd, .is_unr = false } },
-	[IraOptrBltnSubInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgSub, .is_unr = false } },
-	[IraOptrBltnLeShiftInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgLeShift, .is_unr = false } },
-	[IraOptrBltnRiShiftInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgRiShift, .is_unr = false } },
-	[IraOptrBltnLessInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgLess, .is_unr = false } },
-	[IraOptrBltnLessEqInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgLessEq, .is_unr = false } },
-	[IraOptrBltnGrtrInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgGrtr, .is_unr = false } },
-	[IraOptrBltnGrtrEqInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgGrtrEq, .is_unr = false } },
-	[IraOptrBltnEqInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgEq, .is_unr = false } },
-	[IraOptrBltnNeqInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgNeq, .is_unr = false } },
-	[IraOptrBltnAndInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgBitAnd, .is_unr = false } },
-	[IraOptrBltnXorInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgBitXor, .is_unr = false } },
-	[IraOptrBltnOrInt] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgBitOr, .is_unr = false } },
-	[IraOptrBltnLessPtr] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgLess, .is_unr = false } },
-	[IraOptrBltnLessEqPtr] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgLessEq, .is_unr = false } },
-	[IraOptrBltnGrtrPtr] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgGrtr, .is_unr = false } },
-	[IraOptrBltnGrtrEqPtr] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgGrtrEq, .is_unr = false } },
-	[IraOptrBltnEqPtr] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgEq, .is_unr = false } },
-	[IraOptrBltnNeqPtr] = { .is_bltn = true, .bltn = { .ctg = IraOptrCtgNeq, .is_unr = false } }
+	[IraOptrNone] = { .is_bltn = false, .bltn = { .is_unr = false, .ctg = IraOptrCtgNone, .opd_dt_type = IraDtVoid } },
+	[IraOptrBltnLogicNegBool] = { .is_bltn = true, .bltn = { .is_unr = true, .ctg = IraOptrCtgLogicNeg, .opd_dt_type = IraDtBool } },
+	[IraOptrBltnArithNegInt] = { .is_bltn = true, .bltn = { .is_unr = true, .ctg = IraOptrCtgArithNeg, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnMulInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgMul, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnDivInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgDiv, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnModInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgMod, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnAddInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgAdd, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnSubInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgSub, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnLeShiftInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgLeShift, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnRiShiftInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgRiShift, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnLessInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgLess, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnLessEqInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgLessEq, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnGrtrInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgGrtr, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnGrtrEqInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgGrtrEq, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnEqInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgEq, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnNeqInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgNeq, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnAndInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgBitAnd, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnXorInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgBitXor, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnOrInt] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgBitOr, .opd_dt_type = IraDtInt } },
+	[IraOptrBltnLessPtr] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgLess, .opd_dt_type = IraDtPtr } },
+	[IraOptrBltnLessEqPtr] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgLessEq, .opd_dt_type = IraDtPtr } },
+	[IraOptrBltnGrtrPtr] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgGrtr, .opd_dt_type = IraDtPtr } },
+	[IraOptrBltnGrtrEqPtr] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgGrtrEq, .opd_dt_type = IraDtPtr } },
+	[IraOptrBltnEqPtr] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgEq, .opd_dt_type = IraDtPtr } },
+	[IraOptrBltnNeqPtr] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgNeq, .opd_dt_type = IraDtPtr } },
+	[IraOptrBltnArithNegEnmn] = { .is_bltn = true, .bltn = { .is_unr = true, .ctg = IraOptrCtgArithNeg, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnMulEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgMul, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnDivEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgDiv, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnModEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgMod, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnAddEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgAdd, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnSubEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgSub, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnLeShiftEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgLeShift, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnRiShiftEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgRiShift, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnLessEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgLess, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnLessEqEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgLessEq, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnGrtrEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgGrtr, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnGrtrEqEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgGrtrEq, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnEqEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgEq, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnNeqEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgNeq, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnAndEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgBitAnd, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnXorEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgBitXor, .opd_dt_type = IraDtEnmn } },
+	[IraOptrBltnOrEnmn] = { .is_bltn = true, .bltn = { .is_unr = false, .ctg = IraOptrCtgBitOr, .opd_dt_type = IraDtEnmn } }
 };
