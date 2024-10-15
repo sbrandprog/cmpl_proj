@@ -24,6 +24,8 @@ static int main_core() {
 
 	mc_it_add_sym(&ctx.pea.it, UL_HST_HASHADD_WS(&ctx.hst, L"библиотека.длл"), UL_HST_HASHADD_WS(&ctx.hst, L"функция"), UL_HST_HASHADD_WS(&ctx.hst, L"имя_компоновки"));
 
+	lnk_pel_init(&ctx.pel, &ctx.hst, &ctx.ec_fmtr);
+
 	bool res = mc_pea_b_build(&ctx.pea, &ctx.pel);
 
 	print_test_errs(&ctx);

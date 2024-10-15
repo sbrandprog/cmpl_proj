@@ -15,12 +15,16 @@ static bool process_test_core(test_ctx_t * ctx) {
 
 	switch (ctx->from) {
 		case TestFromIra:
+			mc_pea_init(&ctx->pea, &ctx->hst, &ctx->ec_fmtr);
+
 			if (!ira_pec_c_compile(&ctx->pec, &ctx->pea)) {
 				wprintf(L"error point: compilation\n");
 				return false;
 			}
 			//fallthrough
 		case TestFromMc:
+			lnk_pel_init(&ctx->pel, &ctx->hst, &ctx->ec_fmtr);
+
 			if (!mc_pea_b_build(&ctx->pea, &ctx->pel)) {
 				wprintf(L"error point: mc build\n");
 				return false;

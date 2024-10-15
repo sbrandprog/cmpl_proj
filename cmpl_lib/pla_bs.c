@@ -15,7 +15,7 @@ typedef struct pla_bs_ctx {
 	ul_ec_fmtr_t ec_fmtr;
 	ira_pec_t ira_pec;
 	mc_pea_t mc_pea;
-	lnk_pel_t lnk_pe;
+	lnk_pel_t lnk_pel;
 } ctx_t;
 
 static void print_errs(ctx_t * ctx) {
@@ -44,19 +44,23 @@ static bool build_core(ctx_t * ctx) {
 		return false;
 	}
 
+	mc_pea_init(&ctx->mc_pea, ctx->repo->hst, &ctx->ec_fmtr);
+
 	if (!ira_pec_c_compile(&ctx->ira_pec, &ctx->mc_pea)
 		|| ctx->ec_buf.rec != NULL) {
 		return false;
 	}
 
-	if (!mc_pea_b_build(&ctx->mc_pea, &ctx->lnk_pe)) {
+	lnk_pel_init(&ctx->lnk_pel, ctx->repo->hst, &ctx->ec_fmtr);
+
+	if (!mc_pea_b_build(&ctx->mc_pea, &ctx->lnk_pel)) {
 		return false;
 	}
 
-	ctx->lnk_pe.file_name = ctx->file_name;
-	ctx->lnk_pe.sett.export_pd = ctx->sett->export_pd;
+	ctx->lnk_pel.file_name = ctx->file_name;
+	ctx->lnk_pel.sett.export_pd = ctx->sett->export_pd;
 
-	if (!lnk_pel_l_link(&ctx->lnk_pe)) {
+	if (!lnk_pel_l_link(&ctx->lnk_pel)) {
 		return false;
 	}
 
@@ -73,7 +77,7 @@ bool pla_bs_build_nl(pla_repo_t * repo, ul_hs_t * first_tus_name, const wchar_t 
 		print_errs(&ctx);
 	}
 
-	lnk_pel_cleanup(&ctx.lnk_pe);
+	lnk_pel_cleanup(&ctx.lnk_pel);
 
 	mc_pea_cleanup(&ctx.mc_pea);
 

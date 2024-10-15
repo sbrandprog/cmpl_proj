@@ -427,8 +427,6 @@ static bool prepare_data(ctx_t * ctx) {
 
 	ul_hsb_init(&ctx->hsb);
 
-	mc_pea_init(ctx->out, ctx->hst, ctx->pec->ec_fmtr);
-
 	ctx->out->ep_name = ep_lo->name;
 
 	InitializeCriticalSection(&ctx->cl_lock);
