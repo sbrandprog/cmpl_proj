@@ -7,6 +7,7 @@ static void fill_pel() {
 
 	lnk_pel_init(&ctx.pel, &ctx.hst, &ctx.ec_fmtr);
 
+	ctx.pel.sett.file_name = EXE_NAME;
 	ctx.pel.sett.apply_mrgr = false;
 	ctx.pel.sett.export_pd = true;
 

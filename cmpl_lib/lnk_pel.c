@@ -2,7 +2,7 @@
 #include "lnk_sect.h"
 
 void lnk_pel_init(lnk_pel_t * pe, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr) {
-	*pe = (lnk_pel_t){ .hst = hst, .ec_fmtr = ec_fmtr, .file_name = lnk_pel_dflt_file_name, .sett = lnk_pel_dflt_sett };
+	*pe = (lnk_pel_t){ .hst = hst, .ec_fmtr = ec_fmtr, .sett = lnk_pel_dflt_sett };
 }
 void lnk_pel_cleanup(lnk_pel_t * pe) {
 	lnk_sect_destroy_chain(pe->sect);
@@ -29,6 +29,7 @@ const lnk_pel_sett_t lnk_pel_dflt_sett = {
 	.export_pd = false,
 
 	.excpt_sect_name = ".pdata",
-	.base_reloc_sect_name = ".reloc"
+	.base_reloc_sect_name = ".reloc",
+
+	.file_name = L"out.exe"
 };
-const wchar_t * lnk_pel_dflt_file_name = L"out.exe";

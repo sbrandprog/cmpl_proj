@@ -24,6 +24,8 @@ struct lnk_pel_sett {
 
 	const char * excpt_sect_name;
 	const char * base_reloc_sect_name;
+
+	const wchar_t * file_name;
 };
 
 struct lnk_pel {
@@ -34,8 +36,6 @@ struct lnk_pel {
 
 	ul_hs_t * ep_name;
 
-	const wchar_t * file_name;
-
 	lnk_pel_sett_t sett;
 };
 
@@ -43,4 +43,3 @@ LNK_API void lnk_pel_init(lnk_pel_t * pel, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmt
 LNK_API void lnk_pel_cleanup(lnk_pel_t * pel);
 
 extern LNK_API const lnk_pel_sett_t lnk_pel_dflt_sett;
-extern LNK_API const wchar_t * lnk_pel_dflt_file_name;

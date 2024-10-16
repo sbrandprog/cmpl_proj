@@ -62,17 +62,27 @@ static int main_core(int argc, char * argv[]) {
 		return -1;
 	}
 
-	ul_hs_t * first_tus_name;
-
 	{
-		wchar_t * file_name_ext = wcsrchr(file_name->str, L'.');
+		ul_hs_t * first_tus_name;
+		pla_bs_src_t bs_src;
 
-		first_tus_name = file_name_ext == NULL ? file_name : ul_hst_hashadd(&hst, file_name_ext - file_name->str, file_name->str);
-	}
+		{
+			wchar_t * file_name_ext = wcsrchr(file_name->str, L'.');
 
-	if (!pla_bs_build_nl(&repo, first_tus_name, EXE_NAME, &pla_bs_dflt_sett)) {
-		wprintf(L"failed to build executable\n");
-		return -1;
+			first_tus_name = file_name_ext == NULL ? file_name : ul_hst_hashadd(&hst, file_name_ext - file_name->str, file_name->str);
+		}
+
+		pla_bs_src_init(&bs_src, &repo, first_tus_name);
+		bs_src.lnk_sett.file_name = EXE_NAME;
+
+		bool res = pla_bs_build_nl(&bs_src);
+
+		pla_bs_src_cleanup(&bs_src);
+
+		if (!res) {
+			wprintf(L"failed to build executable\n");
+			return -1;
+		}
 	}
 
 	{

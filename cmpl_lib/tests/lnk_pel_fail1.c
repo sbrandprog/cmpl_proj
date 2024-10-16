@@ -5,6 +5,8 @@ static test_ctx_t ctx;
 static void fill_pel() {
 	lnk_pel_init(&ctx.pel, &ctx.hst, &ctx.ec_fmtr);
 
+	ctx.pel.sett.file_name = EXE_NAME;
+
 	ul_hs_t * ep_name = UL_HST_HASHADD_WS(&ctx.hst, L"start");
 
 	ctx.pel.ep_name = ep_name;

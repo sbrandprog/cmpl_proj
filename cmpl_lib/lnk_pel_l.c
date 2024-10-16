@@ -876,14 +876,14 @@ static void write_file_core(ctx_t * ctx, FILE * file) {
 static void write_file(ctx_t * ctx) {
 	FILE * file = NULL;
 
-	if (_wfopen_s(&file, ctx->pel->file_name, L"wb") != 0) {
-		report(ctx, L"failed to open file [%s]", ctx->pel->file_name);
+	if (_wfopen_s(&file, ctx->pel->sett.file_name, L"wb") != 0) {
+		report(ctx, L"failed to open file [%s]", ctx->pel->sett.file_name);
 	}
 	else {
 		write_file_core(ctx, file);
 
 		if (ferror(file) != 0) {
-			report(ctx, L"error flag on file [%s] is set", ctx->pel->file_name);
+			report(ctx, L"error flag on file [%s] is set", ctx->pel->sett.file_name);
 		}
 
 		fclose(file);
@@ -959,7 +959,7 @@ static void export_pd_procs(ctx_t * ctx) {
 static void export_pd(ctx_t * ctx) {
 	wchar_t file_name_buf[MAX_PATH];
 
-	int res = swprintf_s(file_name_buf, _countof(file_name_buf), L"%s" LNK_PEL_PD_FILE_EXT, ctx->pel->file_name);
+	int res = swprintf_s(file_name_buf, _countof(file_name_buf), L"%s" LNK_PEL_PD_FILE_EXT, ctx->pel->sett.file_name);
 
 	if (res < 0) {
 		report(ctx, L"failed to format file name of program database");

@@ -31,7 +31,7 @@ static bool process_test_core(test_ctx_t * ctx) {
 			}
 			//fallthrough
 		case TestFromLnk:
-			ctx->pel.file_name = EXE_NAME;
+			ctx->pel.sett.file_name = EXE_NAME;
 
 			if (!lnk_pel_l_link(&ctx->pel)) {
 				wprintf(L"error point: link\n");

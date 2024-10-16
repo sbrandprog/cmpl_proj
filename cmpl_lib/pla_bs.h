@@ -1,10 +1,15 @@
 #pragma once
+#include "lnk_pel.h"
 #include "pla.h"
 
-struct pla_bs_sett {
-	bool export_pd;
+struct pla_bs_src {
+	pla_repo_t * repo;
+	ul_hs_t * first_tus_name;
+	
+	lnk_pel_sett_t lnk_sett;
 };
 
-PLA_API bool pla_bs_build_nl(pla_repo_t * repo, ul_hs_t * first_tus_name, const wchar_t * file_name, const pla_bs_sett_t * sett);
+PLA_API void pla_bs_src_init(pla_bs_src_t * src, pla_repo_t * repo, ul_hs_t * first_tus_name);
+PLA_API void pla_bs_src_cleanup(pla_bs_src_t * src);
 
-PLA_API extern const pla_bs_sett_t pla_bs_dflt_sett;
+PLA_API bool pla_bs_build_nl(const pla_bs_src_t * src);

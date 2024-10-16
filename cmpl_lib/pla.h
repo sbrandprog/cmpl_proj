@@ -60,4 +60,4 @@ typedef enum pla_tltr_vse_type pla_tltr_vse_type_t;
 typedef struct pla_tltr_vse pla_tltr_vse_t;
 typedef struct pla_tltr pla_tltr_t;
 
-typedef struct pla_bs_sett pla_bs_sett_t;
+typedef struct pla_bs_src pla_bs_src_t;

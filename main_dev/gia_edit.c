@@ -1342,11 +1342,15 @@ static VOID build_prog_worker(PTP_CALLBACK_INSTANCE itnc, PVOID user_data, PTP_W
 
 	wprintf(L"build started\n");
 
-	pla_bs_sett_t sett = pla_bs_dflt_sett;
+	pla_bs_src_t bs_src;
 
-	sett.export_pd = true;
+	pla_bs_src_init(&bs_src, data->repo, data->tus->name);
+	bs_src.lnk_sett.file_name = data->exe_name;
+	bs_src.lnk_sett.export_pd = true;
 
-	bool res = pla_bs_build_nl(data->repo, data->tus->name, data->exe_name, &sett);
+	bool res = pla_bs_build_nl(&bs_src);
+
+	pla_bs_src_cleanup(&bs_src);
 
 	wprintf(L"build status: %s\n", res ? L"success" : L"failure");
 }
