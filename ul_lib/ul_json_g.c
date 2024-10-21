@@ -19,6 +19,15 @@ typedef struct ul_json_g_file_ctx {
 	FILE * file;
 } file_ctx_t;
 
+
+void ul_json_g_sink_init(ul_json_g_sink_t * sink, void * data, ul_json_g_put_ch_proc_t * put_ch_proc) {
+	*sink = (ul_json_g_sink_t){ .data = data, .put_ch_proc = put_ch_proc, .put_ws = false };
+}
+void ul_json_g_sink_cleanup(ul_json_g_sink_t * sink) {
+	memset(sink, 0, sizeof(*sink));
+}
+
+
 static bool is_esc_ch(wchar_t ch, wchar_t * out) {
 	switch (ch) {
 		case L'\"':
@@ -282,15 +291,22 @@ static bool put_file_ch_proc(file_ctx_t * ctx, wchar_t ch) {
 bool ul_json_g_generate_file(const wchar_t * file_name, ul_json_t * json) {
 	file_ctx_t ctx = { 0 };
 
-	if (_wfopen_s(&ctx.file, file_name, L"w, ccs=UTF-8") != 0) {
-		return false;
+	(void)_wfopen_s(&ctx.file, file_name, L"w, ccs=UTF-8");
+
+	bool res = false;
+
+	if (ctx.file != NULL) {
+		ul_json_g_sink_t sink;
+
+		ul_json_g_sink_init(&sink, &ctx, put_file_ch_proc);
+		sink.put_ws = true;
+
+		res = ul_json_g_generate(&sink, json);
+
+		ul_json_g_sink_cleanup(&sink);
+
+		fclose(ctx.file);
 	}
-
-	ul_json_g_sink_t sink = { .data = &ctx, .put_ch_proc = put_file_ch_proc, .put_ws = true };
-
-	bool res = ul_json_g_generate(&sink, json);
-
-	fclose(ctx.file);
 
 	return res;
 }

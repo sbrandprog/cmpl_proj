@@ -1,6 +1,6 @@
 #include "wa_style.h"
 
-bool wa_style_col_set(wa_style_col_t * col, COLORREF cr) {
+bool wa_style_col_init(wa_style_col_t * col, COLORREF cr) {
 	HBRUSH new_hb = CreateSolidBrush(cr);
 
 	if (new_hb == NULL) {
@@ -20,7 +20,8 @@ void wa_style_col_cleanup(wa_style_col_t * col) {
 	memset(col, 0, sizeof(*col));
 }
 
-bool wa_style_font_set(wa_style_font_t * font, LOGFONTW * lf) {
+
+bool wa_style_font_init(wa_style_font_t * font, LOGFONTW * lf) {
 	HFONT new_hf = CreateFontIndirectW(lf);
 
 	if (new_hf == NULL) {
@@ -49,17 +50,6 @@ void wa_style_font_cleanup(wa_style_font_t * font) {
 	memset(font, 0, sizeof(*font));
 }
 
-void wa_style_cleanup(wa_style_t * style) {
-	for (wa_style_col_type_t col = 0; col < WaStyleCol_Count; ++col) {
-		wa_style_col_cleanup(&style->cols[col]);
-	}
-
-	for (wa_style_font_type_t font = 0; font < WaStyleFont_Count; ++font) {
-		wa_style_font_cleanup(&style->fonts[font]);
-	}
-
-	memset(style, 0, sizeof(*style));
-}
 
 static bool init_dflt_cols(wa_style_t * style) {
 	COLORREF refs[WaStyleCol_Count] = {
@@ -72,7 +62,7 @@ static bool init_dflt_cols(wa_style_t * style) {
 	};
 
 	for (wa_style_col_type_t col = 0; col < WaStyleCol_Count; ++col) {
-		if (!wa_style_col_set(&style->cols[col], refs[col])) {
+		if (!wa_style_col_init(&style->cols[col], refs[col])) {
 			return false;
 		}
 	}
@@ -88,7 +78,7 @@ static bool init_dflt_fonts(wa_style_t * style) {
 
 	LOGFONT lf = ncm.lfCaptionFont;
 
-	if (!wa_style_font_set(&style->fonts[WaStyleFontCpt], &lf)) {
+	if (!wa_style_font_init(&style->fonts[WaStyleFontCpt], &lf)) {
 		return false;
 	}
 
@@ -96,7 +86,7 @@ static bool init_dflt_fonts(wa_style_t * style) {
 
 	wmemcpy_s(lf.lfFaceName, LF_FACESIZE, dflt_fxd_font.str, dflt_fxd_font.size);
 
-	if (!wa_style_font_set(&style->fonts[WaStyleFontFxd], &lf)) {
+	if (!wa_style_font_init(&style->fonts[WaStyleFontFxd], &lf)) {
 		return false;
 	}
 
@@ -124,6 +114,18 @@ bool wa_style_init_dflt(wa_style_t * style) {
 
 	return true;
 }
+void wa_style_cleanup(wa_style_t * style) {
+	for (wa_style_col_type_t col = 0; col < WaStyleCol_Count; ++col) {
+		wa_style_col_cleanup(&style->cols[col]);
+	}
+
+	for (wa_style_font_type_t font = 0; font < WaStyleFont_Count; ++font) {
+		wa_style_font_cleanup(&style->fonts[font]);
+	}
+
+	memset(style, 0, sizeof(*style));
+}
+
 
 bool wa_style_get_font_metric(HFONT hf, TEXTMETRICW * out) {
 	HDC hdc = GetDC(NULL);

@@ -24,6 +24,15 @@ typedef struct ul_json_p_str_ctx {
 	const wchar_t * cur_end;
 } str_ctx_t;
 
+
+void ul_json_p_src_init(ul_json_p_src_t * src, ul_hst_t * hst, void * data, ul_json_p_get_ch_proc_t * get_ch_proc) {
+	*src = (ul_json_p_src_t){ .hst = hst, .data = data, .get_ch_proc = get_ch_proc };
+}
+void ul_json_p_src_cleanup(ul_json_p_src_t * src) {
+	memset(src, 0, sizeof(*src));
+}
+
+
 static bool is_ws(wchar_t ch) {
 	switch (ch) {
 		case L'\t':
@@ -462,15 +471,21 @@ static bool get_file_ch_proc(file_ctx_t * ctx, wchar_t * out) {
 bool ul_json_p_parse_file(ul_hst_t * hst, const wchar_t * file_name, ul_json_t ** out) {
 	file_ctx_t ctx = { 0 };
 
-	if (_wfopen_s(&ctx.file, file_name, L"r, ccs=UTF-8") != 0) {
-		return false;
+	(void)_wfopen_s(&ctx.file, file_name, L"r, ccs=UTF-8");
+
+	bool res = false;
+
+	if (ctx.file != NULL) {
+		ul_json_p_src_t src;
+
+		ul_json_p_src_init(&src, hst, &ctx, get_file_ch_proc);
+
+		res = ul_json_p_parse(&src, out);
+
+		ul_json_p_src_cleanup(&src);
+
+		fclose(ctx.file);
 	}
-
-	ul_json_p_src_t src = { .data = &ctx, .get_ch_proc = get_file_ch_proc, .hst = hst };
-
-	bool res = ul_json_p_parse(&src, out);
-
-	fclose(ctx.file);
 
 	return res;
 }
@@ -487,9 +502,13 @@ static bool get_str_ch_proc(str_ctx_t * ctx, wchar_t * out) {
 bool ul_json_p_parse_str(ul_hst_t * hst, size_t str_size, const wchar_t * str, ul_json_t ** out) {
 	str_ctx_t ctx = { .cur = str, .cur_end = str + str_size };
 
-	ul_json_p_src_t src = { .data = &ctx, .get_ch_proc = get_str_ch_proc, .hst = hst };
+	ul_json_p_src_t src;
+
+	ul_json_p_src_init(&src, hst, &ctx, get_str_ch_proc);
 
 	bool res = ul_json_p_parse(&src, out);
+
+	ul_json_p_src_cleanup(&src);
 
 	return res;
 }

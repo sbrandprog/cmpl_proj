@@ -35,14 +35,13 @@ struct wa_style {
 	size_t sep_size;
 };
 
-WA_API bool wa_style_col_set(wa_style_col_t * col, COLORREF cr);
+WA_API bool wa_style_col_init(wa_style_col_t * col, COLORREF cr);
 WA_API void wa_style_col_cleanup(wa_style_col_t * col);
 
-WA_API bool wa_style_font_set(wa_style_font_t * font, LOGFONTW * lf);
+WA_API bool wa_style_font_init(wa_style_font_t * font, LOGFONTW * lf);
 WA_API void wa_style_font_cleanup(wa_style_font_t * font);
 
-WA_API void wa_style_cleanup(wa_style_t * style);
-
 WA_API bool wa_style_init_dflt(wa_style_t * style);
+WA_API void wa_style_cleanup(wa_style_t * style);
 
 WA_API bool wa_style_get_font_metric(HFONT hf, TEXTMETRICW * out);

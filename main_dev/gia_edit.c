@@ -118,12 +118,12 @@ static const ACCEL accel_table[] = {
 
 static bool init_style(style_t * style, gia_edit_style_desc_t * desc) {
 	for (gia_edit_col_type_t col = 0; col < GiaEditCol_Count; ++col) {
-		if (!wa_style_col_set(&style->cols[col], desc->cols[col])) {
+		if (!wa_style_col_init(&style->cols[col], desc->cols[col])) {
 			return false;
 		}
 	}
 
-	if (!wa_style_font_set(&style->font, &desc->font)) {
+	if (!wa_style_font_init(&style->font, &desc->font)) {
 		return false;
 	}
 
@@ -1474,9 +1474,11 @@ static LRESULT wnd_proc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
 					return FALSE;
 				}
 
-				*data = (wnd_data_t){ .hw = hw, .ctx = cd->ctx, .ctl_data = { .ctl_ptr = data, .get_w_proc = wa_ctl_get_parent_w, .get_h_proc = wa_ctl_get_parent_h } };
+				*data = (wnd_data_t){ .hw = hw, .ctx = cd->ctx };
 
 				wa_wnd_set_fp(hw, data);
+
+				wa_ctl_data_init(&data->ctl_data, data);
 
 				if (!wa_ctl_set_data(hw, &data->ctl_data)) {
 					return FALSE;
@@ -1528,6 +1530,8 @@ static LRESULT wnd_proc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
 				cleanup_style(&data->style);
 
 				wa_ctl_remove_data(hw);
+
+				wa_ctl_data_cleanup(&data->ctl_data);
 
 				free(data);
 

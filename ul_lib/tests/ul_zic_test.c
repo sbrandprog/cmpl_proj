@@ -8,6 +8,8 @@ static ul_ec_sn_t ec_sn;
 static ul_es_ctx_t es_ctx;
 static ul_hsb_t hsb;
 static ul_hst_t hst;
+static ul_json_g_sink_t json_g_sink;
+static ul_json_p_src_t json_p_src;
 
 int main() {
 	ul_ec_cleanup(&ec);
@@ -25,6 +27,10 @@ int main() {
 	ul_hsb_cleanup(&hsb);
 
 	ul_hst_cleanup(&hst);
+
+	ul_json_g_sink_cleanup(&json_g_sink);
+
+	ul_json_p_src_cleanup(&json_p_src);
 
 	return 0;
 }

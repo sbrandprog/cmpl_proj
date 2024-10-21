@@ -257,9 +257,11 @@ static LRESULT wnd_proc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
 					return FALSE;
 				}
 
-				*data = (wnd_data_t) {.hw = hw, .ctx = cd->ctx, .ctl_data = { .ctl_ptr = data, .get_w_proc = wa_ctl_get_parent_w, .get_h_proc = wa_ctl_get_parent_h }, .first_size = 1, .second_size = 1 };
+				*data = (wnd_data_t) {.hw = hw, .ctx = cd->ctx, .first_size = 1, .second_size = 1 };
 
 				wa_wnd_set_fp(hw, data);
+
+				wa_ctl_data_init(&data->ctl_data, data);
 
 				if (!wa_ctl_set_data(hw, &data->ctl_data)) {
 					return false;
@@ -281,6 +283,8 @@ static LRESULT wnd_proc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
 		case WM_NCDESTROY:
 			if (data != NULL) {
 				wa_ctl_remove_data(hw);
+
+				wa_ctl_data_cleanup(&data->ctl_data);
 
 				free(data);
 

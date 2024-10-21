@@ -9,6 +9,9 @@ struct wa_ctl_data {
 	wa_ctl_get_h_proc_t * get_h_proc;
 };
 
+WA_API void wa_ctl_data_init(wa_ctl_data_t * data, void * ctl_ptr);
+WA_API void wa_ctl_data_cleanup(wa_ctl_data_t * data);
+
 WA_API bool wa_ctl_set_data(HWND hw, wa_ctl_data_t * ctl_data);
 WA_API wa_ctl_data_t * wa_ctl_get_data(HWND hw);
 WA_API void wa_ctl_remove_data(HWND hw);

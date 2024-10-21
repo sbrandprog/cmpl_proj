@@ -1,5 +1,12 @@
 #include "wa_ctl.h"
 
+void wa_ctl_data_init(wa_ctl_data_t * data, void * ctl_ptr) {
+	*data = (wa_ctl_data_t){ .ctl_ptr = ctl_ptr, .get_w_proc = wa_ctl_get_parent_w, .get_h_proc = wa_ctl_get_parent_h };
+}
+void wa_ctl_data_cleanup(wa_ctl_data_t * data) {
+	memset(data, 0, sizeof(*data));
+}
+
 bool wa_ctl_set_data(HWND hw, wa_ctl_data_t * ctl_data) {
 	if (SetPropW(hw, WA_CTL_DATA_PROP_NAME, (HANDLE)ctl_data) == 0) {
 		return false;
