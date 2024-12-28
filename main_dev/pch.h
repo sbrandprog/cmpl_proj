@@ -1,6 +1,5 @@
 #pragma once
 #define _CRTDBG_MAP_ALLOC
-#define WIN32_LEAN_AND_MEAN 1
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -11,10 +10,5 @@
 #include <string.h>
 #include <wchar.h>
 
-#include <intrin.h>
-
-#include <Windows.h>
-
 #include "ul_lib/ul_lib.h"
-#include "wa_lib/wa_lib.h"
 #include "cmpl_lib/cmpl_lib.h"

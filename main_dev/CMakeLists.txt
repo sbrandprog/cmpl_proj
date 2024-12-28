@@ -9,15 +9,10 @@ add_dependencies(main_dev main_dev_copy_pla_data)
 
 target_sources(main_dev
 	PUBLIC
-		gia.h
-		gia_edit.c
-		gia_edit.h
-		gia_repo_view.c
-		gia_repo_view.h
 		main.c
 		pch.h
 )
 
 set_proj_trg_props(main_dev COPY_DLLS PCH_NAME pch.h)
 
-target_link_libraries(main_dev cmpl_lib wa_lib ul_lib)
+target_link_libraries(main_dev cmpl_lib ul_lib)

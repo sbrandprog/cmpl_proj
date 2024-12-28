@@ -12,8 +12,6 @@ target_sources(ul_lib
 		ul_ec_buf.h
 		ul_ec_fmtr.h
 		ul_ec_prntr.h
-		ul_ec_rn.h
-		ul_ec_sn.h
 		ul_es.h
 		ul_hs.h
 		ul_hsb.h
@@ -31,8 +29,6 @@ target_sources(ul_lib
 		ul_ec_buf.c
 		ul_ec_fmtr.c
 		ul_ec_prntr.c
-		ul_ec_rn.c
-		ul_ec_sn.c
 		ul_es.c
 		ul_hs.c
 		ul_hsb.c
