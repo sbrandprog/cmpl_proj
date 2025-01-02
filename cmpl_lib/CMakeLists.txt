@@ -18,6 +18,7 @@ target_sources(cmpl_lib
 		ira_pec_ip.h
 		ira_val.h
 		lnk.h
+		lnk_pe.h
 		lnk_pel.h
 		lnk_pel_l.h
 		lnk_pel_m.h

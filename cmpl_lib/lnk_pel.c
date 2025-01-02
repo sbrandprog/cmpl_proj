@@ -1,3 +1,4 @@
+#include "lnk_pe.h"
 #include "lnk_pel.h"
 #include "lnk_sect.h"
 
@@ -17,11 +18,11 @@ const lnk_pel_sett_t lnk_pel_dflt_sett = {
 	.stack_res = 0x100000, .stack_com = 0x1000,
 	.heap_res = 0x100000, .heap_com = 0x1000,
 
-	.chars = IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_LARGE_ADDRESS_AWARE,
+	.chars = LnkPeCharsExecutableImage | LnkPeCharsLargeAddressAware,
 	.os_major = 6, .os_minor = 0,
 	.subsys_major = 6, .subsys_minor = 0,
-	.subsys = IMAGE_SUBSYSTEM_WINDOWS_CUI,
-	.dll_chars = IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA | IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE | IMAGE_DLLCHARACTERISTICS_NX_COMPAT | IMAGE_DLLCHARACTERISTICS_NO_SEH | IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE,
+	.subsys = LnkPeSubsysWindowsCui,
+	.dll_chars = LnkPeDllCharsHighEntropyVa | LnkPeDllCharsDynamicBase | LnkPeDllCharsNxCompat | LnkPeDllCharsNoSeh | LnkPeDllCharsTerminalServerAware,
 
 	.make_excpt_sect = true,
 	.make_base_reloc_sect = true,

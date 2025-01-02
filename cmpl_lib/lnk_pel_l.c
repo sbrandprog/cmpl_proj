@@ -1,3 +1,4 @@
+#include "lnk_pe.h"
 #include "lnk_sect.h"
 #include "lnk_pel_m.h"
 #include "lnk_pel_l.h"
@@ -6,7 +7,7 @@
 
 #define PAGE_SIZE 4096
 
-#define SECT_NAME_SIZE _countof(((IMAGE_SECTION_HEADER*)NULL)->Name)
+#define SECT_NAME_SIZE LNK_PE_SECT_NAME_SIZE
 #define SECT_DEFAULT_ALIGN 16
 
 typedef struct lnk_pel_l_sect sect_t;
@@ -112,17 +113,17 @@ typedef struct lnk_pel_l_ctx {
 	ul_json_t ** pd_json_ins;
 } ctx_t;
 
-static const lnk_sect_lp_stype_t dir_start_mark[IMAGE_NUMBEROF_DIRECTORY_ENTRIES] = {
-	[IMAGE_DIRECTORY_ENTRY_IMPORT] = LnkSectLpMarkImpStart,
-	[IMAGE_DIRECTORY_ENTRY_EXCEPTION] = LnkSectLpMarkExcptStart,
-	[IMAGE_DIRECTORY_ENTRY_BASERELOC] = LnkSectLpMarkRelocStart,
-	[IMAGE_DIRECTORY_ENTRY_IAT] = LnkSectLpMarkImpTabStart
+static const lnk_sect_lp_stype_t dir_start_mark[LnkPeDataDir_Count] = {
+	[LnkPeDataDirImport] = LnkSectLpMarkImpStart,
+	[LnkPeDataDirException] = LnkSectLpMarkExcptStart,
+	[LnkPeDataDirBaseReloc] = LnkSectLpMarkRelocStart,
+	[LnkPeDataDirIat] = LnkSectLpMarkImpTabStart
 };
-static const lnk_sect_lp_stype_t dir_end_mark[IMAGE_NUMBEROF_DIRECTORY_ENTRIES] = {
-	[IMAGE_DIRECTORY_ENTRY_IMPORT] = LnkSectLpMarkImpEnd,
-	[IMAGE_DIRECTORY_ENTRY_EXCEPTION] = LnkSectLpMarkExcptEnd,
-	[IMAGE_DIRECTORY_ENTRY_BASERELOC] = LnkSectLpMarkRelocEnd,
-	[IMAGE_DIRECTORY_ENTRY_IAT] = LnkSectLpMarkImpTabEnd
+static const lnk_sect_lp_stype_t dir_end_mark[LnkPeDataDir_Count] = {
+	[LnkPeDataDirImport] = LnkSectLpMarkImpEnd,
+	[LnkPeDataDirException] = LnkSectLpMarkExcptEnd,
+	[LnkPeDataDirBaseReloc] = LnkSectLpMarkRelocEnd,
+	[LnkPeDataDirIat] = LnkSectLpMarkImpTabEnd
 };
 
 
@@ -320,7 +321,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp) {
 										proc->end_sect = sect;
 										proc->end_off = lp->off;
 									}
-									
+
 									break;
 								case LnkSectLpLabelProcUnw:
 									if (proc->unw_sect != NULL) {
@@ -330,7 +331,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp) {
 										proc->unw_sect = sect;
 										proc->unw_off = lp->off;
 									}
-									
+
 									break;
 								default:
 									ul_assert_unreachable();
@@ -400,7 +401,7 @@ static void form_main_sects(ctx_t * ctx) {
 			report(ctx, L"invalid section: non-unique section name");
 			continue;
 		}
-		
+
 		for (lnk_sect_lp_t * lp = lnk_sect->lps, *lp_end = lp + lnk_sect->lps_size; lp != lp_end; ++lp) {
 			add_lp(ctx, sect, lp);
 		}
@@ -433,7 +434,7 @@ static void form_excpt_data_sect(ctx_t * ctx) {
 			report(ctx, L"failed to add exception data section");
 		}
 		else {
-			size_t excpt_size = sizeof(RUNTIME_FUNCTION) * ctx->procs_size;
+			size_t excpt_size = sizeof(lnk_pe_rt_func_t) * ctx->procs_size;
 
 			excpt->data = malloc(excpt_size);
 
@@ -532,7 +533,7 @@ static void form_base_reloc_sect(ctx_t * ctx) {
 
 			size_t block_start = ul_align_to(reloc->data_size, sizeof(uint32_t));
 
-			size_t block_size = sizeof(IMAGE_BASE_RELOCATION) + (last_ptr - va64_f) * sizeof(WORD);
+			size_t block_size = sizeof(lnk_pe_base_reloc_t) + (last_ptr - va64_f) * sizeof(lnk_pe_base_reloc_entry_t);
 
 			ul_arr_grow(block_start + block_size, &reloc->data_cap, &reloc->data, sizeof(*reloc->data));
 
@@ -541,16 +542,16 @@ static void form_base_reloc_sect(ctx_t * ctx) {
 			uint8_t * data_cur = reloc->data + block_start;
 
 			{
-				IMAGE_BASE_RELOCATION block_hdr = { .VirtualAddress = 0, .SizeOfBlock = (DWORD)block_size };
+				lnk_pe_base_reloc_t block_hdr = { .virtual_address = 0, .size_of_block = (uint32_t)block_size };
 
-				*(IMAGE_BASE_RELOCATION *)data_cur = block_hdr;
+				*(lnk_pe_base_reloc_t *)data_cur = block_hdr;
 
 				data_cur += sizeof(block_hdr);
 
 				ul_arr_grow(ctx->br_fixups_size + 1, &ctx->br_fixups_cap, &ctx->br_fixups, sizeof(*ctx->br_fixups));
 
 				ctx->br_fixups[ctx->br_fixups_size++] = (br_fixup_t){
-					.off = block_start + offsetof(IMAGE_BASE_RELOCATION, VirtualAddress),
+					.off = block_start + offsetof(lnk_pe_base_reloc_t, virtual_address),
 					.target_sect = first->sect,
 					.target_page = cur_page
 				};
@@ -559,14 +560,9 @@ static void form_base_reloc_sect(ctx_t * ctx) {
 			for (fixup_t ** cur = va64_f; cur != last_ptr; ++cur) {
 				fixup_t * fixup = *cur;
 
-				typedef struct br {
-					WORD off : 12;
-					WORD type : 4;
-				} br_t;
+				lnk_pe_base_reloc_entry_t br = (lnk_pe_base_reloc_entry_t){ .offset = (uint16_t)(fixup->off - cur_page), .type = LnkPeBaseRelocDir64 };
 
-				br_t br = (br_t){ .off = (WORD)(fixup->off - cur_page), .type = IMAGE_REL_BASED_DIR64 };
-
-				*(br_t *)data_cur = br;
+				*(lnk_pe_base_reloc_entry_t *)data_cur = br;
 
 				data_cur += sizeof(br);
 			}
@@ -601,7 +597,7 @@ static bool calculate_offsets(ctx_t * ctx) {
 	lnk_pel_t * pel = ctx->pel;
 	lnk_pel_sett_t * sett = &pel->sett;
 
-	ctx->raw_hdrs_size = sizeof(IMAGE_DOS_HEADER) + sizeof(IMAGE_NT_HEADERS64) + sizeof(IMAGE_SECTION_HEADER) * ctx->sect_count;
+	ctx->raw_hdrs_size = sizeof(lnk_pe_dos_hdr_t) + sizeof(lnk_pe_nt_hdrs_t) + sizeof(lnk_pe_sect_hdr_t) * ctx->sect_count;
 	ctx->hdrs_size = ul_align_to(ctx->raw_hdrs_size, sett->file_align);
 	ctx->first_sect_va = ul_align_to(ctx->hdrs_size, sett->sect_align);
 
@@ -661,10 +657,10 @@ static void apply_fixups_excpt(ctx_t * ctx) {
 
 	sect_t * excpt = ctx->excpt_sect;
 
-	RUNTIME_FUNCTION * cur = (RUNTIME_FUNCTION *)excpt->data;
+	lnk_pe_rt_func_t * cur = (lnk_pe_rt_func_t *)excpt->data;
 
 	for (proc_t * proc = ctx->procs, *proc_end = proc + ctx->procs_size; proc != proc_end; ++proc, ++cur) {
-		*cur = (RUNTIME_FUNCTION){ .BeginAddress = (DWORD)(proc->label->sect->virt_addr + proc->label->off), .EndAddress = (DWORD)(proc->end_sect->virt_addr + proc->end_off), .UnwindData = (DWORD)(proc->unw_sect->virt_addr + proc->unw_off) };
+		*cur = (lnk_pe_rt_func_t){ .begin_address = (uint32_t)(proc->label->sect->virt_addr + proc->label->off), .end_address = (DWORD)(proc->end_sect->virt_addr + proc->end_off), .unwind_data = (uint32_t)(proc->unw_sect->virt_addr + proc->unw_off) };
 	}
 
 	ul_assert((uint8_t *)cur == excpt->data + excpt->data_size);
@@ -720,7 +716,7 @@ static void apply_fixups(ctx_t * ctx) {
 				else {
 					*(int32_t *)write_pos = (int32_t)val;
 				}
-				
+
 				break;
 			}
 			case LnkSectLpFixupVa64:
@@ -736,7 +732,7 @@ static void apply_fixups(ctx_t * ctx) {
 				else {
 					*(uint32_t *)write_pos = (uint32_t)val;
 				}
-				
+
 				break;
 			}
 			case LnkSectLpFixupRva31of64:
@@ -746,7 +742,7 @@ static void apply_fixups(ctx_t * ctx) {
 				else {
 					*(uint64_t *)write_pos = (uint64_t)((lpos & 0x7FFFFFFFull) | (*(uint64_t *)write_pos & 0xFFFFFFFF80000000ull));
 				}
-				
+
 				break;
 			default:
 				ul_assert_unreachable();
@@ -762,7 +758,7 @@ static void apply_fixups(ctx_t * ctx) {
 	apply_fixups_base_reloc(ctx);
 }
 
-static void set_dir_info(ctx_t * ctx, IMAGE_NT_HEADERS64 * nt, size_t dir_ent) {
+static void set_dir_info(ctx_t * ctx, lnk_pe_nt_hdrs_t * nt, size_t dir_ent) {
 	lnk_sect_lp_stype_t start = dir_start_mark[dir_ent], end = dir_end_mark[dir_ent];
 
 	ul_assert(start != LnkSectLpNone && end != LnkSectLpNone);
@@ -776,10 +772,10 @@ static void set_dir_info(ctx_t * ctx, IMAGE_NT_HEADERS64 * nt, size_t dir_ent) {
 		report(ctx, L"invalid marks: start & end marks set in different sections (or one of them is not set)");
 	}
 	else {
-		IMAGE_DATA_DIRECTORY * dir = &nt->OptionalHeader.DataDirectory[dir_ent];
+		lnk_pe_data_dir_t * dir = &nt->optional_header.data_directory[dir_ent];
 
-		dir->VirtualAddress = (DWORD)(start_mark->sect->virt_addr + start_mark->off);
-		dir->Size = (DWORD)(end_mark->off - start_mark->off);
+		dir->virtual_address = (uint32_t)(start_mark->sect->virt_addr + start_mark->off);
+		dir->size = (uint32_t)(end_mark->off - start_mark->off);
 	}
 }
 static void write_zeros(FILE * file, size_t size) {
@@ -797,48 +793,48 @@ static void write_file_core(ctx_t * ctx, FILE * file) {
 	lnk_pel_sett_t * sett = &ctx->pel->sett;
 
 	{
-		IMAGE_DOS_HEADER dos = { 0 };
+		lnk_pe_dos_hdr_t dos = { 0 };
 
-		dos.e_magic = IMAGE_DOS_SIGNATURE;
-		dos.e_lfanew = sizeof(dos);
+		dos.magic = LNK_PE_DOS_MAGIC;
+		dos.lfanew = sizeof(dos);
 
 		fwrite(&dos, sizeof(dos), 1, file);
 	}
 
 	{
-		IMAGE_NT_HEADERS64 nt = { 0 };
+		lnk_pe_nt_hdrs_t nt = { 0 };
 
-		nt.Signature = IMAGE_NT_SIGNATURE;
+		nt.signature = LNK_PE_NT_SIGNATURE;
 
-		nt.FileHeader.Machine = IMAGE_FILE_MACHINE_AMD64;
-		nt.FileHeader.NumberOfSections = (WORD)ctx->sect_count;
-		nt.FileHeader.SizeOfOptionalHeader = sizeof(nt.OptionalHeader);
-		nt.FileHeader.Characteristics = (WORD)sett->chars;
+		nt.file_header.machine = LnkPeMachAmd64;
+		nt.file_header.number_of_sections = (uint16_t)ctx->sect_count;
+		nt.file_header.size_of_optional_header = sizeof(nt.optional_header);
+		nt.file_header.characteristics = (uint16_t)sett->chars;
 
-		nt.OptionalHeader.Magic = IMAGE_NT_OPTIONAL_HDR64_MAGIC;
-		nt.OptionalHeader.ImageBase = (ULONGLONG)sett->image_base;
-		nt.OptionalHeader.SectionAlignment = (DWORD)sett->sect_align;
-		nt.OptionalHeader.FileAlignment = (DWORD)sett->file_align;
-		nt.OptionalHeader.AddressOfEntryPoint = (DWORD)(ctx->ep_virt_addr);
-		nt.OptionalHeader.MajorOperatingSystemVersion = (WORD)sett->os_major;
-		nt.OptionalHeader.MinorOperatingSystemVersion = (WORD)sett->os_minor;
-		nt.OptionalHeader.MajorSubsystemVersion = (WORD)sett->subsys_major;
-		nt.OptionalHeader.MinorSubsystemVersion = (WORD)sett->subsys_minor;
-		nt.OptionalHeader.SizeOfImage = (DWORD)ctx->image_size;
-		nt.OptionalHeader.SizeOfHeaders = (DWORD)ctx->hdrs_size;
-		nt.OptionalHeader.Subsystem = (WORD)sett->subsys;
-		nt.OptionalHeader.DllCharacteristics = (WORD)sett->dll_chars;
-		nt.OptionalHeader.SizeOfStackReserve = (ULONGLONG)sett->stack_res;
-		nt.OptionalHeader.SizeOfStackCommit = (ULONGLONG)sett->stack_com;
-		nt.OptionalHeader.SizeOfHeapReserve = (ULONGLONG)sett->heap_res;
-		nt.OptionalHeader.SizeOfHeapCommit = (ULONGLONG)sett->heap_com;
-		nt.OptionalHeader.NumberOfRvaAndSizes = IMAGE_NUMBEROF_DIRECTORY_ENTRIES;
+		nt.optional_header.magic = LNK_PE_OPT_MAGIC;
+		nt.optional_header.image_base = sett->image_base;
+		nt.optional_header.section_alignment = (uint32_t)sett->sect_align;
+		nt.optional_header.file_alignment = (uint32_t)sett->file_align;
+		nt.optional_header.address_of_entry_point = (uint32_t)(ctx->ep_virt_addr);
+		nt.optional_header.major_operating_system_version = sett->os_major;
+		nt.optional_header.minor_operating_system_version = sett->os_minor;
+		nt.optional_header.major_subsystem_version = sett->subsys_major;
+		nt.optional_header.minor_subsystem_version = sett->subsys_minor;
+		nt.optional_header.size_of_image = (uint32_t)ctx->image_size;
+		nt.optional_header.size_of_headers = (uint32_t)ctx->hdrs_size;
+		nt.optional_header.subsystem = sett->subsys;
+		nt.optional_header.dll_characteristics = sett->dll_chars;
+		nt.optional_header.size_of_stack_reserve = sett->stack_res;
+		nt.optional_header.size_of_stack_commit = sett->stack_com;
+		nt.optional_header.size_of_heap_reserve = sett->heap_res;
+		nt.optional_header.size_of_heap_commit = sett->heap_com;
+		nt.optional_header.number_of_rva_and_sizes = LnkPeDataDir_Count;
 
 		static const size_t dirs_to_set[] = {
-			IMAGE_DIRECTORY_ENTRY_IMPORT,
-			IMAGE_DIRECTORY_ENTRY_EXCEPTION,
-			IMAGE_DIRECTORY_ENTRY_BASERELOC,
-			IMAGE_DIRECTORY_ENTRY_IAT
+			LnkPeDataDirImport,
+			LnkPeDataDirException,
+			LnkPeDataDirBaseReloc,
+			LnkPeDataDirIat
 		};
 
 		for (const size_t * dir = dirs_to_set, *dir_end = dir + _countof(dirs_to_set); dir != dir_end; ++dir) {
@@ -849,18 +845,18 @@ static void write_file_core(ctx_t * ctx, FILE * file) {
 	}
 
 	for (sect_t * sect = ctx->sect; sect != NULL; sect = sect->next) {
-		IMAGE_SECTION_HEADER sect_hdr = { 0 };
+		lnk_pe_sect_hdr_t sect_hdr = { 0 };
 
-		strncpy_s(sect_hdr.Name, sizeof(sect_hdr.Name), sect->name, SECT_NAME_SIZE);
-		sect_hdr.Misc.VirtualSize = (DWORD)sect->data_size;
-		sect_hdr.VirtualAddress = (DWORD)sect->virt_addr;
-		sect_hdr.SizeOfRawData = (DWORD)sect->raw_size;
-		sect_hdr.PointerToRawData = (DWORD)sect->raw_addr;
+		strncpy_s(sect_hdr.name, sizeof(sect_hdr.name), sect->name, SECT_NAME_SIZE);
+		sect_hdr.misc.virtual_size = (uint32_t)sect->data_size;
+		sect_hdr.virtual_address = (uint32_t)sect->virt_addr;
+		sect_hdr.size_of_raw_data = (uint32_t)sect->raw_size;
+		sect_hdr.pointer_to_raw_data = (uint32_t)sect->raw_addr;
 
-		sect_hdr.Characteristics |= sect->mem_r ? IMAGE_SCN_MEM_READ : 0;
-		sect_hdr.Characteristics |= sect->mem_w ? IMAGE_SCN_MEM_WRITE : 0;
-		sect_hdr.Characteristics |= sect->mem_e ? IMAGE_SCN_MEM_EXECUTE : 0;
-		sect_hdr.Characteristics |= sect->mem_disc ? IMAGE_SCN_MEM_DISCARDABLE : 0;
+		sect_hdr.characteristics |= sect->mem_r ? LnkPeSectCharsMemRead : 0;
+		sect_hdr.characteristics |= sect->mem_w ? LnkPeSectCharsMemWrite : 0;
+		sect_hdr.characteristics |= sect->mem_e ? LnkPeSectCharsMemExecute : 0;
+		sect_hdr.characteristics |= sect->mem_disc ? LnkPeSectCharsMemDiscardable : 0;
 
 		fwrite(&sect_hdr, sizeof(sect_hdr), 1, file);
 	}
@@ -927,7 +923,7 @@ static void export_pd_procs(ctx_t * ctx) {
 		* hs_end = UL_HST_HASHADD_WS(ctx->pel->hst, L"end");
 
 	*ctx->pd_json_ins = ul_json_make_arr();
-	
+
 	ul_json_t * procs = *ctx->pd_json_ins;
 
 	procs->name = hs_procs;

@@ -11,11 +11,11 @@ struct lnk_pel_sett {
 	uint64_t stack_res, stack_com;
 	uint64_t heap_res, heap_com;
 
-	uint16_t chars;
+	lnk_pe_chars_t chars;
 	uint16_t os_major, os_minor;
 	uint16_t subsys_major, subsys_minor;
-	uint16_t subsys;
-	uint16_t dll_chars;
+	lnk_pe_subsys_t subsys;
+	lnk_pe_dll_chars_t dll_chars;
 
 	bool make_excpt_sect;
 	bool make_base_reloc_sect;

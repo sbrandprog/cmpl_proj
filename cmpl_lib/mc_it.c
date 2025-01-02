@@ -1,3 +1,4 @@
+#include "lnk_pe.h"
 #include "lnk_sect.h"
 #include "lnk_pel.h"
 #include "mc_defs.h"
@@ -10,8 +11,6 @@
 #define LABEL_LIB_AT_EXT L'a'
 #define LABEL_SYM_NAME_EXT L's'
 #define NAME_ALIGN 2
-
-typedef IMAGE_IMPORT_DESCRIPTOR impt_desc_t;
 
 typedef struct mc_it_ctx {
 	mc_it_t * it;
@@ -179,10 +178,10 @@ static void process_lib(ctx_t * ctx, mc_it_lib_t * lib) {
 	{
 		lnk_sect_t * dir_sect = ctx->dir_sect;
 
-		impt_desc_t desc = { 0 };
+		lnk_pe_impt_desc_t desc = { 0 };
 
-		lnk_sect_add_lp(dir_sect, LnkSectLpFixup, LnkSectLpFixupRva32, lib_name_label, dir_sect->data_size + offsetof(impt_desc_t, Name));
-		lnk_sect_add_lp(dir_sect, LnkSectLpFixup, LnkSectLpFixupRva32, lib_at_label, dir_sect->data_size + offsetof(impt_desc_t, FirstThunk));
+		lnk_sect_add_lp(dir_sect, LnkSectLpFixup, LnkSectLpFixupRva32, lib_name_label, dir_sect->data_size + offsetof(lnk_pe_impt_desc_t, name));
+		lnk_sect_add_lp(dir_sect, LnkSectLpFixup, LnkSectLpFixupRva32, lib_at_label, dir_sect->data_size + offsetof(lnk_pe_impt_desc_t, first_thunk));
 
 		write_data(dir_sect, sizeof(desc), &desc);
 
@@ -263,7 +262,7 @@ static void build_core(ctx_t * ctx) {
 	}
 
 	{
-		impt_desc_t desc = { 0 };
+		lnk_pe_impt_desc_t desc = { 0 };
 
 		write_data(ctx->dir_sect, sizeof(desc), &desc);
 	}
