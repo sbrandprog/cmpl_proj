@@ -13,6 +13,4 @@
 
 #include <intrin.h>
 
-#include <Shlwapi.h>
-
 #include <ul_lib/ul_lib.h>

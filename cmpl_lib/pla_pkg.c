@@ -97,9 +97,36 @@ pla_tus_t * pla_pkg_get_tus(pla_pkg_t * pkg, ul_hs_t * tus_name) {
 	return *tus_ins;
 }
 
+static void get_file_name_and_ext(const wchar_t * path, const wchar_t ** file_name_out, const wchar_t ** file_ext_out) {
+	const wchar_t * cur = path;
+	const wchar_t * file_name = path, * file_ext = NULL;
+
+	for (; *cur != 0; ++cur) {
+		switch (*cur) {
+			case '/':
+				file_name = cur + 1;
+				file_ext = NULL;
+				break;
+			case '.':
+				file_ext = cur;
+				break;
+		}
+	}
+
+	if (file_ext == NULL) {
+		file_ext = cur;
+	}
+
+	if (file_name_out != NULL) {
+		*file_name_out = file_name;
+	}
+	if (file_ext_out != NULL) {
+		*file_ext_out = file_ext;
+	}
+}
 static ul_hs_t * name_from_path(ul_hst_t * hst, const wchar_t * path) {
-	const wchar_t * path_file_name = PathFindFileNameW(path);
-	const wchar_t * path_ext = PathFindExtensionW(path);
+	const wchar_t * path_file_name, * path_ext;
+	get_file_name_and_ext(path, &path_file_name, &path_ext);
 
 	return ul_hst_hashadd(hst, path_ext - path_file_name, path_file_name);
 }
@@ -134,46 +161,70 @@ static bool process_path_tus(pla_pkg_t * pkg, ul_hst_t * hst, const wchar_t * pa
 
 	return true;
 }
-bool pla_pkg_fill_from_dir(pla_pkg_t * pkg, ul_hst_t * hst, const wchar_t * dir_path) {
-	wchar_t buf[MAX_PATH];
+static bool process_path(pla_pkg_t * pkg, ul_hst_t * hst, const wchar_t * path, ul_fs_ent_type_t path_type) {
+	const wchar_t * path_ext;
+	get_file_name_and_ext(path, NULL, &path_ext);
 
-	swprintf_s(buf, _countof(buf), L"%s/*", dir_path);
-
-	WIN32_FIND_DATAW file_data;
-
-	HANDLE srch_h = FindFirstFileExW(buf, FindExInfoBasic, &file_data, FindExSearchNameMatch, NULL, FIND_FIRST_EX_CASE_SENSITIVE);
-
-	if (srch_h == INVALID_HANDLE_VALUE) {
-		return false;
+	switch (path_type) {
+		case UlFsEntFile:
+			if (wcscmp(path_ext, TUS_FILE_EXT) == 0
+				&& !process_path_tus(pkg, hst, path)) {
+				return false;
+			}
+			break;
+		case UlFsEntDir:
+			if (!process_path_pkg(pkg, hst, path)) {
+				return false;
+			}
+			break;
+		default:
+			return false;
 	}
+
+	return true;
+}
+bool pla_pkg_fill_from_dir(pla_pkg_t * pkg, ul_hst_t * hst, const wchar_t * dir_path) {
+	size_t dir_path_size = wcslen(dir_path);
+	
+	ul_fs_dir_t * dir = ul_fs_dir_read(dir_path);
 
 	bool success = true;
 
-	do {
-		if (wcscmp(file_data.cFileName, L".") == 0
-			|| wcscmp(file_data.cFileName, L"..") == 0) {
+	size_t path_buf_size = 0;
+	wchar_t * path_buf = NULL;
+
+	for (ul_fs_ent_t * ent = dir->ents, *ent_end = ent + dir->ents_size; ent != ent_end; ++ent) {
+		if (wcscmp(ent->name, L".") == 0
+			|| wcscmp(ent->name, L"..") == 0) {
 			continue;
 		}
 
-		const wchar_t * path_ext = PathFindExtensionW(file_data.cFileName);
+		size_t name_size = wcslen(ent->name);
 
-		swprintf_s(buf, _countof(buf), L"%s/%s", dir_path, file_data.cFileName);
-
-		if (file_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-			if (!process_path_pkg(pkg, hst, buf)) {
-				success = false;
-				break;
-			}
+		size_t path_size = dir_path_size + 1 + name_size + 1;
+		if (path_size > path_buf_size) {
+			ul_arr_grow(path_size, &path_buf_size, &path_buf, sizeof(*path_buf));
 		}
-		else if (wcscmp(path_ext, TUS_FILE_EXT) == 0) {
-			if (!process_path_tus(pkg, hst, buf)) {
-				success = false;
-				break;
-			}
-		}
-	} while (FindNextFileW(srch_h, &file_data) != 0);
 
-	FindClose(srch_h);
+		{
+			int res = swprintf_s(path_buf, path_buf_size, L"%s/%s", dir_path, ent->name);
+
+			ul_assert(res > 0);
+		}
+
+		const wchar_t * name_ext = wcsrchr(ent->name, '.');
+		if (name_ext == NULL) {
+			name_ext = ent->name + name_size;
+		}
+
+		if (!process_path(pkg, hst, path_buf, ent->type)) {
+			success = false;
+			break;
+		}
+	}
+
+	free(path_buf);
+	ul_fs_dir_free(dir);
 
 	return success;
 }
@@ -186,24 +237,11 @@ bool pla_pkg_fill_from_list(pla_pkg_t * pkg, ul_hst_t * hst, ...) {
 	bool success = true;
 
 	for (const wchar_t * elem = va_arg(args, const wchar_t *); elem != NULL; elem = va_arg(args, const wchar_t *)) {
-		if (!PathFileExistsW(elem)) {
+		ul_fs_ent_type_t elem_type = ul_fs_get_ent_type(elem);
+
+		if (!process_path(pkg, hst, elem, elem_type)) {
 			success = false;
 			break;
-		}
-		
-		ul_hs_t * name = name_from_path(hst, elem);
-		
-		if (PathIsDirectoryW(elem)) {
-			if (!process_path_pkg(pkg, hst, elem)) {
-				success = false;
-				break;
-			}
-		}
-		else {
-			if (!process_path_tus(pkg, hst, elem)) {
-				success = false;
-				break;
-			}
 		}
 	}
 

@@ -13,6 +13,10 @@ typedef bool ul_bs_cmp_proc_t(const void * first, const void * second);
 typedef struct ul_es_ctx ul_es_ctx_t;
 typedef struct ul_es_node ul_es_node_t;
 
+typedef enum ul_fs_ent_type ul_fs_ent_type_t;
+typedef struct ul_fs_ent ul_fs_ent_t;
+typedef struct ul_fs_dir ul_fs_dir_t;
+
 typedef uint64_t ul_hs_hash_t;
 typedef struct ul_hs ul_hs_t;
 

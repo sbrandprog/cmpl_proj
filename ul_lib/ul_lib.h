@@ -10,6 +10,7 @@
 #include "ul_ec_fmtr.h"
 #include "ul_ec_prntr.h"
 #include "ul_es.h"
+#include "ul_fs.h"
 #include "ul_hs.h"
 #include "ul_hsb.h"
 #include "ul_hst.h"
