@@ -9,7 +9,6 @@
 static const wchar_t * file_name = NULL;
 
 static ul_hst_t hst;
-static ul_es_ctx_t es_ctx;
 static pla_repo_t repo;
 static ul_ec_buf_t ec_buf;
 static ul_ec_fmtr_t ec_fmtr;
@@ -47,9 +46,7 @@ static int main_core(int argc, char * argv[]) {
 		return -1;
 	}
 
-	ul_es_init_ctx(&es_ctx);
-
-	pla_repo_init(&repo, &hst, &es_ctx);
+	pla_repo_init(&repo, &hst);
 
 	repo.root = pla_pkg_create(NULL);
 
@@ -105,14 +102,7 @@ int main(int argc, char * argv[]) {
 
 	pla_repo_cleanup(&repo);
 
-	ul_es_cleanup_ctx(&es_ctx);
-
 	ul_hst_cleanup(&hst);
-
-	if (_CrtDumpMemoryLeaks() == TRUE) {
-		wprintf(L"detected leaks\n");
-		return -2;
-	}
 
 	return res;
 }

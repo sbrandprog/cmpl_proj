@@ -141,21 +141,12 @@ static bool process_path_pkg(pla_pkg_t * pkg, ul_hst_t * hst, const wchar_t * pa
 
 	return true;
 }
-static bool read_tus_file(pla_tus_t * tus, const wchar_t * path) {
-	EnterCriticalSection(&tus->lock);
-	
-	bool res = pla_tus_read_file_nl(tus, path);
-
-	LeaveCriticalSection(&tus->lock);
-
-	return res;
-}
 static bool process_path_tus(pla_pkg_t * pkg, ul_hst_t * hst, const wchar_t * path) {
 	ul_hs_t * name = name_from_path(hst, path);
 
 	pla_tus_t * tus = pla_pkg_get_tus(pkg, name);
 
-	if (!read_tus_file(tus, path)) {
+	if (!pla_tus_read_file(tus, path)) {
 		return false;
 	}
 

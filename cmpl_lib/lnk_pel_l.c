@@ -660,7 +660,7 @@ static void apply_fixups_excpt(ctx_t * ctx) {
 	lnk_pe_rt_func_t * cur = (lnk_pe_rt_func_t *)excpt->data;
 
 	for (proc_t * proc = ctx->procs, *proc_end = proc + ctx->procs_size; proc != proc_end; ++proc, ++cur) {
-		*cur = (lnk_pe_rt_func_t){ .begin_address = (uint32_t)(proc->label->sect->virt_addr + proc->label->off), .end_address = (DWORD)(proc->end_sect->virt_addr + proc->end_off), .unwind_data = (uint32_t)(proc->unw_sect->virt_addr + proc->unw_off) };
+		*cur = (lnk_pe_rt_func_t){ .begin_address = (uint32_t)(proc->label->sect->virt_addr + proc->label->off), .end_address = (uint32_t)(proc->end_sect->virt_addr + proc->end_off), .unwind_data = (uint32_t)(proc->unw_sect->virt_addr + proc->unw_off) };
 	}
 
 	ul_assert((uint8_t *)cur == excpt->data + excpt->data_size);
@@ -953,9 +953,12 @@ static void export_pd_procs(ctx_t * ctx) {
 	}
 }
 static void export_pd(ctx_t * ctx) {
-	wchar_t file_name_buf[MAX_PATH];
+	size_t file_name_buf_size = (wcslen(ctx->pel->sett.file_name) + wcslen(LNK_PEL_PD_FILE_EXT) + 1);
+	wchar_t * file_name_buf = malloc(sizeof(*file_name_buf) * file_name_buf_size);
 
-	int res = swprintf_s(file_name_buf, _countof(file_name_buf), L"%s" LNK_PEL_PD_FILE_EXT, ctx->pel->sett.file_name);
+	ul_assert(file_name_buf != NULL);
+
+	int res = swprintf_s(file_name_buf, file_name_buf_size, L"%s" LNK_PEL_PD_FILE_EXT, ctx->pel->sett.file_name);
 
 	if (res < 0) {
 		report(ctx, L"failed to format file name of program database");
@@ -972,6 +975,8 @@ static void export_pd(ctx_t * ctx) {
 			report(ctx, L"failed to write program database");
 		}
 	}
+
+	free(file_name_buf);
 }
 
 static bool link_core(ctx_t * ctx) {

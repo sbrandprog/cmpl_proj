@@ -3,12 +3,8 @@
 
 void ul_hst_init(ul_hst_t * hst) {
 	memset(hst, 0, sizeof(*hst));
-
-	InitializeCriticalSection(&hst->lock);
 }
 void ul_hst_cleanup(ul_hst_t * hst) {
-	DeleteCriticalSection(&hst->lock);
-
 	for (ul_hst_node_t ** ent = hst->ents, **ent_end = ent + _countof(hst->ents); ent != ent_end; ++ent) {
 		for (ul_hst_node_t * node = *ent; node != NULL; ) {
 			ul_hst_node_t * temp = node->next;
@@ -25,7 +21,7 @@ void ul_hst_cleanup(ul_hst_t * hst) {
 	memset(hst, 0, sizeof(*hst));
 }
 
-static ul_hs_t * ul_hst_add_nolock(ul_hst_t * hst, size_t str_size, const wchar_t * str, ul_hs_hash_t str_hash) {
+ul_hs_t * ul_hst_add(ul_hst_t * hst, size_t str_size, const wchar_t * str, ul_hs_hash_t str_hash) {
 	ul_hst_node_t ** node_place = &hst->ents[str_hash % _countof(hst->ents)];
 
 	while (*node_place != NULL) {
@@ -56,13 +52,4 @@ static ul_hs_t * ul_hst_add_nolock(ul_hst_t * hst, size_t str_size, const wchar_
 	*node_place = new_node;
 
 	return &new_node->hstr;
-}
-ul_hs_t * ul_hst_add(ul_hst_t * hst, size_t str_size, const wchar_t * str, ul_hs_hash_t str_hash) {
-	EnterCriticalSection(&hst->lock);
-
-	ul_hs_t * res = ul_hst_add_nolock(hst, str_size, str, str_hash);
-
-	LeaveCriticalSection(&hst->lock);
-
-	return res;
 }

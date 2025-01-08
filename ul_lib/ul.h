@@ -10,9 +10,6 @@ typedef struct ul_ros ul_ros_t;
 
 typedef bool ul_bs_cmp_proc_t(const void * first, const void * second);
 
-typedef struct ul_es_ctx ul_es_ctx_t;
-typedef struct ul_es_node ul_es_node_t;
-
 typedef enum ul_fs_ent_type ul_fs_ent_type_t;
 typedef struct ul_fs_ent ul_fs_ent_t;
 typedef struct ul_fs_dir ul_fs_dir_t;
@@ -35,10 +32,6 @@ typedef bool ul_ec_prntr_print_proc_t(void * user_data, ul_ec_rec_t * rec);
 typedef struct ul_ec_prntr ul_ec_prntr_t;
 
 typedef struct ul_ec_buf ul_ec_buf_t;
-
-typedef struct ul_ec_rn ul_ec_rn_t;
-
-typedef struct ul_ec_sn ul_ec_sn_t;
 
 typedef struct ul_ec_fmtr ul_ec_fmtr_t;
 

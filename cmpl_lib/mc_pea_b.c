@@ -21,10 +21,6 @@ typedef struct mc_pea_b_ctx {
 	size_t frags_size;
 	frag_t * frags;
 	size_t frags_cap;
-
-	PTP_WORK build_work;
-	size_t frags_cur;
-	bool frags_err_flag;
 } ctx_t;
 
 static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
@@ -47,28 +43,6 @@ static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
 	ul_ec_fmtr_post(ctx->pea->ec_fmtr, UL_EC_REC_TYPE_DFLT, MOD_NAME);
 }
 
-static bool get_build_frag(ctx_t * ctx, frag_t ** out) {
-	size_t cur = InterlockedIncrement64(&ctx->frags_cur) - 1;
-	
-	if (cur >= ctx->frags_size) {
-		return false;
-	}
-
-	*out = &ctx->frags[cur];
-
-	return true;
-}
-static VOID build_frags_worker_proc(PTP_CALLBACK_INSTANCE itnc, PVOID user_data, PTP_WORK work) {
-	ctx_t * ctx = user_data;
-	frag_t * frag;
-
-	while (get_build_frag(ctx, &frag)) {
-		if (!mc_frag_build(frag->frag, ctx->pea->ec_fmtr, &frag->sect)) {
-			ctx->frags_err_flag = true;
-		}
-	}
-}
-
 static void form_frags_list(ctx_t * ctx) {
 	for (mc_frag_t * frag = ctx->pea->frag; frag != NULL; frag = frag->next) {
 		ul_arr_grow(ctx->frags_size + 1, &ctx->frags_cap, &ctx->frags, sizeof(*ctx->frags));
@@ -76,25 +50,16 @@ static void form_frags_list(ctx_t * ctx) {
 		ctx->frags[ctx->frags_size++] = (frag_t){ .frag = frag };
 	}
 }
-static void do_work(ctx_t * ctx) {
-	ctx->build_work = CreateThreadpoolWork(build_frags_worker_proc, ctx, NULL);
+static void process_frags_list(ctx_t * ctx) {
+	bool res = true;
 
-	if (ctx->build_work == NULL) {
-		report(ctx, L"failed to initialize parallel worker");
-		return;
+	for (frag_t * frag = ctx->frags, *frag_end = ctx->frags + ctx->frags_size; frag != frag_end; ++frag) {
+		if (!mc_frag_build(frag->frag, ctx->pea->ec_fmtr, &frag->sect)) {
+			res = false;
+		}
 	}
 
-	for (size_t i = 0; i < BUILD_FRAGS_WORKER_COUNT; ++i) {
-		SubmitThreadpoolWork(ctx->build_work);
-	}
-
-	WaitForThreadpoolWorkCallbacks(ctx->build_work, FALSE);
-
-	CloseThreadpoolWork(ctx->build_work);
-
-	ctx->build_work = NULL;
-
-	if (ctx->frags_err_flag) {
+	if (!res) {
 		report(ctx, L"failed to build one or more fragments");
 	}
 }
@@ -116,7 +81,7 @@ static void insert_sects(ctx_t * ctx) {
 static void build_frags(ctx_t * ctx) {
 	form_frags_list(ctx);
 
-	do_work(ctx);
+	process_frags_list(ctx);
 
 	insert_sects(ctx);
 }
@@ -140,10 +105,6 @@ bool mc_pea_b_build(mc_pea_t * pea, lnk_pel_t * out) {
 	ctx_t ctx = { .pea = pea, .out = out };
 
 	build_core(&ctx);
-
-	if (ctx.build_work != NULL) {
-		CloseThreadpoolWork(ctx.build_work);
-	}
 
 	for (frag_t * frag = ctx.frags, *frag_end = frag + ctx.frags_size; frag != frag_end; ++frag) {
 		lnk_sect_destroy(frag->sect);

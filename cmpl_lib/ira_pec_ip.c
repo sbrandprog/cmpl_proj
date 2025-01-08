@@ -3075,7 +3075,7 @@ static bool execute_make_dt_ptr(ctx_t * ctx, inst_t * inst) {
 static bool execute_make_dt_tpl(ctx_t * ctx, inst_t * inst) {
 	size_t elems_size = inst->opd2.size;
 
-	ira_dt_ndt_t * elems = _malloca(elems_size * sizeof(*elems));
+	ira_dt_ndt_t * elems = malloc(elems_size * sizeof(*elems));
 
 	ul_assert(elems != NULL);
 
@@ -3087,7 +3087,7 @@ static bool execute_make_dt_tpl(ctx_t * ctx, inst_t * inst) {
 
 			if (var_ptr->intr.val == NULL) {
 				report(ctx, L"[%s]: one of elements var value is NULL", ira_inst_infos[inst->base->type].type_str.str);
-				_freea(elems);
+				free(elems);
 				return false;
 			}
 
@@ -3100,16 +3100,16 @@ static bool execute_make_dt_tpl(ctx_t * ctx, inst_t * inst) {
 	ira_dt_t * res_dt;
 
 	if (!ira_pec_get_dt_tpl(ctx->pec, elems_size, elems, inst->opd1.dt_qual, &res_dt)) {
-		_freea(elems);
+		free(elems);
 		return false;
 	}
 
 	if (!ira_pec_make_val_imm_dt(ctx->pec, res_dt, &inst->opd0.var->intr.val)) {
-		_freea(elems);
+		free(elems);
 		return false;
 	}
 
-	_freea(elems);
+	free(elems);
 
 	return true;
 }
@@ -3135,7 +3135,7 @@ static bool execute_make_dt_arr(ctx_t * ctx, inst_t * inst) {
 static bool execute_make_dt_func(ctx_t * ctx, inst_t * inst) {
 	size_t args_size = inst->opd2.size;
 
-	ira_dt_ndt_t * args = _malloca(args_size * sizeof(*args));
+	ira_dt_ndt_t * args = malloc(args_size * sizeof(*args));
 
 	ul_assert(args != NULL);
 
@@ -3147,7 +3147,7 @@ static bool execute_make_dt_func(ctx_t * ctx, inst_t * inst) {
 
 			if (var_ptr->intr.val == NULL) {
 				report(ctx, L"[%s]: one of arguments var value is NULL", ira_inst_infos[inst->base->type].type_str.str);
-				_freea(args);
+				free(args);
 				return false;
 			}
 
@@ -3156,7 +3156,7 @@ static bool execute_make_dt_func(ctx_t * ctx, inst_t * inst) {
 	}
 
 	if (!check_var_for_val(ctx, inst, 1)) {
-		_freea(args);
+		free(args);
 		return false;
 	}
 
@@ -3165,16 +3165,16 @@ static bool execute_make_dt_func(ctx_t * ctx, inst_t * inst) {
 	ira_dt_t * res_dt;
 
 	if (!ira_pec_get_dt_func(ctx->pec, inst->opd1.var->intr.val->dt_val, args_size, args, inst->opd5.dt_func_vas, &res_dt)) {
-		_freea(args);
+		free(args);
 		return false;
 	}
 
 	if (!ira_pec_make_val_imm_dt(ctx->pec, res_dt, &inst->opd0.var->intr.val)) {
-		_freea(args);
+		free(args);
 		return false;
 	}
 
-	_freea(args);
+	free(args);
 
 	return true;
 }

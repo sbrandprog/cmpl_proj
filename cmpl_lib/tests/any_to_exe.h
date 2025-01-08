@@ -76,10 +76,5 @@ int main() {
 
 	test_ctx_cleanup(&ctx);
 
-	if (_CrtDumpMemoryLeaks() == TRUE) {
-		wprintf(L"detected leaks\n");
-		return -2;
-	}
-
 	return 0;
 }

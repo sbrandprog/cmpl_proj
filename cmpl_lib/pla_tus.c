@@ -9,16 +9,12 @@ pla_tus_t * pla_tus_create(ul_hs_t * name) {
 
 	*tus = (pla_tus_t){ .name = name };
 
-	InitializeCriticalSection(&tus->lock);
-
 	return tus;
 }
 void pla_tus_destroy(pla_tus_t * tus) {
 	if (tus == NULL) {
 		return;
 	}
-
-	DeleteCriticalSection(&tus->lock);
 
 	free(tus->src);
 
@@ -34,7 +30,7 @@ void pla_tus_destroy_chain(pla_tus_t * tus) {
 	}
 }
 
-void pla_tus_insert_str_nl(pla_tus_t * tus, size_t ins_pos, size_t str_size, wchar_t * str) {
+void pla_tus_insert_str(pla_tus_t * tus, size_t ins_pos, size_t str_size, wchar_t * str) {
 	ul_assert(ins_pos <= tus->src_size);
 
 	ul_arr_grow(tus->src_size + str_size, &tus->src_cap, &tus->src, sizeof(*tus->src));
@@ -44,7 +40,7 @@ void pla_tus_insert_str_nl(pla_tus_t * tus, size_t ins_pos, size_t str_size, wch
 	tus->src_size += str_size;
 }
 
-bool pla_tus_read_file_nl(pla_tus_t * tus, const wchar_t * file_name) {
+bool pla_tus_read_file(pla_tus_t * tus, const wchar_t * file_name) {
 	FILE * file;
 
 	_wfopen_s(&file, file_name, L"r");
@@ -58,7 +54,7 @@ bool pla_tus_read_file_nl(pla_tus_t * tus, const wchar_t * file_name) {
 	wchar_t buf[READ_BUF_SIZE];
 
 	while (fgetws(buf, _countof(buf), file) != NULL) {
-		pla_tus_insert_str_nl(tus, tus->src_size, wcslen(buf), buf);
+		pla_tus_insert_str(tus, tus->src_size, wcslen(buf), buf);
 	}
 
 	fclose(file);

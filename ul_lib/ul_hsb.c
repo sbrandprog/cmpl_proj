@@ -2,19 +2,15 @@
 #include "ul_arr.h"
 
 void ul_hsb_init(ul_hsb_t * hsb) {
-	memset(hsb, 0, sizeof(*hsb));
-
-	InitializeCriticalSection(&hsb->lock);
+	*hsb = (ul_hsb_t){ 0 };
 }
 void ul_hsb_cleanup(ul_hsb_t * hsb) {
-	DeleteCriticalSection(&hsb->lock);
-
 	free(hsb->buf);
 
 	memset(hsb, 0, sizeof(*hsb));
 }
 
-size_t ul_hsb_format_nl_va(ul_hsb_t * hsb, const wchar_t * fmt, va_list args) {
+size_t ul_hsb_format_va(ul_hsb_t * hsb, const wchar_t * fmt, va_list args) {
 	size_t str_size;
 
 	{
@@ -49,29 +45,20 @@ size_t ul_hsb_format_nl_va(ul_hsb_t * hsb, const wchar_t * fmt, va_list args) {
 		return (size_t)res;
 	}
 }
-size_t ul_hsb_format_nl(ul_hsb_t * hsb, const wchar_t * fmt, ...) {
+size_t ul_hsb_format(ul_hsb_t * hsb, const wchar_t * fmt, ...) {
 	va_list args;
 
 	va_start(args, fmt);
 
-	size_t res = ul_hsb_format_nl_va(hsb, fmt, args);
+	size_t res = ul_hsb_format_va(hsb, fmt, args);
 
 	va_end(args);
 
 	return res;
 }
 
-static ul_hs_t * ul_hsb_formatadd_nl_va(ul_hsb_t * hsb, ul_hst_t * hst, const wchar_t * fmt, va_list args) {
-	size_t str_size = ul_hsb_format_nl_va(hsb, fmt, args);
+ul_hs_t * ul_hsb_formatadd_va(ul_hsb_t * hsb, ul_hst_t * hst, const wchar_t * fmt, va_list args) {
+	size_t str_size = ul_hsb_format_va(hsb, fmt, args);
 
 	return ul_hst_hashadd(hst, str_size, hsb->buf);
-}
-ul_hs_t * ul_hsb_formatadd_va(ul_hsb_t * hsb, ul_hst_t * hst, const wchar_t * fmt, va_list args) {
-	EnterCriticalSection(&hsb->lock);
-
-	ul_hs_t * res = ul_hsb_formatadd_nl_va(hsb, hst, fmt, args);
-	
-	LeaveCriticalSection(&hsb->lock);
-
-	return res;
 }

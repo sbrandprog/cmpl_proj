@@ -12,9 +12,6 @@
 
 #define VAL_FRAG_UNQ_SUFFIX L"#val_frag"
 
-#define COMPILE_LO_WORKER_TIMEOUT 1000
-#define COMPILE_LO_WORKER_COUNT 4
-
 typedef struct ira_pec_c_ctx_cl_elem {
 	ira_lo_t * lo;
 } cl_elem_t;
@@ -31,16 +28,8 @@ typedef struct ira_pec_c_ctx {
 	size_t cl_elems_size;
 	cl_elem_t * cl_elems;
 	size_t cl_elems_cap;
-
-	PTP_WORK cl_work;
-	CRITICAL_SECTION cl_lock;
-	CONDITION_VARIABLE cl_cv;
 	size_t cl_elems_cur;
-	size_t cl_wips;
-	bool cl_err_flag;
 
-	CRITICAL_SECTION cl_out_it_lock;
-	CRITICAL_SECTION cl_frag_lock;
 	mc_frag_t * cl_frag;
 	mc_frag_t ** cl_frag_ins;
 } ctx_t;
@@ -63,29 +52,20 @@ static void report(ctx_t * ctx, const wchar_t * fmt, ...) {
 	ul_ec_fmtr_post(ctx->pec->ec_fmtr, UL_EC_REC_TYPE_DFLT, MOD_NAME);
 }
 
-static mc_frag_t * get_frag_nl(ctx_t * ctx, mc_frag_type_t frag_type) {
+mc_frag_t * ira_pec_c_get_frag(ira_pec_c_ctx_t * ctx, mc_frag_type_t frag_type, ul_hs_t * frag_label) {
 	*ctx->cl_frag_ins = mc_frag_create(frag_type);
 
 	mc_frag_t * frag = *ctx->cl_frag_ins;
 
 	ctx->cl_frag_ins = &frag->next;
 
-	return frag;
-}
-mc_frag_t * ira_pec_c_get_frag(ira_pec_c_ctx_t * ctx, mc_frag_type_t frag_type, ul_hs_t * frag_label) {
-	EnterCriticalSection(&ctx->cl_frag_lock);
-
-	mc_frag_t * res = get_frag_nl(ctx, frag_type);
-
-	LeaveCriticalSection(&ctx->cl_frag_lock);
-
 	if (frag_label != NULL) {
 		mc_inst_t label = { .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = LnkSectLpLabelBasic, .label = frag_label };
 
-		mc_frag_push_inst(res, &label);
+		mc_frag_push_inst(frag, &label);
 	}
 
-	return res;
+	return frag;
 }
 
 static ul_hs_t * get_val_frag_label(ctx_t * ctx, ul_hs_t * hint_name) {
@@ -280,33 +260,20 @@ ira_pec_t * ira_pec_c_get_pec(ira_pec_c_ctx_t * ctx) {
 	return ctx->pec;
 }
 
-static void push_cl_elem_nl(ctx_t * ctx, ira_lo_t * lo) {
+void ira_pec_c_push_cl_elem(ira_pec_c_ctx_t * ctx, ira_lo_t * lo) {
 	for (cl_elem_t * elem = ctx->cl_elems, *elem_end = elem + ctx->cl_elems_size; elem != elem_end; ++elem) {
 		if (elem->lo == lo) {
 			return;
 		}
 	}
-	
+
 	ul_arr_grow(ctx->cl_elems_size + 1, &ctx->cl_elems_cap, &ctx->cl_elems, sizeof(*ctx->cl_elems));
 
 	ctx->cl_elems[ctx->cl_elems_size++] = (cl_elem_t){ .lo = lo };
 }
-void ira_pec_c_push_cl_elem(ira_pec_c_ctx_t * ctx, ira_lo_t * lo) {
-	EnterCriticalSection(&ctx->cl_lock);
-
-	push_cl_elem_nl(ctx, lo);
-
-	LeaveCriticalSection(&ctx->cl_lock);
-
-	WakeConditionVariable(&ctx->cl_cv);
-}
 
 static bool compile_lo_impt(ctx_t * ctx, ira_lo_t * lo) {
-	EnterCriticalSection(&ctx->cl_out_it_lock);
-
 	mc_it_add_sym(&ctx->out->it, lo->impt.lib_name, lo->impt.sym_name, lo->name);
-
-	LeaveCriticalSection(&ctx->cl_out_it_lock);
 
 	return true;
 }
@@ -351,58 +318,6 @@ static bool compile_lo(ctx_t * ctx, ira_lo_t * lo) {
 	return true;
 }
 
-static bool get_cl_elem(ctx_t * ctx, cl_elem_t * out) {
-	EnterCriticalSection(&ctx->cl_lock);
-
-	bool res = false;
-
-	while (true) {
-		if (ctx->cl_elems_cur < ctx->cl_elems_size) {
-			*out = ctx->cl_elems[ctx->cl_elems_cur++];
-
-			InterlockedIncrement64(&ctx->cl_wips);
-
-			res = true;
-
-			break;
-		}
-		else if (ctx->cl_wips == 0) {
-			break;
-		}
-
-		SleepConditionVariableCS(&ctx->cl_cv, &ctx->cl_lock, COMPILE_LO_WORKER_TIMEOUT);
-	}
-
-	LeaveCriticalSection(&ctx->cl_lock);
-
-	return res;
-}
-static bool process_cl_elem(ctx_t * ctx, cl_elem_t * elem) {
-	bool res = true;
-
-	if (!compile_lo(ctx, elem->lo)) {
-		res = false;
-	}
-
-	if (InterlockedDecrement64(&ctx->cl_wips) == 0) {
-		WakeAllConditionVariable(&ctx->cl_cv);
-	}
-
-	return res;
-}
-static VOID compile_lo_worker(PTP_CALLBACK_INSTANCE itnc, PVOID user_data, PTP_WORK work) {
-	CallbackMayRunLong(itnc);
-
-	ctx_t * ctx = user_data;
-	cl_elem_t elem;
-
-	while (get_cl_elem(ctx, &elem)) {
-		if (!process_cl_elem(ctx, &elem)) {
-			ctx->cl_err_flag = true;
-		}
-	}
-}
-
 static ira_lo_t * find_lo(ira_lo_t * nspc, ul_hs_t * name) {
 	for (ira_lo_nspc_node_t * node = nspc->nspc.body; node != NULL; node = node->next) {
 		if (node->name == name) {
@@ -421,7 +336,7 @@ static bool prepare_data(ctx_t * ctx) {
 		return false;
 	}
 
-	push_cl_elem_nl(ctx, ep_lo);
+	ira_pec_c_push_cl_elem(ctx, ep_lo);
 
 	ctx->hst = ctx->pec->hst;
 
@@ -429,37 +344,22 @@ static bool prepare_data(ctx_t * ctx) {
 
 	ctx->out->ep_name = ep_lo->name;
 
-	InitializeCriticalSection(&ctx->cl_lock);
-
-	InitializeConditionVariable(&ctx->cl_cv);
-
-	InitializeCriticalSection(&ctx->cl_out_it_lock);
-
-	InitializeCriticalSection(&ctx->cl_frag_lock);
-
 	ctx->cl_frag_ins = &ctx->cl_frag;
 
 	return true;
 }
-static bool do_work(ctx_t * ctx) {
-	ctx->cl_work = CreateThreadpoolWork(compile_lo_worker, ctx, NULL);
+static bool process_data(ctx_t * ctx) {
+	bool res = true;
 
-	if (ctx->cl_work == NULL) {
-		report(ctx, L"failed to initialize parallel worker");
-		return false;
+	while (ctx->cl_elems_cur < ctx->cl_elems_size) {
+		cl_elem_t elem = ctx->cl_elems[ctx->cl_elems_cur++];
+
+		if (!compile_lo(ctx, elem.lo)) {
+			res = false;
+		}
 	}
 
-	for (size_t i = 0; i < COMPILE_LO_WORKER_COUNT; ++i) {
-		SubmitThreadpoolWork(ctx->cl_work);
-	}
-
-	WaitForThreadpoolWorkCallbacks(ctx->cl_work, FALSE);
-
-	CloseThreadpoolWork(ctx->cl_work);
-
-	ctx->cl_work = NULL;
-
-	return !ctx->cl_err_flag;
+	return res;
 }
 static void move_frags(ctx_t * ctx) {
 	ctx->out->frag = ctx->cl_frag;
@@ -475,7 +375,7 @@ static bool compile_core(ctx_t * ctx) {
 		return false;
 	}
 
-	if (!do_work(ctx)) {
+	if (!process_data(ctx)) {
 		return false;
 	}
 
@@ -488,17 +388,7 @@ bool ira_pec_c_compile(ira_pec_t * pec, mc_pea_t * out) {
 
 	bool res = compile_core(&ctx);
 
-	if (ctx.cl_work != NULL) {
-		CloseThreadpoolWork(ctx.cl_work);
-	}
-
-	DeleteCriticalSection(&ctx.cl_frag_lock);
-
 	mc_frag_destroy_chain(ctx.cl_frag);
-
-	DeleteCriticalSection(&ctx.cl_out_it_lock);
-
-	DeleteCriticalSection(&ctx.cl_lock);
 
 	free(ctx.cl_elems);
 

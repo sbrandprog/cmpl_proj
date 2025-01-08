@@ -3,7 +3,6 @@
 static ul_ec_t ec;
 static ul_ec_buf_t ec_buf;
 static ul_ec_fmtr_t ec_fmtr;
-static ul_es_ctx_t es_ctx;
 static ul_hsb_t hsb;
 static ul_hst_t hst;
 static ul_json_g_sink_t json_g_sink;
@@ -15,8 +14,6 @@ int main() {
 	ul_ec_buf_cleanup(&ec_buf);
 
 	ul_ec_fmtr_cleanup(&ec_fmtr);
-
-	ul_es_cleanup_ctx(&es_ctx);
 
 	ul_hsb_cleanup(&hsb);
 

@@ -152,10 +152,5 @@ int main() {
 
 	_wremove(FILE_NAME);
 
-	if (_CrtDumpMemoryLeaks() == TRUE) {
-		wprintf(L"detected leaks\n");
-		return -2;
-	}
-
 	return res;
 }

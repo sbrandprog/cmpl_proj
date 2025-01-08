@@ -48,7 +48,6 @@ target_sources(cmpl_lib
 		pla_prsr.h
 		pla_punc.h
 		pla_repo.h
-		pla_repo_lsnr.h
 		pla_stmt.h
 		pla_tltr.h
 		pla_tltr_s.h
@@ -93,7 +92,6 @@ target_sources(cmpl_lib
 		pla_prsr.c
 		pla_punc.c
 		pla_repo.c
-		pla_repo_lsnr.c
 		pla_stmt.c
 		pla_tltr.c
 		pla_tltr_s.c

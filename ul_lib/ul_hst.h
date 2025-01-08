@@ -10,7 +10,6 @@ struct ul_hst_node {
 };
 
 struct ul_hst {
-	CRITICAL_SECTION lock;
 	ul_hst_node_t * ents[UL_HST_ENTS_COUNT];
 };
 
