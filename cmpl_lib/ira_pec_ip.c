@@ -1605,6 +1605,8 @@ static void load_label_addr(ctx_t * ctx, mc_reg_t reg, ul_hs_t * label) {
 	reset_bb_cmpl_gpr_from_reg(ctx, reg);
 }
 static void load_label_val_off(ctx_t * ctx, mc_reg_t reg, ul_hs_t * label, size_t off) {
+	ul_assert(off < INT32_MAX);
+
 	mc_inst_t mov = { .type = McInstMov, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_size = mc_reg_get_size(reg), .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp = (int32_t)off, .mem_disp_label = label };
 
 	push_mc_inst(ctx, &mov);
