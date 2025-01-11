@@ -83,7 +83,9 @@ static int main_core(int argc, char * argv[]) {
 	}
 
 	{
-		int res = (int)_wspawnl(_P_WAIT, EXE_NAME, EXE_CMD, NULL);
+		const wchar_t * const args[] = { EXE_NAME, NULL };
+
+		int res = ul_spawn_wait(EXE_NAME, args);
 
 		if (res != 0) {
 			wprintf(L"unexpected executable result (codes: %d 0x%X)\n", res, res);

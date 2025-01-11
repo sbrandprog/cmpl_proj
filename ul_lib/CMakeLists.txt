@@ -22,6 +22,7 @@ target_sources(ul_lib
 		ul_lib.h
 		ul_misc.h
 		ul_ros.h
+		ul_spawn.h
 	PRIVATE
 		ul_assert.c
 		ul_bs.c
@@ -36,6 +37,7 @@ target_sources(ul_lib
 		ul_json.c
 		ul_json_p.c
 		ul_json_g.c
+		ul_spawn.c
 )
 
 set_proj_trg_props(ul_lib PCH_NAME pch.h)

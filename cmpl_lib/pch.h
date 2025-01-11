@@ -7,6 +7,5 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
-#include <process.h>
 
 #include <ul_lib/ul_lib.h>

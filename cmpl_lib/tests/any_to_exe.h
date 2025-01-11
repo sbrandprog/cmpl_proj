@@ -31,20 +31,24 @@ static bool process_test_core(test_ctx_t * ctx) {
 			}
 			//fallthrough
 		case TestFromLnk:
+		{
 			ctx->pel.sett.file_name = EXE_NAME;
 
 			if (!lnk_pel_l_link(&ctx->pel)) {
 				wprintf(L"error point: link\n");
 				return false;
 			}
+			
+			const wchar_t * const args[] = { EXE_NAME, NULL };
 
-			int res = (int)_wspawnl(_P_WAIT, EXE_NAME, EXE_CMD, NULL);
+			int res = ul_spawn_wait(EXE_NAME, args);
 
 			if (res != 0) {
 				wprintf(L"error point: run (codes: %d 0x%X)\n", res, res);
 				return false;
 			}
 			break;
+		}
 		default:
 			ul_assert_unreachable();
 	}
