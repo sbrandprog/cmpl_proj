@@ -2,21 +2,24 @@
 #include "lnk.h"
 #include "mc.h"
 
-struct mc_it_sym {
-	mc_it_sym_t * next;
-	ul_hs_t * name;
-	ul_hs_t * link_name;
+struct mc_it_sym
+{
+    mc_it_sym_t * next;
+    ul_hs_t * name;
+    ul_hs_t * link_name;
 };
-struct mc_it_lib {
-	mc_it_lib_t * next;
-	ul_hs_t * name;
-	mc_it_sym_t * sym;
+struct mc_it_lib
+{
+    mc_it_lib_t * next;
+    ul_hs_t * name;
+    mc_it_sym_t * sym;
 };
-struct mc_it {
-	ul_hst_t * hst;
-	ul_ec_fmtr_t * ec_fmtr;
+struct mc_it
+{
+    ul_hst_t * hst;
+    ul_ec_fmtr_t * ec_fmtr;
 
-	mc_it_lib_t * lib;
+    mc_it_lib_t * lib;
 };
 
 MC_API void mc_it_init(mc_it_t * it, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr);

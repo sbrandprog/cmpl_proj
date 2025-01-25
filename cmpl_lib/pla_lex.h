@@ -3,36 +3,38 @@
 
 #define PLA_LEX_MOD_NAME L"pla_lex"
 
-struct pla_lex_src {
-	ul_hs_t * name;
-	void * data;
-	pla_lex_src_get_ch_proc_t * get_ch_proc;
-	size_t line_num;
-	size_t line_ch;
+struct pla_lex_src
+{
+    ul_hs_t * name;
+    void * data;
+    pla_lex_src_get_ch_proc_t * get_ch_proc;
+    size_t line_num;
+    size_t line_ch;
 };
-struct pla_lex {
-	ul_hst_t * hst;
-	ul_ec_fmtr_t * ec_fmtr;
+struct pla_lex
+{
+    ul_hst_t * hst;
+    ul_ec_fmtr_t * ec_fmtr;
 
-	ul_hs_t * emp_hs;
+    ul_hs_t * emp_hs;
 
-	const pla_lex_src_t * src;
+    const pla_lex_src_t * src;
 
-	wchar_t ch;
-	bool ch_succ;
+    wchar_t ch;
+    bool ch_succ;
 
-	bool line_switch;
-	size_t line_num;
-	size_t line_ch;
+    bool line_switch;
+    size_t line_num;
+    size_t line_ch;
 
-	size_t str_size;
-	wchar_t * str;
-	size_t str_cap;
-	ul_hs_hash_t str_hash;
+    size_t str_size;
+    wchar_t * str;
+    size_t str_cap;
+    ul_hs_hash_t str_hash;
 
-	pla_tok_t tok;
+    pla_tok_t tok;
 
-	bool is_rptd;
+    bool is_rptd;
 };
 
 PLA_API void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr);

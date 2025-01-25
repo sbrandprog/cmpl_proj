@@ -2,22 +2,27 @@
 
 #define UL_SIZE_T_NUM_SIZE 20
 
-inline size_t ul_align_biased_to(size_t val, size_t align, size_t bias) {
-	size_t val_align_1 = val + align - 1;
-	return val_align_1 - (val_align_1 - bias) % align;
+inline size_t ul_align_biased_to(size_t val, size_t align, size_t bias)
+{
+    size_t val_align_1 = val + align - 1;
+    return val_align_1 - (val_align_1 - bias) % align;
 }
 
-inline size_t ul_align_to(size_t val, size_t align) {
-	return ul_align_biased_to(val, align, 0);
+inline size_t ul_align_to(size_t val, size_t align)
+{
+    return ul_align_biased_to(val, align, 0);
 }
 
-inline bool ul_is_pwr_of_2(size_t val) {
-	return val > 0 && (val & (val - 1)) == 0;
+inline bool ul_is_pwr_of_2(size_t val)
+{
+    return val > 0 && (val & (val - 1)) == 0;
 }
 
-inline bool ul_is_high_surr(wchar_t ch) {
-	return 0xD800 <= ch && ch <= 0xDBFF;
+inline bool ul_is_high_surr(wchar_t ch)
+{
+    return 0xD800 <= ch && ch <= 0xDBFF;
 }
-inline bool ul_is_low_surr(wchar_t ch) {
-	return 0xDC00 <= ch && ch <= 0xDFFF;
+inline bool ul_is_low_surr(wchar_t ch)
+{
+    return 0xDC00 <= ch && ch <= 0xDFFF;
 }

@@ -1,9 +1,10 @@
 #include "ul_json.h"
 
-struct ul_json_p_src {
-	ul_hst_t * hst;
-	void * data;
-	ul_json_p_get_ch_proc_t * get_ch_proc;
+struct ul_json_p_src
+{
+    ul_hst_t * hst;
+    void * data;
+    ul_json_p_get_ch_proc_t * get_ch_proc;
 };
 
 UL_API void ul_json_p_src_init(ul_json_p_src_t * src, ul_hst_t * hst, void * data, ul_json_p_get_ch_proc_t * get_ch_proc);

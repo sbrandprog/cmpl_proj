@@ -1,14 +1,15 @@
 #pragma once
 #include "pla.h"
 
-struct pla_tus {
-	ul_hs_t * name;
-	
-	pla_tus_t * next;
-	
-	size_t src_size;
-	wchar_t * src;
-	size_t src_cap;
+struct pla_tus
+{
+    ul_hs_t * name;
+
+    pla_tus_t * next;
+
+    size_t src_size;
+    wchar_t * src;
+    size_t src_cap;
 };
 
 PLA_API pla_tus_t * pla_tus_create(ul_hs_t * name);

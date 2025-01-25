@@ -2,22 +2,24 @@
 #include "lnk.h"
 #include "mc.h"
 
-enum mc_frag_type {
-	McFragCode,
-	McFragRoData,
-	McFragRwData,
-	McFragUnw,
-	McFrag_Count
+enum mc_frag_type
+{
+    McFragCode,
+    McFragRoData,
+    McFragRwData,
+    McFragUnw,
+    McFrag_Count
 };
-struct mc_frag {
-	mc_frag_type_t type;
-	mc_frag_t * next;
+struct mc_frag
+{
+    mc_frag_type_t type;
+    mc_frag_t * next;
 
-	size_t insts_size;
-	mc_inst_t * insts;
-	size_t insts_cap;
+    size_t insts_size;
+    mc_inst_t * insts;
+    size_t insts_cap;
 
-	size_t align;
+    size_t align;
 };
 
 MC_API mc_frag_t * mc_frag_create(mc_frag_type_t type);

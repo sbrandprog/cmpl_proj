@@ -1,9 +1,10 @@
 #include "ul_json.h"
 
-struct ul_json_g_sink {
-	void * data;
-	ul_json_g_put_ch_proc_t * put_ch_proc;
-	bool put_ws;
+struct ul_json_g_sink
+{
+    void * data;
+    ul_json_g_put_ch_proc_t * put_ch_proc;
+    bool put_ws;
 };
 
 UL_API void ul_json_g_sink_init(ul_json_g_sink_t * sink, void * data, ul_json_g_put_ch_proc_t * put_ch_proc);

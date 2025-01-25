@@ -3,23 +3,25 @@
 
 #define PLA_TU_NAME_DELIM '.'
 
-struct pla_tu_ref {
-	pla_ec_pos_t pos_start;
-	pla_ec_pos_t pos_end;
+struct pla_tu_ref
+{
+    pla_ec_pos_t pos_start;
+    pla_ec_pos_t pos_end;
 
-	pla_cn_t * cn;
-	bool is_rel;
+    pla_cn_t * cn;
+    bool is_rel;
 };
-struct pla_tu {
-	ul_hs_t * name;
+struct pla_tu
+{
+    ul_hs_t * name;
 
-	pla_tu_t * next;
-	
-	pla_dclr_t * root;
+    pla_tu_t * next;
 
-	size_t refs_size;
-	pla_tu_ref_t * refs;
-	size_t refs_cap;
+    pla_dclr_t * root;
+
+    size_t refs_size;
+    pla_tu_ref_t * refs;
+    size_t refs_cap;
 };
 
 PLA_API pla_tu_t * pla_tu_create(ul_hs_t * name);

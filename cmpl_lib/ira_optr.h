@@ -1,92 +1,98 @@
 #pragma once
 #include "ira.h"
 
-enum ira_optr_type {
-	IraOptrNone,
-	IraOptrBltnLogicNegBool,
-	IraOptrBltnArithNegInt,
-	IraOptrBltnMulInt,
-	IraOptrBltnDivInt,
-	IraOptrBltnModInt,
-	IraOptrBltnAddInt,
-	IraOptrBltnSubInt,
-	IraOptrBltnLeShiftInt,
-	IraOptrBltnRiShiftInt,
-	IraOptrBltnLessInt,
-	IraOptrBltnLessEqInt,
-	IraOptrBltnGrtrInt,
-	IraOptrBltnGrtrEqInt,
-	IraOptrBltnEqInt,
-	IraOptrBltnNeqInt,
-	IraOptrBltnAndInt,
-	IraOptrBltnXorInt,
-	IraOptrBltnOrInt,
-	IraOptrBltnLessPtr,
-	IraOptrBltnLessEqPtr,
-	IraOptrBltnGrtrPtr,
-	IraOptrBltnGrtrEqPtr,
-	IraOptrBltnEqPtr,
-	IraOptrBltnNeqPtr,
-	IraOptrBltnArithNegEnmn,
-	IraOptrBltnMulEnmn,
-	IraOptrBltnDivEnmn,
-	IraOptrBltnModEnmn,
-	IraOptrBltnAddEnmn,
-	IraOptrBltnSubEnmn,
-	IraOptrBltnLeShiftEnmn,
-	IraOptrBltnRiShiftEnmn,
-	IraOptrBltnLessEnmn,
-	IraOptrBltnLessEqEnmn,
-	IraOptrBltnGrtrEnmn,
-	IraOptrBltnGrtrEqEnmn,
-	IraOptrBltnEqEnmn,
-	IraOptrBltnNeqEnmn,
-	IraOptrBltnAndEnmn,
-	IraOptrBltnXorEnmn,
-	IraOptrBltnOrEnmn,
-	IraOptr_Count,
+enum ira_optr_type
+{
+    IraOptrNone,
+    IraOptrBltnLogicNegBool,
+    IraOptrBltnArithNegInt,
+    IraOptrBltnMulInt,
+    IraOptrBltnDivInt,
+    IraOptrBltnModInt,
+    IraOptrBltnAddInt,
+    IraOptrBltnSubInt,
+    IraOptrBltnLeShiftInt,
+    IraOptrBltnRiShiftInt,
+    IraOptrBltnLessInt,
+    IraOptrBltnLessEqInt,
+    IraOptrBltnGrtrInt,
+    IraOptrBltnGrtrEqInt,
+    IraOptrBltnEqInt,
+    IraOptrBltnNeqInt,
+    IraOptrBltnAndInt,
+    IraOptrBltnXorInt,
+    IraOptrBltnOrInt,
+    IraOptrBltnLessPtr,
+    IraOptrBltnLessEqPtr,
+    IraOptrBltnGrtrPtr,
+    IraOptrBltnGrtrEqPtr,
+    IraOptrBltnEqPtr,
+    IraOptrBltnNeqPtr,
+    IraOptrBltnArithNegEnmn,
+    IraOptrBltnMulEnmn,
+    IraOptrBltnDivEnmn,
+    IraOptrBltnModEnmn,
+    IraOptrBltnAddEnmn,
+    IraOptrBltnSubEnmn,
+    IraOptrBltnLeShiftEnmn,
+    IraOptrBltnRiShiftEnmn,
+    IraOptrBltnLessEnmn,
+    IraOptrBltnLessEqEnmn,
+    IraOptrBltnGrtrEnmn,
+    IraOptrBltnGrtrEqEnmn,
+    IraOptrBltnEqEnmn,
+    IraOptrBltnNeqEnmn,
+    IraOptrBltnAndEnmn,
+    IraOptrBltnXorEnmn,
+    IraOptrBltnOrEnmn,
+    IraOptr_Count,
 };
-struct ira_optr {
-	ira_optr_type_t type;
+struct ira_optr
+{
+    ira_optr_type_t type;
 
-	ira_optr_t * next;
-};
-
-enum ira_optr_ctg {
-	IraOptrCtgNone,
-	IraOptrCtgLogicNeg,
-	IraOptrCtgBitNeg,
-	IraOptrCtgArithNeg,
-	IraOptrCtgMul,
-	IraOptrCtgDiv,
-	IraOptrCtgMod,
-	IraOptrCtgAdd,
-	IraOptrCtgSub,
-	IraOptrCtgLeShift,
-	IraOptrCtgRiShift,
-	IraOptrCtgLess,
-	IraOptrCtgLessEq,
-	IraOptrCtgGrtr,
-	IraOptrCtgGrtrEq,
-	IraOptrCtgEq,
-	IraOptrCtgNeq,
-	IraOptrCtgBitAnd,
-	IraOptrCtgBitOr,
-	IraOptrCtgBitXor,
-	IraOptrCtgLogicAnd,
-	IraOptrCtgLogicOr,
-	IraOptrCtg_Count
+    ira_optr_t * next;
 };
 
-struct ira_optr_info {
-	bool is_bltn;
-	union {
-		struct {
-			bool is_unr;
-			ira_optr_ctg_t ctg;
-			ira_dt_type_t opd_dt_type;
-		} bltn;
-	};
+enum ira_optr_ctg
+{
+    IraOptrCtgNone,
+    IraOptrCtgLogicNeg,
+    IraOptrCtgBitNeg,
+    IraOptrCtgArithNeg,
+    IraOptrCtgMul,
+    IraOptrCtgDiv,
+    IraOptrCtgMod,
+    IraOptrCtgAdd,
+    IraOptrCtgSub,
+    IraOptrCtgLeShift,
+    IraOptrCtgRiShift,
+    IraOptrCtgLess,
+    IraOptrCtgLessEq,
+    IraOptrCtgGrtr,
+    IraOptrCtgGrtrEq,
+    IraOptrCtgEq,
+    IraOptrCtgNeq,
+    IraOptrCtgBitAnd,
+    IraOptrCtgBitOr,
+    IraOptrCtgBitXor,
+    IraOptrCtgLogicAnd,
+    IraOptrCtgLogicOr,
+    IraOptrCtg_Count
+};
+
+struct ira_optr_info
+{
+    bool is_bltn;
+    union
+    {
+        struct
+        {
+            bool is_unr;
+            ira_optr_ctg_t ctg;
+            ira_dt_type_t opd_dt_type;
+        } bltn;
+    };
 };
 
 IRA_API ira_optr_t * ira_optr_create(ira_optr_type_t type);

@@ -1,16 +1,17 @@
 #pragma once
-#include "mc_it.h"
 #include "lnk.h"
+#include "mc_it.h"
 
-struct mc_pea {
-	ul_hst_t * hst;
-	ul_ec_fmtr_t * ec_fmtr;
-	
-	mc_frag_t * frag;
+struct mc_pea
+{
+    ul_hst_t * hst;
+    ul_ec_fmtr_t * ec_fmtr;
 
-	mc_it_t it;
+    mc_frag_t * frag;
 
-	ul_hs_t * ep_name;
+    mc_it_t it;
+
+    ul_hs_t * ep_name;
 };
 
 MC_API void mc_pea_init(mc_pea_t * pea, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr);

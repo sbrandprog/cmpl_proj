@@ -1,57 +1,61 @@
 #pragma once
-#include "ira_pds.h"
 #include "ira_dt.h"
 #include "ira_optr.h"
+#include "ira_pds.h"
 
-struct ira_pec {
-	ul_hst_t * hst;
-	ul_ec_fmtr_t * ec_fmtr;
+struct ira_pec
+{
+    ul_hst_t * hst;
+    ul_ec_fmtr_t * ec_fmtr;
 
-	ul_hsb_t hsb;
+    ul_hsb_t hsb;
 
-	ul_hs_t * pds[IraPds_Count];
+    ul_hs_t * pds[IraPds_Count];
 
-	ira_dt_t dt_void;
-	ira_dt_t dt_dt;
-	ira_dt_t dt_bool;
-	ira_dt_t dt_ints[IraInt_Count];
-	ira_dt_t * dt_vec;
-	ira_dt_t * dt_ptr;
-	ira_dt_t * dt_tpl;
-	ira_dt_t * dt_stct;
-	ira_dt_t * dt_arr;
-	ira_dt_t * dt_func;
-	ira_dt_t * dt_enmn;
+    ira_dt_t dt_void;
+    ira_dt_t dt_dt;
+    ira_dt_t dt_bool;
+    ira_dt_t dt_ints[IraInt_Count];
+    ira_dt_t * dt_vec;
+    ira_dt_t * dt_ptr;
+    ira_dt_t * dt_tpl;
+    ira_dt_t * dt_stct;
+    ira_dt_t * dt_arr;
+    ira_dt_t * dt_func;
+    ira_dt_t * dt_enmn;
 
-	ira_dt_stct_tag_t * dt_stct_tag;
-	ira_dt_func_vas_t * dt_func_vas;
-	ira_dt_enmn_tag_t * dt_enmn_tag;
+    ira_dt_stct_tag_t * dt_stct_tag;
+    ira_dt_func_vas_t * dt_func_vas;
+    ira_dt_enmn_tag_t * dt_enmn_tag;
 
-	struct {
-		ira_dt_func_vas_t * none;
-		ira_dt_func_vas_t * cstyle;
-	} dt_func_vass;
-	struct {
-		ira_dt_t * size;
-		ira_dt_t * va_elem;
-		ira_dt_t * ascii_str;
-		ira_dt_t * wide_str;
-	} dt_spcl;
+    struct
+    {
+        ira_dt_func_vas_t * none;
+        ira_dt_func_vas_t * cstyle;
+    } dt_func_vass;
+    struct
+    {
+        ira_dt_t * size;
+        ira_dt_t * va_elem;
+        ira_dt_t * ascii_str;
+        ira_dt_t * wide_str;
+    } dt_spcl;
 
-	ira_optr_t * optrs[IraOptrCtg_Count];
+    ira_optr_t * optrs[IraOptrCtg_Count];
 
-	ira_lo_t * root;
+    ira_lo_t * root;
 
-	ira_lo_t * lo;
-	size_t lo_index;
+    ira_lo_t * lo;
+    size_t lo_index;
 
-	ul_hs_t * ep_name;
+    ul_hs_t * ep_name;
 };
 
-struct ira_pec_optr_res {
-	ira_optr_t * optr;
-	ira_dt_t * right_implct_cast_to;
-	ira_dt_t * res_dt;
+struct ira_pec_optr_res
+{
+    ira_optr_t * optr;
+    ira_dt_t * right_implct_cast_to;
+    ira_dt_t * res_dt;
 };
 
 IRA_API bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr);

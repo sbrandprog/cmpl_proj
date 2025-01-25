@@ -1,9 +1,9 @@
 #pragma once
 
 #if defined UL_BUILD_DLL
-#	define UL_API __declspec(dllexport)
+#define UL_API __declspec(dllexport)
 #else
-#	define UL_API __declspec(dllimport)
+#define UL_API __declspec(dllimport)
 #endif
 
 typedef struct ul_ros ul_ros_t;
@@ -25,7 +25,7 @@ typedef struct ul_hst ul_hst_t;
 typedef struct ul_ec_rec ul_ec_rec_t;
 typedef enum ul_ec_actn_type ul_ec_actn_type_t;
 typedef struct ul_ec_actn ul_ec_actn_t;
-typedef void (ul_ec_process_actn_proc_t)(void * user_data, const ul_ec_actn_t * actn);
+typedef void(ul_ec_process_actn_proc_t)(void * user_data, const ul_ec_actn_t * actn);
 typedef struct ul_ec ul_ec_t;
 
 typedef bool ul_ec_prntr_print_proc_t(void * user_data, ul_ec_rec_t * rec);

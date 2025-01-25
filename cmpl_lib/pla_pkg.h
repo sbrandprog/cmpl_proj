@@ -1,14 +1,15 @@
 #pragma once
 #include "pla.h"
 
-struct pla_pkg {
-	ul_hs_t * name;
+struct pla_pkg
+{
+    ul_hs_t * name;
 
-	pla_pkg_t * next;
+    pla_pkg_t * next;
 
-	pla_pkg_t * sub_pkg;
+    pla_pkg_t * sub_pkg;
 
-	pla_tus_t * tus;
+    pla_tus_t * tus;
 };
 
 PLA_API pla_pkg_t * pla_pkg_create(ul_hs_t * name);

@@ -5,80 +5,92 @@ static test_ctx_t ctx;
 
 static bool test_proc(test_ctx_t * ctx);
 
-static bool process_test_core(test_ctx_t * ctx) {
-	test_ctx_init(ctx, TestFrom_Count);
+static bool process_test_core(test_ctx_t * ctx)
+{
+    test_ctx_init(ctx, TestFrom_Count);
 
-	if (!test_proc(ctx)) {
-		wprintf(L"error point: test_proc\n");
-		return false;
-	}
+    if (!test_proc(ctx))
+    {
+        wprintf(L"error point: test_proc\n");
+        return false;
+    }
 
-	switch (ctx->from) {
-		case TestFromIra:
-			mc_pea_init(&ctx->pea, &ctx->hst, &ctx->ec_fmtr);
+    switch (ctx->from)
+    {
+        case TestFromIra:
+            mc_pea_init(&ctx->pea, &ctx->hst, &ctx->ec_fmtr);
 
-			if (!ira_pec_c_compile(&ctx->pec, &ctx->pea)) {
-				wprintf(L"error point: compilation\n");
-				return false;
-			}
-			//fallthrough
-		case TestFromMc:
-			lnk_pel_init(&ctx->pel, &ctx->hst, &ctx->ec_fmtr);
+            if (!ira_pec_c_compile(&ctx->pec, &ctx->pea))
+            {
+                wprintf(L"error point: compilation\n");
+                return false;
+            }
+            // fallthrough
+        case TestFromMc:
+            lnk_pel_init(&ctx->pel, &ctx->hst, &ctx->ec_fmtr);
 
-			if (!mc_pea_b_build(&ctx->pea, &ctx->pel)) {
-				wprintf(L"error point: mc build\n");
-				return false;
-			}
-			//fallthrough
-		case TestFromLnk:
-		{
-			ctx->pel.sett.file_name = EXE_NAME;
+            if (!mc_pea_b_build(&ctx->pea, &ctx->pel))
+            {
+                wprintf(L"error point: mc build\n");
+                return false;
+            }
+            // fallthrough
+        case TestFromLnk:
+        {
+            ctx->pel.sett.file_name = EXE_NAME;
 
-			if (!lnk_pel_l_link(&ctx->pel)) {
-				wprintf(L"error point: link\n");
-				return false;
-			}
-			
-			const wchar_t * const args[] = { EXE_NAME, NULL };
+            if (!lnk_pel_l_link(&ctx->pel))
+            {
+                wprintf(L"error point: link\n");
+                return false;
+            }
 
-			int res = ul_spawn_wait(EXE_NAME, args);
+            const wchar_t * const args[] = { EXE_NAME, NULL };
 
-			if (res != 0) {
-				wprintf(L"error point: run (codes: %d 0x%X)\n", res, res);
-				return false;
-			}
-			break;
-		}
-		default:
-			ul_assert_unreachable();
-	}
+            int res = ul_spawn_wait(EXE_NAME, args);
 
-	wprintf(L"success\n");
+            if (res != 0)
+            {
+                wprintf(L"error point: run (codes: %d 0x%X)\n", res, res);
+                return false;
+            }
+            break;
+        }
+        default:
+            ul_assert_unreachable();
+    }
 
-	return true;
+    wprintf(L"success\n");
+
+    return true;
 }
-static bool process_test() {
-	bool res = process_test_core(&ctx);
+static bool process_test()
+{
+    bool res = process_test_core(&ctx);
 
-	if (ctx.ec_buf.rec != NULL) {
-		if (res) {
-			wprintf(L"error: positive exit status with records in error collector\n");
-		}
+    if (ctx.ec_buf.rec != NULL)
+    {
+        if (res)
+        {
+            wprintf(L"error: positive exit status with records in error collector\n");
+        }
 
-		res = false;
+        res = false;
 
-		print_test_errs(&ctx);
-	}
+        print_test_errs(&ctx);
+    }
 
-	return res;
+    return res;
 }
 
-int main() {
-	if (!process_test()) {
-		return -1;
-	}
+int main()
+{
+    if (!process_test())
+    {
+        return -1;
+    }
 
-	test_ctx_cleanup(&ctx);
+    test_ctx_cleanup(&ctx);
 
-	return 0;
+    return 0;
 }

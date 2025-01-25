@@ -4,57 +4,66 @@
 
 #define PLA_TLTR_MOD_NAME L"pla_tltr"
 
-struct pla_tltr_src {
-	ul_hs_t * name;
-	pla_tu_t * tu;
+struct pla_tltr_src
+{
+    ul_hs_t * name;
+    pla_tu_t * tu;
 };
-enum pla_tltr_tse_type {
-	PlaTltrTseDclr,
-	PlaTltrTseStmt,
-	PlaTltrTseExpr,
-	PlaTltrTse_Count
+enum pla_tltr_tse_type
+{
+    PlaTltrTseDclr,
+    PlaTltrTseStmt,
+    PlaTltrTseExpr,
+    PlaTltrTse_Count
 };
-struct pla_tltr_tse {
-	pla_tltr_tse_type_t type;
+struct pla_tltr_tse
+{
+    pla_tltr_tse_type_t type;
 
-	pla_tltr_tse_t * prev;
+    pla_tltr_tse_t * prev;
 
-	union {
-		pla_dclr_t * dclr;
-		pla_stmt_t * stmt;
-		pla_expr_t * expr;
-	};
+    union
+    {
+        pla_dclr_t * dclr;
+        pla_stmt_t * stmt;
+        pla_expr_t * expr;
+    };
 };
-enum pla_tltr_vse_type {
-	PlaTltrVseNspc,
-	PlaTltrVse_Count
+enum pla_tltr_vse_type
+{
+    PlaTltrVseNspc,
+    PlaTltrVse_Count
 };
-struct pla_tltr_vse {
-	pla_tltr_vse_type_t type;
+struct pla_tltr_vse
+{
+    pla_tltr_vse_type_t type;
 
-	ul_hs_t * name;
-	pla_tltr_vse_t * prev;
+    ul_hs_t * name;
+    pla_tltr_vse_t * prev;
 
-	union {
-		struct {
-			ira_lo_t * lo;
-			ul_hs_t * name;
-		} nspc;
-	};
+    union
+    {
+        struct
+        {
+            ira_lo_t * lo;
+            ul_hs_t * name;
+        } nspc;
+    };
 };
-struct pla_tltr {
-	ul_hst_t * hst;
-	ul_ec_fmtr_t * ec_fmtr;
-	ira_pec_t * out;
+struct pla_tltr
+{
+    ul_hst_t * hst;
+    ul_ec_fmtr_t * ec_fmtr;
+    ira_pec_t * out;
 
-	ul_hs_t * pds[PlaPds_Count];
+    ul_hs_t * pds[PlaPds_Count];
 
-	ul_hsb_t hsb;
+    ul_hsb_t hsb;
 
-	const pla_tltr_src_t * src;
+    const pla_tltr_src_t * src;
 
-	pla_tltr_tse_t * tse;
-	pla_tltr_vse_t * vse;
+    pla_tltr_tse_t * tse;
+    pla_tltr_vse_t * vse;
 };
 
 PLA_API void pla_tltr_init(pla_tltr_t * tltr, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr, ira_pec_t * out);

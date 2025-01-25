@@ -1,11 +1,12 @@
 #pragma once
 #include "ul_ec.h"
 
-struct ul_ec_buf {
-	ul_ec_rec_t * rec;
-	ul_ec_rec_t ** rec_ins;
+struct ul_ec_buf
+{
+    ul_ec_rec_t * rec;
+    ul_ec_rec_t ** rec_ins;
 
-	ul_ec_t ec;
+    ul_ec_t ec;
 };
 
 UL_API void ul_ec_buf_init(ul_ec_buf_t * buf);
