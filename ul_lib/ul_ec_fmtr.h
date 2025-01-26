@@ -11,8 +11,8 @@ struct ul_ec_fmtr
 UL_API void ul_ec_fmtr_init(ul_ec_fmtr_t * fmtr, ul_ec_t * ec);
 UL_API void ul_ec_fmtr_cleanup(ul_ec_fmtr_t * fmtr);
 
-UL_API void ul_ec_fmtr_format_va(ul_ec_fmtr_t * fmtr, const wchar_t * fmt, va_list args);
-inline void ul_ec_fmtr_format(ul_ec_fmtr_t * fmtr, const wchar_t * fmt, ...)
+UL_API void ul_ec_fmtr_format_va(ul_ec_fmtr_t * fmtr, const char * fmt, va_list args);
+inline void ul_ec_fmtr_format(ul_ec_fmtr_t * fmtr, const char * fmt, ...)
 {
     va_list args;
 
@@ -23,4 +23,4 @@ inline void ul_ec_fmtr_format(ul_ec_fmtr_t * fmtr, const wchar_t * fmt, ...)
     va_end(args);
 }
 
-UL_API void ul_ec_fmtr_post(ul_ec_fmtr_t * fmtr, const wchar_t * type, const wchar_t * mod_name);
+UL_API void ul_ec_fmtr_post(ul_ec_fmtr_t * fmtr, const char * type, const char * mod_name);

@@ -1,16 +1,16 @@
 #pragma once
 #include "ul.h"
 
-#define UL_JSON_NULL L"null"
-#define UL_JSON_FALSE L"false"
-#define UL_JSON_TRUE L"true"
-#define UL_JSON_NAME_SEP L':'
-#define UL_JSON_VAL_SEP L','
-#define UL_JSON_QUOT_MARK L'\"'
-#define UL_JSON_ARR_BEGIN L'['
-#define UL_JSON_ARR_END L']'
-#define UL_JSON_OBJ_BEGIN L'{'
-#define UL_JSON_OBJ_END L'}'
+#define UL_JSON_NULL "null"
+#define UL_JSON_FALSE "false"
+#define UL_JSON_TRUE "true"
+#define UL_JSON_NAME_SEP ':'
+#define UL_JSON_VAL_SEP ','
+#define UL_JSON_QUOT_MARK '\"'
+#define UL_JSON_ARR_BEGIN '['
+#define UL_JSON_ARR_END ']'
+#define UL_JSON_OBJ_BEGIN '{'
+#define UL_JSON_OBJ_END '}'
 
 enum ul_json_type
 {

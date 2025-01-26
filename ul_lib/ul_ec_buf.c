@@ -18,8 +18,8 @@ static void process_actn_clear(ul_ec_buf_t * buf, const ul_ec_actn_t * actn)
     {
         ul_ec_rec_t * rec = *rec_ins;
 
-        if ((actn->clear.type == NULL || wcscmp(rec->type, actn->clear.type) == 0)
-            && (actn->clear.mod_name == NULL || wcscmp(rec->mod_name, actn->clear.mod_name) == 0))
+        if ((actn->clear.type == NULL || strcmp(rec->type, actn->clear.type) == 0)
+            && (actn->clear.mod_name == NULL || strcmp(rec->mod_name, actn->clear.mod_name) == 0))
         {
             *rec_ins = rec->next;
             ul_ec_rec_destroy(rec);
@@ -88,10 +88,10 @@ void ul_ec_buf_print(ul_ec_buf_t * buf, size_t prntrs_size, ul_ec_prntr_t ** prn
 
         if (prntr == prntr_end)
         {
-            wprintf(L"print error: no printer assigned for type [%s]\n", rec->type);
+            printf("print error: no printer assigned for type [%s]\n", rec->type);
             ul_ec_rec_dump(rec);
         }
 
-        putwchar(L'\n');
+        putchar('\n');
     }
 }

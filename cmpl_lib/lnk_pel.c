@@ -39,5 +39,5 @@ const lnk_pel_sett_t lnk_pel_dflt_sett = {
     .excpt_sect_name = ".pdata",
     .base_reloc_sect_name = ".reloc",
 
-    .file_name = L"out.exe"
+    .file_name = "out.exe"
 };

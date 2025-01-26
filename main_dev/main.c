@@ -1,5 +1,5 @@
 
-static const wchar_t * exe_name = L"test.exe";
+static const char * exe_name = "test.exe";
 
 static ul_hst_t main_hst;
 static pla_repo_t main_repo;
@@ -10,7 +10,7 @@ static bool main_fill_repo()
 
     main_repo.root = pla_pkg_create(NULL);
 
-    if (!pla_pkg_fill_from_list(main_repo.root, main_repo.hst, L"pla_lib", L"test.pla", NULL))
+    if (!pla_pkg_fill_from_list(main_repo.root, main_repo.hst, "pla_lib", "test.pla", NULL))
     {
         return false;
     }

@@ -662,15 +662,15 @@ const ira_dt_qual_t ira_dt_qual_none = { 0 };
 const ira_dt_qual_t ira_dt_qual_const = { .const_q = true };
 
 const ira_dt_info_t ira_dt_infos[IraDt_Count] = {
-    [IraDtVoid] = { .type_str = UL_ROS_MAKE(L"DtVoid") },
-    [IraDtDt] = { .type_str = UL_ROS_MAKE(L"DtDt") },
-    [IraDtBool] = { .type_str = UL_ROS_MAKE(L"DtBool") },
-    [IraDtInt] = { .type_str = UL_ROS_MAKE(L"DtInt") },
-    [IraDtVec] = { .type_str = UL_ROS_MAKE(L"DtVec") },
-    [IraDtPtr] = { .type_str = UL_ROS_MAKE(L"DtPtr") },
-    [IraDtTpl] = { .type_str = UL_ROS_MAKE(L"DtTpl") },
-    [IraDtStct] = { .type_str = UL_ROS_MAKE(L"DtStct") },
-    [IraDtArr] = { .type_str = UL_ROS_MAKE(L"DtArr") },
-    [IraDtFunc] = { .type_str = UL_ROS_MAKE(L"DtFunc") },
-    [IraDtEnmn] = { .type_str = UL_ROS_MAKE(L"DtEnmn") }
+    [IraDtVoid] = { .type_str = UL_ROS_MAKE("DtVoid") },
+    [IraDtDt] = { .type_str = UL_ROS_MAKE("DtDt") },
+    [IraDtBool] = { .type_str = UL_ROS_MAKE("DtBool") },
+    [IraDtInt] = { .type_str = UL_ROS_MAKE("DtInt") },
+    [IraDtVec] = { .type_str = UL_ROS_MAKE("DtVec") },
+    [IraDtPtr] = { .type_str = UL_ROS_MAKE("DtPtr") },
+    [IraDtTpl] = { .type_str = UL_ROS_MAKE("DtTpl") },
+    [IraDtStct] = { .type_str = UL_ROS_MAKE("DtStct") },
+    [IraDtArr] = { .type_str = UL_ROS_MAKE("DtArr") },
+    [IraDtFunc] = { .type_str = UL_ROS_MAKE("DtFunc") },
+    [IraDtEnmn] = { .type_str = UL_ROS_MAKE("DtEnmn") }
 };

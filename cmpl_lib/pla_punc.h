@@ -10,6 +10,6 @@ enum pla_punc
     PlaPunc_Count
 };
 
-PLA_API pla_punc_t pla_punc_fetch_best(size_t str_size, wchar_t * str, size_t * punc_len);
+PLA_API pla_punc_t pla_punc_fetch_best(size_t str_size, char * str, size_t * punc_len);
 
 extern PLA_API const ul_ros_t pla_punc_strs[PlaPunc_Count];

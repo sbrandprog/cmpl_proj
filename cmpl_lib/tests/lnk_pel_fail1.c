@@ -8,7 +8,7 @@ static void fill_pel()
 
     ctx.pel.sett.file_name = EXE_NAME;
 
-    ul_hs_t * ep_name = UL_HST_HASHADD_WS(&ctx.hst, L"start");
+    ul_hs_t * ep_name = UL_HST_HASHADD_WS(&ctx.hst, "start");
 
     ctx.pel.ep_name = ep_name;
 

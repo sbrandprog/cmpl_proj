@@ -12,7 +12,7 @@ void ul_ec_prntr_cleanup(ul_ec_prntr_t * prntr)
 
 static bool print_dflt_proc(void * user_data, ul_ec_rec_t * rec)
 {
-    if (wcscmp(rec->type, UL_EC_REC_TYPE_DFLT) != 0)
+    if (strcmp(rec->type, UL_EC_REC_TYPE_DFLT) != 0)
     {
         return false;
     }

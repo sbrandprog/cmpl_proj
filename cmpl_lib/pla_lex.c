@@ -3,14 +3,14 @@
 #include "pla_keyw.h"
 #include "pla_punc.h"
 
-typedef bool ch_pred_t(wchar_t ch);
-typedef void ch_proc_t(pla_lex_t * lex, wchar_t * out);
+typedef bool ch_pred_t(char ch);
+typedef void ch_proc_t(pla_lex_t * lex, char * out);
 
 void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr)
 {
     *lex = (pla_lex_t){ .hst = hst, .ec_fmtr = ec_fmtr };
 
-    static const ul_ros_t emp_str_raw = UL_ROS_MAKE(L"");
+    static const ul_ros_t emp_str_raw = UL_ROS_MAKE("");
 
     lex->emp_hs = ul_hst_hashadd(hst, emp_str_raw.size, emp_str_raw.str);
 }
@@ -44,7 +44,7 @@ static bool next_ch(pla_lex_t * lex)
         lex->line_ch = 0;
     }
 
-    if (lex->ch == L'\n')
+    if (lex->ch == '\n')
     {
         lex->line_switch = true;
     }
@@ -88,7 +88,7 @@ static pla_ec_pos_t get_ec_pos(pla_lex_t * lex)
         .line_ch = lex->line_ch
     };
 }
-static void report_lex(pla_lex_t * lex, const wchar_t * fmt, ...)
+static void report_lex(pla_lex_t * lex, const char * fmt, ...)
 {
     lex->is_rptd = true;
 
@@ -106,7 +106,7 @@ static void clear_str(pla_lex_t * lex)
     lex->str_size = 0;
     lex->str_hash = 0;
 }
-static void push_str_ch(pla_lex_t * lex, wchar_t ch)
+static void push_str_ch(pla_lex_t * lex, char ch)
 {
     ul_arr_grow(lex->str_size + 1, &lex->str_cap, &lex->str, sizeof(*lex->str));
 
@@ -119,7 +119,7 @@ static void fetch_str(pla_lex_t * lex, ch_pred_t * pred, ch_proc_t * proc)
 
     do
     {
-        wchar_t str_ch = lex->ch;
+        char str_ch = lex->ch;
 
         if (proc != NULL)
         {
@@ -139,50 +139,50 @@ static void fadd_str(pla_lex_t * lex, ch_pred_t * pred, ch_proc_t * proc, ul_hs_
 
     *out = hadd_str(lex);
 }
-static void ch_str_ch_proc(pla_lex_t * lex, wchar_t * out)
+static void ch_str_ch_proc(pla_lex_t * lex, char * out)
 {
-    if (lex->ch == L'\\')
+    if (lex->ch == '\\')
     {
         if (!next_ch(lex))
         {
-            report_lex(lex, L"invalid escape sequence: no character", lex->ch);
+            report_lex(lex, "invalid escape sequence: no character", lex->ch);
             return;
         }
 
         switch (lex->ch)
         {
-            case L'a':
-                *out = L'\a';
+            case 'a':
+                *out = '\a';
                 break;
-            case L'b':
-                *out = L'\b';
+            case 'b':
+                *out = '\b';
                 break;
-            case L'f':
-                *out = L'\f';
+            case 'f':
+                *out = '\f';
                 break;
-            case L'n':
-                *out = L'\n';
+            case 'n':
+                *out = '\n';
                 break;
-            case L'r':
-                *out = L'\r';
+            case 'r':
+                *out = '\r';
                 break;
-            case L't':
-                *out = L'\t';
+            case 't':
+                *out = '\t';
                 break;
-            case L'v':
-                *out = L'\v';
+            case 'v':
+                *out = '\v';
                 break;
-            case L'\\':
-                *out = L'\\';
+            case '\\':
+                *out = '\\';
                 break;
-            case L'\'':
-                *out = L'\'';
+            case '\'':
+                *out = '\'';
                 break;
-            case L'\"':
-                *out = L'\"';
+            case '\"':
+                *out = '\"';
                 break;
             default:
-                report_lex(lex, L"invalid escape sequence: \\%c", lex->ch);
+                report_lex(lex, "invalid escape sequence: \\%c", lex->ch);
                 break;
         }
     }
@@ -220,7 +220,7 @@ static void get_tok_core(pla_lex_t * lex)
             if (punc == PlaPuncNone)
             {
                 next_ch(lex);
-                report_lex(lex, L"invalid punctuator: undefined punctuator");
+                report_lex(lex, "invalid punctuator: undefined punctuator");
                 return;
             }
 
@@ -274,7 +274,7 @@ static void get_tok_core(pla_lex_t * lex)
             {
                 if (!next_ch(lex))
                 {
-                    report_lex(lex, L"invalid character string: no string characters");
+                    report_lex(lex, "invalid character string: no string characters");
                     break;
                 }
 
@@ -285,13 +285,13 @@ static void get_tok_core(pla_lex_t * lex)
 
                 if (!lex->ch_succ || !pla_tok_is_dqoute_ch(lex->ch))
                 {
-                    report_lex(lex, L"invalid character string: no enclosing double-quote");
+                    report_lex(lex, "invalid character string: no enclosing double-quote");
                     break;
                 }
 
                 if (!next_ch(lex) || !pla_tok_is_tag_ch(lex->ch))
                 {
-                    report_lex(lex, L"invalid character string: no type-tag");
+                    report_lex(lex, "invalid character string: no type-tag");
                     break;
                 }
 
@@ -315,7 +315,7 @@ static void get_tok_core(pla_lex_t * lex)
 
                 if (!lex->ch_succ || !pla_tok_is_num_str_tag_intro_ch(lex->ch) || !next_ch(lex) || !pla_tok_is_tag_ch(lex->ch))
                 {
-                    report_lex(lex, L"invalid number string: no type-tag");
+                    report_lex(lex, "invalid number string: no type-tag");
                     break;
                 }
 
@@ -331,7 +331,7 @@ static void get_tok_core(pla_lex_t * lex)
         }
         else
         {
-            report_lex(lex, L"undefined character: %c", lex->ch);
+            report_lex(lex, "undefined character: %c", lex->ch);
             next_ch(lex);
             return;
         }

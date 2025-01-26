@@ -70,14 +70,14 @@ void pla_dclr_destroy_chain(pla_dclr_t * dclr)
 }
 
 const pla_dclr_info_t pla_dclr_infos[PlaDclr_Count] = {
-    [PlaDclrNone] = { .type_str = UL_ROS_MAKE(L"DclrNone") },
-    [PlaDclrNspc] = { .type_str = UL_ROS_MAKE(L"DclrNspc") },
-    [PlaDclrFunc] = { .type_str = UL_ROS_MAKE(L"DclrFunc") },
-    [PlaDclrImpt] = { .type_str = UL_ROS_MAKE(L"DclrImpt") },
-    [PlaDclrVarDt] = { .type_str = UL_ROS_MAKE(L"DclrVarDt") },
-    [PlaDclrVarVal] = { .type_str = UL_ROS_MAKE(L"DclrVarVal") },
-    [PlaDclrDtStct] = { .type_str = UL_ROS_MAKE(L"DclrDtStct") },
-    [PlaDclrDtStctDecl] = { .type_str = UL_ROS_MAKE(L"DclrDtStctDecl") },
-    [PlaDclrEnmn] = { .type_str = UL_ROS_MAKE(L"DclrEnmn") },
-    [PlaDclrEnmnElem] = { .type_str = UL_ROS_MAKE(L"DclrEnmnElem") }
+    [PlaDclrNone] = { .type_str = UL_ROS_MAKE("DclrNone") },
+    [PlaDclrNspc] = { .type_str = UL_ROS_MAKE("DclrNspc") },
+    [PlaDclrFunc] = { .type_str = UL_ROS_MAKE("DclrFunc") },
+    [PlaDclrImpt] = { .type_str = UL_ROS_MAKE("DclrImpt") },
+    [PlaDclrVarDt] = { .type_str = UL_ROS_MAKE("DclrVarDt") },
+    [PlaDclrVarVal] = { .type_str = UL_ROS_MAKE("DclrVarVal") },
+    [PlaDclrDtStct] = { .type_str = UL_ROS_MAKE("DclrDtStct") },
+    [PlaDclrDtStctDecl] = { .type_str = UL_ROS_MAKE("DclrDtStctDecl") },
+    [PlaDclrEnmn] = { .type_str = UL_ROS_MAKE("DclrEnmn") },
+    [PlaDclrEnmnElem] = { .type_str = UL_ROS_MAKE("DclrEnmnElem") }
 };

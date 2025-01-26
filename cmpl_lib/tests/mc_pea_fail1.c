@@ -24,7 +24,7 @@ static int main_core()
 
     copy_frag_insts(_countof(insts), insts, ctx.pea.frag);
 
-    mc_it_add_sym(&ctx.pea.it, UL_HST_HASHADD_WS(&ctx.hst, L"библиотека.длл"), UL_HST_HASHADD_WS(&ctx.hst, L"функция"), UL_HST_HASHADD_WS(&ctx.hst, L"имя_компоновки"));
+    mc_it_add_sym(&ctx.pea.it, UL_HST_HASHADD_WS(&ctx.hst, "библиотека.длл"), UL_HST_HASHADD_WS(&ctx.hst, "функция"), UL_HST_HASHADD_WS(&ctx.hst, "имя_компоновки"));
 
     lnk_pel_init(&ctx.pel, &ctx.hst, &ctx.ec_fmtr);
 

@@ -1,7 +1,7 @@
 #pragma once
 #include "pla_tok.h"
 
-#define PLA_LEX_MOD_NAME L"pla_lex"
+#define PLA_LEX_MOD_NAME "pla_lex"
 
 struct pla_lex_src
 {
@@ -20,7 +20,7 @@ struct pla_lex
 
     const pla_lex_src_t * src;
 
-    wchar_t ch;
+    char ch;
     bool ch_succ;
 
     bool line_switch;
@@ -28,7 +28,7 @@ struct pla_lex
     size_t line_ch;
 
     size_t str_size;
-    wchar_t * str;
+    char * str;
     size_t str_cap;
     ul_hs_hash_t str_hash;
 

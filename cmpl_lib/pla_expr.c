@@ -60,12 +60,8 @@ void pla_expr_destroy(pla_expr_t * expr)
 }
 
 const pla_expr_info_t pla_expr_infos[PlaExpr_Count] = {
-    [PlaExprNone] = { .type_str = UL_ROS_MAKE(L"ExprNone"), .optr_ctg = IraOptrNone, .opds = { PlaExprOpdNone, PlaExprOpdNone, PlaExprOpdNone } },
-#define PLA_EXPR(name, ctg, opd0, opd1, opd2) [PlaExpr##name] = {    \
-    .type_str = UL_ROS_MAKE(L"Expr" L## #name),                      \
-    .optr_ctg = ctg,                                                 \
-    .opds = { PlaExprOpd##opd0, PlaExprOpd##opd1, PlaExprOpd##opd2 } \
-},
+    [PlaExprNone] = { .type_str = UL_ROS_MAKE("ExprNone"), .optr_ctg = IraOptrNone, .opds = { PlaExprOpdNone, PlaExprOpdNone, PlaExprOpdNone } },
+#define PLA_EXPR(name, ctg, opd0, opd1, opd2) [PlaExpr##name] = { .type_str = UL_ROS_MAKE("Expr" #name), .optr_ctg = ctg, .opds = { PlaExprOpd##opd0, PlaExprOpd##opd1, PlaExprOpd##opd2 } },
 #include "pla_expr.data"
 #undef PLA_EXPR
 };

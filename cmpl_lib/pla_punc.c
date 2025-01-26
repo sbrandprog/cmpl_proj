@@ -1,6 +1,6 @@
 #include "pla_punc.h"
 
-pla_punc_t pla_punc_fetch_best(size_t str_size, wchar_t * str, size_t * punc_len)
+pla_punc_t pla_punc_fetch_best(size_t str_size, char * str, size_t * punc_len)
 {
     pla_punc_t best = PlaPuncNone;
     size_t best_len = 0;
@@ -10,7 +10,7 @@ pla_punc_t pla_punc_fetch_best(size_t str_size, wchar_t * str, size_t * punc_len
         const ul_ros_t * p_str = &pla_punc_strs[p];
 
         if (best_len < p_str->size && p_str->size <= str_size
-            && wmemcmp(p_str->str, str, p_str->size) == 0)
+            && strncmp(p_str->str, str, p_str->size) == 0)
         {
             best = p;
             best_len = p_str->size;

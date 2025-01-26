@@ -6,7 +6,7 @@ static bool test_proc(test_ctx_t * ctx)
 
     mc_pea_init(&ctx->pea, &ctx->hst, &ctx->ec_fmtr);
 
-    ul_hs_t * ep_name = UL_HST_HASHADD_WS(&ctx->hst, L"main");
+    ul_hs_t * ep_name = UL_HST_HASHADD_WS(&ctx->hst, "main");
 
     ctx->pea.ep_name = ep_name;
 
@@ -18,15 +18,15 @@ static bool test_proc(test_ctx_t * ctx)
         { .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = LnkSectLpLabelBasic, .label = ep_name },
         { .type = McInstSub, .opds = McInstOpds_Reg_Imm, .reg0 = McRegRsp, .imm0_type = McInstImm8, .imm0 = 0x28 },
         { .type = McInstMov, .opds = McInstOpds_Reg_Imm, .reg0 = McRegEcx, .imm0_type = McInstImm32, .imm0 = -11 },
-        { .type = McInstCall, .opds = McInstOpds_Mem, .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp = 0, .mem_disp_label = UL_HST_HASHADD_WS(&ctx->hst, L"GetStdHandle") },
+        { .type = McInstCall, .opds = McInstOpds_Mem, .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp = 0, .mem_disp_label = UL_HST_HASHADD_WS(&ctx->hst, "GetStdHandle") },
         { .type = McInstMov, .opds = McInstOpds_Reg_Reg, .reg0 = McRegRcx, .reg1 = McRegRax },
-        { .type = McInstMov, .opds = McInstOpds_Reg_Imm, .reg0 = McRegRdx, .imm0_type = McInstImmLabelVa64, .imm0_label = UL_HST_HASHADD_WS(&ctx->hst, L"msg") },
+        { .type = McInstMov, .opds = McInstOpds_Reg_Imm, .reg0 = McRegRdx, .imm0_type = McInstImmLabelVa64, .imm0_label = UL_HST_HASHADD_WS(&ctx->hst, "msg") },
         { .type = McInstMov, .opds = McInstOpds_Reg_Imm, .reg0 = McRegR8d, .imm0_type = McInstImm32, .imm0 = 13 },
         { .type = McInstLea, .opds = McInstOpds_Reg_Mem, .reg0 = McRegR9, .mem_base = McRegRsp, .mem_disp = 0x30 },
         { .type = McInstMov, .opds = McInstOpds_Mem_Imm, .mem_base = McRegRsp, .mem_disp = 0x20, .mem_size = McSize64, .imm0_type = McInstImm32, .imm0 = 0 },
-        { .type = McInstCall, .opds = McInstOpds_Mem, .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp = 0, .mem_disp_label = UL_HST_HASHADD_WS(&ctx->hst, L"WriteFile") },
+        { .type = McInstCall, .opds = McInstOpds_Mem, .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp = 0, .mem_disp_label = UL_HST_HASHADD_WS(&ctx->hst, "WriteFile") },
         { .type = McInstMov, .opds = McInstOpds_Reg_Imm, .reg0 = McRegEcx, .imm0_type = McInstImm32, .imm0 = 1000 },
-        { .type = McInstCall, .opds = McInstOpds_Mem, .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp = 0, .mem_disp_label = UL_HST_HASHADD_WS(&ctx->hst, L"Sleep") },
+        { .type = McInstCall, .opds = McInstOpds_Mem, .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp = 0, .mem_disp_label = UL_HST_HASHADD_WS(&ctx->hst, "Sleep") },
         { .type = McInstAdd, .opds = McInstOpds_Reg_Imm, .reg0 = McRegRsp, .imm0_type = McInstImm8, .imm0 = 0x28 },
         { .type = McInstXor, .opds = McInstOpds_Reg_Reg, .reg0 = McRegEax, .reg1 = McRegEax },
         { .type = McInstRet, .opds = McInstOpds_None },
@@ -39,7 +39,7 @@ static bool test_proc(test_ctx_t * ctx)
     main_proc->next = data_frag;
 
     mc_inst_t data_frag_insts[] = {
-        { .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = LnkSectLpLabelBasic, .label = UL_HST_HASHADD_WS(&ctx->hst, L"msg") },
+        { .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = LnkSectLpLabelBasic, .label = UL_HST_HASHADD_WS(&ctx->hst, "msg") },
         { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm8, .imm0 = 'H' },
         { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm8, .imm0 = 'e' },
         { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm8, .imm0 = 'l' },
@@ -59,11 +59,11 @@ static bool test_proc(test_ctx_t * ctx)
     copy_frag_insts(_countof(data_frag_insts), data_frag_insts, data_frag);
 
     {
-        ul_hs_t * lib_name = UL_HST_HASHADD_WS(&ctx->hst, L"kernel32.dll");
+        ul_hs_t * lib_name = UL_HST_HASHADD_WS(&ctx->hst, "kernel32.dll");
 
-        mc_it_add_sym(&ctx->pea.it, lib_name, UL_HST_HASHADD_WS(&ctx->hst, L"GetStdHandle"), UL_HST_HASHADD_WS(&ctx->hst, L"GetStdHandle"));
-        mc_it_add_sym(&ctx->pea.it, lib_name, UL_HST_HASHADD_WS(&ctx->hst, L"WriteFile"), UL_HST_HASHADD_WS(&ctx->hst, L"WriteFile"));
-        mc_it_add_sym(&ctx->pea.it, lib_name, UL_HST_HASHADD_WS(&ctx->hst, L"Sleep"), UL_HST_HASHADD_WS(&ctx->hst, L"Sleep"));
+        mc_it_add_sym(&ctx->pea.it, lib_name, UL_HST_HASHADD_WS(&ctx->hst, "GetStdHandle"), UL_HST_HASHADD_WS(&ctx->hst, "GetStdHandle"));
+        mc_it_add_sym(&ctx->pea.it, lib_name, UL_HST_HASHADD_WS(&ctx->hst, "WriteFile"), UL_HST_HASHADD_WS(&ctx->hst, "WriteFile"));
+        mc_it_add_sym(&ctx->pea.it, lib_name, UL_HST_HASHADD_WS(&ctx->hst, "Sleep"), UL_HST_HASHADD_WS(&ctx->hst, "Sleep"));
     }
 
     return true;

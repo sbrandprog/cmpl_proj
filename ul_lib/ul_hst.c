@@ -25,7 +25,7 @@ void ul_hst_cleanup(ul_hst_t * hst)
     memset(hst, 0, sizeof(*hst));
 }
 
-ul_hs_t * ul_hst_add(ul_hst_t * hst, size_t str_size, const wchar_t * str, ul_hs_hash_t str_hash)
+ul_hs_t * ul_hst_add(ul_hst_t * hst, size_t str_size, const char * str, ul_hs_hash_t str_hash)
 {
     ul_hst_node_t ** node_place = &hst->ents[str_hash % _countof(hst->ents)];
 
@@ -35,7 +35,7 @@ ul_hs_t * ul_hst_add(ul_hst_t * hst, size_t str_size, const wchar_t * str, ul_hs
 
         if (node->hstr.hash == str_hash
             && node->hstr.size == str_size
-            && wcsncmp(node->hstr.str, str, str_size) == 0)
+            && strncmp(node->hstr.str, str, str_size) == 0)
         {
             return &node->hstr;
         }
@@ -43,11 +43,11 @@ ul_hs_t * ul_hst_add(ul_hst_t * hst, size_t str_size, const wchar_t * str, ul_hs
         node_place = &node->next;
     }
 
-    wchar_t * new_node_str = malloc((str_size + 1) * sizeof(*new_node_str));
+    char * new_node_str = malloc(sizeof(*new_node_str) * (str_size + 1));
 
     ul_assert(new_node_str != NULL);
 
-    wmemcpy(new_node_str, str, str_size);
+    memcpy_s(new_node_str, sizeof(*new_node_str) * (str_size + 1), str, sizeof(*str) * str_size);
     new_node_str[str_size] = 0;
 
     ul_hst_node_t * new_node = malloc(sizeof(*new_node));

@@ -42,15 +42,15 @@ void lnk_sect_add_lp(lnk_sect_t * sect, lnk_sect_lp_type_t type, lnk_sect_lp_sty
 }
 
 const ul_ros_t lnk_sect_lp_mark_strs[LnkSectLpMark_Count] = {
-    [LnkSectLpMarkNone] = UL_ROS_MAKE(L"None"),
-    [LnkSectLpMarkImpStart] = UL_ROS_MAKE(L"Import data Start"),
-    [LnkSectLpMarkImpEnd] = UL_ROS_MAKE(L"Import data End"),
-    [LnkSectLpMarkImpTabStart] = UL_ROS_MAKE(L"Import table Start"),
-    [LnkSectLpMarkImpTabEnd] = UL_ROS_MAKE(L"Import table End"),
-    [LnkSectLpMarkRelocStart] = UL_ROS_MAKE(L"Base relocations Start"),
-    [LnkSectLpMarkRelocEnd] = UL_ROS_MAKE(L"Base relocations End"),
-    [LnkSectLpMarkExcptStart] = UL_ROS_MAKE(L"Exception data Start"),
-    [LnkSectLpMarkExcptEnd] = UL_ROS_MAKE(L"Exception data End"),
+    [LnkSectLpMarkNone] = UL_ROS_MAKE("None"),
+    [LnkSectLpMarkImpStart] = UL_ROS_MAKE("Import data Start"),
+    [LnkSectLpMarkImpEnd] = UL_ROS_MAKE("Import data End"),
+    [LnkSectLpMarkImpTabStart] = UL_ROS_MAKE("Import table Start"),
+    [LnkSectLpMarkImpTabEnd] = UL_ROS_MAKE("Import table End"),
+    [LnkSectLpMarkRelocStart] = UL_ROS_MAKE("Base relocations Start"),
+    [LnkSectLpMarkRelocEnd] = UL_ROS_MAKE("Base relocations End"),
+    [LnkSectLpMarkExcptStart] = UL_ROS_MAKE("Exception data Start"),
+    [LnkSectLpMarkExcptEnd] = UL_ROS_MAKE("Exception data End"),
 };
 const size_t lnk_sect_fixups_size[LnkSectLpFixup_Count] = {
     [LnkSectLpFixupNone] = 0,

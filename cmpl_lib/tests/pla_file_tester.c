@@ -3,52 +3,31 @@
 
 #define FILE_NAME_BUF_SIZE 64
 
-#define EXE_NAME L"test.exe"
+#define EXE_NAME "test.exe"
 #define EXE_CMD EXE_NAME
 
-static const wchar_t * file_name = NULL;
+static const char * file_name = NULL;
 
 static ul_hst_t hst;
 static pla_repo_t repo;
 static ul_ec_buf_t ec_buf;
 static ul_ec_fmtr_t ec_fmtr;
 
-static ul_hs_t * make_hs_from_char(char * nt_str)
-{
-    wchar_t cvt_buf[FILE_NAME_BUF_SIZE];
-
-    wchar_t *ins = cvt_buf, *ins_end = ins + _countof(cvt_buf);
-    for (char * cur = nt_str; *cur != 0 && ins != ins_end;)
-    {
-        *ins++ = (wchar_t)*cur++;
-    }
-
-    if (ins == ins_end)
-    {
-        wprintf(L"file name exceeded internal buffer size\n");
-        return NULL;
-    }
-
-    *ins++ = 0;
-
-    return ul_hst_hashadd(&hst, ins - cvt_buf, cvt_buf);
-}
-
 static int main_core(int argc, char * argv[])
 {
     if (argc != 2)
     {
-        wprintf(L"expected 1 file name argument\n");
+        printf("expected 1 file name argument\n");
         return -1;
     }
 
     ul_hst_init(&hst);
 
-    ul_hs_t * file_name = make_hs_from_char(argv[1]);
+    ul_hs_t * file_name = ul_hst_hashadd(&hst, strlen(argv[1]), argv[1]);
 
     if (file_name == NULL)
     {
-        wprintf(L"failed to convert file name to hashed string\n");
+        printf("failed to convert file name to hashed string\n");
         return -1;
     }
 
@@ -60,9 +39,9 @@ static int main_core(int argc, char * argv[])
 
     ul_ec_fmtr_init(&ec_fmtr, &ec_buf.ec);
 
-    if (!pla_pkg_fill_from_list(repo.root, &hst, L"pla_lib", file_name->str, NULL))
+    if (!pla_pkg_fill_from_list(repo.root, &hst, "pla_lib", file_name->str, NULL))
     {
-        wprintf(L"failed to fill repo\n");
+        printf("failed to fill repo\n");
         return -1;
     }
 
@@ -71,7 +50,7 @@ static int main_core(int argc, char * argv[])
         pla_bs_src_t bs_src;
 
         {
-            wchar_t * file_name_ext = wcsrchr(file_name->str, L'.');
+            char * file_name_ext = strrchr(file_name->str, '.');
 
             first_tus_name = file_name_ext == NULL ? file_name : ul_hst_hashadd(&hst, file_name_ext - file_name->str, file_name->str);
         }
@@ -85,19 +64,19 @@ static int main_core(int argc, char * argv[])
 
         if (!res)
         {
-            wprintf(L"failed to build executable\n");
+            printf("failed to build executable\n");
             return -1;
         }
     }
 
     {
-        const wchar_t * const args[] = { EXE_NAME, NULL };
+        const char * const args[] = { EXE_NAME, NULL };
 
         int res = ul_spawn_wait(EXE_NAME, args);
 
         if (res != 0)
         {
-            wprintf(L"unexpected executable result (codes: %d 0x%X)\n", res, res);
+            printf("unexpected executable result (codes: %d 0x%X)\n", res, res);
             return -1;
         }
     }

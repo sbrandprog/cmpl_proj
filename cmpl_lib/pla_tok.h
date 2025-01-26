@@ -31,48 +31,48 @@ struct pla_tok
     };
 };
 
-inline bool pla_tok_is_emp_ch(wchar_t ch)
+inline bool pla_tok_is_emp_ch(char ch)
 {
-    return ch == L' ' || ch == '\t' || ch == L'\n';
+    return ch == ' ' || ch == '\t' || ch == '\n';
 }
 
-inline bool pla_tok_is_punc_ch(wchar_t ch)
+inline bool pla_tok_is_punc_ch(char ch)
 {
-    return (L'!' <= ch && ch <= L'/' && ch != L'\"' && ch != '\'') || (L':' <= ch && ch <= L'>') || (L'[' <= ch && ch <= L'^') || (L'{' <= ch && ch <= L'~');
+    return ('!' <= ch && ch <= '/' && ch != '\"' && ch != '\'') || (':' <= ch && ch <= '>') || ('[' <= ch && ch <= '^') || ('{' <= ch && ch <= '~');
 }
 
-inline bool pla_tok_is_first_ident_ch(wchar_t ch)
+inline bool pla_tok_is_first_ident_ch(char ch)
 {
-    return (L'A' <= ch && ch <= L'Z') || (L'a' <= ch && ch <= L'z') || ch == L'_';
+    return ('A' <= ch && ch <= 'Z') || ('a' <= ch && ch <= 'z') || ch == '_';
 }
-inline bool pla_tok_is_ident_ch(wchar_t ch)
+inline bool pla_tok_is_ident_ch(char ch)
 {
-    return pla_tok_is_first_ident_ch(ch) || (L'0' <= ch && ch <= L'9');
+    return pla_tok_is_first_ident_ch(ch) || ('0' <= ch && ch <= '9');
 }
 
-inline bool pla_tok_is_tag_ch(wchar_t ch)
+inline bool pla_tok_is_tag_ch(char ch)
 {
     return pla_tok_is_ident_ch(ch);
 }
 
-inline bool pla_tok_is_dqoute_ch(wchar_t ch)
+inline bool pla_tok_is_dqoute_ch(char ch)
 {
-    return ch == L'\"';
+    return ch == '\"';
 }
-inline bool pla_tok_is_ch_str_ch(wchar_t ch)
+inline bool pla_tok_is_ch_str_ch(char ch)
 {
-    return !pla_tok_is_dqoute_ch(ch) && ch != L'\n';
+    return !pla_tok_is_dqoute_ch(ch) && ch != '\n';
 }
 
-inline bool pla_tok_is_first_num_str_ch(wchar_t ch)
+inline bool pla_tok_is_first_num_str_ch(char ch)
 {
-    return (L'0' <= ch && ch <= L'9');
+    return ('0' <= ch && ch <= '9');
 }
-inline bool pla_tok_is_num_str_ch(wchar_t ch)
+inline bool pla_tok_is_num_str_ch(char ch)
 {
-    return pla_tok_is_first_num_str_ch(ch) || (L'A' <= ch && ch <= L'Z') || (L'a' <= ch && ch <= L'z') || ch == L'_';
+    return pla_tok_is_first_num_str_ch(ch) || ('A' <= ch && ch <= 'Z') || ('a' <= ch && ch <= 'z') || ch == '_';
 }
-inline bool pla_tok_is_num_str_tag_intro_ch(wchar_t ch)
+inline bool pla_tok_is_num_str_tag_intro_ch(char ch)
 {
-    return ch == L'\'';
+    return ch == '\'';
 }

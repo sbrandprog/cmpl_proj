@@ -6,7 +6,7 @@
 #include "mc_reg.h"
 #include "mc_size.h"
 
-#define MOD_NAME L"mc_frag"
+#define MOD_NAME "mc_frag"
 
 typedef struct mc_frag_ctx
 {
@@ -17,7 +17,7 @@ typedef struct mc_frag_ctx
     bool is_rptd;
 } ctx_t;
 
-static void report(ctx_t * ctx, const wchar_t * fmt, ...)
+static void report(ctx_t * ctx, const char * fmt, ...)
 {
     ctx->is_rptd = true;
 
@@ -88,7 +88,7 @@ static void create_sect(ctx_t * ctx)
 
     if (frag->type >= McFrag_Count)
     {
-        report(ctx, L"invalid fragment type");
+        report(ctx, "invalid fragment type");
     }
     else
     {
@@ -209,7 +209,7 @@ static void build_insts(ctx_t * ctx)
             case McInstLabel:
                 if (inst->opds != McInstOpds_Label)
                 {
-                    report(ctx, L"invalid label-instruction operands");
+                    report(ctx, "invalid label-instruction operands");
                 }
 
                 lnk_sect_add_lp(sect, LnkSectLpLabel, inst->label_stype, inst->label, sect->data_size);
@@ -218,7 +218,7 @@ static void build_insts(ctx_t * ctx)
             case McInstAlign:
                 if (inst->opds != McInstOpds_Imm || inst->imm0_type != McInstImm64)
                 {
-                    report(ctx, L"invalid align-instruction operands");
+                    report(ctx, "invalid align-instruction operands");
                 }
                 else
                 {
@@ -253,7 +253,7 @@ static void build_insts(ctx_t * ctx)
 
                     if (!get_imm0_fixup_stype(inst, &stype))
                     {
-                        report(ctx, L"invalid 0th immediate's type");
+                        report(ctx, "invalid 0th immediate's type");
                     }
                     else if (stype != LnkSectLpFixupNone)
                     {
@@ -262,7 +262,7 @@ static void build_insts(ctx_t * ctx)
 
                     if (!get_disp_fixup_stype(inst, &stype))
                     {
-                        report(ctx, L"invalid displacement's type");
+                        report(ctx, "invalid displacement's type");
                     }
                     else if (stype != LnkSectLpFixupNone)
                     {

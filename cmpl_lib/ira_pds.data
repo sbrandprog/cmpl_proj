@@ -1,3 +1,3 @@
-IRA_PDS(EpName, L"main")
-IRA_PDS(SizeMmbr, L"size")
-IRA_PDS(DataMmbr, L"data")
+IRA_PDS(EpName, "main")
+IRA_PDS(SizeMmbr, "size")
+IRA_PDS(DataMmbr, "data")

@@ -3,7 +3,7 @@
 #include "lnk_pel_m.h"
 #include "lnk_sect.h"
 
-#define MOD_NAME L"lnk_pel_l"
+#define MOD_NAME "lnk_pel_l"
 
 #define PAGE_SIZE 4096
 
@@ -186,7 +186,7 @@ static void destroy_sect_chain(sect_t * sect)
 }
 
 
-static void report(ctx_t * ctx, const wchar_t * fmt, ...)
+static void report(ctx_t * ctx, const char * fmt, ...)
 {
     ctx->is_rptd = true;
 
@@ -214,7 +214,7 @@ static bool prepare_input_sects(ctx_t * ctx)
     {
         if (!lnk_pel_m_merge(ctx->pel, &ctx->mrgd_sect))
         {
-            report(ctx, L"failed to merge sections");
+            report(ctx, "failed to merge sections");
             return false;
         }
 
@@ -275,7 +275,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp)
 {
     if (lp->off > sect->data_size)
     {
-        report(ctx, L"invalid link point offset");
+        report(ctx, "invalid link point offset");
         return;
     }
 
@@ -290,7 +290,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp)
             }
             else if (lp->stype >= LnkSectLpMark_Count)
             {
-                report(ctx, L"invalid mark subtype");
+                report(ctx, "invalid mark subtype");
             }
             else
             {
@@ -298,7 +298,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp)
 
                 if (mark->sect != NULL)
                 {
-                    report(ctx, L"invalid mark: [%s] already set", lnk_sect_lp_mark_strs[lp->stype].str);
+                    report(ctx, "invalid mark: [%s] already set", lnk_sect_lp_mark_strs[lp->stype].str);
                 }
                 else
                 {
@@ -314,7 +314,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp)
             }
             else if (lp->stype >= LnkSectLpLabel_Count)
             {
-                report(ctx, L"invalid label subtype");
+                report(ctx, "invalid label subtype");
             }
             else
             {
@@ -328,7 +328,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp)
 
                         if (ins_pos < ctx->labels_size && ctx->labels[ins_pos].name == new_label.name)
                         {
-                            report(ctx, L"invalid label: non-unique name [%s]", new_label.name->str);
+                            report(ctx, "invalid label: non-unique name [%s]", new_label.name->str);
                         }
                         else
                         {
@@ -358,7 +358,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp)
                                 case LnkSectLpLabelProcEnd:
                                     if (proc->end_sect != NULL)
                                     {
-                                        report(ctx, L"invalid label, procedure end: end point already set");
+                                        report(ctx, "invalid label, procedure end: end point already set");
                                     }
                                     else
                                     {
@@ -370,7 +370,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp)
                                 case LnkSectLpLabelProcUnw:
                                     if (proc->unw_sect != NULL)
                                     {
-                                        report(ctx, L"invalid label, unwind: unwind data already set");
+                                        report(ctx, "invalid label, unwind: unwind data already set");
                                     }
                                     else
                                     {
@@ -421,13 +421,13 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp)
             }
             else if (lp->stype >= LnkSectLpFixup_Count)
             {
-                report(ctx, L"invalid fixup subtype");
+                report(ctx, "invalid fixup subtype");
             }
             else
             {
                 if (lp->off + lnk_sect_fixups_size[lp->stype] > sect->data_size)
                 {
-                    report(ctx, L"invalid fixup offset: (offset + fixup data) exceeds section boundary");
+                    report(ctx, "invalid fixup offset: (offset + fixup data) exceeds section boundary");
                 }
                 else
                 {
@@ -443,7 +443,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp)
             }
             break;
         default:
-            report(ctx, L"invalid link point type");
+            report(ctx, "invalid link point type");
             break;
     }
 }
@@ -455,7 +455,7 @@ static void form_main_sects(ctx_t * ctx)
 
         if (sect == NULL)
         {
-            report(ctx, L"invalid section: non-unique section name");
+            report(ctx, "invalid section: non-unique section name");
             continue;
         }
 
@@ -475,7 +475,7 @@ static bool process_excpt_data(ctx_t * ctx)
 
         if (proc->label == NULL || proc->end_sect == NULL || proc->unw_sect == NULL)
         {
-            report(ctx, L"invalid procedure data: data for procedure [%s] is incomplete", proc->label_name->str);
+            report(ctx, "invalid procedure data: data for procedure [%s] is incomplete", proc->label_name->str);
             err_flag = true;
         }
     }
@@ -486,7 +486,7 @@ static void form_excpt_data_sect(ctx_t * ctx)
 {
     if (ctx->marks[LnkSectLpMarkExcptStart].sect != NULL || ctx->marks[LnkSectLpMarkExcptEnd].sect != NULL)
     {
-        report(ctx, L"invalid input: exception data marks already set");
+        report(ctx, "invalid input: exception data marks already set");
         return;
     }
 
@@ -496,7 +496,7 @@ static void form_excpt_data_sect(ctx_t * ctx)
 
         if (excpt == NULL)
         {
-            report(ctx, L"failed to add exception data section");
+            report(ctx, "failed to add exception data section");
         }
         else
         {
@@ -580,7 +580,7 @@ static void form_base_reloc_sect(ctx_t * ctx)
 {
     if (ctx->marks[LnkSectLpMarkRelocStart].sect != NULL || ctx->marks[LnkSectLpMarkRelocEnd].sect != NULL)
     {
-        report(ctx, L"invalid input: base relocations marks already set");
+        report(ctx, "invalid input: base relocations marks already set");
         return;
     }
 
@@ -590,7 +590,7 @@ static void form_base_reloc_sect(ctx_t * ctx)
 
     if (reloc == NULL)
     {
-        report(ctx, L"failed to add base relocations section");
+        report(ctx, "failed to add base relocations section");
     }
     else
     {
@@ -703,7 +703,7 @@ static bool calculate_offsets(ctx_t * ctx)
 
         if (next_virt_addr >= LNK_PEL_MODULE_MAX_SIZE)
         {
-            report(ctx, L"invalid sections: size of final executable exceeds 2GiB");
+            report(ctx, "invalid sections: size of final executable exceeds 2GiB");
             return false;
         }
     }
@@ -715,7 +715,7 @@ static bool calculate_offsets(ctx_t * ctx)
 
         if (ep_label == NULL)
         {
-            report(ctx, L"invalid entry point: label [%s] not found", ctx->pel->ep_name->str);
+            report(ctx, "invalid entry point: label [%s] not found", ctx->pel->ep_name->str);
             return false;
         }
 
@@ -782,7 +782,7 @@ static void apply_fixups(ctx_t * ctx)
 
         if (label == NULL)
         {
-            report(ctx, L"invalid fixup: label [%s] not found", fixup->label_name->str);
+            report(ctx, "invalid fixup: label [%s] not found", fixup->label_name->str);
             continue;
         }
 
@@ -862,7 +862,7 @@ static void apply_fixups(ctx_t * ctx)
 
         if (prec_limit_exc)
         {
-            report(ctx, L"invalid fixup: fixup data exceeded precision limit, name: [%s]", label->name->str);
+            report(ctx, "invalid fixup: fixup data exceeded precision limit, name: [%s]", label->name->str);
         }
     }
 
@@ -885,7 +885,7 @@ static void set_dir_info(ctx_t * ctx, lnk_pe_nt_hdrs_t * nt, size_t dir_ent)
     }
     else if (start_mark->sect != end_mark->sect)
     {
-        report(ctx, L"invalid marks: start & end marks set in different sections (or one of them is not set)");
+        report(ctx, "invalid marks: start & end marks set in different sections (or one of them is not set)");
     }
     else
     {
@@ -996,9 +996,9 @@ static void write_file(ctx_t * ctx)
 {
     FILE * file = NULL;
 
-    if (_wfopen_s(&file, ctx->pel->sett.file_name, L"wb") != 0)
+    if (fopen_s(&file, ctx->pel->sett.file_name, "wb") != 0)
     {
-        report(ctx, L"failed to open file [%s]", ctx->pel->sett.file_name);
+        report(ctx, "failed to open file [%s]", ctx->pel->sett.file_name);
     }
     else
     {
@@ -1006,7 +1006,7 @@ static void write_file(ctx_t * ctx)
 
         if (ferror(file) != 0)
         {
-            report(ctx, L"error flag on file [%s] is set", ctx->pel->sett.file_name);
+            report(ctx, "error flag on file [%s] is set", ctx->pel->sett.file_name);
         }
 
         fclose(file);
@@ -1015,9 +1015,9 @@ static void write_file(ctx_t * ctx)
 
 static void export_pd_labels(ctx_t * ctx)
 {
-    ul_hs_t *hs_labels = UL_HST_HASHADD_WS(ctx->pel->hst, L"labels"),
-            *hs_addr = UL_HST_HASHADD_WS(ctx->pel->hst, L"addr"),
-            *hs_name = UL_HST_HASHADD_WS(ctx->pel->hst, L"name");
+    ul_hs_t *hs_labels = UL_HST_HASHADD_WS(ctx->pel->hst, "labels"),
+            *hs_addr = UL_HST_HASHADD_WS(ctx->pel->hst, "addr"),
+            *hs_name = UL_HST_HASHADD_WS(ctx->pel->hst, "name");
 
     *ctx->pd_json_ins = ul_json_make_arr();
 
@@ -1048,9 +1048,9 @@ static void export_pd_labels(ctx_t * ctx)
 }
 static void export_pd_procs(ctx_t * ctx)
 {
-    ul_hs_t *hs_procs = UL_HST_HASHADD_WS(ctx->pel->hst, L"procs"),
-            *hs_start = UL_HST_HASHADD_WS(ctx->pel->hst, L"start"),
-            *hs_end = UL_HST_HASHADD_WS(ctx->pel->hst, L"end");
+    ul_hs_t *hs_procs = UL_HST_HASHADD_WS(ctx->pel->hst, "procs"),
+            *hs_start = UL_HST_HASHADD_WS(ctx->pel->hst, "start"),
+            *hs_end = UL_HST_HASHADD_WS(ctx->pel->hst, "end");
 
     *ctx->pd_json_ins = ul_json_make_arr();
 
@@ -1086,16 +1086,16 @@ static void export_pd_procs(ctx_t * ctx)
 }
 static void export_pd(ctx_t * ctx)
 {
-    size_t file_name_buf_size = (wcslen(ctx->pel->sett.file_name) + wcslen(LNK_PEL_PD_FILE_EXT) + 1);
-    wchar_t * file_name_buf = malloc(sizeof(*file_name_buf) * file_name_buf_size);
+    size_t file_name_buf_size = (strlen(ctx->pel->sett.file_name) + LNK_PEL_PD_FILE_EXT_SIZE + 1);
+    char * file_name_buf = malloc(sizeof(*file_name_buf) * file_name_buf_size);
 
     ul_assert(file_name_buf != NULL);
 
-    int res = swprintf_s(file_name_buf, file_name_buf_size, L"%s" LNK_PEL_PD_FILE_EXT, ctx->pel->sett.file_name);
+    int res = snprintf(file_name_buf, file_name_buf_size, "%s" LNK_PEL_PD_FILE_EXT, ctx->pel->sett.file_name);
 
     if (res < 0)
     {
-        report(ctx, L"failed to format file name of program database");
+        report(ctx, "failed to format file name of program database");
     }
     else
     {
@@ -1108,7 +1108,7 @@ static void export_pd(ctx_t * ctx)
 
         if (!ul_json_g_generate_file(file_name_buf, ctx->pd_json))
         {
-            report(ctx, L"failed to write program database");
+            report(ctx, "failed to write program database");
         }
     }
 

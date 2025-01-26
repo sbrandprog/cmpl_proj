@@ -49,7 +49,7 @@ int main()
             }
         }
 
-        wprintf(L"%3i : %3zi %3zi\n", trg, lower_i, upper_i);
+        printf("%3i : %3zi %3zi\n", trg, lower_i, upper_i);
     }
 
     return 0;

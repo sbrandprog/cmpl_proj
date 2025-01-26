@@ -5,9 +5,9 @@
 
 #include <process.h>
 
-int ul_spawn_wait(const wchar_t * file_name, const wchar_t * const * args)
+int ul_spawn_wait(const char * file_name, const char * const * args)
 {
-    return (int)_wspawnv(_P_WAIT, file_name, args);
+    return (int)_spawnv(_P_WAIT, file_name, args);
 }
 
 #endif

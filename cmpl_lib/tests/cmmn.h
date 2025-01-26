@@ -1,7 +1,7 @@
 #pragma once
 #include "cmpl_lib/cmpl_lib.h"
 
-#define EXE_NAME L"test.exe"
+#define EXE_NAME "test.exe"
 #define EXE_CMD EXE_NAME
 
 typedef enum test_from

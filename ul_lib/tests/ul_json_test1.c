@@ -1,6 +1,6 @@
 #include "ul_lib/ul_lib.h"
 
-#define FILE_NAME L"test1.json"
+#define FILE_NAME "test1.json"
 
 typedef struct test_case
 {
@@ -9,22 +9,22 @@ typedef struct test_case
 } test_case_t;
 
 static const test_case_t test_cases[] = {
-    { .str = UL_ROS_MAKE(L"\tfalse"), .res = true },
-    { .str = UL_ROS_MAKE(L"\nnull"), .res = true },
-    { .str = UL_ROS_MAKE(L" true"), .res = true },
-    { .str = UL_ROS_MAKE(L"{ }"), .res = true },
-    { .str = UL_ROS_MAKE(L"[\t]"), .res = true },
-    { .str = UL_ROS_MAKE(L"{ }"), .res = true },
-    { .str = UL_ROS_MAKE(L"\"\""), .res = true },
-    { .str = UL_ROS_MAKE(L"\"string\""), .res = true },
-    { .str = UL_ROS_MAKE(L"\"\\\"Hello world!\\n\\\"\""), .res = true },
-    { .str = UL_ROS_MAKE(L"\r\n100"), .res = true },
-    { .str = UL_ROS_MAKE(L"9223372036854775807"), .res = true },
-    { .str = UL_ROS_MAKE(L"-9223372036854775807"), .res = true },
-    { .str = UL_ROS_MAKE(L"-9223372036854775808"), .res = true },
-    { .str = UL_ROS_MAKE(L"3.14159265358979323846"), .res = true },
-    { .str = UL_ROS_MAKE(L"2.71828182845904523536"), .res = true },
-    { .str = UL_ROS_MAKE(L"{ \"first\": 20, \"second\":\t30 }"), .res = true },
+    { .str = UL_ROS_MAKE("\tfalse"), .res = true },
+    { .str = UL_ROS_MAKE("\nnull"), .res = true },
+    { .str = UL_ROS_MAKE(" true"), .res = true },
+    { .str = UL_ROS_MAKE("{ }"), .res = true },
+    { .str = UL_ROS_MAKE("[\t]"), .res = true },
+    { .str = UL_ROS_MAKE("{ }"), .res = true },
+    { .str = UL_ROS_MAKE("\"\""), .res = true },
+    { .str = UL_ROS_MAKE("\"string\""), .res = true },
+    { .str = UL_ROS_MAKE("\"\\\"Hello world!\\n\\\"\""), .res = true },
+    { .str = UL_ROS_MAKE("\r\n100"), .res = true },
+    { .str = UL_ROS_MAKE("9223372036854775807"), .res = true },
+    { .str = UL_ROS_MAKE("-9223372036854775807"), .res = true },
+    { .str = UL_ROS_MAKE("-9223372036854775808"), .res = true },
+    { .str = UL_ROS_MAKE("3.14159265358979323846"), .res = true },
+    { .str = UL_ROS_MAKE("2.71828182845904523536"), .res = true },
+    { .str = UL_ROS_MAKE("{ \"first\": 20, \"second\":\t30 }"), .res = true },
 };
 static const size_t test_cases_size = _countof(test_cases);
 
@@ -135,35 +135,35 @@ static int main_core()
 
         if (res0 != tc->res || res0 && (!res1 || !res2) || !res3)
         {
-            wprintf(L"failed #%zi test case\n", tc_ind);
-            wprintf(L"test case:\n%s\n", tc->str.str);
+            printf("failed #%zi test case\n", tc_ind);
+            printf("test case:\n%s\n", tc->str.str);
 
-            const wchar_t * desc_str = NULL;
+            const char * desc_str = NULL;
 
             if (res0 != tc->res)
             {
-                desc_str = L"does not match expected result";
+                desc_str = "does not match expected result";
             }
             else if (!res1)
             {
-                desc_str = L"failed to write file";
+                desc_str = "failed to write file";
             }
             else if (!res2)
             {
-                desc_str = L"failed to read written file";
+                desc_str = "failed to read written file";
             }
             else if (!res3)
             {
-                desc_str = L"[test case] json is not equal to [file written] json";
+                desc_str = "[test case] json is not equal to [file written] json";
             }
 
-            wprintf(L"descrption: %s\n", desc_str);
+            printf("descrption: %s\n", desc_str);
 
             return -1;
         }
     }
 
-    wprintf(L"success\n");
+    printf("success\n");
 
     return 0;
 }
@@ -173,7 +173,7 @@ int main()
 
     ul_hst_cleanup(&hst);
 
-    _wremove(FILE_NAME);
+    remove(FILE_NAME);
 
     return res;
 }

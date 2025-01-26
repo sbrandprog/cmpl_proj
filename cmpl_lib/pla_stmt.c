@@ -68,15 +68,15 @@ void pla_stmt_destroy(pla_stmt_t * stmt)
 }
 
 const pla_stmt_info_t pla_stmt_infos[PlaStmt_Count] = {
-    [PlaStmtNone] = { .type_str = UL_ROS_MAKE(L"StmtNone") },
-    [PlaStmtBlk] = { .type_str = UL_ROS_MAKE(L"StmtBlk") },
-    [PlaStmtExpr] = { .type_str = UL_ROS_MAKE(L"StmtExpr") },
-    [PlaStmtVarDt] = { .type_str = UL_ROS_MAKE(L"StmtVarDt") },
-    [PlaStmtVarVal] = { .type_str = UL_ROS_MAKE(L"StmtVarVal") },
-    [PlaStmtCond] = { .type_str = UL_ROS_MAKE(L"StmtCond") },
-    [PlaStmtPreLoop] = { .type_str = UL_ROS_MAKE(L"StmtPreLoop") },
-    [PlaStmtPostLoop] = { .type_str = UL_ROS_MAKE(L"StmtPostLoop") },
-    [PlaStmtBrk] = { .type_str = UL_ROS_MAKE(L"StmtBrk") },
-    [PlaStmtCnt] = { .type_str = UL_ROS_MAKE(L"StmtCnt") },
-    [PlaStmtRet] = { .type_str = UL_ROS_MAKE(L"StmtRet") },
+    [PlaStmtNone] = { .type_str = UL_ROS_MAKE("StmtNone") },
+    [PlaStmtBlk] = { .type_str = UL_ROS_MAKE("StmtBlk") },
+    [PlaStmtExpr] = { .type_str = UL_ROS_MAKE("StmtExpr") },
+    [PlaStmtVarDt] = { .type_str = UL_ROS_MAKE("StmtVarDt") },
+    [PlaStmtVarVal] = { .type_str = UL_ROS_MAKE("StmtVarVal") },
+    [PlaStmtCond] = { .type_str = UL_ROS_MAKE("StmtCond") },
+    [PlaStmtPreLoop] = { .type_str = UL_ROS_MAKE("StmtPreLoop") },
+    [PlaStmtPostLoop] = { .type_str = UL_ROS_MAKE("StmtPostLoop") },
+    [PlaStmtBrk] = { .type_str = UL_ROS_MAKE("StmtBrk") },
+    [PlaStmtCnt] = { .type_str = UL_ROS_MAKE("StmtCnt") },
+    [PlaStmtRet] = { .type_str = UL_ROS_MAKE("StmtRet") },
 };

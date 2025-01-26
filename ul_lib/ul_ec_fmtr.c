@@ -10,19 +10,29 @@ void ul_ec_fmtr_cleanup(ul_ec_fmtr_t * fmtr)
     memset(fmtr, 0, sizeof(*fmtr));
 }
 
-void ul_ec_fmtr_format_va(ul_ec_fmtr_t * fmtr, const wchar_t * fmt, va_list args)
+void ul_ec_fmtr_format_va(ul_ec_fmtr_t * fmtr, const char * fmt, va_list args)
 {
     if (fmtr->strs_pos < _countof(fmtr->rec.strs) - 1)
     {
-        errno = 0;
+        int res = vsnprintf(fmtr->rec.strs + fmtr->strs_pos, _countof(fmtr->rec.strs) - fmtr->strs_pos, fmt, args);
 
-        int res = _vsnwprintf_s(fmtr->rec.strs + fmtr->strs_pos, _countof(fmtr->rec.strs) - fmtr->strs_pos, _TRUNCATE, fmt, args);
+        if (res >= 0)
+        {
+            size_t new_strs_pos = fmtr->strs_pos + (size_t)res + 1;
 
-        ul_assert(errno == 0);
+            if (new_strs_pos > _countof(fmtr->rec.strs))
+            {
+                new_strs_pos = _countof(fmtr->rec.strs);
+            }
 
-        fmtr->strs_pos = res == -1 ? _countof(fmtr->rec.strs) : (fmtr->strs_pos + (size_t)res + 1);
+            fmtr->strs_pos = new_strs_pos;
 
-        ++fmtr->rec.strs_size;
+            ++fmtr->rec.strs_size;
+        }
+        else
+        {
+            fmtr->strs_pos = _countof(fmtr->rec.strs);
+        }
     }
     else
     {
@@ -30,7 +40,7 @@ void ul_ec_fmtr_format_va(ul_ec_fmtr_t * fmtr, const wchar_t * fmt, va_list args
     }
 }
 
-void ul_ec_fmtr_post(ul_ec_fmtr_t * fmtr, const wchar_t * type, const wchar_t * mod_name)
+void ul_ec_fmtr_post(ul_ec_fmtr_t * fmtr, const char * type, const char * mod_name)
 {
     fmtr->rec.type = type;
     fmtr->rec.mod_name = mod_name;

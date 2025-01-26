@@ -11,7 +11,7 @@ static bool process_test_core(test_ctx_t * ctx)
 
     if (!test_proc(ctx))
     {
-        wprintf(L"error point: test_proc\n");
+        printf("error point: test_proc\n");
         return false;
     }
 
@@ -22,7 +22,7 @@ static bool process_test_core(test_ctx_t * ctx)
 
             if (!ira_pec_c_compile(&ctx->pec, &ctx->pea))
             {
-                wprintf(L"error point: compilation\n");
+                printf("error point: compilation\n");
                 return false;
             }
             // fallthrough
@@ -31,7 +31,7 @@ static bool process_test_core(test_ctx_t * ctx)
 
             if (!mc_pea_b_build(&ctx->pea, &ctx->pel))
             {
-                wprintf(L"error point: mc build\n");
+                printf("error point: mc build\n");
                 return false;
             }
             // fallthrough
@@ -41,17 +41,17 @@ static bool process_test_core(test_ctx_t * ctx)
 
             if (!lnk_pel_l_link(&ctx->pel))
             {
-                wprintf(L"error point: link\n");
+                printf("error point: link\n");
                 return false;
             }
 
-            const wchar_t * const args[] = { EXE_NAME, NULL };
+            const char * const args[] = { EXE_NAME, NULL };
 
             int res = ul_spawn_wait(EXE_NAME, args);
 
             if (res != 0)
             {
-                wprintf(L"error point: run (codes: %d 0x%X)\n", res, res);
+                printf("error point: run (codes: %d 0x%X)\n", res, res);
                 return false;
             }
             break;
@@ -60,7 +60,7 @@ static bool process_test_core(test_ctx_t * ctx)
             ul_assert_unreachable();
     }
 
-    wprintf(L"success\n");
+    printf("success\n");
 
     return true;
 }
@@ -72,7 +72,7 @@ static bool process_test()
     {
         if (res)
         {
-            wprintf(L"error: positive exit status with records in error collector\n");
+            printf("error: positive exit status with records in error collector\n");
         }
 
         res = false;

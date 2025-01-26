@@ -12,7 +12,7 @@ void ul_hsb_cleanup(ul_hsb_t * hsb)
     memset(hsb, 0, sizeof(*hsb));
 }
 
-size_t ul_hsb_format_va(ul_hsb_t * hsb, const wchar_t * fmt, va_list args)
+size_t ul_hsb_format_va(ul_hsb_t * hsb, const char * fmt, va_list args)
 {
     size_t str_size;
 
@@ -21,7 +21,7 @@ size_t ul_hsb_format_va(ul_hsb_t * hsb, const wchar_t * fmt, va_list args)
 
         va_copy(new_args, args);
 
-        int res = _vscwprintf(fmt, new_args);
+        int res = vsnprintf(NULL, 0, fmt, new_args);
 
         va_end(new_args);
 
@@ -39,7 +39,7 @@ size_t ul_hsb_format_va(ul_hsb_t * hsb, const wchar_t * fmt, va_list args)
 
         va_copy(new_args, args);
 
-        int res = vswprintf_s(hsb->buf, hsb->cap, fmt, new_args);
+        int res = vsprintf(hsb->buf, fmt, new_args);
 
         va_end(new_args);
 
@@ -48,7 +48,7 @@ size_t ul_hsb_format_va(ul_hsb_t * hsb, const wchar_t * fmt, va_list args)
         return (size_t)res;
     }
 }
-size_t ul_hsb_format(ul_hsb_t * hsb, const wchar_t * fmt, ...)
+size_t ul_hsb_format(ul_hsb_t * hsb, const char * fmt, ...)
 {
     va_list args;
 
@@ -61,7 +61,7 @@ size_t ul_hsb_format(ul_hsb_t * hsb, const wchar_t * fmt, ...)
     return res;
 }
 
-ul_hs_t * ul_hsb_formatadd_va(ul_hsb_t * hsb, ul_hst_t * hst, const wchar_t * fmt, va_list args)
+ul_hs_t * ul_hsb_formatadd_va(ul_hsb_t * hsb, ul_hst_t * hst, const char * fmt, va_list args)
 {
     size_t str_size = ul_hsb_format_va(hsb, fmt, args);
 

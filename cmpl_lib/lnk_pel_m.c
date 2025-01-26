@@ -1,7 +1,7 @@
 #include "lnk_pel_m.h"
 #include "lnk_sect.h"
 
-#define MOD_NAME L"lnk_pel_m"
+#define MOD_NAME "lnk_pel_m"
 
 typedef struct lnk_pel_m_sect sect_t;
 struct lnk_pel_m_sect
@@ -114,7 +114,7 @@ static label_t * find_label(ctx_t * ctx, ul_hs_t * name)
 }
 
 
-static void report(ctx_t * ctx, const wchar_t * fmt, ...)
+static void report(ctx_t * ctx, const char * fmt, ...)
 {
     ctx->is_rptd = true;
 
@@ -158,7 +158,7 @@ static void process_sect_lp(ctx_t * ctx, sect_t * sect, lnk_sect_lp_t * lp)
 
                     if (ins_pos < ctx->labels_size && ctx->labels[ins_pos].name == new_label.name)
                     {
-                        report(ctx, L"invalid label: non-unique name [%s]", new_label.name->str);
+                        report(ctx, "invalid label: non-unique name [%s]", new_label.name->str);
                     }
                     else
                     {
@@ -173,7 +173,7 @@ static void process_sect_lp(ctx_t * ctx, sect_t * sect, lnk_sect_lp_t * lp)
                 case LnkSectLpLabelProcUnw:
                     break;
                 default:
-                    report(ctx, L"invalid label subtype");
+                    report(ctx, "invalid label subtype");
                     break;
             }
 
@@ -181,7 +181,7 @@ static void process_sect_lp(ctx_t * ctx, sect_t * sect, lnk_sect_lp_t * lp)
         case LnkSectLpFixup:
             break;
         default:
-            report(ctx, L"invalid link point type");
+            report(ctx, "invalid link point type");
             break;
     }
 }
@@ -253,7 +253,7 @@ static void push_ord_buf_refs(ctx_t * ctx, sect_t * sect)
 
                         if (label == NULL)
                         {
-                            report(ctx, L"invalid fixup: label [%s] not found", lp->label_name->str);
+                            report(ctx, "invalid fixup: label [%s] not found", lp->label_name->str);
                         }
                         else
                         {
@@ -265,7 +265,7 @@ static void push_ord_buf_refs(ctx_t * ctx, sect_t * sect)
                         break;
                     }
                     default:
-                        report(ctx, L"invalid fixup subtype");
+                        report(ctx, "invalid fixup subtype");
                         break;
                 }
                 break;
@@ -279,7 +279,7 @@ static bool set_ord_inds(ctx_t * ctx)
 
         if (ep_label == NULL)
         {
-            report(ctx, L"invalid entry point: label [%s] not found", ctx->pel->ep_name->str);
+            report(ctx, "invalid entry point: label [%s] not found", ctx->pel->ep_name->str);
             return false;
         }
 
@@ -384,7 +384,7 @@ static void merge_sects(ctx_t * ctx)
                 || batch_base->mem_e != sect_base->mem_e
                 || batch_base->mem_disc != sect_base->mem_disc)
             {
-                report(ctx, L"invalid sections: [%S] sections have different description data", sect_base->name);
+                report(ctx, "invalid sections: [%s] sections have different description data", sect_base->name);
             }
 
             ++batch;

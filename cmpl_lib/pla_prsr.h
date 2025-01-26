@@ -1,7 +1,7 @@
 #pragma once
 #include "pla_tok.h"
 
-#define PLA_PRSR_MOD_NAME L"pla_prsr"
+#define PLA_PRSR_MOD_NAME "pla_prsr"
 
 struct pla_prsr_src
 {

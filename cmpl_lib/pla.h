@@ -25,7 +25,7 @@ typedef enum pla_keyw pla_keyw_t;
 typedef enum pla_tok_type pla_tok_type_t;
 typedef struct pla_tok pla_tok_t;
 
-typedef bool pla_lex_src_get_ch_proc_t(void * src_data, wchar_t * out);
+typedef bool pla_lex_src_get_ch_proc_t(void * src_data, char * out);
 typedef struct pla_lex_src pla_lex_src_t;
 typedef struct pla_lex pla_lex_t;
 

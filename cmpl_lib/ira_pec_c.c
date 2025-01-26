@@ -6,11 +6,11 @@
 #include "mc_inst.h"
 #include "mc_pea.h"
 
-#define MOD_NAME L"ira_pec_c"
+#define MOD_NAME "ira_pec_c"
 
-#define LO_NAME_DELIM L'.'
+#define LO_NAME_DELIM '.'
 
-#define VAL_FRAG_UNQ_SUFFIX L"#val_frag"
+#define VAL_FRAG_UNQ_SUFFIX "#val_frag"
 
 typedef struct ira_pec_c_ctx_cl_elem
 {
@@ -36,7 +36,7 @@ typedef struct ira_pec_c_ctx
     mc_frag_t ** cl_frag_ins;
 } ctx_t;
 
-static void report(ctx_t * ctx, const wchar_t * fmt, ...)
+static void report(ctx_t * ctx, const char * fmt, ...)
 {
     if (ctx->pec->ec_fmtr == NULL)
     {
@@ -76,7 +76,7 @@ mc_frag_t * ira_pec_c_get_frag(ira_pec_c_ctx_t * ctx, mc_frag_type_t frag_type, 
 
 static ul_hs_t * get_val_frag_label(ctx_t * ctx, ul_hs_t * hint_name)
 {
-    return ul_hsb_formatadd(&ctx->hsb, ctx->hst, L"%s%s%zi", hint_name->str, VAL_FRAG_UNQ_SUFFIX, ctx->val_frag_index++);
+    return ul_hsb_formatadd(&ctx->hsb, ctx->hst, "%s%s%zi", hint_name->str, VAL_FRAG_UNQ_SUFFIX, ctx->val_frag_index++);
 }
 
 static bool is_lo_compilable(ira_lo_t * lo)
@@ -111,7 +111,7 @@ bool ira_pec_c_process_val_compl(ira_pec_c_ctx_t * ctx, ira_val_t * val)
         case IraValLoPtr:
             if (!is_lo_compilable(val->lo_val))
             {
-                report(ctx, L"reference to non-compilable language object [%s]", val->lo_val->name->str);
+                report(ctx, "reference to non-compilable language object [%s]", val->lo_val->name->str);
                 return false;
             }
 
@@ -200,7 +200,7 @@ static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ul_hs_t * hint_name, ira_
         case IraValLoPtr:
             if (!is_lo_compilable(val->lo_val))
             {
-                report(ctx, L"reference to non-compilable language object [%s]", val->lo_val->name->str);
+                report(ctx, "reference to non-compilable language object [%s]", val->lo_val->name->str);
                 return false;
             }
 
@@ -319,7 +319,7 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo)
 {
     if (!ira_pec_is_dt_complete(lo->var.qdt.dt))
     {
-        report(ctx, L"variable [%s] has incomplete data type", lo->name->str);
+        report(ctx, "variable [%s] has incomplete data type", lo->name->str);
         return false;
     }
 
@@ -329,7 +329,7 @@ static bool compile_lo_var(ctx_t * ctx, ira_lo_t * lo)
 
     if (!compile_val(ctx, frag, lo->name, lo->var.val))
     {
-        report(ctx, L"failed to compile value for variable [%s]", lo->name->str);
+        report(ctx, "failed to compile value for variable [%s]", lo->name->str);
         return false;
     }
 
@@ -383,7 +383,7 @@ static bool prepare_data(ctx_t * ctx)
 
     if (ep_lo == NULL)
     {
-        report(ctx, L"failed to find entry point [%s]", ctx->pec->ep_name->str);
+        report(ctx, "failed to find entry point [%s]", ctx->pec->ep_name->str);
         return false;
     }
 

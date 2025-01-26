@@ -6,7 +6,7 @@ static bool test_proc(test_ctx_t * ctx)
 
     mc_pea_init(&ctx->pea, &ctx->hst, &ctx->ec_fmtr);
 
-    ul_hs_t * ep_name = UL_HST_HASHADD_WS(&ctx->hst, L"main");
+    ul_hs_t * ep_name = UL_HST_HASHADD_WS(&ctx->hst, "main");
 
     ctx->pea.ep_name = ep_name;
 

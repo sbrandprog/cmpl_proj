@@ -2,7 +2,7 @@
 #include "ira.h"
 #include "pla_pds.h"
 
-#define PLA_TLTR_MOD_NAME L"pla_tltr"
+#define PLA_TLTR_MOD_NAME "pla_tltr"
 
 struct pla_tltr_src
 {
@@ -70,7 +70,7 @@ PLA_API void pla_tltr_init(pla_tltr_t * tltr, ul_hst_t * hst, ul_ec_fmtr_t * ec_
 PLA_API void pla_tltr_cleanup(pla_tltr_t * tltr);
 
 
-PLA_API void pla_tltr_report(pla_tltr_t * tltr, const wchar_t * fmt, ...);
+PLA_API void pla_tltr_report(pla_tltr_t * tltr, const char * fmt, ...);
 PLA_API void pla_tltr_report_pec_err(pla_tltr_t * tltr);
 
 

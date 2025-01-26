@@ -2,7 +2,7 @@
 #include "mc_reg.h"
 #include "mc_size.h"
 
-#define MOD_NAME L"mc_inst"
+#define MOD_NAME "mc_inst"
 
 #define BS_BUF_SIZE 64
 
@@ -169,7 +169,7 @@ const mc_reg_grps_t reg_type_to_grps[InstRecReg_Count] = {
 const inst_rec_t inst_recs[];
 static const size_t inst_recs_size;
 
-static void report(ctx_t * ctx, const wchar_t * fmt, ...)
+static void report(ctx_t * ctx, const char * fmt, ...)
 {
     ctx->is_rptd = true;
 
@@ -237,7 +237,7 @@ static void validate_imm(ctx_t * ctx, mc_inst_imm_type_t imm_type)
 {
     if (imm_type >= McInstImm_Count)
     {
-        report(ctx, L"invalid immediate");
+        report(ctx, "invalid immediate");
         ctx->valid_res = false;
     }
 }
@@ -245,7 +245,7 @@ static void validate_reg(ctx_t * ctx, mc_reg_t reg)
 {
     if (reg >= McReg_Count)
     {
-        report(ctx, L"invalid register");
+        report(ctx, "invalid register");
         ctx->valid_res = false;
     }
 
@@ -261,21 +261,21 @@ static void validate_mem(ctx_t * ctx, mc_inst_t * inst)
 
     if (inst->mem_disp_type >= McInstDisp_Count)
     {
-        report(ctx, L"invalid memory: displacement type");
+        report(ctx, "invalid memory: displacement type");
         ctx->valid_res = false;
         err = true;
     }
 
     if (inst->mem_base >= McReg_Count)
     {
-        report(ctx, L"invalid memory: base register");
+        report(ctx, "invalid memory: base register");
         ctx->valid_res = false;
         err = true;
     }
 
     if (inst->mem_index >= McReg_Count)
     {
-        report(ctx, L"invalid memory: index register");
+        report(ctx, "invalid memory: index register");
         ctx->valid_res = false;
         err = true;
     }
@@ -292,13 +292,13 @@ static void validate_mem(ctx_t * ctx, mc_inst_t * inst)
     {
         if (!base->grps.s_32 && !base->grps.s_64)
         {
-            report(ctx, L"invalid memory, ip: instruction pointer must be 32 or 64 bit");
+            report(ctx, "invalid memory, ip: instruction pointer must be 32 or 64 bit");
             ctx->valid_res = false;
         }
 
         if (!is_disp_32(inst->mem_disp_type))
         {
-            report(ctx, L"invalid memory, ip: 32 bit displacement required");
+            report(ctx, "invalid memory, ip: 32 bit displacement required");
             ctx->valid_res = false;
         }
     }
@@ -306,7 +306,7 @@ static void validate_mem(ctx_t * ctx, mc_inst_t * inst)
     {
         if (!base->grps.s_32 && !base->grps.s_64)
         {
-            report(ctx, L"invalid memory, base: base register must be 32 or 64 bit");
+            report(ctx, "invalid memory, base: base register must be 32 or 64 bit");
             ctx->valid_res = false;
         }
 
@@ -314,7 +314,7 @@ static void validate_mem(ctx_t * ctx, mc_inst_t * inst)
         {
             if (mc_inst_disp_type_to_size[inst->mem_disp_type] == McSizeNone && base->enc == 0b101)
             {
-                report(ctx, L"invalid memory, base: impossible to encode 0bX101 register without displacement");
+                report(ctx, "invalid memory, base: impossible to encode 0bX101 register without displacement");
                 ctx->valid_res = false;
             }
         }
@@ -325,26 +325,26 @@ static void validate_mem(ctx_t * ctx, mc_inst_t * inst)
     {
         if (!index->grps.s_32 && !index->grps.s_64)
         {
-            report(ctx, L"invalid memory, index: index register must be 32 or 64 bit");
+            report(ctx, "invalid memory, index: index register must be 32 or 64 bit");
             ctx->valid_res = false;
         }
 
         if (index->enc == 0b100 && !index->ext)
         {
-            report(ctx, L"invalid memory, index: impossible to encode stack pointer as an index register");
+            report(ctx, "invalid memory, index: impossible to encode stack pointer as an index register");
             ctx->valid_res = false;
         }
 
         if (inst->mem_scale >= McSize_Count
             || !mc_size_infos[inst->mem_scale].is_int)
         {
-            report(ctx, L"invalid memory, index: invalid scale value");
+            report(ctx, "invalid memory, index: invalid scale value");
             ctx->valid_res = false;
         }
 
         if (!is_disp_32(inst->mem_disp_type))
         {
-            report(ctx, L"invalid memory, index: 32 bit displacement required");
+            report(ctx, "invalid memory, index: 32 bit displacement required");
             ctx->valid_res = false;
         }
 
@@ -355,20 +355,20 @@ static void validate_mem(ctx_t * ctx, mc_inst_t * inst)
         if ((!base->grps.s_32 || !index->grps.s_32)
             && (!base->grps.s_64 || !index->grps.s_64))
         {
-            report(ctx, L"invalid memory, base && index: base and index registers must be 32 or 64 bit");
+            report(ctx, "invalid memory, base && index: base and index registers must be 32 or 64 bit");
             ctx->valid_res = false;
         }
 
         if (index->enc == 0b100 && !index->ext)
         {
-            report(ctx, L"invalid memory, base && index: impossible to encode stack pointer as an index register");
+            report(ctx, "invalid memory, base && index: impossible to encode stack pointer as an index register");
             ctx->valid_res = false;
         }
 
         if (inst->mem_scale >= McSize_Count
             || !mc_size_infos[inst->mem_scale].is_int)
         {
-            report(ctx, L"invalid memory, base && index: invalid scale value");
+            report(ctx, "invalid memory, base && index: invalid scale value");
             ctx->valid_res = false;
         }
 
@@ -376,7 +376,7 @@ static void validate_mem(ctx_t * ctx, mc_inst_t * inst)
         {
             if (mc_inst_disp_type_to_size[inst->mem_disp_type] == McSizeNone && base->enc == 0b101)
             {
-                report(ctx, L"invalid memory, base: impossible to encode 0bX101 register without displacement");
+                report(ctx, "invalid memory, base: impossible to encode 0bX101 register without displacement");
                 ctx->valid_res = false;
             }
         }
@@ -385,7 +385,7 @@ static void validate_mem(ctx_t * ctx, mc_inst_t * inst)
     }
     else
     {
-        report(ctx, L"invalid memory: coding combination");
+        report(ctx, "invalid memory: coding combination");
         ctx->valid_res = false;
     }
 }
@@ -435,14 +435,14 @@ static void validate_opds(ctx_t * ctx)
             validate_imm(ctx, inst->imm0_type);
             break;
         default:
-            report(ctx, L"invalid instruction operands type");
+            report(ctx, "invalid instruction operands type");
             ctx->valid_res = false;
             break;
     }
 
     if (ctx->no_rex && (ctx->req_rex || ctx->use_ext))
     {
-        report(ctx, L"invalid combination of registers [no_rex && (req_rex || use_ext)]");
+        report(ctx, "invalid combination of registers [no_rex && (req_rex || use_ext)]");
         ctx->valid_res = false;
     }
 }
@@ -452,7 +452,7 @@ static bool validate_inst(ctx_t * ctx)
 
     if (ctx->inst->type >= McInst_Count)
     {
-        report(ctx, L"invalid instruction type");
+        report(ctx, "invalid instruction type");
         ctx->valid_res = false;
     }
 
@@ -598,7 +598,7 @@ static void find_rec(ctx_t * ctx)
 
         if (ctx->rec == NULL)
         {
-            report(ctx, L"acceptable instruction record not found");
+            report(ctx, "acceptable instruction record not found");
         }
     }
 
@@ -1054,7 +1054,7 @@ static void build_desc(ctx_t * ctx)
     }
     else if (size > MC_INST_BS_SIZE)
     {
-        report(ctx, L"resulted instruction exceeded maximum instruction size");
+        report(ctx, "resulted instruction exceeded maximum instruction size");
     }
     else
     {

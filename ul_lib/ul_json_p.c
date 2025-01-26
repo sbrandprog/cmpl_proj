@@ -9,10 +9,10 @@ typedef struct ul_json_p_ctx
     ul_json_t ** out;
 
     size_t str_size;
-    wchar_t * str;
+    char * str;
     size_t str_cap;
 
-    wint_t ch;
+    int ch;
 
     bool err;
 } ctx_t;
@@ -23,8 +23,8 @@ typedef struct ul_json_p_file_ctx
 } file_ctx_t;
 typedef struct ul_json_p_str_ctx
 {
-    const wchar_t * cur;
-    const wchar_t * cur_end;
+    const char * cur;
+    const char * cur_end;
 } str_ctx_t;
 
 
@@ -38,37 +38,37 @@ void ul_json_p_src_cleanup(ul_json_p_src_t * src)
 }
 
 
-static bool is_ws(wchar_t ch)
+static bool is_ws(char ch)
 {
     switch (ch)
     {
-        case L'\t':
-        case L'\n':
-        case L'\r':
-        case L' ':
+        case '\t':
+        case '\n':
+        case '\r':
+        case ' ':
             return true;
     }
 
     return false;
 }
-static bool is_dig(wchar_t ch)
+static bool is_dig(char ch)
 {
-    return L'0' <= ch && ch <= L'9';
+    return '0' <= ch && ch <= '9';
 }
 
-static bool get_hexdig(wchar_t ch, uint8_t * out)
+static bool get_hexdig(char ch, uint8_t * out)
 {
-    if (L'0' <= ch && ch <= L'9')
+    if ('0' <= ch && ch <= '9')
     {
-        *out = ch - L'0';
+        *out = ch - '0';
     }
-    else if (L'A' <= ch && ch <= L'F')
+    else if ('A' <= ch && ch <= 'F')
     {
-        *out = ch - L'A' + 10;
+        *out = ch - 'A' + 10;
     }
-    else if (L'a' <= ch && ch <= L'f')
+    else if ('a' <= ch && ch <= 'f')
     {
-        *out = ch - L'a' + 10;
+        *out = ch - 'a' + 10;
     }
     else
     {
@@ -81,25 +81,25 @@ static bool get_hexdig(wchar_t ch, uint8_t * out)
 
 static bool next_ch(ctx_t * ctx)
 {
-    ctx->ch = WEOF;
+    ctx->ch = EOF;
 
     if (ctx->src == NULL)
     {
         return false;
     }
 
-    wchar_t new_ch;
+    char new_ch;
 
     if (!ctx->src->get_ch_proc(ctx->src->data, &new_ch))
     {
         return false;
     }
 
-    ctx->ch = (wint_t)new_ch;
+    ctx->ch = (int)new_ch;
 
     return true;
 }
-static bool consume_ch_exact(ctx_t * ctx, wchar_t ch)
+static bool consume_ch_exact(ctx_t * ctx, char ch)
 {
     if (ctx->ch == ch)
     {
@@ -110,16 +110,16 @@ static bool consume_ch_exact(ctx_t * ctx, wchar_t ch)
 
     return false;
 }
-static void consume_ch_exact_crit(ctx_t * ctx, wchar_t ch)
+static void consume_ch_exact_crit(ctx_t * ctx, char ch)
 {
     if (!consume_ch_exact(ctx, ch))
     {
         ctx->err = true;
     }
 }
-static bool consume_str_exact(ctx_t * ctx, const wchar_t * ntstr)
+static bool consume_str_exact(ctx_t * ctx, const char * ntstr)
 {
-    for (const wchar_t * ch = ntstr; *ch != 0; ++ch)
+    for (const char * ch = ntstr; *ch != 0; ++ch)
     {
         if (!consume_ch_exact(ctx, *ch))
         {
@@ -129,7 +129,7 @@ static bool consume_str_exact(ctx_t * ctx, const wchar_t * ntstr)
 
     return true;
 }
-static void consume_str_exact_crit(ctx_t * ctx, const wchar_t * ntstr)
+static void consume_str_exact_crit(ctx_t * ctx, const char * ntstr)
 {
     if (!consume_str_exact(ctx, ntstr))
     {
@@ -145,7 +145,7 @@ static void consume_wss(ctx_t * ctx)
     }
 }
 
-static void push_str_ch(ctx_t * ctx, wchar_t ch)
+static void push_str_ch(ctx_t * ctx, char ch)
 {
     ul_arr_grow(ctx->str_size + 1, &ctx->str_cap, &ctx->str, sizeof(*ctx->str));
 
@@ -176,47 +176,47 @@ static void parse_str(ctx_t * ctx, ul_hs_t ** out)
 
     while (true)
     {
-        if (ctx->ch == WEOF || consume_ch_exact(ctx, UL_JSON_QUOT_MARK))
+        if (ctx->ch == EOF || consume_ch_exact(ctx, UL_JSON_QUOT_MARK))
         {
             break;
         }
 
         switch (ctx->ch)
         {
-            case L'\\':
+            case '\\':
             {
                 next_ch(ctx);
 
                 bool succ = true;
-                wchar_t code = 0;
+                char code = 0;
 
                 switch (ctx->ch)
                 {
-                    case L'\"':
-                        code = L'\"';
+                    case '\"':
+                        code = '\"';
                         break;
-                    case L'\\':
-                        code = L'\\';
+                    case '\\':
+                        code = '\\';
                         break;
-                    case L'/':
-                        code = L'/';
+                    case '/':
+                        code = '/';
                         break;
-                    case L'b':
-                        code = L'\b';
+                    case 'b':
+                        code = '\b';
                         break;
-                    case L'f':
-                        code = L'\f';
+                    case 'f':
+                        code = '\f';
                         break;
-                    case L'n':
-                        code = L'\n';
+                    case 'n':
+                        code = '\n';
                         break;
-                    case L'r':
-                        code = L'\r';
+                    case 'r':
+                        code = '\r';
                         break;
-                    case L't':
-                        code = L'\t';
+                    case 't':
+                        code = '\t';
                         break;
-                    case L'u':
+                    case 'u':
                         for (size_t i = 0; i < 4; ++i)
                         {
                             next_ch(ctx);
@@ -249,33 +249,15 @@ static void parse_str(ctx_t * ctx, ul_hs_t ** out)
                 break;
             }
             default:
-                if (ul_is_high_surr(ctx->ch))
+                if (ctx->ch < 0x20)
                 {
-                    wchar_t high = ctx->ch;
-
-                    next_ch(ctx);
-
-                    if (ul_is_low_surr(ctx->ch))
-                    {
-                        push_str_ch(ctx, high);
-                        push_str_ch(ctx, ctx->ch);
-                    }
-                    else
-                    {
-                        ctx->err = true;
-                    }
+                    ctx->err = true;
                 }
                 else
                 {
-                    if (ctx->ch < 0x20)
-                    {
-                        ctx->err = true;
-                    }
-                    else
-                    {
-                        push_str_ch(ctx, ctx->ch);
-                    }
+                    push_str_ch(ctx, ctx->ch);
                 }
+
                 break;
         }
 
@@ -393,7 +375,7 @@ static void parse_val_num(ctx_t * ctx, ul_json_t ** out)
 {
     ctx->str_size = 0;
 
-    if (ctx->ch == L'-')
+    if (ctx->ch == '-')
     {
         push_str_ch(ctx, ctx->ch);
 
@@ -402,7 +384,7 @@ static void parse_val_num(ctx_t * ctx, ul_json_t ** out)
 
     push_str_1anydig(ctx);
 
-    if (ctx->ch == L'.')
+    if (ctx->ch == '.')
     {
         push_str_ch(ctx, ctx->ch);
 
@@ -411,13 +393,13 @@ static void parse_val_num(ctx_t * ctx, ul_json_t ** out)
         push_str_1anydig(ctx);
     }
 
-    if (ctx->ch == L'e' || ctx->ch == L'E')
+    if (ctx->ch == 'e' || ctx->ch == 'E')
     {
         push_str_ch(ctx, ctx->ch);
 
         next_ch(ctx);
 
-        if (ctx->ch == L'+' || ctx->ch == L'-')
+        if (ctx->ch == '+' || ctx->ch == '-')
         {
             push_str_ch(ctx, ctx->ch);
 
@@ -427,9 +409,9 @@ static void parse_val_num(ctx_t * ctx, ul_json_t ** out)
         push_str_1anydig(ctx);
     }
 
-    wchar_t *val_end, *str_end = ctx->str + ctx->str_size;
+    char *val_end, *str_end = ctx->str + ctx->str_size;
 
-    int64_t val_int = (int64_t)wcstoll(ctx->str, &val_end, 10);
+    int64_t val_int = (int64_t)strtoll(ctx->str, &val_end, 10);
 
     if (val_end == str_end)
     {
@@ -437,7 +419,7 @@ static void parse_val_num(ctx_t * ctx, ul_json_t ** out)
     }
     else
     {
-        double val_dbl = wcstod(ctx->str, &val_end);
+        double val_dbl = strtod(ctx->str, &val_end);
 
         if (val_end != str_end)
         {
@@ -464,15 +446,15 @@ static void parse_val(ctx_t * ctx, ul_json_t ** out)
 {
     switch (ctx->ch)
     {
-        case L'f':
+        case 'f':
             parse_val_false(ctx, out);
             break;
 
-        case L'n':
+        case 'n':
             parse_val_null(ctx, out);
             break;
 
-        case L't':
+        case 't':
             parse_val_true(ctx, out);
             break;
 
@@ -484,17 +466,17 @@ static void parse_val(ctx_t * ctx, ul_json_t ** out)
             parse_val_arr(ctx, out);
             break;
 
-        case L'-':
-        case L'0':
-        case L'1':
-        case L'2':
-        case L'3':
-        case L'4':
-        case L'5':
-        case L'6':
-        case L'7':
-        case L'8':
-        case L'9':
+        case '-':
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
             parse_val_num(ctx, out);
             break;
 
@@ -532,11 +514,13 @@ bool ul_json_p_parse(ul_json_p_src_t * src, ul_json_t ** out)
     return res && !ctx.err;
 }
 
-static bool get_file_ch_proc(file_ctx_t * ctx, wchar_t * out)
+static bool get_file_ch_proc(void * src_data, char * out)
 {
-    wint_t ch = fgetwc(ctx->file);
+    file_ctx_t * ctx = src_data;
 
-    if (ch == WEOF)
+    int ch = fgetc(ctx->file);
+
+    if (ch == EOF)
     {
         return false;
     }
@@ -545,11 +529,11 @@ static bool get_file_ch_proc(file_ctx_t * ctx, wchar_t * out)
 
     return true;
 }
-bool ul_json_p_parse_file(ul_hst_t * hst, const wchar_t * file_name, ul_json_t ** out)
+bool ul_json_p_parse_file(ul_hst_t * hst, const char * file_name, ul_json_t ** out)
 {
     file_ctx_t ctx = { 0 };
 
-    (void)_wfopen_s(&ctx.file, file_name, L"r, ccs=UTF-8");
+    (void)fopen_s(&ctx.file, file_name, "r");
 
     bool res = false;
 
@@ -569,8 +553,10 @@ bool ul_json_p_parse_file(ul_hst_t * hst, const wchar_t * file_name, ul_json_t *
     return res;
 }
 
-static bool get_str_ch_proc(str_ctx_t * ctx, wchar_t * out)
+static bool get_str_ch_proc(void * src_data, char * out)
 {
+    str_ctx_t * ctx = src_data;
+
     if (ctx->cur == ctx->cur_end)
     {
         return false;
@@ -580,7 +566,7 @@ static bool get_str_ch_proc(str_ctx_t * ctx, wchar_t * out)
 
     return true;
 }
-bool ul_json_p_parse_str(ul_hst_t * hst, size_t str_size, const wchar_t * str, ul_json_t ** out)
+bool ul_json_p_parse_str(ul_hst_t * hst, size_t str_size, const char * str, ul_json_t ** out)
 {
     str_ctx_t ctx = { .cur = str, .cur_end = str + str_size };
 

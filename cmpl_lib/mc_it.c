@@ -4,12 +4,12 @@
 #include "lnk_sect.h"
 #include "mc_defs.h"
 
-#define MOD_NAME L"mc_it"
+#define MOD_NAME "mc_it"
 
-#define LABEL_SUFFIX L"#it:"
-#define LABEL_LIB_NAME_EXT L'n'
-#define LABEL_LIB_AT_EXT L'a'
-#define LABEL_SYM_NAME_EXT L's'
+#define LABEL_SUFFIX "#it:"
+#define LABEL_LIB_NAME_EXT 'n'
+#define LABEL_LIB_AT_EXT 'a'
+#define LABEL_SYM_NAME_EXT 's'
 #define NAME_ALIGN 2
 
 typedef struct mc_it_ctx
@@ -108,7 +108,7 @@ mc_it_sym_t * mc_it_add_sym(mc_it_t * it, ul_hs_t * lib_name, ul_hs_t * sym_name
     return new_sym;
 }
 
-static void report(ctx_t * ctx, const wchar_t * fmt, ...)
+static void report(ctx_t * ctx, const char * fmt, ...)
 {
     ctx->is_rptd = true;
 
@@ -150,9 +150,9 @@ static void create_sects(ctx_t * ctx)
     ctx->hnt_sect = lnk_sect_create_desc(&mc_defs_sds[McDefsSdRdata_ItHnt]);
 }
 
-static ul_hs_t * get_it_label_name(ctx_t * ctx, ul_hs_t * base_name, wchar_t ext_char)
+static ul_hs_t * get_it_label_name(ctx_t * ctx, ul_hs_t * base_name, char ext_char)
 {
-    return ul_hsb_formatadd(&ctx->hsb, ctx->it->hst, L"%s%s%c", base_name->str, LABEL_SUFFIX, ext_char);
+    return ul_hsb_formatadd(&ctx->hsb, ctx->it->hst, "%s%s%c", base_name->str, LABEL_SUFFIX, ext_char);
 }
 static void write_data(lnk_sect_t * sect, size_t data_size, void * data)
 {
@@ -171,7 +171,7 @@ static bool write_ascii_str(lnk_sect_t * sect, ul_hs_t * str)
 
     bool err = false;
 
-    for (wchar_t *ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch)
+    for (char *ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch)
     {
         if ((*ch & ~0x7F) != 0)
         {
@@ -214,7 +214,7 @@ static void process_lib(ctx_t * ctx, mc_it_lib_t * lib)
 
         if (!write_ascii_str(hnt_sect, lib->name))
         {
-            report(ctx, L"invalid library name [%s]", lib->name->str);
+            report(ctx, "invalid library name [%s]", lib->name->str);
         }
     }
 
@@ -242,7 +242,7 @@ static void process_lib(ctx_t * ctx, mc_it_lib_t * lib)
 
             if (!write_ascii_str(hnt_sect, sym->name))
             {
-                report(ctx, L"invalid symbol name [%s] in library [%s]", sym->name->str, lib->name->str);
+                report(ctx, "invalid symbol name [%s] in library [%s]", sym->name->str, lib->name->str);
             }
         }
 

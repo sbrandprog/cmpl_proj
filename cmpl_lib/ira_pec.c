@@ -1351,15 +1351,15 @@ ira_lo_t * ira_pec_push_unq_lo(ira_pec_t * pec, ira_lo_type_t type, ul_hs_t * hi
 {
     ul_assert(type < IraLo_Count);
 
-    static const wchar_t * const lo_type_names[IraLo_Count] = {
-        [IraLoNone] = L"none",
-        [IraLoNspc] = L"nspc",
-        [IraLoFunc] = L"func",
-        [IraLoImpt] = L"impt",
-        [IraLoVar] = L"var"
+    static const char * const lo_type_names[IraLo_Count] = {
+        [IraLoNone] = "none",
+        [IraLoNspc] = "nspc",
+        [IraLoFunc] = "func",
+        [IraLoImpt] = "impt",
+        [IraLoVar] = "var"
     };
 
-    const wchar_t * type_name = lo_type_names[type];
+    const char * type_name = lo_type_names[type];
 
     ul_assert(type_name != NULL);
 
@@ -1367,11 +1367,11 @@ ira_lo_t * ira_pec_push_unq_lo(ira_pec_t * pec, ira_lo_type_t type, ul_hs_t * hi
 
     if (hint_name != NULL)
     {
-        unq_name = ul_hsb_formatadd(&pec->hsb, pec->hst, L"%s:%s%zi", hint_name->str, type_name, pec->lo_index++);
+        unq_name = ul_hsb_formatadd(&pec->hsb, pec->hst, "%s:%s%zi", hint_name->str, type_name, pec->lo_index++);
     }
     else
     {
-        unq_name = ul_hsb_formatadd(&pec->hsb, pec->hst, L"%s%zi", type_name, pec->lo_index++);
+        unq_name = ul_hsb_formatadd(&pec->hsb, pec->hst, "%s%zi", type_name, pec->lo_index++);
     }
 
     ira_lo_t * lo = create_lo(type, unq_name);

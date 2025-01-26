@@ -3,7 +3,7 @@
 #include "lnk_sect.h"
 #include "mc_frag.h"
 
-#define MOD_NAME L"mc_pea_b"
+#define MOD_NAME "mc_pea_b"
 
 #define BUILD_FRAGS_WORKER_COUNT 4
 
@@ -25,7 +25,7 @@ typedef struct mc_pea_b_ctx
     size_t frags_cap;
 } ctx_t;
 
-static void report(ctx_t * ctx, const wchar_t * fmt, ...)
+static void report(ctx_t * ctx, const char * fmt, ...)
 {
     ctx->is_rptd = true;
 
@@ -70,7 +70,7 @@ static void process_frags_list(ctx_t * ctx)
 
     if (!res)
     {
-        report(ctx, L"failed to build one or more fragments");
+        report(ctx, "failed to build one or more fragments");
     }
 }
 static void insert_sects(ctx_t * ctx)
@@ -113,7 +113,7 @@ static void build_core(ctx_t * ctx)
 
     if (!mc_it_build(&ctx->pea->it, ctx->out))
     {
-        report(ctx, L"failed to build import table");
+        report(ctx, "failed to build import table");
     }
 
     fill_props(ctx);

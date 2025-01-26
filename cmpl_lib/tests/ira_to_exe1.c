@@ -8,7 +8,7 @@ static bool test_proc(test_ctx_t * ctx)
 
     ctx->pec.root = ira_pec_push_unq_lo(&ctx->pec, IraLoNspc, NULL);
 
-    ul_hs_t * main_name = UL_HST_HASHADD_WS(&ctx->hst, L"main");
+    ul_hs_t * main_name = UL_HST_HASHADD_WS(&ctx->hst, "main");
 
     ctx->pec.root->nspc.body = ira_lo_create_nspc_node(main_name);
 
@@ -28,7 +28,7 @@ static bool test_proc(test_ctx_t * ctx)
 
     main_lo->func = ira_func_create(main_dt);
 
-    ul_hs_t * var_name = UL_HST_HASHADD_WS(&ctx->hst, L"%1");
+    ul_hs_t * var_name = UL_HST_HASHADD_WS(&ctx->hst, "%1");
 
     {
         ira_inst_t def_var = { .type = IraInstDefVar, .opd0.hs = var_name, .opd1.dt = s32_dt, .opd2.dt_qual = ira_dt_qual_none };

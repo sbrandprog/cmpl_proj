@@ -10,6 +10,6 @@ enum pla_keyw
     PlaKeyw_Count
 };
 
-PLA_API pla_keyw_t pla_keyw_fetch_exact(size_t str_size, wchar_t * str);
+PLA_API pla_keyw_t pla_keyw_fetch_exact(size_t str_size, char * str);
 
 extern PLA_API const ul_ros_t pla_keyw_strs[PlaKeyw_Count];

@@ -11,7 +11,7 @@ enum ul_fs_ent_type
 struct ul_fs_ent
 {
     ul_fs_ent_type_t type;
-    wchar_t * name;
+    char * name;
 };
 struct ul_fs_dir
 {
@@ -20,7 +20,7 @@ struct ul_fs_dir
     size_t ents_cap;
 };
 
-UL_API ul_fs_ent_type_t ul_fs_get_ent_type(const wchar_t * entry_path);
+UL_API ul_fs_ent_type_t ul_fs_get_ent_type(const char * entry_path);
 
-UL_API ul_fs_dir_t * ul_fs_dir_read(const wchar_t * dir_path);
+UL_API ul_fs_dir_t * ul_fs_dir_read(const char * dir_path);
 UL_API void ul_fs_dir_free(ul_fs_dir_t * dir);

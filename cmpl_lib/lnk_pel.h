@@ -2,7 +2,8 @@
 #include "lnk.h"
 
 #define LNK_PEL_MODULE_MAX_SIZE INT32_MAX
-#define LNK_PEL_PD_FILE_EXT L".pd"
+#define LNK_PEL_PD_FILE_EXT ".pd"
+#define LNK_PEL_PD_FILE_EXT_SIZE (_countof(LNK_PEL_PD_FILE_EXT) - 1)
 
 struct lnk_pel_sett
 {
@@ -26,7 +27,7 @@ struct lnk_pel_sett
     const char * excpt_sect_name;
     const char * base_reloc_sect_name;
 
-    const wchar_t * file_name;
+    const char * file_name;
 };
 
 struct lnk_pel

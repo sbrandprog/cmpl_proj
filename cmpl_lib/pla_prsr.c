@@ -111,7 +111,7 @@ static void pop_rse(pla_prsr_t * prsr)
 }
 
 
-static void report(pla_prsr_t * prsr, const wchar_t * fmt, ...)
+static void report(pla_prsr_t * prsr, const char * fmt, ...)
 {
     prsr->is_rptd = true;
 
@@ -180,7 +180,7 @@ static void consume_punc_exact_crit(pla_prsr_t * prsr, pla_punc_t punc)
 
     if (!consume_punc_exact(prsr, punc))
     {
-        report(prsr, L"expected a(n) \'%s\'", pla_punc_strs[punc].str);
+        report(prsr, "expected a(n) \'%s\'", pla_punc_strs[punc].str);
     }
 }
 static pla_keyw_t get_keyw(pla_prsr_t * prsr)
@@ -208,7 +208,7 @@ static void consume_keyw_exact_crit(pla_prsr_t * prsr, pla_keyw_t keyw)
 
     if (!consume_keyw_exact(prsr, keyw))
     {
-        report(prsr, L"expected a(n) \'%s\'", pla_keyw_strs[keyw].str);
+        report(prsr, "expected a(n) \'%s\'", pla_keyw_strs[keyw].str);
     }
 }
 static bool consume_ident(pla_prsr_t * prsr, ul_hs_t ** out)
@@ -226,7 +226,7 @@ static void consume_ident_crit(pla_prsr_t * prsr, ul_hs_t ** out)
 {
     if (!consume_ident(prsr, out))
     {
-        report(prsr, L"expected an identifier");
+        report(prsr, "expected an identifier");
     }
 }
 static void consume_ch_str_crit(pla_prsr_t * prsr, ul_hs_t ** out_data, ul_hs_t ** out_tag)
@@ -242,7 +242,7 @@ static void consume_ch_str_crit(pla_prsr_t * prsr, ul_hs_t ** out_data, ul_hs_t 
     }
     else
     {
-        report(prsr, L"expected a character string");
+        report(prsr, "expected a character string");
     }
 }
 
@@ -714,7 +714,7 @@ static void parse_expr_unit(pla_prsr_t * prsr, pla_expr_t ** out)
         *out = pla_expr_create(PlaExprValVoid);
         (*out)->pos_start = prsr->tok.pos_start;
         (*out)->pos_end = prsr->tok.pos_end;
-        report(prsr, L"expected an expression");
+        report(prsr, "expected an expression");
     }
 
     parse_expr_post(prsr, out);
@@ -1166,7 +1166,7 @@ static void parse_stmt_rse(pla_prsr_t * prsr, pla_stmt_t ** out)
 
     if (prsr->tok.type == PlaTokNone)
     {
-        report(prsr, L"expected a statement");
+        report(prsr, "expected a statement");
     }
     else
     {
@@ -1446,7 +1446,7 @@ static void parse_dclr_rse(pla_prsr_t * prsr, pla_dclr_t ** out)
             break;
     }
 
-    report(prsr, L"expected a declarator");
+    report(prsr, "expected a declarator");
     next_tok(prsr);
 }
 static void parse_dclr(pla_prsr_t * prsr, pla_dclr_t ** out)

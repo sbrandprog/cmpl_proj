@@ -65,13 +65,13 @@ static void get_report_pos(pla_tltr_t * tltr, pla_ec_pos_t * pos_start_out, pla_
             ul_assert_unreachable();
     }
 }
-void pla_tltr_report(pla_tltr_t * tltr, const wchar_t * fmt, ...)
+void pla_tltr_report(pla_tltr_t * tltr, const char * fmt, ...)
 {
     va_list args;
 
     va_start(args, fmt);
 
-    const wchar_t * src_name = tltr->src != NULL ? tltr->src->name->str : NULL;
+    const char * src_name = tltr->src != NULL ? tltr->src->name->str : NULL;
 
     pla_ec_pos_t pos_start, pos_end;
 
@@ -83,7 +83,7 @@ void pla_tltr_report(pla_tltr_t * tltr, const wchar_t * fmt, ...)
 }
 void pla_tltr_report_pec_err(pla_tltr_t * tltr)
 {
-    pla_tltr_report(tltr, L"pec function error");
+    pla_tltr_report(tltr, "pec function error");
 }
 
 
@@ -91,13 +91,13 @@ static bool calculate_expr_core(pla_tltr_t * tltr, pla_stmt_t * blk, ira_func_t 
 {
     if (!pla_tltr_s_translate(tltr, NULL, blk, func))
     {
-        pla_tltr_report(tltr, L"failed to translate an expression\n");
+        pla_tltr_report(tltr, "failed to translate an expression\n");
         return false;
     }
 
     if (!ira_pec_ip_interpret(tltr->out, *func, out))
     {
-        pla_tltr_report(tltr, L"failed to calculate an expression\n");
+        pla_tltr_report(tltr, "failed to calculate an expression\n");
         return false;
     }
 
@@ -141,7 +141,7 @@ bool pla_tltr_calculate_expr_dt(pla_tltr_t * tltr, pla_expr_t * expr, ira_dt_t *
 
                 pla_tltr_push_tse(tltr, &tse);
 
-                pla_tltr_report(tltr, L"expected an interpretable data type expression");
+                pla_tltr_report(tltr, "expected an interpretable data type expression");
 
                 pla_tltr_pop_tse(tltr, &tse);
 
@@ -335,7 +335,7 @@ static bool translate_dclr_nspc(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t *
     }
     else if ((*out)->type != IraLoNspc)
     {
-        pla_tltr_report(tltr, L"language object with [%s] name already exists", dclr->name->str);
+        pla_tltr_report(tltr, "language object with [%s] name already exists", dclr->name->str);
         return false;
     }
 
@@ -356,7 +356,7 @@ static bool translate_dclr_func(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t *
 {
     if (*out != NULL)
     {
-        pla_tltr_report(tltr, L"language object with [%s] name already exists", dclr->name->str);
+        pla_tltr_report(tltr, "language object with [%s] name already exists", dclr->name->str);
         return false;
     }
 
@@ -371,7 +371,7 @@ static bool translate_dclr_func(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t *
 
     if (func_dt->type != IraDtFunc)
     {
-        pla_tltr_report(tltr, L"function language object requires function data type");
+        pla_tltr_report(tltr, "function language object requires function data type");
         return false;
     }
 
@@ -386,7 +386,7 @@ static bool translate_dclr_impt(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t *
 {
     if (*out != NULL)
     {
-        pla_tltr_report(tltr, L"language object with [%s] name already exists", dclr->name->str);
+        pla_tltr_report(tltr, "language object with [%s] name already exists", dclr->name->str);
         return false;
     }
 
@@ -406,7 +406,7 @@ static bool translate_dclr_var_dt(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t
 {
     if (*out != NULL)
     {
-        pla_tltr_report(tltr, L"language object with [%s] name already exists", dclr->name->str);
+        pla_tltr_report(tltr, "language object with [%s] name already exists", dclr->name->str);
         return false;
     }
 
@@ -421,7 +421,7 @@ static bool translate_dclr_var_dt(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t
 
     if (!ira_pec_is_dt_complete((*out)->var.qdt.dt))
     {
-        pla_tltr_report(tltr, L"global variables must have only complete data types");
+        pla_tltr_report(tltr, "global variables must have only complete data types");
         return false;
     }
 
@@ -437,7 +437,7 @@ static bool translate_dclr_var_val(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_
 {
     if (*out != NULL)
     {
-        pla_tltr_report(tltr, L"language object with [%s] name already exists", dclr->name->str);
+        pla_tltr_report(tltr, "language object with [%s] name already exists", dclr->name->str);
         return false;
     }
 
@@ -461,7 +461,7 @@ static bool translate_dclr_stct(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t *
     {
         if ((*out)->type != IraLoVar)
         {
-            pla_tltr_report(tltr, L"language object with [%s] name already exists", dclr->name->str);
+            pla_tltr_report(tltr, "language object with [%s] name already exists", dclr->name->str);
             return false;
         }
 
@@ -470,13 +470,13 @@ static bool translate_dclr_stct(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t *
             || (*out)->var.val->type != IraValImmDt
             || (*out)->var.val->dt_val->type != IraDtStct)
         {
-            pla_tltr_report(tltr, L"invalid language object for struct [%s]", dclr->name->str);
+            pla_tltr_report(tltr, "invalid language object for struct [%s]", dclr->name->str);
             return false;
         }
 
         if ((*out)->var.val->dt_val->stct.tag->body != NULL)
         {
-            pla_tltr_report(tltr, L"struct [%s] already defined", dclr->name->str);
+            pla_tltr_report(tltr, "struct [%s] already defined", dclr->name->str);
             return false;
         }
 
@@ -511,7 +511,7 @@ static bool translate_dclr_stct_decl(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_l
     {
         if ((*out)->type != IraLoVar)
         {
-            pla_tltr_report(tltr, L"language object with [%s] name already exists", dclr->name->str);
+            pla_tltr_report(tltr, "language object with [%s] name already exists", dclr->name->str);
             return false;
         }
     }
@@ -529,7 +529,7 @@ static bool translate_dclr_enmn(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t *
 {
     if (*out != NULL)
     {
-        pla_tltr_report(tltr, L"language object with [%s] name already exists", dclr->name->str);
+        pla_tltr_report(tltr, "language object with [%s] name already exists", dclr->name->str);
         return false;
     }
 
@@ -573,7 +573,7 @@ static bool translate_dclr_enmn(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t *
     {
         if (elem->type != PlaDclrEnmnElem)
         {
-            pla_tltr_report(tltr, L"invalid enumeration element [%s] in [%s] enumeration", elem->name->str, dclr->name->str);
+            pla_tltr_report(tltr, "invalid enumeration element [%s] in [%s] enumeration", elem->name->str, dclr->name->str);
             return false;
         }
 
@@ -581,7 +581,7 @@ static bool translate_dclr_enmn(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t *
 
         if (*elem_ins != NULL)
         {
-            pla_tltr_report(tltr, L"language object with [%s] name already exists", elem->name->str);
+            pla_tltr_report(tltr, "language object with [%s] name already exists", elem->name->str);
             return false;
         }
 
@@ -595,13 +595,13 @@ static bool translate_dclr_enmn(pla_tltr_t * tltr, pla_dclr_t * dclr, ira_lo_t *
 
         if (!pla_tltr_calculate_expr(tltr, elem->enmn_elem.val, &elem_lo->var.val->val_val))
         {
-            pla_tltr_report(tltr, L"invalid enumeration element [%s] value", elem->name->str);
+            pla_tltr_report(tltr, "invalid enumeration element [%s] value", elem->name->str);
             return false;
         }
 
         if (elem_lo->var.val->val_val->dt != enmn_body_dt)
         {
-            pla_tltr_report(tltr, L"enumeration element's [%s] data type does not match data type of enumeration [%s]", elem->name->str, dclr->name->str);
+            pla_tltr_report(tltr, "enumeration element's [%s] data type does not match data type of enumeration [%s]", elem->name->str, dclr->name->str);
             return false;
         }
     }
@@ -665,7 +665,7 @@ static bool translate_dclr_tse(pla_tltr_t * tltr, pla_dclr_t * dclr)
             }
             break;
         case PlaDclrEnmnElem:
-            pla_tltr_report(tltr, L"unexpected enumeration element in declarator scope");
+            pla_tltr_report(tltr, "unexpected enumeration element in declarator scope");
             return false;
         default:
             ul_assert_unreachable();

@@ -1,7 +1,7 @@
 #include "ul_ec.h"
 #include "ul_assert.h"
 
-ul_ec_rec_t * ul_ec_rec_create(const wchar_t * type)
+ul_ec_rec_t * ul_ec_rec_create(const char * type)
 {
     ul_ec_rec_t * rec = malloc(sizeof(*rec));
 
@@ -17,7 +17,7 @@ ul_ec_rec_t * ul_ec_rec_copy(const ul_ec_rec_t * rec)
 
     new_rec->mod_name = rec->mod_name;
 
-    wmemcpy_s(new_rec->strs, _countof(new_rec->strs), rec->strs, _countof(rec->strs));
+    memcpy(new_rec->strs, rec->strs, sizeof(*new_rec->strs) * _countof(new_rec->strs));
     new_rec->strs_size = rec->strs_size;
 
     return new_rec;
@@ -45,16 +45,16 @@ void ul_ec_rec_destroy_chain(ul_ec_rec_t * rec)
 
 void ul_ec_rec_dump(ul_ec_rec_t * rec)
 {
-    wprintf(L"error record [%s] from [%s]:\n", rec->type, rec->mod_name);
+    printf("error record [%s] from [%s]:\n", rec->type, rec->mod_name);
 
-    wchar_t *cur = rec->strs, *cur_end = rec->strs + _countof(rec->strs);
+    char *cur = rec->strs, *cur_end = rec->strs + _countof(rec->strs);
     for (size_t str = 0; str < rec->strs_size; ++str)
     {
-        wprintf(L"%s\n", cur);
+        printf("%s\n", cur);
 
         if (str + 1 < rec->strs_size)
         {
-            cur = wmemchr(cur, 0, cur_end - cur);
+            cur = memchr(cur, 0, cur_end - cur);
 
             if (cur == NULL)
             {

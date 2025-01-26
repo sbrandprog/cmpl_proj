@@ -32,33 +32,33 @@ void ul_json_g_sink_cleanup(ul_json_g_sink_t * sink)
 }
 
 
-static bool is_esc_ch(wchar_t ch, wchar_t * out)
+static bool is_esc_ch(char ch, char * out)
 {
     switch (ch)
     {
-        case L'\"':
-            *out = L'\"';
+        case '\"':
+            *out = '\"';
             break;
-        case L'\\':
-            *out = L'\\';
+        case '\\':
+            *out = '\\';
             break;
-        case L'/':
-            *out = L'/';
+        case '/':
+            *out = '/';
             break;
-        case L'\b':
-            *out = L'b';
+        case '\b':
+            *out = 'b';
             break;
-        case L'\f':
-            *out = L'f';
+        case '\f':
+            *out = 'f';
             break;
-        case L'\n':
-            *out = L'n';
+        case '\n':
+            *out = 'n';
             break;
-        case L'\r':
+        case '\r':
             *out = 't';
             break;
-        case L'\t':
-            *out = L't';
+        case '\t':
+            *out = 't';
             break;
         default:
             return false;
@@ -68,16 +68,16 @@ static bool is_esc_ch(wchar_t ch, wchar_t * out)
 }
 
 
-static void put_ch(ctx_t * ctx, wchar_t ch)
+static void put_ch(ctx_t * ctx, char ch)
 {
     if (!ctx->sink->put_ch_proc(ctx->sink->data, ch))
     {
         ctx->err = true;
     }
 }
-static void put_str(ctx_t * ctx, const wchar_t * ntstr)
+static void put_str(ctx_t * ctx, const char * ntstr)
 {
-    for (const wchar_t * ch = ntstr; *ch != 0; ++ch)
+    for (const char * ch = ntstr; *ch != 0; ++ch)
     {
         put_ch(ctx, *ch);
     }
@@ -87,14 +87,14 @@ static void put_spc(ctx_t * ctx)
 {
     if (ctx->sink->put_ws)
     {
-        put_ch(ctx, L' ');
+        put_ch(ctx, ' ');
     }
 }
 static void put_nl(ctx_t * ctx)
 {
     if (ctx->sink->put_ws)
     {
-        put_ch(ctx, L'\n');
+        put_ch(ctx, '\n');
     }
 }
 static void put_tab(ctx_t * ctx)
@@ -103,7 +103,7 @@ static void put_tab(ctx_t * ctx)
     {
         for (size_t i = 0; i < ctx->nest_level; ++i)
         {
-            put_ch(ctx, L'\t');
+            put_ch(ctx, '\t');
         }
     }
 }
@@ -114,24 +114,24 @@ static void generate_str(ctx_t * ctx, const ul_hs_t * str)
 
     if (str != NULL)
     {
-        for (wchar_t *ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch)
+        for (char *ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch)
         {
-            wchar_t code;
+            char code;
 
             if (is_esc_ch(*ch, &code))
             {
-                put_ch(ctx, L'\\');
+                put_ch(ctx, '\\');
                 put_ch(ctx, code);
             }
-            else if (*ch < 0x20 || ul_is_high_surr(*ch) || ul_is_low_surr(*ch))
+            else if (*ch < 0x20)
             {
-                put_str(ctx, L"\\u");
+                put_str(ctx, "\\u00");
 
-                for (size_t i = 4; i > 0;)
+                for (size_t i = sizeof(code) * CHAR_BIT / 4; i > 0;)
                 {
                     --i;
 
-                    put_ch(ctx, (code >> (wchar_t)i * 4) & 0xF + L'0');
+                    put_ch(ctx, (code >> (char)i * 4) & 0xF + '0');
                 }
             }
             else
@@ -160,9 +160,9 @@ static void generate_val_bool(ctx_t * ctx, ul_json_t * val)
 }
 static void generate_val_int(ctx_t * ctx, ul_json_t * val)
 {
-    wchar_t buf[INT_BUF_SIZE];
+    char buf[INT_BUF_SIZE];
 
-    int res = swprintf_s(buf, _countof(buf), L"%" PRIi64, val->val_int);
+    int res = sprintf_s(buf, _countof(buf), "%" PRIi64, val->val_int);
 
     ul_assert(res >= 0);
 
@@ -170,9 +170,9 @@ static void generate_val_int(ctx_t * ctx, ul_json_t * val)
 }
 static void generate_val_dbl(ctx_t * ctx, ul_json_t * val)
 {
-    wchar_t buf[DBL_BUF_SIZE];
+    char buf[DBL_BUF_SIZE];
 
-    int res = swprintf_s(buf, _countof(buf), L"%.17e", val->val_dbl);
+    int res = snprintf(buf, _countof(buf), "%.17e", val->val_dbl);
 
     ul_assert(res >= 0);
 
@@ -331,15 +331,17 @@ bool ul_json_g_generate(ul_json_g_sink_t * sink, ul_json_t * json)
     return res && !ctx.err;
 }
 
-static bool put_file_ch_proc(file_ctx_t * ctx, wchar_t ch)
+static bool put_file_ch_proc(void * sink_data, char ch)
 {
-    return fputwc(ch, ctx->file) != WEOF;
+    file_ctx_t * ctx = sink_data;
+
+    return fputc(ch, ctx->file) != EOF;
 }
-bool ul_json_g_generate_file(const wchar_t * file_name, ul_json_t * json)
+bool ul_json_g_generate_file(const char * file_name, ul_json_t * json)
 {
     file_ctx_t ctx = { 0 };
 
-    (void)_wfopen_s(&ctx.file, file_name, L"w, ccs=UTF-8");
+    (void)fopen_s(&ctx.file, file_name, "w");
 
     bool res = false;
 

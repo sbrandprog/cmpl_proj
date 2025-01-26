@@ -59,8 +59,8 @@ typedef struct pla_bs_lpt_lp_ctx
     ctx_t * base;
     tus_t * tus;
 
-    wchar_t * ch;
-    wchar_t * ch_end;
+    char * ch;
+    char * ch_end;
 
     pla_lex_src_t lex_src_data;
 
@@ -68,7 +68,7 @@ typedef struct pla_bs_lpt_lp_ctx
 } lp_ctx_t;
 
 
-static bool get_tus_src_ch(void * src_data, wchar_t * out)
+static bool get_tus_src_ch(void * src_data, char * out)
 {
     lp_ctx_t * ctx = src_data;
 
@@ -144,7 +144,7 @@ static pkg_t * create_pkg(ctx_t * ctx, pla_pkg_t * base, pkg_t * parent)
     {
         ul_assert(base->name != NULL);
 
-        pkg->full_name = ul_hsb_formatadd(&ctx->hsb, ctx->repo->hst, L"%s%c%s", parent->full_name->str, PLA_TU_NAME_DELIM, base->name->str);
+        pkg->full_name = ul_hsb_formatadd(&ctx->hsb, ctx->repo->hst, "%s%c%s", parent->full_name->str, PLA_TU_NAME_DELIM, base->name->str);
     }
 
     return pkg;
@@ -228,7 +228,7 @@ static bool find_and_push_tus(ctx_t * ctx, pkg_t * pkg, ul_hs_t * tus_name)
 
     if (pkg->full_name != NULL)
     {
-        tus_full_name = ul_hsb_formatadd(&ctx->hsb, ctx->repo->hst, L"%s%c%s", pkg->full_name->str, PLA_TU_NAME_DELIM, base->name->str);
+        tus_full_name = ul_hsb_formatadd(&ctx->hsb, ctx->repo->hst, "%s%c%s", pkg->full_name->str, PLA_TU_NAME_DELIM, base->name->str);
     }
 
     tus_t * tus = &ctx->tuss[ctx->tuss_size++];

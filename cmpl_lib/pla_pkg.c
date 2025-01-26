@@ -1,7 +1,7 @@
 #include "pla_pkg.h"
 #include "pla_tus.h"
 
-#define TUS_FILE_EXT L".pla"
+#define TUS_FILE_EXT ".pla"
 
 pla_pkg_t * pla_pkg_create(ul_hs_t * name)
 {
@@ -114,10 +114,10 @@ pla_tus_t * pla_pkg_get_tus(pla_pkg_t * pkg, ul_hs_t * tus_name)
     return *tus_ins;
 }
 
-static void get_file_name_and_ext(const wchar_t * path, const wchar_t ** file_name_out, const wchar_t ** file_ext_out)
+static void get_file_name_and_ext(const char * path, const char ** file_name_out, const char ** file_ext_out)
 {
-    const wchar_t * cur = path;
-    const wchar_t *file_name = path, *file_ext = NULL;
+    const char * cur = path;
+    const char *file_name = path, *file_ext = NULL;
 
     for (; *cur != 0; ++cur)
     {
@@ -147,14 +147,14 @@ static void get_file_name_and_ext(const wchar_t * path, const wchar_t ** file_na
         *file_ext_out = file_ext;
     }
 }
-static ul_hs_t * name_from_path(ul_hst_t * hst, const wchar_t * path)
+static ul_hs_t * name_from_path(ul_hst_t * hst, const char * path)
 {
-    const wchar_t *path_file_name, *path_ext;
+    const char *path_file_name, *path_ext;
     get_file_name_and_ext(path, &path_file_name, &path_ext);
 
     return ul_hst_hashadd(hst, path_ext - path_file_name, path_file_name);
 }
-static bool process_path_pkg(pla_pkg_t * pkg, ul_hst_t * hst, const wchar_t * path)
+static bool process_path_pkg(pla_pkg_t * pkg, ul_hst_t * hst, const char * path)
 {
     ul_hs_t * name = name_from_path(hst, path);
 
@@ -167,7 +167,7 @@ static bool process_path_pkg(pla_pkg_t * pkg, ul_hst_t * hst, const wchar_t * pa
 
     return true;
 }
-static bool process_path_tus(pla_pkg_t * pkg, ul_hst_t * hst, const wchar_t * path)
+static bool process_path_tus(pla_pkg_t * pkg, ul_hst_t * hst, const char * path)
 {
     ul_hs_t * name = name_from_path(hst, path);
 
@@ -180,15 +180,15 @@ static bool process_path_tus(pla_pkg_t * pkg, ul_hst_t * hst, const wchar_t * pa
 
     return true;
 }
-static bool process_path(pla_pkg_t * pkg, ul_hst_t * hst, const wchar_t * path, ul_fs_ent_type_t path_type)
+static bool process_path(pla_pkg_t * pkg, ul_hst_t * hst, const char * path, ul_fs_ent_type_t path_type)
 {
-    const wchar_t * path_ext;
+    const char * path_ext;
     get_file_name_and_ext(path, NULL, &path_ext);
 
     switch (path_type)
     {
         case UlFsEntFile:
-            if (wcscmp(path_ext, TUS_FILE_EXT) == 0
+            if (strcmp(path_ext, TUS_FILE_EXT) == 0
                 && !process_path_tus(pkg, hst, path))
             {
                 return false;
@@ -206,26 +206,31 @@ static bool process_path(pla_pkg_t * pkg, ul_hst_t * hst, const wchar_t * path, 
 
     return true;
 }
-bool pla_pkg_fill_from_dir(pla_pkg_t * pkg, ul_hst_t * hst, const wchar_t * dir_path)
+bool pla_pkg_fill_from_dir(pla_pkg_t * pkg, ul_hst_t * hst, const char * dir_path)
 {
-    size_t dir_path_size = wcslen(dir_path);
+    size_t dir_path_size = strlen(dir_path);
 
     ul_fs_dir_t * dir = ul_fs_dir_read(dir_path);
+
+    if (dir == NULL)
+    {
+        return false;
+    }
 
     bool success = true;
 
     size_t path_buf_size = 0;
-    wchar_t * path_buf = NULL;
+    char * path_buf = NULL;
 
     for (ul_fs_ent_t *ent = dir->ents, *ent_end = ent + dir->ents_size; ent != ent_end; ++ent)
     {
-        if (wcscmp(ent->name, L".") == 0
-            || wcscmp(ent->name, L"..") == 0)
+        if (strcmp(ent->name, ".") == 0
+            || strcmp(ent->name, "..") == 0)
         {
             continue;
         }
 
-        size_t name_size = wcslen(ent->name);
+        size_t name_size = strlen(ent->name);
 
         size_t path_size = dir_path_size + 1 + name_size + 1;
         if (path_size > path_buf_size)
@@ -234,12 +239,12 @@ bool pla_pkg_fill_from_dir(pla_pkg_t * pkg, ul_hst_t * hst, const wchar_t * dir_
         }
 
         {
-            int res = swprintf_s(path_buf, path_buf_size, L"%s/%s", dir_path, ent->name);
+            int res = snprintf(path_buf, path_buf_size, "%s/%s", dir_path, ent->name);
 
             ul_assert(res > 0);
         }
 
-        const wchar_t * name_ext = wcsrchr(ent->name, '.');
+        const char * name_ext = strrchr(ent->name, '.');
         if (name_ext == NULL)
         {
             name_ext = ent->name + name_size;
@@ -266,7 +271,7 @@ bool pla_pkg_fill_from_list(pla_pkg_t * pkg, ul_hst_t * hst, ...)
 
     bool success = true;
 
-    for (const wchar_t * elem = va_arg(args, const wchar_t *); elem != NULL; elem = va_arg(args, const wchar_t *))
+    for (const char * elem = va_arg(args, const char *); elem != NULL; elem = va_arg(args, const char *))
     {
         ul_fs_ent_type_t elem_type = ul_fs_get_ent_type(elem);
 
