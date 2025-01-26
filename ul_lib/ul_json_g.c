@@ -162,7 +162,7 @@ static void generate_val_int(ctx_t * ctx, ul_json_t * val)
 {
     char buf[INT_BUF_SIZE];
 
-    int res = sprintf_s(buf, _countof(buf), "%" PRIi64, val->val_int);
+    int res = snprintf(buf, _countof(buf), "%" PRIi64, val->val_int);
 
     ul_assert(res >= 0);
 
@@ -341,7 +341,7 @@ bool ul_json_g_generate_file(const char * file_name, ul_json_t * json)
 {
     file_ctx_t ctx = { 0 };
 
-    (void)fopen_s(&ctx.file, file_name, "w");
+    ctx.file = fopen(file_name, "w");
 
     bool res = false;
 

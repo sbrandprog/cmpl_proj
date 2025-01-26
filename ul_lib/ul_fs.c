@@ -225,10 +225,7 @@ ul_fs_dir_t * ul_fs_dir_read(const char * dir_path)
                 break;
             }
 
-            if (dir->ents_size + 1 > dir->ents_cap)
-            {
-                ul_arr_grow(dir->ents_size + 1, &dir->ents_cap, &dir->ents, sizeof(*dir->ents));
-            }
+            ul_arr_grow(dir->ents_size + 1, &dir->ents_cap, &dir->ents, sizeof(*dir->ents));
 
             ul_fs_ent_t * ent = &dir->ents[dir->ents_size++];
 

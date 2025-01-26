@@ -162,7 +162,7 @@ static void process_sect_lp(ctx_t * ctx, sect_t * sect, lnk_sect_lp_t * lp)
                     }
                     else
                     {
-                        memmove_s(ctx->labels + ins_pos + 1, sizeof(*ctx->labels) * (ctx->labels_cap - ins_pos), ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
+                        memmove(ctx->labels + ins_pos + 1, ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
 
                         ctx->labels[ins_pos] = new_label;
                         ++ctx->labels_size;
@@ -290,7 +290,7 @@ static bool set_ord_inds(ctx_t * ctx)
     {
         sect_ord_data_t data = ctx->ord_buf[0];
 
-        memmove_s(ctx->ord_buf, sizeof(*ctx->ord_buf) * ctx->ord_buf_cap, ctx->ord_buf + 1, sizeof(*ctx->ord_buf) * (ctx->ord_buf_size - 1));
+        memmove(ctx->ord_buf, ctx->ord_buf + 1, sizeof(*ctx->ord_buf) * (ctx->ord_buf_size - 1));
 
         --ctx->ord_buf_size;
 
@@ -307,7 +307,7 @@ static bool set_ord_inds(ctx_t * ctx)
     return true;
 }
 
-static int sect_cmp_proc(void * ctx_ptr, const sect_t * const * first_ptr, const sect_t * const * second_ptr)
+static int sect_cmp_proc(const sect_t * const * first_ptr, const sect_t * const * second_ptr)
 {
     const sect_t *first = *first_ptr, *second = *second_ptr;
 
@@ -361,7 +361,7 @@ static int sect_cmp_proc(void * ctx_ptr, const sect_t * const * first_ptr, const
 }
 static void sort_sects(ctx_t * ctx)
 {
-    qsort_s(ctx->sects, ctx->sects_size, sizeof(*ctx->sects), sect_cmp_proc, NULL);
+    qsort(ctx->sects, ctx->sects_size, sizeof(*ctx->sects), sect_cmp_proc);
 }
 
 static void merge_sects(ctx_t * ctx)
@@ -408,7 +408,7 @@ static void merge_sects(ctx_t * ctx)
             ul_arr_grow(cur_start + cur_base->data_size, &mrgd_sect->data_cap, &mrgd_sect->data, sizeof(*mrgd_sect->data));
 
             memset(mrgd_sect->data + mrgd_sect->data_size, cur_base->data_align_byte, cur_start - mrgd_sect->data_size);
-            memcpy_s(mrgd_sect->data + cur_start, sizeof(*mrgd_sect->data) * (mrgd_sect->data_cap - cur_start), cur_base->data, sizeof(*cur_base->data) * cur_base->data_size);
+            memcpy(mrgd_sect->data + cur_start, cur_base->data, sizeof(*cur_base->data) * cur_base->data_size);
 
             for (lnk_sect_lp_t *lp = cur_base->lps, *lp_end = lp + cur_base->lps_size; lp != lp_end; ++lp)
             {

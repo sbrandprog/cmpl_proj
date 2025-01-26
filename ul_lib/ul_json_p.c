@@ -533,7 +533,7 @@ bool ul_json_p_parse_file(ul_hst_t * hst, const char * file_name, ul_json_t ** o
 {
     file_ctx_t ctx = { 0 };
 
-    (void)fopen_s(&ctx.file, file_name, "r");
+    ctx.file = fopen(file_name, "r");
 
     bool res = false;
 

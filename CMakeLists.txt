@@ -17,20 +17,21 @@ function(set_proj_trg_props trg)
         C_EXTENSIONS OFF
     )
 
-    target_compile_definitions(${trg} PRIVATE UNICODE=1 _UNICODE=1)
-
     if(MSVC)
         target_compile_options(${trg} PRIVATE /W3 /utf-8)
+		target_compile_definitions(${trg} PRIVATE _CRT_SECURE_NO_WARNINGS)
     endif()
 
-    if(ARGS_COPY_DLLS)
-        add_custom_target(${trg}_copy_dlls
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:${trg}> ${CMAKE_CURRENT_BINARY_DIR}
-            DEPENDS $<TARGET_RUNTIME_DLLS:${trg}>
-            COMMAND_EXPAND_LISTS
-        )
+    if(WIN32)
+        if(ARGS_COPY_DLLS)
+            add_custom_target(${trg}_copy_dlls
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:${trg}> ${CMAKE_CURRENT_BINARY_DIR}
+                DEPENDS $<TARGET_RUNTIME_DLLS:${trg}>
+                COMMAND_EXPAND_LISTS
+            )
 
-        add_dependencies(${trg} ${trg}_copy_dlls)
+            add_dependencies(${trg} ${trg}_copy_dlls)
+        endif()
     endif()
 endfunction()
 

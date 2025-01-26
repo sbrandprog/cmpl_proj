@@ -47,7 +47,7 @@ ul_hs_t * ul_hst_add(ul_hst_t * hst, size_t str_size, const char * str, ul_hs_ha
 
     ul_assert(new_node_str != NULL);
 
-    memcpy_s(new_node_str, sizeof(*new_node_str) * (str_size + 1), str, sizeof(*str) * str_size);
+    memcpy(new_node_str, str, sizeof(*str) * str_size);
     new_node_str[str_size] = 0;
 
     ul_hst_node_t * new_node = malloc(sizeof(*new_node));

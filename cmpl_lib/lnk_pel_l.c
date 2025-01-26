@@ -150,7 +150,7 @@ static sect_t * create_sect(lnk_sect_t * src)
 
         ul_assert(sect->data != NULL);
 
-        memcpy_s(sect->data, sizeof(*sect->data) * src->data_size, src->data, sizeof(*src->data) * src->data_size);
+        memcpy(sect->data, src->data, sizeof(*src->data) * src->data_size);
 
         sect->data_size = src->data_size;
         sect->data_cap = src->data_size;
@@ -334,7 +334,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp)
                         {
                             ul_arr_grow(ctx->labels_size + 1, &ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels));
 
-                            memmove_s(ctx->labels + ins_pos + 1, sizeof(*ctx->labels) * (ctx->labels_cap - ins_pos), ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
+                            memmove(ctx->labels + ins_pos + 1, ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
 
                             ctx->labels[ins_pos] = new_label;
                             ++ctx->labels_size;
@@ -401,7 +401,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp)
 
                             ul_arr_grow(ctx->procs_size + 1, &ctx->procs_cap, &ctx->procs, sizeof(*ctx->procs));
 
-                            memmove_s(ctx->procs + ins_pos + 1, sizeof(*ctx->procs) * (ctx->procs_cap - ins_pos), ctx->procs + ins_pos, sizeof(*ctx->procs) * (ctx->procs_size - ins_pos));
+                            memmove(ctx->procs + ins_pos + 1, ctx->procs + ins_pos, sizeof(*ctx->procs) * (ctx->procs_size - ins_pos));
 
                             ctx->procs[ins_pos] = new_proc;
                             ++ctx->procs_size;
@@ -529,7 +529,7 @@ static void set_sect_inds(ctx_t * ctx)
         sect->ind = ind++;
     }
 }
-static int base_reloc_cmp_proc(void * ctx_ptr, const fixup_t * const * first_ptr, const fixup_t * const * second_ptr)
+static int base_reloc_cmp_proc(const fixup_t * const * first_ptr, const fixup_t * const * second_ptr)
 {
     const fixup_t *first = *first_ptr, *second = *second_ptr;
 
@@ -574,7 +574,7 @@ static void form_base_reloc_arr(ctx_t * ctx)
 
     set_sect_inds(ctx);
 
-    qsort_s(ctx->va64_fixups, ctx->va64_fixups_size, sizeof(*ctx->va64_fixups), base_reloc_cmp_proc, ctx);
+    qsort(ctx->va64_fixups, ctx->va64_fixups_size, sizeof(*ctx->va64_fixups), base_reloc_cmp_proc);
 }
 static void form_base_reloc_sect(ctx_t * ctx)
 {
@@ -725,7 +725,7 @@ static bool calculate_offsets(ctx_t * ctx)
     return true;
 }
 
-static int excpt_cmp_proc(void * ctx_ptr, const proc_t * first, const proc_t * second)
+static int excpt_cmp_proc(const proc_t * first, const proc_t * second)
 {
     size_t first_off = first->label->sect->virt_addr + first->label->off,
            second_off = second->label->sect->virt_addr + second->label->off;
@@ -749,7 +749,7 @@ static void apply_fixups_excpt(ctx_t * ctx)
         return;
     }
 
-    qsort_s(ctx->procs, ctx->procs_size, sizeof(*ctx->procs), excpt_cmp_proc, NULL);
+    qsort(ctx->procs, ctx->procs_size, sizeof(*ctx->procs), excpt_cmp_proc);
 
     sect_t * excpt = ctx->excpt_sect;
 
@@ -969,7 +969,7 @@ static void write_file_core(ctx_t * ctx, FILE * file)
     {
         lnk_pe_sect_hdr_t sect_hdr = { 0 };
 
-        strncpy_s(sect_hdr.name, sizeof(sect_hdr.name), sect->name, SECT_NAME_SIZE);
+        strncpy(sect_hdr.name, sect->name, _countof(sect_hdr.name));
         sect_hdr.misc.virtual_size = (uint32_t)sect->data_size;
         sect_hdr.virtual_address = (uint32_t)sect->virt_addr;
         sect_hdr.size_of_raw_data = (uint32_t)sect->raw_size;
@@ -994,9 +994,9 @@ static void write_file_core(ctx_t * ctx, FILE * file)
 }
 static void write_file(ctx_t * ctx)
 {
-    FILE * file = NULL;
+    FILE * file = fopen(ctx->pel->sett.file_name, "wb");
 
-    if (fopen_s(&file, ctx->pel->sett.file_name, "wb") != 0)
+    if (file == NULL)
     {
         report(ctx, "failed to open file [%s]", ctx->pel->sett.file_name);
     }
