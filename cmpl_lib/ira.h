@@ -21,7 +21,9 @@ typedef enum ira_dt_type ira_dt_type_t;
 typedef struct ira_dt ira_dt_t;
 typedef struct ira_dt_info ira_dt_info_t;
 
+typedef enum ira_val_strg_type ira_val_strg_type_t;
 typedef enum ira_val_type ira_val_type_t;
+typedef struct ira_val_info ira_val_info_t;
 typedef struct ira_val ira_val_t;
 
 typedef enum ira_inst_opd_type ira_inst_opd_type_t;

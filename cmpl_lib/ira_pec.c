@@ -1136,6 +1136,9 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out)
 
             memset((*out)->arr_val.data, 0, dt->vec.size * sizeof(*(*out)->arr_val.data));
 
+			(*out)->arr_val.cap = dt->vec.size;
+			(*out)->arr_val.size = dt->vec.size;
+
             if (dt->vec.size > 0)
             {
                 if (!ira_pec_make_val_null(pec, dt->vec.body, &(*out)->arr_val.data[0]))
@@ -1167,6 +1170,9 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out)
 
             memset((*out)->arr_val.data, 0, dt->tpl.elems_size * sizeof((*out)->arr_val.data));
 
+            (*out)->arr_val.cap = dt->tpl.elems_size;
+            (*out)->arr_val.size = dt->tpl.elems_size;
+
             ira_val_t **elem = (*out)->arr_val.data, **elem_end = elem + dt->tpl.elems_size;
             ira_dt_ndt_t * elem_dt = dt->tpl.elems;
 
@@ -1186,19 +1192,7 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out)
             }
             break;
         case IraDtArr:
-        {
-            (*out)->arr_val.size = 0;
-
-            size_t arr_size_bytes = (*out)->arr_val.size * sizeof((*out)->arr_val.data);
-
-            (*out)->arr_val.data = malloc(arr_size_bytes);
-
-            ul_assert((*out)->arr_val.data != NULL);
-
-            memset((*out)->arr_val.data, 0, arr_size_bytes);
-
             break;
-        }
         case IraDtEnmn:
             if (!ira_pec_make_val_null(pec, dt->enmn.tag->body, &(*out)->val_val))
             {

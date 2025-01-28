@@ -16,6 +16,21 @@ enum ira_val_type
     IraValImmEnmn,
     IraVal_Count
 };
+enum ira_val_strg_type
+{
+    IraValStrgNone,
+    IraValStrgDt,
+    IraValStrgBool,
+    IraValStrgInt,
+    IraValStrgLo,
+    IraValStrgVal,
+    IraValStrgArr,
+    IraValStrg_Count
+};
+struct ira_val_info
+{
+	ira_val_strg_type_t strg_type;
+};
 struct ira_val
 {
     ira_val_type_t type;
@@ -31,6 +46,7 @@ struct ira_val
         {
             size_t size;
             ira_val_t ** data;
+            size_t cap;
         } arr_val;
     };
 };
@@ -39,3 +55,5 @@ IRA_API ira_val_t * ira_val_create(ira_val_type_t type, ira_dt_t * dt);
 IRA_API void ira_val_destroy(ira_val_t * val);
 
 IRA_API ira_val_t * ira_val_copy(ira_val_t * val);
+
+extern IRA_API const ira_val_info_t ira_val_infos[IraVal_Count];

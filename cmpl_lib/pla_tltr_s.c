@@ -384,6 +384,7 @@ static bool get_cs_ascii(ctx_t * ctx, ul_hs_t * str, ira_val_t ** out)
 
     ul_assert(elem_type == IraIntU8);
 
+    val->arr_val.cap = str->size + 1;
     val->arr_val.size = str->size + 1;
 
     val->arr_val.data = malloc(val->arr_val.size * sizeof(*val->arr_val.data));
@@ -433,6 +434,7 @@ static bool get_cs_wide(ctx_t * ctx, ul_hs_t * str, ira_val_t ** out)
 
     ul_assert(elem_type == IraIntU16);
 
+    val->arr_val.cap = str->size + 1;
     val->arr_val.size = str->size + 1;
 
     val->arr_val.data = malloc(val->arr_val.size * sizeof(*val->arr_val.data));

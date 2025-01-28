@@ -118,7 +118,7 @@ bool ira_pec_c_process_val_compl(ira_pec_c_ctx_t * ctx, ira_val_t * val)
             ira_pec_c_push_cl_elem(ctx, val->lo_val);
             break;
         case IraValImmTpl:
-            for (ira_val_t **elem = val->arr_val.data, **elem_end = elem + val->dt->tpl.elems_size; elem != elem_end; ++elem)
+            for (ira_val_t **elem = val->arr_val.data, **elem_end = elem + val->arr_val.size; elem != elem_end; ++elem)
             {
                 if (!ira_pec_c_process_val_compl(ctx, *elem))
                 {
@@ -183,7 +183,7 @@ static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ul_hs_t * hint_name, ira_
             mc_frag_push_inst(frag, &data);
             break;
         case IraValImmVec:
-            for (ira_val_t **elem = val->arr_val.data, **elem_end = elem + val->dt->vec.size; elem != elem_end; ++elem)
+            for (ira_val_t **elem = val->arr_val.data, **elem_end = elem + val->arr_val.size; elem != elem_end; ++elem)
             {
                 if (!compile_val(ctx, frag, hint_name, *elem))
                 {
@@ -210,7 +210,7 @@ static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ul_hs_t * hint_name, ira_
             mc_frag_push_inst(frag, &data);
             break;
         case IraValImmTpl:
-            for (ira_val_t **elem = val->arr_val.data, **elem_end = elem + val->dt->tpl.elems_size; elem != elem_end; ++elem)
+            for (ira_val_t **elem = val->arr_val.data, **elem_end = elem + val->arr_val.size; elem != elem_end; ++elem)
             {
                 if (!compile_val(ctx, frag, hint_name, *elem))
                 {

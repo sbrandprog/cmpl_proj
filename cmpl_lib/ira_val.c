@@ -2,27 +2,6 @@
 #include "ira_dt.h"
 #include "ira_lo.h"
 
-static void destroy_val_arr(size_t arr_size, ira_val_t ** arr)
-{
-    for (ira_val_t **elem = arr, **elem_end = elem + arr_size; elem != elem_end; ++elem)
-    {
-        ira_val_destroy(*elem);
-    }
-}
-static ira_val_t ** copy_val_arr(size_t arr_size, ira_val_t ** arr)
-{
-    ira_val_t ** new_arr = malloc(arr_size * sizeof(*new_arr));
-
-    ul_assert(new_arr != NULL);
-
-    for (ira_val_t **elem = arr, **elem_end = elem + arr_size, **ins = new_arr; elem != elem_end; ++elem, ++ins)
-    {
-        *ins = ira_val_copy(*elem);
-    }
-
-    return new_arr;
-}
-
 ira_val_t * ira_val_create(ira_val_type_t type, ira_dt_t * dt)
 {
     ira_val_t * val = malloc(sizeof(*val));
@@ -42,33 +21,27 @@ void ira_val_destroy(ira_val_t * val)
         return;
     }
 
-    switch (val->type)
+    const ira_val_info_t * info = &ira_val_infos[val->type];
+
+    switch (info->strg_type)
     {
-        case IraValImmVoid:
-        case IraValImmDt:
-        case IraValImmBool:
-        case IraValImmInt:
+        case IraValStrgNone:
+        case IraValStrgDt:
+        case IraValStrgBool:
+        case IraValStrgInt:
+        case IraValStrgLo:
             break;
-        case IraValImmVec:
-            destroy_val_arr(val->dt->vec.size, val->arr_val.data);
-            free(val->arr_val.data);
-            break;
-        case IraValImmPtr:
-        case IraValLoPtr:
-            break;
-        case IraValImmTpl:
-            destroy_val_arr(val->dt->tpl.elems_size, val->arr_val.data);
-            free(val->arr_val.data);
-            break;
-        case IraValImmStct:
+        case IraValStrgVal:
             ira_val_destroy(val->val_val);
             break;
-        case IraValImmArr:
-            destroy_val_arr(val->arr_val.size, val->arr_val.data);
+        case IraValStrgArr:
+            for (ira_val_t **elem = val->arr_val.data, **elem_end = elem + val->arr_val.size; elem != elem_end; ++elem)
+            {
+                ira_val_destroy(*elem);
+            }
+
             free(val->arr_val.data);
-            break;
-        case IraValImmEnmn:
-            ira_val_destroy(val->val_val);
+
             break;
         default:
             ul_assert_unreachable();
@@ -81,40 +54,41 @@ ira_val_t * ira_val_copy(ira_val_t * val)
 {
     ira_val_t * new_val = ira_val_create(val->type, val->dt);
 
-    switch (val->type)
+    const ira_val_info_t * info = &ira_val_infos[val->type];
+
+    switch (info->strg_type)
     {
-        case IraValImmVoid:
+        case IraValStrgNone:
             break;
-        case IraValImmDt:
+        case IraValStrgDt:
             new_val->dt_val = val->dt_val;
             break;
-        case IraValImmBool:
+        case IraValStrgBool:
             new_val->bool_val = val->bool_val;
             break;
-        case IraValImmInt:
+        case IraValStrgInt:
             new_val->int_val = val->int_val;
             break;
-        case IraValImmVec:
-            new_val->arr_val.data = copy_val_arr(val->dt->vec.size, val->arr_val.data);
-            break;
-        case IraValImmPtr:
-            new_val->int_val = val->int_val;
-            break;
-        case IraValLoPtr:
+        case IraValStrgLo:
             new_val->lo_val = val->lo_val;
             break;
-        case IraValImmTpl:
-            new_val->arr_val.data = copy_val_arr(val->dt->tpl.elems_size, val->arr_val.data);
-            break;
-        case IraValImmStct:
+        case IraValStrgVal:
             new_val->val_val = ira_val_copy(val->val_val);
             break;
-        case IraValImmArr:
-            new_val->arr_val.size = val->arr_val.size;
-            new_val->arr_val.data = copy_val_arr(val->arr_val.size, val->arr_val.data);
-            break;
-        case IraValImmEnmn:
-            new_val->val_val = ira_val_copy(val->val_val);
+        case IraValStrgArr:
+            new_val->arr_val.data = malloc(val->arr_val.size * sizeof(*new_val->arr_val.data));
+
+            ul_assert(new_val->arr_val.data != NULL);
+
+			new_val->arr_val.cap = val->arr_val.size;
+
+            for (ira_val_t **elem = val->arr_val.data, **elem_end = elem + val->arr_val.size, **ins = new_val->arr_val.data; elem != elem_end; ++elem, ++ins)
+            {
+                *ins = ira_val_copy(*elem);
+
+				++new_val->arr_val.size;
+            }
+
             break;
         default:
             ul_assert_unreachable();
@@ -122,3 +96,17 @@ ira_val_t * ira_val_copy(ira_val_t * val)
 
     return new_val;
 }
+
+const ira_val_info_t ira_val_infos[IraVal_Count] = {
+    [IraValImmVoid] = { .strg_type = IraValStrgNone },
+    [IraValImmDt] = { .strg_type = IraValStrgDt },
+    [IraValImmBool] = { .strg_type = IraValStrgBool },
+    [IraValImmInt] = { .strg_type = IraValStrgInt },
+    [IraValImmVec] = { .strg_type = IraValStrgArr },
+    [IraValImmPtr] = { .strg_type = IraValStrgInt },
+    [IraValLoPtr] = { .strg_type = IraValStrgLo },
+    [IraValImmTpl] = { .strg_type = IraValStrgArr },
+    [IraValImmStct] = { .strg_type = IraValStrgVal },
+    [IraValImmArr] = { .strg_type = IraValStrgArr },
+    [IraValImmEnmn] = { .strg_type = IraValStrgVal },
+};
