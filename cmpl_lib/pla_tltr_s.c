@@ -378,28 +378,24 @@ static bool translate_expr0(ctx_t * ctx, pla_expr_t * base, expr_t ** out);
 
 static bool get_cs_ascii(ctx_t * ctx, ul_hs_t * str, ira_val_t ** out)
 {
-    ira_val_t * val = ira_val_create(IraValImmArr, ctx->pec->dt_spcl.ascii_str);
+    *out = ira_val_create(IraValImmArr, ctx->pec->dt_spcl.ascii_str);
 
-    ira_int_type_t elem_type = val->dt->arr.body->int_type;
+    ira_int_type_t elem_type = (*out)->dt->arr.body->int_type;
 
     ul_assert(elem_type == IraIntU8);
 
-    val->arr_val.cap = str->size + 1;
-    val->arr_val.size = str->size + 1;
+    size_t expected_size = str->size + 1;
 
-    val->arr_val.data = malloc(val->arr_val.size * sizeof(*val->arr_val.data));
+    (*out)->arr_val.data = malloc(expected_size * sizeof(*(*out)->arr_val.data));
 
-    ul_assert(val->arr_val.data != NULL);
+    ul_assert((*out)->arr_val.data != NULL);
 
-    memset(val->arr_val.data, 0, val->arr_val.size * sizeof(*val->arr_val.data));
-
-    ira_val_t ** ins = val->arr_val.data;
+    ira_val_t ** ins = (*out)->arr_val.data;
     for (char *ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch)
     {
         if ((*ch & ~0x7F) != 0)
         {
-            pla_tltr_report(ctx->tltr, "non-ascii character [%c] in ascii string:\n%s", *ch, str->str);
-            ira_val_destroy(val);
+            pla_tltr_report(ctx->tltr, "non-ascii character [0x%" PRIx8 "] in ascii string:\n%s", (uint8_t)*ch, str->str);
             return false;
         }
 
@@ -408,6 +404,8 @@ static bool get_cs_ascii(ctx_t * ctx, ul_hs_t * str, ira_val_t ** out)
             pla_tltr_report_pec_err(ctx->tltr);
             return false;
         }
+
+        ++(*out)->arr_val.size;
     }
 
     if (!ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t){ .ui8 = 0 }, ins++))
@@ -416,56 +414,155 @@ static bool get_cs_ascii(ctx_t * ctx, ul_hs_t * str, ira_val_t ** out)
         return false;
     }
 
-    size_t final_size = ins - val->arr_val.data;
+    ++(*out)->arr_val.size;
 
-    ul_assert(final_size <= val->arr_val.size);
-
-    val->arr_val.size = final_size;
-
-    *out = val;
+    ul_assert((ins - (*out)->arr_val.data) == expected_size);
 
     return true;
 }
-static bool get_cs_wide(ctx_t * ctx, ul_hs_t * str, ira_val_t ** out)
+static bool get_cs_utf8(ctx_t * ctx, ul_hs_t * str, ira_val_t ** out)
 {
-    ira_val_t * val = ira_val_create(IraValImmArr, ctx->pec->dt_spcl.wide_str);
+    *out = ira_val_create(IraValImmArr, ctx->pec->dt_spcl.utf8_str);
 
-    ira_int_type_t elem_type = val->dt->arr.body->int_type;
+    ira_int_type_t elem_type = (*out)->dt->arr.body->int_type;
 
-    ul_assert(elem_type == IraIntU16);
+    ul_assert(elem_type == IraIntU8);
 
-    val->arr_val.cap = str->size + 1;
-    val->arr_val.size = str->size + 1;
+    size_t expected_size = str->size + 1;
 
-    val->arr_val.data = malloc(val->arr_val.size * sizeof(*val->arr_val.data));
+    (*out)->arr_val.data = malloc(expected_size * sizeof(*(*out)->arr_val.data));
 
-    ul_assert(val->arr_val.data != NULL);
+    ul_assert((*out)->arr_val.data != NULL);
 
-    memset(val->arr_val.data, 0, val->arr_val.size * sizeof(*val->arr_val.data));
-
-    ira_val_t ** ins = val->arr_val.data;
+    ira_val_t ** ins = (*out)->arr_val.data;
     for (char *ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch)
     {
-        if (!ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t){ .ui16 = (uint16_t)*ch }, ins++))
+        if (!ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t){ .ui8 = (uint8_t)*ch }, ins++))
         {
             pla_tltr_report_pec_err(ctx->tltr);
             return false;
         }
+
+        ++(*out)->arr_val.size;
     }
 
-    if (!ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t){ .ui16 = 0 }, ins++))
+    if (!ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t){ .ui8 = 0 }, ins++))
     {
         pla_tltr_report_pec_err(ctx->tltr);
         return false;
     }
 
-    size_t final_size = ins - val->arr_val.data;
+    ++(*out)->arr_val.size;
 
-    ul_assert(final_size <= val->arr_val.size);
+    ul_assert((ins - (*out)->arr_val.data) == expected_size);
 
-    val->arr_val.size = final_size;
+    return true;
+}
+static bool get_cs_utf16(ctx_t * ctx, ul_hs_t * str, ira_val_t ** out)
+{
+    *out = ira_val_create(IraValImmArr, ctx->pec->dt_spcl.utf16_str);
 
-    *out = val;
+    ira_int_type_t elem_type = (*out)->dt->arr.body->int_type;
+
+    ul_assert(elem_type == IraIntU16);
+
+    for (char *ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch)
+    {
+        uint32_t code = (uint8_t)*ch;
+
+        if ((code & 0x80) != 0)
+        {
+            uint8_t clear_mask;
+            uint8_t extra_codes;
+            uint32_t code_min;
+
+            if ((code & 0x60) == 0x40)
+            {
+                clear_mask = 0x1F;
+                extra_codes = 1;
+                code_min = 0x100;
+            }
+            else if ((code & 0x70) == 0x60)
+            {
+                clear_mask = 0x0F;
+                extra_codes = 2;
+                code_min = 0x800;
+            }
+            else if ((code & 0x78) == 0x70)
+            {
+                clear_mask = 0x07;
+                extra_codes = 3;
+                code_min = 0x10000;
+            }
+            else
+            {
+                pla_tltr_report(ctx->tltr, "invalid utf-8 multibyte introducer [0x%" PRIx8 "] in string:\n%s", (uint8_t)code, str->str);
+                return false;
+            }
+
+            code &= clear_mask;
+
+            while (extra_codes > 0)
+            {
+                --extra_codes;
+
+                if (++ch == ch_end)
+                {
+                    pla_tltr_report(ctx->tltr, "unexpected end of utf-8 multibyte sequence in string:\n%s", str->str);
+                    return false;
+                }
+
+                uint8_t extra = *ch;
+
+                if ((extra & 0xC0) != 0x80)
+                {
+                    pla_tltr_report(ctx->tltr, "invalid utf-8 multibyte continuator [0x%" PRIx8 "] in string:\n%s", extra, str->str);
+                    return false;
+                }
+
+                code = (code << 6) | extra;
+            }
+
+            if (code < code_min)
+            {
+                pla_tltr_report(ctx->tltr, "redundant utf-8 encoding, code point [0x%" PRIx32 "] uses [" PRIu8 "] bytes in string:\n%s", code, extra_codes + 1, str->str);
+                return false;
+            }
+
+            if (0xD800 <= code && code <= 0xDFFF || code > 0x10FFFF)
+            {
+                pla_tltr_report(ctx->tltr, "multibyte utf8 resulted in invalid unicode code point [0x%" PRIx32 "] in string:\n%s", code, extra_codes + 1, str->str);
+                return false;
+            }
+        }
+
+        ul_arr_grow((*out)->arr_val.size + (code > 0xFFFF ? 2 : 1), &(*out)->arr_val.cap, (void **)&(*out)->arr_val.data, sizeof((*out)->arr_val.data));
+
+        if (code > 0xFFFF)
+        {
+            code -= 0x10000;
+
+            if (!ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t){ .ui16 = (uint16_t)(0xD800 + ((code >> 10) & 0x3FF)) }, &(*out)->arr_val.data[(*out)->arr_val.size++]))
+            {
+                pla_tltr_report_pec_err(ctx->tltr);
+                return false;
+            }
+
+            if (!ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t){ .ui16 = (uint16_t)(0xDC00 + (code & 0x3FF)) }, &(*out)->arr_val.data[(*out)->arr_val.size++]))
+            {
+                pla_tltr_report_pec_err(ctx->tltr);
+                return false;
+            }
+        }
+        else
+        {
+            if (!ira_pec_make_val_imm_int(ctx->pec, elem_type, (ira_int_t){ .ui16 = (uint16_t)code }, &(*out)->arr_val.data[(*out)->arr_val.size++]))
+            {
+                pla_tltr_report_pec_err(ctx->tltr);
+                return false;
+            }
+        }
+    }
 
     return true;
 }
@@ -688,9 +785,16 @@ static bool get_cs_val_proc(ctx_t * ctx, pla_expr_t * expr, ira_val_t ** out)
             return false;
         }
     }
-    else if (tag == ctx->tltr->pds[PlaPdsWideStrTag])
+    else if (tag == ctx->tltr->pds[PlaPdsUtf8StrTag])
     {
-        if (!get_cs_wide(ctx, data, out))
+        if (!get_cs_utf8(ctx, data, out))
+        {
+            return false;
+        }
+    }
+    else if (tag == ctx->tltr->pds[PlaPdsUtf16StrTag])
+    {
+        if (!get_cs_utf16(ctx, data, out))
         {
             return false;
         }

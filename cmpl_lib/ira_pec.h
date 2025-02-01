@@ -38,7 +38,8 @@ struct ira_pec
         ira_dt_t * size;
         ira_dt_t * va_elem;
         ira_dt_t * ascii_str;
-        ira_dt_t * wide_str;
+        ira_dt_t * utf8_str;
+        ira_dt_t * utf16_str;
     } dt_spcl;
 
     ira_optr_t * optrs[IraOptrCtg_Count];

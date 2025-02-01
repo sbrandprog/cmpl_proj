@@ -1,7 +1,7 @@
 tlaturef pla_lib.w64.kernel32;
 
 namespace std {
-	variable const con_handle_name := "CON"w;
+	variable const con_handle_name := "CON"utf16;
 
 	variable const con_in_buf_size := 256'u64;
 	struct con_in_buf_t;
