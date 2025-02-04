@@ -311,7 +311,7 @@ void ira_pec_c_push_cl_elem(ira_pec_c_ctx_t * ctx, ira_lo_t * lo)
 
 static bool compile_lo_impt(ctx_t * ctx, ira_lo_t * lo)
 {
-    mc_it_add_sym(&ctx->out->it, lo->impt.lib_name, lo->impt.sym_name, lo->name);
+    mc_pea_it_add_sym(&ctx->out->it, lo->impt.lib_name, lo->impt.sym_name, lo->name);
 
     return true;
 }

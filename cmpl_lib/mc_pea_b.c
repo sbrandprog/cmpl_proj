@@ -111,7 +111,7 @@ static void build_core(ctx_t * ctx)
 {
     build_frags(ctx);
 
-    if (!mc_it_build(&ctx->pea->it, ctx->out))
+    if (!mc_pea_it_build(&ctx->pea->it, ctx->out))
     {
         report(ctx, "failed to build import table");
     }

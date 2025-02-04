@@ -1,10 +1,10 @@
-#include "mc_it.h"
+#include "mc_pea_it.h"
 #include "lnk_pe.h"
 #include "lnk_pel.h"
 #include "lnk_sect.h"
 #include "mc_defs.h"
 
-#define MOD_NAME "mc_it"
+#define MOD_NAME "mc_pea_it"
 
 #define LABEL_SUFFIX "#it:"
 #define LABEL_LIB_NAME_EXT 'n'
@@ -12,9 +12,9 @@
 #define LABEL_SYM_NAME_EXT 's'
 #define NAME_ALIGN 2
 
-typedef struct mc_it_ctx
+typedef struct mc_pea_it_ctx
 {
-    mc_it_t * it;
+    mc_pea_it_t * it;
     lnk_pel_t * out;
 
     bool is_rptd;
@@ -26,19 +26,19 @@ typedef struct mc_it_ctx
     lnk_sect_t * hnt_sect;
 } ctx_t;
 
-void mc_it_init(mc_it_t * it, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr)
+void mc_pea_it_init(mc_pea_it_t * it, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr)
 {
-    *it = (mc_it_t){ .hst = hst, .ec_fmtr = ec_fmtr };
+    *it = (mc_pea_it_t){ .hst = hst, .ec_fmtr = ec_fmtr };
 }
-void mc_it_cleanup(mc_it_t * it)
+void mc_pea_it_cleanup(mc_pea_it_t * it)
 {
-    for (mc_it_lib_t * lib = it->lib; lib != NULL;)
+    for (mc_pea_it_lib_t * lib = it->lib; lib != NULL;)
     {
-        mc_it_lib_t * next = lib->next;
+        mc_pea_it_lib_t * next = lib->next;
 
-        for (mc_it_sym_t * sym = lib->sym; sym != NULL;)
+        for (mc_pea_it_sym_t * sym = lib->sym; sym != NULL;)
         {
-            mc_it_sym_t * next = sym->next;
+            mc_pea_it_sym_t * next = sym->next;
 
             free(sym);
 
@@ -53,13 +53,13 @@ void mc_it_cleanup(mc_it_t * it)
     memset(it, 0, sizeof(*it));
 }
 
-mc_it_lib_t * mc_it_get_lib(mc_it_t * it, ul_hs_t * name)
+mc_pea_it_lib_t * mc_pea_it_get_lib(mc_pea_it_t * it, ul_hs_t * name)
 {
-    mc_it_lib_t ** ins = &it->lib;
+    mc_pea_it_lib_t ** ins = &it->lib;
 
     while (*ins != NULL)
     {
-        mc_it_lib_t * lib = *ins;
+        mc_pea_it_lib_t * lib = *ins;
 
         if (lib->name == name)
         {
@@ -69,25 +69,25 @@ mc_it_lib_t * mc_it_get_lib(mc_it_t * it, ul_hs_t * name)
         ins = &lib->next;
     }
 
-    mc_it_lib_t * new_lib = malloc(sizeof(*new_lib));
+    mc_pea_it_lib_t * new_lib = malloc(sizeof(*new_lib));
 
     ul_assert(new_lib != NULL);
 
-    *new_lib = (mc_it_lib_t){ .name = name };
+    *new_lib = (mc_pea_it_lib_t){ .name = name };
 
     *ins = new_lib;
 
     return new_lib;
 }
-mc_it_sym_t * mc_it_add_sym(mc_it_t * it, ul_hs_t * lib_name, ul_hs_t * sym_name, ul_hs_t * sym_link_name)
+mc_pea_it_sym_t * mc_pea_it_add_sym(mc_pea_it_t * it, ul_hs_t * lib_name, ul_hs_t * sym_name, ul_hs_t * sym_link_name)
 {
-    mc_it_lib_t * lib = mc_it_get_lib(it, lib_name);
+    mc_pea_it_lib_t * lib = mc_pea_it_get_lib(it, lib_name);
 
-    mc_it_sym_t ** ins = &lib->sym;
+    mc_pea_it_sym_t ** ins = &lib->sym;
 
     while (*ins != NULL)
     {
-        mc_it_sym_t * sym = *ins;
+        mc_pea_it_sym_t * sym = *ins;
 
         if (sym->name == sym_name)
         {
@@ -97,11 +97,11 @@ mc_it_sym_t * mc_it_add_sym(mc_it_t * it, ul_hs_t * lib_name, ul_hs_t * sym_name
         ins = &sym->next;
     }
 
-    mc_it_sym_t * new_sym = malloc(sizeof(*new_sym));
+    mc_pea_it_sym_t * new_sym = malloc(sizeof(*new_sym));
 
     ul_assert(new_sym != NULL);
 
-    *new_sym = (mc_it_sym_t){ .name = sym_name, .link_name = sym_link_name };
+    *new_sym = (mc_pea_it_sym_t){ .name = sym_name, .link_name = sym_link_name };
 
     *ins = new_sym;
 
@@ -132,7 +132,7 @@ static void report(ctx_t * ctx, const char * fmt, ...)
 
 static bool is_empty(ctx_t * ctx)
 {
-    for (mc_it_lib_t * lib = ctx->it->lib; lib != NULL; lib = lib->next)
+    for (mc_pea_it_lib_t * lib = ctx->it->lib; lib != NULL; lib = lib->next)
     {
         if (lib->sym != NULL)
         {
@@ -192,7 +192,7 @@ static bool write_ascii_str(lnk_sect_t * sect, ul_hs_t * str)
     return !err;
 }
 
-static void process_lib(ctx_t * ctx, mc_it_lib_t * lib)
+static void process_lib(ctx_t * ctx, mc_pea_it_lib_t * lib)
 {
     ul_hs_t * lib_name_label = get_it_label_name(ctx, lib->name, LABEL_LIB_NAME_EXT);
     ul_hs_t * lib_at_label = get_it_label_name(ctx, lib->name, LABEL_LIB_AT_EXT);
@@ -226,7 +226,7 @@ static void process_lib(ctx_t * ctx, mc_it_lib_t * lib)
         uint16_t sym_hint = 0;
         uint64_t sym_rec = 0;
 
-        for (mc_it_sym_t * sym = lib->sym; sym != NULL; sym = sym->next)
+        for (mc_pea_it_sym_t * sym = lib->sym; sym != NULL; sym = sym->next)
         {
             ul_hs_t * sym_label = get_it_label_name(ctx, sym->link_name, LABEL_SYM_NAME_EXT);
 
@@ -276,7 +276,7 @@ static void push_sects(ctx_t * ctx)
 
 static void build_core(ctx_t * ctx)
 {
-    mc_it_t * it = ctx->it;
+    mc_pea_it_t * it = ctx->it;
 
     if (is_empty(ctx))
     {
@@ -289,7 +289,7 @@ static void build_core(ctx_t * ctx)
 
     lnk_sect_add_lp(ctx->dir_sect, LnkSectLpMark, LnkSectLpMarkImpStart, NULL, ctx->dir_sect->data_size);
 
-    for (mc_it_lib_t * lib = it->lib; lib != NULL; lib = lib->next)
+    for (mc_pea_it_lib_t * lib = it->lib; lib != NULL; lib = lib->next)
     {
         process_lib(ctx, lib);
     }
@@ -305,7 +305,7 @@ static void build_core(ctx_t * ctx)
     push_sects(ctx);
 }
 
-bool mc_it_build(mc_it_t * it, lnk_pel_t * out)
+bool mc_pea_it_build(mc_pea_it_t * it, lnk_pel_t * out)
 {
     ctx_t ctx = { .it = it, .out = out };
 

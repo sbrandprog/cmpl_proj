@@ -26,8 +26,8 @@ typedef struct mc_inst_bs mc_inst_bs_t;
 typedef enum mc_frag_type mc_frag_type_t;
 typedef struct mc_frag mc_frag_t;
 
-typedef struct mc_it_sym mc_it_sym_t;
-typedef struct mc_it_lib mc_it_lib_t;
-typedef struct mc_it mc_it_t;
+typedef struct mc_pea_it_sym mc_pea_it_sym_t;
+typedef struct mc_pea_it_lib mc_pea_it_lib_t;
+typedef struct mc_pea_it mc_pea_it_t;
 
 typedef struct mc_pea mc_pea_t;

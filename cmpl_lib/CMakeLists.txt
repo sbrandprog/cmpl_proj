@@ -27,9 +27,9 @@ target_sources(cmpl_lib
     mc_defs.h
     mc_frag.h
     mc_inst.h
-    mc_it.h
     mc_pea.h
     mc_pea_b.h
+    mc_pea_it.h
     mc_reg.h
     mc_size.h
     pch.h
@@ -73,9 +73,9 @@ target_sources(cmpl_lib
     mc_defs.c
     mc_frag.c
     mc_inst.c
-    mc_it.c
     mc_pea.c
     mc_pea_b.c
+    mc_pea_it.c
     mc_reg.c
     mc_size.c
     pla_bs.c

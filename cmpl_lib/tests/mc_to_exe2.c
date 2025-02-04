@@ -61,9 +61,9 @@ static bool test_proc(test_ctx_t * ctx)
     {
         ul_hs_t * lib_name = UL_HST_HASHADD_WS(&ctx->hst, "kernel32.dll");
 
-        mc_it_add_sym(&ctx->pea.it, lib_name, UL_HST_HASHADD_WS(&ctx->hst, "GetStdHandle"), UL_HST_HASHADD_WS(&ctx->hst, "GetStdHandle"));
-        mc_it_add_sym(&ctx->pea.it, lib_name, UL_HST_HASHADD_WS(&ctx->hst, "WriteFile"), UL_HST_HASHADD_WS(&ctx->hst, "WriteFile"));
-        mc_it_add_sym(&ctx->pea.it, lib_name, UL_HST_HASHADD_WS(&ctx->hst, "Sleep"), UL_HST_HASHADD_WS(&ctx->hst, "Sleep"));
+        mc_pea_it_add_sym(&ctx->pea.it, lib_name, UL_HST_HASHADD_WS(&ctx->hst, "GetStdHandle"), UL_HST_HASHADD_WS(&ctx->hst, "GetStdHandle"));
+        mc_pea_it_add_sym(&ctx->pea.it, lib_name, UL_HST_HASHADD_WS(&ctx->hst, "WriteFile"), UL_HST_HASHADD_WS(&ctx->hst, "WriteFile"));
+        mc_pea_it_add_sym(&ctx->pea.it, lib_name, UL_HST_HASHADD_WS(&ctx->hst, "Sleep"), UL_HST_HASHADD_WS(&ctx->hst, "Sleep"));
     }
 
     return true;

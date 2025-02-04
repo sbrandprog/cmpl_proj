@@ -1,6 +1,6 @@
 #pragma once
 #include "lnk.h"
-#include "mc_it.h"
+#include "mc_pea_it.h"
 
 struct mc_pea
 {
@@ -9,7 +9,7 @@ struct mc_pea
 
     mc_frag_t * frag;
 
-    mc_it_t it;
+    mc_pea_it_t it;
 
     ul_hs_t * ep_name;
 };
