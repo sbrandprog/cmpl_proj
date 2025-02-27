@@ -76,9 +76,7 @@ void ul_ec_cleanup(ul_ec_t * ec)
     memset(ec, 0, sizeof(*ec));
 }
 
-#if defined __linux__
 extern inline void ul_ec_process_actn(ul_ec_t * ec, const ul_ec_actn_t * actn);
 extern inline void ul_ec_post(ul_ec_t * ec, ul_ec_rec_t * rec);
 extern inline void ul_ec_clear(ul_ec_t * ec, const char * type, const char * mod_name);
 extern inline void ul_ec_clear_all(ul_ec_t * ec);
-#endif

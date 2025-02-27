@@ -34,9 +34,7 @@ void lnk_sect_destroy_chain(lnk_sect_t * sect)
     }
 }
 
-#if defined __linux__
 extern inline lnk_sect_t * lnk_sect_create_desc(const lnk_sect_desc_t * desc);
-#endif
 
 void lnk_sect_add_lp(lnk_sect_t * sect, lnk_sect_lp_type_t type, lnk_sect_lp_stype_t stype, ul_hs_t * label_name, size_t off)
 {

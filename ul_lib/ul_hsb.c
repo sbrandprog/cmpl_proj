@@ -68,7 +68,5 @@ ul_hs_t * ul_hsb_formatadd_va(ul_hsb_t * hsb, ul_hst_t * hst, const char * fmt, 
     return ul_hst_hashadd(hst, str_size, hsb->buf);
 }
 
-#if defined __linux__
 extern inline ul_hs_t * ul_hsb_formatadd(ul_hsb_t * hsb, ul_hst_t * hst, const char * fmt, ...);
 extern inline ul_hs_t * ul_hsb_cat_hs_delim(ul_hsb_t * hsb, ul_hst_t * hst, ul_hs_t * first, char delim, ul_hs_t * second);
-#endif

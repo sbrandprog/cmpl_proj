@@ -166,9 +166,6 @@ const mc_reg_grps_t reg_type_to_grps[InstRecReg_Count] = {
     [InstRecRegCx64] = { .s_64 = 1, .gpr = 1, .gpr_cx = 1 },
 };
 
-static const inst_rec_t inst_recs[];
-static const size_t inst_recs_size;
-
 static void report(ctx_t * ctx, const char * fmt, ...)
 {
     ctx->is_rptd = true;
@@ -575,40 +572,7 @@ static bool is_opds_match(mc_inst_t * inst, const inst_rec_t * rec)
 
     return true;
 }
-static void find_rec(ctx_t * ctx)
-{
-    if (validate_inst(ctx))
-    {
-        mc_inst_t * inst = ctx->inst;
-        size_t i = 0;
-
-        while (i < inst_recs_size && inst->type != inst_recs[i].type)
-        {
-            ++i;
-        }
-
-        for (; i < inst_recs_size && inst->type == inst_recs[i].type; ++i)
-        {
-            if (is_opds_match(inst, &inst_recs[i]))
-            {
-                ctx->rec = &inst_recs[i];
-                break;
-            }
-        }
-
-        if (ctx->rec == NULL)
-        {
-            report(ctx, "acceptable instruction record not found");
-        }
-    }
-
-    if (ctx->rec == NULL)
-    {
-        ctx->rec = &inst_recs[0];
-
-        ul_assert(ctx->rec->type == McInstNone && ctx->rec->opds == InstRecOpds_None && ctx->rec->no_opc);
-    }
-}
+static void find_rec(ctx_t * ctx);
 
 static void make_desc_imm(inst_desc_t * desc, mc_inst_t * inst, const inst_rec_t * rec, size_t imm_i)
 {
@@ -1092,9 +1056,7 @@ bool mc_inst_build(mc_inst_t * inst, ul_ec_fmtr_t * ec_fmtr, size_t * inst_size_
     return !ctx.is_rptd;
 }
 
-#if defined __linux__
 extern inline bool mc_inst_get_size(mc_inst_t * inst, size_t * out);
-#endif
 
 const mc_inst_opd_t mc_inst_opds_to_opd[McInstOpds__Count][MC_INST_OPDS_SIZE] = {
     [McInstOpds_None] = { McInstOpdNone, McInstOpdNone, McInstOpdNone },
@@ -1375,3 +1337,38 @@ static const inst_rec_t inst_recs[] = {
     q_g3(Sar, 7),
 };
 static const size_t inst_recs_size = ul_arr_count(inst_recs);
+
+static void find_rec(ctx_t * ctx)
+{
+    if (validate_inst(ctx))
+    {
+        mc_inst_t * inst = ctx->inst;
+        size_t i = 0;
+
+        while (i < inst_recs_size && inst->type != inst_recs[i].type)
+        {
+            ++i;
+        }
+
+        for (; i < inst_recs_size && inst->type == inst_recs[i].type; ++i)
+        {
+            if (is_opds_match(inst, &inst_recs[i]))
+            {
+                ctx->rec = &inst_recs[i];
+                break;
+            }
+        }
+
+        if (ctx->rec == NULL)
+        {
+            report(ctx, "acceptable instruction record not found");
+        }
+    }
+
+    if (ctx->rec == NULL)
+    {
+        ctx->rec = &inst_recs[0];
+
+        ul_assert(ctx->rec->type == McInstNone && ctx->rec->opds == InstRecOpds_None && ctx->rec->no_opc);
+    }
+}

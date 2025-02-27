@@ -64,6 +64,4 @@ ul_hs_t * ul_hst_add(ul_hst_t * hst, size_t str_size, const char * str, ul_hs_ha
     return &new_node->hstr;
 }
 
-#if defined __linux__
 extern inline ul_hs_t * ul_hst_hashadd(ul_hst_t * hst, size_t str_size, const char * str);
-#endif

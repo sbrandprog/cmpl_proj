@@ -41,9 +41,7 @@ void ul_ec_fmtr_format_va(ul_ec_fmtr_t * fmtr, const char * fmt, va_list args)
     }
 }
 
-#if defined __linux__
 extern inline void ul_ec_fmtr_format(ul_ec_fmtr_t * fmtr, const char * fmt, ...);
-#endif
 
 void ul_ec_fmtr_post(ul_ec_fmtr_t * fmtr, const char * type, const char * mod_name)
 {

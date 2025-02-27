@@ -26,6 +26,4 @@ void ul_ec_prntr_init_dflt(ul_ec_prntr_t * prntr)
     ul_ec_prntr_init(prntr, NULL, print_dflt_proc);
 }
 
-#if defined __linux__
 extern inline bool ul_ec_prntr_print(ul_ec_prntr_t * prntr, ul_ec_rec_t * rec);
-#endif
