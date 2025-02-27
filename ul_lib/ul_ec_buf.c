@@ -32,8 +32,10 @@ static void process_actn_clear(ul_ec_buf_t * buf, const ul_ec_actn_t * actn)
 
     buf->rec_ins = rec_ins;
 }
-static void process_actn_proc(ul_ec_buf_t * buf, const ul_ec_actn_t * actn)
+static void process_actn_proc(void * user_data, const ul_ec_actn_t * actn)
 {
+    ul_ec_buf_t * buf = user_data;
+
     switch (actn->type)
     {
         case UlEcActnPost:

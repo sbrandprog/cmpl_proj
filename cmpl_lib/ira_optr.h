@@ -1,5 +1,6 @@
 #pragma once
 #include "ira.h"
+#include "ira_dt.h"
 
 enum ira_optr_type
 {
@@ -103,4 +104,4 @@ IRA_API ira_optr_t * ira_optr_copy(ira_optr_t * optr);
 
 IRA_API bool ira_optr_is_equivalent(ira_optr_t * first, ira_optr_t * second);
 
-IRA_API const ira_optr_info_t ira_optr_infos[IraOptr_Count];
+extern IRA_API const ira_optr_info_t ira_optr_infos[IraOptr_Count];

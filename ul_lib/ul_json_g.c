@@ -1,4 +1,5 @@
 #include "ul_json_g.h"
+#include "ul_arr.h"
 #include "ul_assert.h"
 #include "ul_hs.h"
 #include "ul_misc.h"
@@ -162,7 +163,7 @@ static void generate_val_int(ctx_t * ctx, ul_json_t * val)
 {
     char buf[INT_BUF_SIZE];
 
-    int res = snprintf(buf, _countof(buf), "%" PRIi64, val->val_int);
+    int res = snprintf(buf, ul_arr_count(buf), "%" PRIi64, val->val_int);
 
     ul_assert(res >= 0);
 
@@ -172,7 +173,7 @@ static void generate_val_dbl(ctx_t * ctx, ul_json_t * val)
 {
     char buf[DBL_BUF_SIZE];
 
-    int res = snprintf(buf, _countof(buf), "%.17e", val->val_dbl);
+    int res = snprintf(buf, ul_arr_count(buf), "%.17e", val->val_dbl);
 
     ul_assert(res >= 0);
 

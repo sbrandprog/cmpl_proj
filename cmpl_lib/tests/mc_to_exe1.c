@@ -20,7 +20,7 @@ static bool test_proc(test_ctx_t * ctx)
         { .type = McInstRet, .opds = McInstOpds_None }
     };
 
-    copy_frag_insts(_countof(main_proc_insts), main_proc_insts, main_proc);
+    copy_frag_insts(ul_arr_count(main_proc_insts), main_proc_insts, main_proc);
 
     return true;
 }

@@ -19,7 +19,7 @@ function(set_proj_trg_props trg)
 
     if(MSVC)
         target_compile_options(${trg} PRIVATE /W3 /utf-8)
-		target_compile_definitions(${trg} PRIVATE _CRT_SECURE_NO_WARNINGS)
+        target_compile_definitions(${trg} PRIVATE _CRT_SECURE_NO_WARNINGS)
     endif()
 
     if(WIN32)

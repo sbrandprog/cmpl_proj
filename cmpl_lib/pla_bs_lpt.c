@@ -222,7 +222,7 @@ static bool find_and_push_tus(ctx_t * ctx, pkg_t * pkg, ul_hs_t * tus_name)
         return false;
     }
 
-    ul_arr_grow(ctx->tuss_size + 1, &ctx->tuss_cap, &ctx->tuss, sizeof(*ctx->tuss));
+    ul_arr_grow(ctx->tuss_size + 1, &ctx->tuss_cap, (void **)&ctx->tuss, sizeof(*ctx->tuss));
 
     ul_hs_t * tus_full_name = base->name;
 

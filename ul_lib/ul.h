@@ -1,14 +1,18 @@
 #pragma once
 
+#if defined _WIN32
 #if defined UL_BUILD_DLL
 #define UL_API __declspec(dllexport)
 #else
 #define UL_API __declspec(dllimport)
 #endif
+#else
+#define UL_API
+#endif
 
 typedef struct ul_ros ul_ros_t;
 
-typedef bool ul_bs_cmp_proc_t(const void * first, const void * second);
+typedef bool ul_bs_cmp_proc_t(const void * first_ptr, const void * second_ptr);
 
 typedef enum ul_fs_ent_type ul_fs_ent_type_t;
 typedef struct ul_fs_ent ul_fs_ent_t;

@@ -25,8 +25,8 @@ bool pla_ec_scan(ul_ec_rec_t * rec, pla_ec_err_t * out)
 
     pla_ec_err_t err = { .mod_name = rec->mod_name };
 
-    const char *cur = rec->strs, *cur_end = cur + _countof(rec->strs);
-    for (size_t i = 0, i_end = min(4, rec->strs_size); i < i_end; ++i)
+    const char *cur = rec->strs, *cur_end = cur + ul_arr_count(rec->strs);
+    for (size_t i = 0, i_end = ul_min(4, rec->strs_size); i < i_end; ++i)
     {
         switch (i)
         {

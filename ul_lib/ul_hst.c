@@ -1,4 +1,5 @@
 #include "ul_hst.h"
+#include "ul_arr.h"
 #include "ul_assert.h"
 
 void ul_hst_init(ul_hst_t * hst)
@@ -7,7 +8,7 @@ void ul_hst_init(ul_hst_t * hst)
 }
 void ul_hst_cleanup(ul_hst_t * hst)
 {
-    for (ul_hst_node_t **ent = hst->ents, **ent_end = ent + _countof(hst->ents); ent != ent_end; ++ent)
+    for (ul_hst_node_t **ent = hst->ents, **ent_end = ent + ul_arr_count(hst->ents); ent != ent_end; ++ent)
     {
         for (ul_hst_node_t * node = *ent; node != NULL;)
         {
@@ -27,7 +28,7 @@ void ul_hst_cleanup(ul_hst_t * hst)
 
 ul_hs_t * ul_hst_add(ul_hst_t * hst, size_t str_size, const char * str, ul_hs_hash_t str_hash)
 {
-    ul_hst_node_t ** node_place = &hst->ents[str_hash % _countof(hst->ents)];
+    ul_hst_node_t ** node_place = &hst->ents[str_hash % ul_arr_count(hst->ents)];
 
     while (*node_place != NULL)
     {
@@ -62,3 +63,7 @@ ul_hs_t * ul_hst_add(ul_hst_t * hst, size_t str_size, const char * str, ul_hs_ha
 
     return &new_node->hstr;
 }
+
+#if defined __linux__
+extern inline ul_hs_t * ul_hst_hashadd(ul_hst_t * hst, size_t str_size, const char * str);
+#endif

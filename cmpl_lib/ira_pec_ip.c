@@ -675,11 +675,11 @@ static void make_var_bb_ref(ctx_t * ctx, var_t * var, bb_t * bb)
     }
 
 
-    ul_arr_grow(var->bb_refs_size + 1, &var->bb_refs_cap, &var->bb_refs, sizeof(*var->bb_refs));
+    ul_arr_grow(var->bb_refs_size + 1, &var->bb_refs_cap, (void **)&var->bb_refs, sizeof(*var->bb_refs));
 
     var->bb_refs[var->bb_refs_size++] = (var_bb_ref_t){ .bb = bb };
 
-    ul_arr_grow(bb->var_refs_size + 1, &bb->var_refs_cap, &bb->var_refs, sizeof(*bb->var_refs));
+    ul_arr_grow(bb->var_refs_size + 1, &bb->var_refs_cap, (void **)&bb->var_refs, sizeof(*bb->var_refs));
 
     bb->var_refs[bb->var_refs_size++] = (bb_var_ref_t){ .var = var };
 }
@@ -1384,7 +1384,7 @@ static bool prepare_call_func_ptr(ctx_t * ctx, inst_t * inst, const ira_inst_inf
     }
 
     ctx->has_calls = true;
-    ctx->call_args_size_max = max(ctx->call_args_size_max, inst->opd2.size);
+    ctx->call_args_size_max = ul_max(ctx->call_args_size_max, inst->opd2.size);
 
     return true;
 }
@@ -1752,7 +1752,7 @@ static bool calculate_stack(ctx_t * ctx)
     {
         stack_size = ul_align_to(stack_size, STACK_ALIGN);
 
-        size_t args_size = max(ctx->call_args_size_max, 4);
+        size_t args_size = ul_max(ctx->call_args_size_max, 4);
 
         stack_size += args_size * STACK_UNIT;
     }
@@ -1778,7 +1778,7 @@ static bool calculate_stack(ctx_t * ctx)
                 }
             }
 
-            stack_size_unq_max = max(stack_size_unq_max, stack_size_unq);
+            stack_size_unq_max = ul_max(stack_size_unq_max, stack_size_unq);
         }
 
         stack_size = stack_size_unq_max;

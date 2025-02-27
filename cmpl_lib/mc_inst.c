@@ -166,7 +166,7 @@ const mc_reg_grps_t reg_type_to_grps[InstRecReg_Count] = {
     [InstRecRegCx64] = { .s_64 = 1, .gpr = 1, .gpr_cx = 1 },
 };
 
-const inst_rec_t inst_recs[];
+static const inst_rec_t inst_recs[];
 static const size_t inst_recs_size;
 
 static void report(ctx_t * ctx, const char * fmt, ...)
@@ -1092,6 +1092,10 @@ bool mc_inst_build(mc_inst_t * inst, ul_ec_fmtr_t * ec_fmtr, size_t * inst_size_
     return !ctx.is_rptd;
 }
 
+#if defined __linux__
+extern inline bool mc_inst_get_size(mc_inst_t * inst, size_t * out);
+#endif
+
 const mc_inst_opd_t mc_inst_opds_to_opd[McInstOpds__Count][MC_INST_OPDS_SIZE] = {
     [McInstOpds_None] = { McInstOpdNone, McInstOpdNone, McInstOpdNone },
     [McInstOpds_Label] = { McInstOpdLabel, McInstOpdNone, McInstOpdNone },
@@ -1370,4 +1374,4 @@ static const inst_rec_t inst_recs[] = {
     q_g3(Shr, 5),
     q_g3(Sar, 7),
 };
-static const size_t inst_recs_size = _countof(inst_recs);
+static const size_t inst_recs_size = ul_arr_count(inst_recs);

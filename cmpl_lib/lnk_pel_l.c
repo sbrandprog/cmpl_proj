@@ -228,8 +228,11 @@ static bool prepare_input_sects(ctx_t * ctx)
     return true;
 }
 
-static bool label_cmp_proc(const label_t * first, const label_t * second)
+static bool label_cmp_proc(const void * first_ptr, const void * second_ptr)
 {
+    const label_t * first = first_ptr;
+    const label_t * second = second_ptr;
+
     return (uint8_t *)first->name < (uint8_t *)second->name;
 }
 static label_t * find_label(ctx_t * ctx, const ul_hs_t * name)
@@ -246,8 +249,11 @@ static label_t * find_label(ctx_t * ctx, const ul_hs_t * name)
     return NULL;
 }
 
-static bool proc_cmp_proc(const proc_t * first, const proc_t * second)
+static bool proc_cmp_proc(const void * first_ptr, const void * second_ptr)
 {
+    const proc_t * first = first_ptr;
+    const proc_t * second = second_ptr;
+
     return (uint8_t *)first->label_name < (uint8_t *)second->label_name;
 }
 
@@ -332,7 +338,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp)
                         }
                         else
                         {
-                            ul_arr_grow(ctx->labels_size + 1, &ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels));
+                            ul_arr_grow(ctx->labels_size + 1, &ctx->labels_cap, (void **)&ctx->labels, sizeof(*ctx->labels));
 
                             memmove(ctx->labels + ins_pos + 1, ctx->labels + ins_pos, sizeof(*ctx->labels) * (ctx->labels_size - ins_pos));
 
@@ -399,7 +405,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp)
                                     ul_assert_unreachable();
                             }
 
-                            ul_arr_grow(ctx->procs_size + 1, &ctx->procs_cap, &ctx->procs, sizeof(*ctx->procs));
+                            ul_arr_grow(ctx->procs_size + 1, &ctx->procs_cap, (void **)&ctx->procs, sizeof(*ctx->procs));
 
                             memmove(ctx->procs + ins_pos + 1, ctx->procs + ins_pos, sizeof(*ctx->procs) * (ctx->procs_size - ins_pos));
 
@@ -431,7 +437,7 @@ static void add_lp(ctx_t * ctx, sect_t * sect, const lnk_sect_lp_t * lp)
                 }
                 else
                 {
-                    ul_arr_grow(ctx->fixups_size + 1, &ctx->fixups_cap, &ctx->fixups, sizeof(*ctx->fixups));
+                    ul_arr_grow(ctx->fixups_size + 1, &ctx->fixups_cap, (void **)&ctx->fixups, sizeof(*ctx->fixups));
 
                     ctx->fixups[ctx->fixups_size++] = (fixup_t){ .stype = lp->stype, .label_name = lp->label_name, .sect = sect, .off = lp->off };
 
@@ -529,9 +535,10 @@ static void set_sect_inds(ctx_t * ctx)
         sect->ind = ind++;
     }
 }
-static int base_reloc_cmp_proc(const fixup_t * const * first_ptr, const fixup_t * const * second_ptr)
+static int base_reloc_cmp_proc(const void * first_ptr, const void * second_ptr)
 {
-    const fixup_t *first = *first_ptr, *second = *second_ptr;
+    const fixup_t * first = *(const fixup_t * const *)first_ptr;
+    const fixup_t * second = *(const fixup_t * const *)second_ptr;
 
     if (first->sect->ind < second->sect->ind)
     {
@@ -617,7 +624,7 @@ static void form_base_reloc_sect(ctx_t * ctx)
 
             size_t block_size = sizeof(lnk_pe_base_reloc_t) + (last_ptr - va64_f) * sizeof(lnk_pe_base_reloc_entry_t);
 
-            ul_arr_grow(block_start + block_size, &reloc->data_cap, &reloc->data, sizeof(*reloc->data));
+            ul_arr_grow(block_start + block_size, &reloc->data_cap, (void **)&reloc->data, sizeof(*reloc->data));
 
             memset(reloc->data + reloc->data_size, 0, block_start - reloc->data_size);
 
@@ -630,7 +637,7 @@ static void form_base_reloc_sect(ctx_t * ctx)
 
                 data_cur += sizeof(block_hdr);
 
-                ul_arr_grow(ctx->br_fixups_size + 1, &ctx->br_fixups_cap, &ctx->br_fixups, sizeof(*ctx->br_fixups));
+                ul_arr_grow(ctx->br_fixups_size + 1, &ctx->br_fixups_cap, (void **)&ctx->br_fixups, sizeof(*ctx->br_fixups));
 
                 ctx->br_fixups[ctx->br_fixups_size++] = (br_fixup_t){
                     .off = block_start + offsetof(lnk_pe_base_reloc_t, virtual_address),
@@ -725,8 +732,11 @@ static bool calculate_offsets(ctx_t * ctx)
     return true;
 }
 
-static int excpt_cmp_proc(const proc_t * first, const proc_t * second)
+static int excpt_cmp_proc(const void * first_ptr, const void * second_ptr)
 {
+    const proc_t * first = first_ptr;
+    const proc_t * second = second_ptr;
+
     size_t first_off = first->label->sect->virt_addr + first->label->off,
            second_off = second->label->sect->virt_addr + second->label->off;
 
@@ -899,11 +909,11 @@ static void write_zeros(FILE * file, size_t size)
 {
     static const uint8_t zero_obj[1024] = { 0 };
 
-    size_t div = size / _countof(zero_obj), mod = size % _countof(zero_obj);
+    size_t div = size / ul_arr_count(zero_obj), mod = size % ul_arr_count(zero_obj);
 
     for (size_t i = 0; i < div; ++i)
     {
-        fwrite(zero_obj, sizeof(*zero_obj), _countof(zero_obj), file);
+        fwrite(zero_obj, sizeof(*zero_obj), ul_arr_count(zero_obj), file);
     }
 
     fwrite(zero_obj, sizeof(*zero_obj), mod, file);
@@ -957,7 +967,7 @@ static void write_file_core(ctx_t * ctx, FILE * file)
             LnkPeDataDirIat
         };
 
-        for (const size_t *dir = dirs_to_set, *dir_end = dir + _countof(dirs_to_set); dir != dir_end; ++dir)
+        for (const size_t *dir = dirs_to_set, *dir_end = dir + ul_arr_count(dirs_to_set); dir != dir_end; ++dir)
         {
             set_dir_info(ctx, &nt, *dir);
         }
@@ -969,7 +979,7 @@ static void write_file_core(ctx_t * ctx, FILE * file)
     {
         lnk_pe_sect_hdr_t sect_hdr = { 0 };
 
-        strncpy(sect_hdr.name, sect->name, _countof(sect_hdr.name));
+        strncpy(sect_hdr.name, sect->name, ul_arr_count(sect_hdr.name));
         sect_hdr.misc.virtual_size = (uint32_t)sect->data_size;
         sect_hdr.virtual_address = (uint32_t)sect->virt_addr;
         sect_hdr.size_of_raw_data = (uint32_t)sect->raw_size;

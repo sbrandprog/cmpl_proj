@@ -3,7 +3,7 @@
 
 #define LNK_PEL_MODULE_MAX_SIZE INT32_MAX
 #define LNK_PEL_PD_FILE_EXT ".pd"
-#define LNK_PEL_PD_FILE_EXT_SIZE (_countof(LNK_PEL_PD_FILE_EXT) - 1)
+#define LNK_PEL_PD_FILE_EXT_SIZE (ul_arr_count(LNK_PEL_PD_FILE_EXT) - 1)
 
 struct lnk_pel_sett
 {

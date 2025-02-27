@@ -1,5 +1,7 @@
 #pragma once
 #include "pla_ec.h"
+#include "pla_keyw.h"
+#include "pla_punc.h"
 
 enum pla_tok_type
 {

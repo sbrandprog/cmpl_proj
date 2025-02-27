@@ -67,7 +67,7 @@ static size_t get_number_size_ch(size_t num)
 {
     char buf[UL_SIZE_T_NUM_SIZE + 1];
 
-    int res = snprintf(buf, _countof(buf), "%zi", num);
+    int res = snprintf(buf, ul_arr_count(buf), "%zi", num);
 
     ul_assert(res >= 0);
 
@@ -99,13 +99,13 @@ static void putnc(char ch, size_t size, FILE * file)
 
     memset(buf, ch, sizeof(buf));
 
-    size_t div = size / _countof(buf), mod = size % _countof(buf);
+    size_t div = size / ul_arr_count(buf), mod = size % ul_arr_count(buf);
 
     while (div > 0)
     {
         --div;
 
-        printf("%.*s", (int)_countof(buf), buf);
+        printf("%.*s", (int)ul_arr_count(buf), buf);
     }
 
     printf("%.*s", (int)mod, buf);
@@ -116,7 +116,7 @@ static void print_tus_err_data(pla_tus_t * tus, pla_ec_err_t * err)
 
     size_t line_i = 0;
 
-    for (size_t line_i_end = max(err->pos_start.line_num, EDGE_LINES_SIZE) - EDGE_LINES_SIZE; line_i < line_i_end; ++line_i)
+    for (size_t line_i_end = ul_max(err->pos_start.line_num, EDGE_LINES_SIZE) - EDGE_LINES_SIZE; line_i < line_i_end; ++line_i)
     {
         char * src_nl = memchr(src, '\n', src_end - src);
 
@@ -185,8 +185,10 @@ static void print_tus_err_data(pla_tus_t * tus, pla_ec_err_t * err)
         src = src_nl + 1;
     }
 }
-static bool print_proc(pla_ec_prntr_t * prntr, ul_ec_rec_t * rec)
+static bool print_proc(void * user_data, ul_ec_rec_t * rec)
 {
+    pla_ec_prntr_t * prntr = user_data;
+
     pla_ec_err_t err;
 
     if (!pla_ec_scan(rec, &err))

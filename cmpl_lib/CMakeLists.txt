@@ -102,7 +102,7 @@ target_sources(cmpl_lib
 
 set_proj_trg_props(cmpl_lib PCH_NAME pch.h)
 
-target_link_libraries(cmpl_lib ul_lib Shlwapi.lib)
+target_link_libraries(cmpl_lib ul_lib)
 
 target_compile_definitions(cmpl_lib PRIVATE CMPL_BUILD_DLL)
 

@@ -22,7 +22,7 @@ static int main_core()
 
     ctx.pea.frag = mc_frag_create(McFrag_Count);
 
-    copy_frag_insts(_countof(insts), insts, ctx.pea.frag);
+    copy_frag_insts(ul_arr_count(insts), insts, ctx.pea.frag);
 
     mc_pea_it_add_sym(&ctx.pea.it, UL_HST_HASHADD_WS(&ctx.hst, "библиотека.длл"), UL_HST_HASHADD_WS(&ctx.hst, "функция"), UL_HST_HASHADD_WS(&ctx.hst, "имя_компоновки"));
 

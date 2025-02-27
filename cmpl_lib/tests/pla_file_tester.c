@@ -1,4 +1,3 @@
-#pragma once
 #include "cmpl_lib/cmpl_lib.h"
 
 #define FILE_NAME_BUF_SIZE 64

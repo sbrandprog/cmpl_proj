@@ -72,9 +72,9 @@ static bool test_proc(test_ctx_t * ctx)
 
     ctx->pel.sect = text_sect;
 
-    copy_sect_data(_countof(text_sect_data), text_sect_data, text_sect);
+    copy_sect_data(ul_arr_count(text_sect_data), text_sect_data, text_sect);
     text_sect->data_align = 0x10;
-    copy_sect_lps(_countof(text_sect_lps), text_sect_lps, text_sect);
+    copy_sect_lps(ul_arr_count(text_sect_lps), text_sect_lps, text_sect);
     text_sect->data_align_byte = 0xCC;
     text_sect->mem_r = true;
     text_sect->mem_e = true;
@@ -83,9 +83,9 @@ static bool test_proc(test_ctx_t * ctx)
 
     text_sect->next = rdata_sect;
 
-    copy_sect_data(_countof(rdata_sect_data), rdata_sect_data, rdata_sect);
+    copy_sect_data(ul_arr_count(rdata_sect_data), rdata_sect_data, rdata_sect);
     rdata_sect->data_align = 0x10;
-    copy_sect_lps(_countof(rdata_sect_lps), rdata_sect_lps, rdata_sect);
+    copy_sect_lps(ul_arr_count(rdata_sect_lps), rdata_sect_lps, rdata_sect);
     rdata_sect->data_align_byte = 0x00;
     rdata_sect->mem_r = true;
 
@@ -93,9 +93,9 @@ static bool test_proc(test_ctx_t * ctx)
 
     rdata_sect->next = reloc_sect;
 
-    copy_sect_data(_countof(reloc_sect_data), reloc_sect_data, reloc_sect);
+    copy_sect_data(ul_arr_count(reloc_sect_data), reloc_sect_data, reloc_sect);
     reloc_sect->data_align = 0x10;
-    copy_sect_lps(_countof(reloc_sect_lps), reloc_sect_lps, reloc_sect);
+    copy_sect_lps(ul_arr_count(reloc_sect_lps), reloc_sect_lps, reloc_sect);
     reloc_sect->data_align_byte = 0x00;
     reloc_sect->mem_r = true;
     reloc_sect->mem_disc = true;

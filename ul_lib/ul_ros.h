@@ -1,5 +1,5 @@
 #pragma once
-#include "ul.h"
+#include "ul_arr.h"
 
 struct ul_ros
 {
@@ -7,4 +7,4 @@ struct ul_ros
     const char * str;
 };
 
-#define UL_ROS_MAKE(str_) { .size = _countof(str_) - 1, .str = str_ }
+#define UL_ROS_MAKE(str_) { .size = ul_arr_count(str_) - 1, .str = str_ }

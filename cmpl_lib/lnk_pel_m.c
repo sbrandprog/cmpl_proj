@@ -57,7 +57,7 @@ static const char * const fxd_sect_ord[] = {
     ".data",
     ".reloc"
 };
-static const size_t fxd_sect_ord_size = _countof(fxd_sect_ord);
+static const size_t fxd_sect_ord_size = ul_arr_count(fxd_sect_ord);
 
 
 static size_t get_fxd_sect_ord_ind(const char * name)
@@ -95,8 +95,11 @@ static void destroy_sect(sect_t * sect)
 }
 
 
-static bool label_cmp_proc(const label_t * first, const label_t * second)
+static bool label_cmp_proc(const void * first_ptr, const void * second_ptr)
 {
+    const label_t * first = first_ptr;
+    const label_t * second = second_ptr;
+
     return (uint8_t *)first->name < (uint8_t *)second->name;
 }
 static label_t * find_label(ctx_t * ctx, ul_hs_t * name)
@@ -150,7 +153,7 @@ static void process_sect_lp(ctx_t * ctx, sect_t * sect, lnk_sect_lp_t * lp)
                     break;
                 case LnkSectLpLabelBasic:
                 {
-                    ul_arr_grow(ctx->labels_size + 1, &ctx->labels_cap, &ctx->labels, sizeof(*ctx->labels));
+                    ul_arr_grow(ctx->labels_size + 1, &ctx->labels_cap, (void **)&ctx->labels, sizeof(*ctx->labels));
 
                     label_t new_label = (label_t){ .name = lp->label_name, .sect = sect };
 
@@ -215,13 +218,13 @@ static void push_ord_buf_sect(ctx_t * ctx, sect_t * sect, size_t ref_ord_ind)
     {
         if (data->sect == sect)
         {
-            data->new_ord_ind = min(data->new_ord_ind, ref_ord_ind);
+            data->new_ord_ind = ul_min(data->new_ord_ind, ref_ord_ind);
 
             return;
         }
     }
 
-    ul_arr_grow(ctx->ord_buf_size + 1, &ctx->ord_buf_cap, &ctx->ord_buf, sizeof(*ctx->ord_buf));
+    ul_arr_grow(ctx->ord_buf_size + 1, &ctx->ord_buf_cap, (void **)&ctx->ord_buf, sizeof(*ctx->ord_buf));
 
     ctx->ord_buf[ctx->ord_buf_size++] = (sect_ord_data_t){ .sect = sect, .new_ord_ind = ref_ord_ind };
 }
@@ -307,9 +310,10 @@ static bool set_ord_inds(ctx_t * ctx)
     return true;
 }
 
-static int sect_cmp_proc(const sect_t * const * first_ptr, const sect_t * const * second_ptr)
+static int sect_cmp_proc(const void * first_ptr, const void * second_ptr)
 {
-    const sect_t *first = *first_ptr, *second = *second_ptr;
+    const sect_t * first = *(const sect_t * const *)first_ptr;
+    const sect_t * second = *(const sect_t * const *)second_ptr;
 
     if (first->fxd_sect_ord_ind < second->fxd_sect_ord_ind)
     {
@@ -401,11 +405,11 @@ static void merge_sects(ctx_t * ctx)
         {
             lnk_sect_t * cur_base = (*cur)->base;
 
-            data_align = max(data_align, cur_base->data_align);
+            data_align = ul_max(data_align, cur_base->data_align);
 
             size_t cur_start = ul_align_to(mrgd_sect->data_size, cur_base->data_align);
 
-            ul_arr_grow(cur_start + cur_base->data_size, &mrgd_sect->data_cap, &mrgd_sect->data, sizeof(*mrgd_sect->data));
+            ul_arr_grow(cur_start + cur_base->data_size, &mrgd_sect->data_cap, (void **)&mrgd_sect->data, sizeof(*mrgd_sect->data));
 
             memset(mrgd_sect->data + mrgd_sect->data_size, cur_base->data_align_byte, cur_start - mrgd_sect->data_size);
             memcpy(mrgd_sect->data + cur_start, cur_base->data, sizeof(*cur_base->data) * cur_base->data_size);

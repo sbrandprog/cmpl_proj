@@ -58,7 +58,7 @@ static void print_test_errs(test_ctx_t * ctx)
 
     ul_ec_prntr_t * prntrs[] = { &prntr };
 
-    ul_ec_buf_print(&ctx->ec_buf, _countof(prntrs), prntrs);
+    ul_ec_buf_print(&ctx->ec_buf, ul_arr_count(prntrs), prntrs);
 
     ul_ec_prntr_cleanup(&prntr);
 }
@@ -84,7 +84,7 @@ static void copy_sect_data(size_t data_size, const uint8_t * data, lnk_sect_t * 
 
     ul_assert(new_data != NULL);
 
-    memcpy_s(new_data, sizeof(*new_data) * data_size, data, sizeof(*data) * data_size);
+    memcpy(new_data, data, sizeof(*data) * data_size);
 
     sect->data_size = data_size;
     sect->data = new_data;

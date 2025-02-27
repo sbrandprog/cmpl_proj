@@ -74,7 +74,7 @@ void mc_frag_destroy_chain(mc_frag_t * frag)
 
 void mc_frag_push_inst(mc_frag_t * frag, const mc_inst_t * inst)
 {
-    ul_arr_grow(frag->insts_size + 1, &frag->insts_cap, &frag->insts, sizeof(*frag->insts));
+    ul_arr_grow(frag->insts_size + 1, &frag->insts_cap, (void **)&frag->insts, sizeof(*frag->insts));
 
     frag->insts[frag->insts_size++] = *inst;
 }
@@ -226,7 +226,7 @@ static void build_insts(ctx_t * ctx)
 
                     size_t aligned_size = ul_align_to(cur_size, (size_t)inst->imm0);
 
-                    ul_arr_grow(aligned_size, &sect->data_cap, &sect->data, sizeof(*sect->data));
+                    ul_arr_grow(aligned_size, &sect->data_cap, (void **)&sect->data, sizeof(*sect->data));
 
                     memset(sect->data + sect->data_size, sect->data_align_byte, aligned_size - cur_size);
 
@@ -242,7 +242,7 @@ static void build_insts(ctx_t * ctx)
 
                 if (mc_inst_build(inst, ctx->ec_fmtr, &inst_size, &inst_bs, &inst_offs))
                 {
-                    ul_arr_grow(sect->data_size + inst_size, &sect->data_cap, &sect->data, sizeof(*sect->data));
+                    ul_arr_grow(sect->data_size + inst_size, &sect->data_cap, (void **)&sect->data, sizeof(*sect->data));
 
                     size_t inst_start = sect->data_size;
 

@@ -38,7 +38,7 @@ static void print_errs(ctx_t * ctx)
 
     ul_ec_prntr_t * prntrs[] = { &pla_prntr.prntr, &dflt_prntr };
 
-    ul_ec_buf_print(&ctx->ec_buf, _countof(prntrs), prntrs);
+    ul_ec_buf_print(&ctx->ec_buf, ul_arr_count(prntrs), prntrs);
 
     pla_ec_prntr_cleanup(&pla_prntr);
 

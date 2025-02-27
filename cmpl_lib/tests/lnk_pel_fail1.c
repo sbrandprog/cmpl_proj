@@ -24,9 +24,9 @@ static void fill_pel()
 
     ctx.pel.sect = text_sect0;
 
-    copy_sect_data(_countof(text_sect_data), text_sect_data, text_sect0);
+    copy_sect_data(ul_arr_count(text_sect_data), text_sect_data, text_sect0);
     text_sect0->data_align = 0x10;
-    copy_sect_lps(_countof(text_sect_lps), text_sect_lps, text_sect0);
+    copy_sect_lps(ul_arr_count(text_sect_lps), text_sect_lps, text_sect0);
     text_sect0->data_align_byte = 0xCC;
     text_sect0->mem_r = true;
     text_sect0->mem_e = true;
@@ -35,9 +35,9 @@ static void fill_pel()
 
     text_sect0->next = text_sect1;
 
-    copy_sect_data(_countof(text_sect_data), text_sect_data, text_sect1);
+    copy_sect_data(ul_arr_count(text_sect_data), text_sect_data, text_sect1);
     text_sect1->data_align = 0x10;
-    copy_sect_lps(_countof(text_sect_lps), text_sect_lps, text_sect1);
+    copy_sect_lps(ul_arr_count(text_sect_lps), text_sect_lps, text_sect1);
     text_sect1->data_align_byte = 0xCC;
     text_sect1->mem_r = false;
     text_sect1->mem_e = true;

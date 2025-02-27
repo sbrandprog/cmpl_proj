@@ -39,18 +39,18 @@ void pla_tus_insert_str(pla_tus_t * tus, size_t ins_pos, size_t str_size, char *
 {
     ul_assert(ins_pos <= tus->src_size);
 
-    ul_arr_grow(tus->src_size + str_size, &tus->src_cap, &tus->src, sizeof(*tus->src));
+    ul_arr_grow(tus->src_size + str_size, &tus->src_cap, (void **)&tus->src, sizeof(*tus->src));
 
-    memmove_s(tus->src + ins_pos + str_size, tus->src_cap - ins_pos, tus->src + ins_pos, tus->src_size - ins_pos);
-    memcpy_s(tus->src + ins_pos, tus->src_cap - ins_pos, str, str_size);
+    memmove(tus->src + ins_pos + str_size, tus->src + ins_pos, tus->src_size - ins_pos);
+    memcpy(tus->src + ins_pos, str, str_size);
     tus->src_size += str_size;
 }
 
 bool pla_tus_read_file(pla_tus_t * tus, const char * file_name)
 {
-    FILE * file;
+    FILE * file = fopen(file_name, "r");
 
-    if (fopen_s(&file, file_name, "r") != 0)
+    if (file == NULL)
     {
         return false;
     }
@@ -59,7 +59,7 @@ bool pla_tus_read_file(pla_tus_t * tus, const char * file_name)
 
     char buf[READ_BUF_SIZE];
 
-    while (fgets(buf, _countof(buf), file) != NULL)
+    while (fgets(buf, ul_arr_count(buf), file) != NULL)
     {
         pla_tus_insert_str(tus, tus->src_size, strlen(buf), buf);
     }

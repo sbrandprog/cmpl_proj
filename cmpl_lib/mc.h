@@ -9,7 +9,7 @@ typedef uint8_t mc_size_t;
 typedef struct mc_size_info mc_size_info_t;
 
 typedef uint8_t mc_reg_t;
-typedef union mc_reg_grps mc_reg_grps_t;
+typedef struct mc_reg_grps mc_reg_grps_t;
 typedef struct mc_reg_info mc_reg_info_t;
 typedef uint8_t mc_reg_gpr_t;
 

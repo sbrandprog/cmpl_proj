@@ -48,3 +48,13 @@ void ul_json_destroy_chain(ul_json_t * json)
         json = next;
     }
 }
+
+#if defined __linux__
+extern inline ul_json_t * ul_json_make_null();
+extern inline ul_json_t * ul_json_make_bool(bool val);
+extern inline ul_json_t * ul_json_make_int(int64_t val);
+extern inline ul_json_t * ul_json_make_dbl(double val);
+extern inline ul_json_t * ul_json_make_str(const ul_hs_t * val);
+extern inline ul_json_t * ul_json_make_arr();
+extern inline ul_json_t * ul_json_make_obj();
+#endif

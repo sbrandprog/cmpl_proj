@@ -51,7 +51,7 @@ static void form_frags_list(ctx_t * ctx)
 {
     for (mc_frag_t * frag = ctx->pea->frag; frag != NULL; frag = frag->next)
     {
-        ul_arr_grow(ctx->frags_size + 1, &ctx->frags_cap, &ctx->frags, sizeof(*ctx->frags));
+        ul_arr_grow(ctx->frags_size + 1, &ctx->frags_cap, (void **)&ctx->frags, sizeof(*ctx->frags));
 
         ctx->frags[ctx->frags_size++] = (frag_t){ .frag = frag };
     }

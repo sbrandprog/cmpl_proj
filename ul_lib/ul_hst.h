@@ -1,4 +1,5 @@
 #pragma once
+#include "ul_arr.h"
 #include "ul_hs.h"
 
 #define UL_HST_ENTS_COUNT 263
@@ -24,4 +25,4 @@ inline ul_hs_t * ul_hst_hashadd(ul_hst_t * hst, size_t str_size, const char * st
     return ul_hst_add(hst, str_size, str, ul_hs_hash_str(0, str_size, str));
 }
 
-#define UL_HST_HASHADD_WS(hst, ws) ul_hst_hashadd(hst, _countof(ws) - 1, ws)
+#define UL_HST_HASHADD_WS(hst, ws) ul_hst_hashadd(hst, ul_arr_count(ws) - 1, ws)

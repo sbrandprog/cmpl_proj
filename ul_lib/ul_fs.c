@@ -34,9 +34,9 @@ static void destroy_dir(ul_fs_dir_t * dir)
 #include <Windows.h>
 
 #define PATH_EXTENDER L"\\\\?\\"
-#define PATH_EXTENDER_SIZE (_countof(PATH_EXTENDER) - 1)
+#define PATH_EXTENDER_SIZE (ul_arr_count(PATH_EXTENDER) - 1)
 #define SEARCH_SUFFIX L"\\*"
-#define SEARCH_SUFFIX_SIZE (_countof(SEARCH_SUFFIX) - 1)
+#define SEARCH_SUFFIX_SIZE (ul_arr_count(SEARCH_SUFFIX) - 1)
 
 static ul_fs_ent_type_t get_ent_type_from_attrs(DWORD attrs)
 {
@@ -128,7 +128,7 @@ static wchar_t * get_full_path_wc(const wchar_t * path)
         ul_assert(full_path != NULL);
 
         DWORD res1 = GetFullPathNameW(path, (DWORD)(full_path_size - PATH_EXTENDER_SIZE), full_path + PATH_EXTENDER_SIZE, NULL);
-	
+
         if (res1 == 0 || res1 > res0)
         {
             free(full_path);
@@ -217,7 +217,7 @@ ul_fs_dir_t * ul_fs_dir_read(const char * dir_path)
 
         do
         {
-            char * ent_name = convert_to_ch(wcsnlen(file_data.cFileName, _countof(file_data.cFileName)), file_data.cFileName);
+            char * ent_name = convert_to_ch(wcsnlen(file_data.cFileName, ul_arr_count(file_data.cFileName)), file_data.cFileName);
 
             if (ent_name == NULL)
             {
@@ -244,9 +244,92 @@ ul_fs_dir_t * ul_fs_dir_read(const char * dir_path)
 
     return dir;
 }
+
+#elif defined __linux__
+
+#include <dirent.h>
+#include <sys/stat.h>
+
+static ul_fs_ent_type_t get_ent_type_from_mode(mode_t mode)
+{
+    switch (mode)
+    {
+        case S_IFREG:
+            return UlFsEntFile;
+        case S_IFDIR:
+            return UlFsEntDir;
+        default:
+            return UlFsEntNone;
+    }
+}
+
+ul_fs_ent_type_t ul_fs_get_ent_type(const char * entry_path)
+{
+    struct stat entry_stat;
+
+    int res = stat(entry_path, &entry_stat);
+
+    if (res == -1)
+    {
+        return UlFsEntNone;
+    }
+
+    return get_ent_type_from_mode(entry_stat.st_mode);
+}
+
+ul_fs_dir_t * ul_fs_dir_read(const char * dir_path)
+{
+    DIR * dd;
+    ul_fs_dir_t * dir = NULL;
+
+    dd = opendir(dir_path);
+
+    if (dd != NULL)
+    {
+        dir = create_dir();
+
+        struct dirent * entry_info;
+
+        do
+        {
+            errno = 0;
+
+            entry_info = readdir(dd);
+
+            if (entry_info == NULL)
+            {
+                if (errno != 0)
+                {
+                    destroy_dir(dir);
+
+                    dir = NULL;
+                }
+            }
+            else
+            {
+                ul_arr_grow(dir->ents_size + 1, &dir->ents_cap, (void **)&dir->ents, sizeof(*dir->ents));
+
+                ul_fs_ent_t * ent = &dir->ents[dir->ents_size++];
+
+                *ent = (ul_fs_ent_t){ .type = get_ent_type_from_mode(DTTOIF(entry_info->d_type)) };
+
+                ent->name = malloc(strlen(entry_info->d_name) * sizeof(*ent->name));
+
+                ul_assert(ent->name != NULL);
+
+                strcpy(ent->name, entry_info->d_name);
+            }
+        } while (entry_info != NULL);
+
+        closedir(dd);
+    }
+
+    return dir;
+}
+
+#endif
+
 void ul_fs_dir_free(ul_fs_dir_t * dir)
 {
     destroy_dir(dir);
 }
-
-#endif

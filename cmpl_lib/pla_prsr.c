@@ -41,7 +41,7 @@ static const post_optr_info_t post_optr_infos[] = {
     { .punc = PlaPuncDminus, .expr_type = PlaExprPostDec },
     { .punc = PlaPuncExclMark, .expr_type = PlaExprDeref },
 };
-static const size_t post_optr_infos_size = _countof(post_optr_infos);
+static const size_t post_optr_infos_size = ul_arr_count(post_optr_infos);
 static const unr_optr_info_t unr_optr_infos[] = {
     { .punc = PlaPuncAster, .expr_type = PlaExprDtPtr },
     { .punc = PlaPuncLeBrack, .expr_type = PlaExprDtArr },
@@ -53,7 +53,7 @@ static const unr_optr_info_t unr_optr_infos[] = {
     { .punc = PlaPuncTilde, .expr_type = PlaExprBitNeg },
     { .punc = PlaPuncMinus, .expr_type = PlaExprArithNeg }
 };
-static const size_t unr_optr_infos_size = _countof(unr_optr_infos);
+static const size_t unr_optr_infos_size = ul_arr_count(unr_optr_infos);
 static const bin_optr_info_t bin_optr_infos[] = {
     { .punc = PlaPuncAster, .expr_type = PlaExprMul, .preced = 11 },
     { .punc = PlaPuncSlash, .expr_type = PlaExprDiv, .preced = 11 },
@@ -74,7 +74,7 @@ static const bin_optr_info_t bin_optr_infos[] = {
     { .punc = PlaPuncDamper, .expr_type = PlaExprLogicAnd, .preced = 3 },
     { .punc = PlaPuncDpipe, .expr_type = PlaExprLogicOr, .preced = 2 },
 };
-static const size_t bin_optr_infos_size = _countof(bin_optr_infos);
+static const size_t bin_optr_infos_size = ul_arr_count(bin_optr_infos);
 
 
 void pla_prsr_init(pla_prsr_t * prsr, ul_ec_fmtr_t * ec_fmtr)
@@ -946,7 +946,6 @@ static void parse_stmt_var(pla_prsr_t * prsr, pla_stmt_t ** out)
 
     while (true)
     {
-
         ira_dt_qual_t qual;
 
         parse_quals(prsr, &qual);

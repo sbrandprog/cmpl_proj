@@ -29,7 +29,7 @@ enum ira_val_strg_type
 };
 struct ira_val_info
 {
-	ira_val_strg_type_t strg_type;
+    ira_val_strg_type_t strg_type;
 };
 struct ira_val
 {

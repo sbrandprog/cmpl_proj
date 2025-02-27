@@ -1,6 +1,6 @@
 #pragma once
 #include "lnk.h"
-#include "mc.h"
+#include "mc_defs.h"
 
 enum mc_frag_type
 {

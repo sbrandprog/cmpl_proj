@@ -24,6 +24,7 @@ target_sources(ul_lib
     ul_ros.h
     ul_spawn.h
     PRIVATE
+    ul_arr.c
     ul_assert.c
     ul_bs.c
     ul_ec.c
@@ -37,6 +38,7 @@ target_sources(ul_lib
     ul_json.c
     ul_json_p.c
     ul_json_g.c
+    ul_misc.c
     ul_spawn.c
 )
 

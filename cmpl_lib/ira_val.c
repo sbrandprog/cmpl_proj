@@ -80,13 +80,13 @@ ira_val_t * ira_val_copy(ira_val_t * val)
 
             ul_assert(new_val->arr_val.data != NULL);
 
-			new_val->arr_val.cap = val->arr_val.size;
+            new_val->arr_val.cap = val->arr_val.size;
 
             for (ira_val_t **elem = val->arr_val.data, **elem_end = elem + val->arr_val.size, **ins = new_val->arr_val.data; elem != elem_end; ++elem, ++ins)
             {
                 *ins = ira_val_copy(*elem);
 
-				++new_val->arr_val.size;
+                ++new_val->arr_val.size;
             }
 
             break;

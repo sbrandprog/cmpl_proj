@@ -32,9 +32,17 @@ mc_size_t mc_reg_get_size(mc_reg_t reg)
 
 bool mc_reg_check_grps(const mc_reg_grps_t * has, const mc_reg_grps_t * req)
 {
-    for (size_t i = 0; i < _countof(has->strg); ++i)
+    struct grps_strg
     {
-        uint8_t given_i = has->strg[i], req_i = req->strg[i];
+        uint8_t strg[sizeof(mc_reg_grps_t)];
+    };
+
+    const struct grps_strg * has_strg = (const struct grps_strg *)has;
+    const struct grps_strg * req_strg = (const struct grps_strg *)req;
+
+    for (size_t i = 0; i < ul_arr_count(has_strg->strg); ++i)
+    {
+        uint8_t given_i = has_strg->strg[i], req_i = req_strg->strg[i];
 
         if ((~given_i & req_i) != 0)
         {

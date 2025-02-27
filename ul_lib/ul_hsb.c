@@ -32,7 +32,7 @@ size_t ul_hsb_format_va(ul_hsb_t * hsb, const char * fmt, va_list args)
 
     size_t str_size_null = str_size + 1;
 
-    ul_arr_grow(str_size_null, &hsb->cap, &hsb->buf, sizeof(*hsb->buf));
+    ul_arr_grow(str_size_null, &hsb->cap, (void **)&hsb->buf, sizeof(*hsb->buf));
 
     {
         va_list new_args;
@@ -67,3 +67,8 @@ ul_hs_t * ul_hsb_formatadd_va(ul_hsb_t * hsb, ul_hst_t * hst, const char * fmt, 
 
     return ul_hst_hashadd(hst, str_size, hsb->buf);
 }
+
+#if defined __linux__
+extern inline ul_hs_t * ul_hsb_formatadd(ul_hsb_t * hsb, ul_hst_t * hst, const char * fmt, ...);
+extern inline ul_hs_t * ul_hsb_cat_hs_delim(ul_hsb_t * hsb, ul_hst_t * hst, ul_hs_t * first, char delim, ul_hs_t * second);
+#endif

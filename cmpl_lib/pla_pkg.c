@@ -232,7 +232,7 @@ bool pla_pkg_fill_from_dir(pla_pkg_t * pkg, ul_hst_t * hst, const char * dir_pat
 
         size_t name_size = strlen(ent->name);
 
-        ul_arr_grow(dir_path_size + 1 + name_size + 1, &path_buf_size, &path_buf, sizeof(*path_buf));
+        ul_arr_grow(dir_path_size + 1 + name_size + 1, &path_buf_size, (void **)&path_buf, sizeof(*path_buf));
 
         {
             int res = snprintf(path_buf, path_buf_size, "%s/%s", dir_path, ent->name);

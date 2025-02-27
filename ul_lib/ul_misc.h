@@ -17,3 +17,6 @@ inline bool ul_is_pwr_of_2(size_t val)
 {
     return val > 0 && (val & (val - 1)) == 0;
 }
+
+#define ul_min(a, b) ((a) < (b) ? (a) : (b))
+#define ul_max(a, b) ((a) > (b) ? (a) : (b))

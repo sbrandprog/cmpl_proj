@@ -306,7 +306,7 @@ bool ira_pec_init(ira_pec_t * pec, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr)
             return false;
         }
 
-		if (!ira_pec_get_dt_arr(pec, &pec->dt_ints[IraIntU16], ira_dt_qual_const, &pec->dt_spcl.utf16_str))
+        if (!ira_pec_get_dt_arr(pec, &pec->dt_ints[IraIntU16], ira_dt_qual_const, &pec->dt_spcl.utf16_str))
         {
             return false;
         }
@@ -419,7 +419,7 @@ bool ira_pec_get_dt_size(ira_dt_t * dt, size_t * out)
                 size = ul_align_to(size, elem_align);
                 size += elem_size;
 
-                align = max(align, elem_align);
+                align = ul_max(align, elem_align);
             }
 
             size = ul_align_to(size, align);
@@ -494,7 +494,7 @@ bool ira_pec_get_dt_align(ira_dt_t * dt, size_t * out)
                     return false;
                 }
 
-                align = max(align, elem_align);
+                align = ul_max(align, elem_align);
             }
 
             *out = align;
@@ -817,7 +817,7 @@ static bool get_listed_dt_copy(ira_pec_t * pec, ira_dt_t * pred, ira_dt_t * out)
                 return false;
             }
 
-            if (!ira_pec_get_dt_tpl(pec, _countof(elems), elems, pred->arr.qual, &out->arr.assoc_tpl))
+            if (!ira_pec_get_dt_tpl(pec, ul_arr_count(elems), elems, pred->arr.qual, &out->arr.assoc_tpl))
             {
                 return false;
             }
@@ -1141,8 +1141,8 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out)
 
             memset((*out)->arr_val.data, 0, dt->vec.size * sizeof(*(*out)->arr_val.data));
 
-			(*out)->arr_val.cap = dt->vec.size;
-			(*out)->arr_val.size = dt->vec.size;
+            (*out)->arr_val.cap = dt->vec.size;
+            (*out)->arr_val.size = dt->vec.size;
 
             if (dt->vec.size > 0)
             {

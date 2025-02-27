@@ -24,9 +24,9 @@ static bool test_proc(test_ctx_t * ctx)
 
     ctx->pel.sect = text_sect;
 
-    copy_sect_data(_countof(text_sect_data), text_sect_data, text_sect);
+    copy_sect_data(ul_arr_count(text_sect_data), text_sect_data, text_sect);
     text_sect->data_align = 0x10;
-    copy_sect_lps(_countof(text_sect_lps), text_sect_lps, text_sect);
+    copy_sect_lps(ul_arr_count(text_sect_lps), text_sect_lps, text_sect);
     text_sect->data_align_byte = 0xCC;
     text_sect->mem_r = true;
     text_sect->mem_e = true;

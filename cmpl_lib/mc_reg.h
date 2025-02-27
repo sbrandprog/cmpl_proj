@@ -76,16 +76,12 @@ enum mc_reg
     McRegR15,
     McReg_Count
 };
-union mc_reg_grps
+struct mc_reg_grps
 {
-    struct mc_reg_grps_body
-    {
-        uint8_t none : 1, ip : 1, gpr : 1;
-        uint8_t s_8 : 1, s_16 : 1, s_32 : 1, s_64 : 1;
-        uint8_t gpr_ax : 1, gpr_cx : 1, gpr_dx : 1;
-        uint8_t no_rex : 1, req_rex : 1;
-    };
-    uint8_t strg[sizeof(struct mc_reg_grps_body)];
+    uint8_t none : 1, ip : 1, gpr : 1;
+    uint8_t s_8 : 1, s_16 : 1, s_32 : 1, s_64 : 1;
+    uint8_t gpr_ax : 1, gpr_cx : 1, gpr_dx : 1;
+    uint8_t no_rex : 1, req_rex : 1;
 };
 struct mc_reg_info
 {

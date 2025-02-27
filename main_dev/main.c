@@ -38,7 +38,7 @@ static int main_core()
         return -1;
     }
 
-	printf("success\n");
+    printf("success\n");
 
     return 0;
 }

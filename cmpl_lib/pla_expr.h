@@ -1,5 +1,6 @@
 #pragma once
 #include "ira_int.h"
+#include "ira_optr.h"
 #include "pla_ec.h"
 
 #define PLA_EXPR_OPDS_SIZE 3

@@ -32,7 +32,7 @@ static bool test_proc(test_ctx_t * ctx)
         { .type = McInstRet, .opds = McInstOpds_None },
     };
 
-    copy_frag_insts(_countof(main_proc_insts), main_proc_insts, main_proc);
+    copy_frag_insts(ul_arr_count(main_proc_insts), main_proc_insts, main_proc);
 
     mc_frag_t * data_frag = mc_frag_create(McFragRoData);
 
@@ -56,7 +56,7 @@ static bool test_proc(test_ctx_t * ctx)
         { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm8, .imm0 = 0 },
     };
 
-    copy_frag_insts(_countof(data_frag_insts), data_frag_insts, data_frag);
+    copy_frag_insts(ul_arr_count(data_frag_insts), data_frag_insts, data_frag);
 
     {
         ul_hs_t * lib_name = UL_HST_HASHADD_WS(&ctx->hst, "kernel32.dll");

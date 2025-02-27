@@ -1,6 +1,12 @@
 #pragma once
 #include "ul_assert.h"
 
+#if defined _WIN32
+#define ul_arr_count(arr) _countof(arr)
+#else
+#define ul_arr_count(arr) (sizeof(arr) / sizeof(arr[0]))
+#endif
+
 inline void ul_arr_grow(size_t new_arr_size, size_t * arr_cap, void ** arr, size_t elem_size)
 {
     size_t cap = *arr_cap;

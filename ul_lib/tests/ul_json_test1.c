@@ -26,7 +26,7 @@ static const test_case_t test_cases[] = {
     { .str = UL_ROS_MAKE("2.71828182845904523536"), .res = true },
     { .str = UL_ROS_MAKE("{ \"first\": 20, \"second\":\t30 }"), .res = true },
 };
-static const size_t test_cases_size = _countof(test_cases);
+static const size_t test_cases_size = ul_arr_count(test_cases);
 
 static ul_hst_t hst;
 

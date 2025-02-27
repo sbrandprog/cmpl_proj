@@ -147,7 +147,7 @@ static void consume_wss(ctx_t * ctx)
 
 static void push_str_ch(ctx_t * ctx, char ch)
 {
-    ul_arr_grow(ctx->str_size + 1, &ctx->str_cap, &ctx->str, sizeof(*ctx->str));
+    ul_arr_grow(ctx->str_size + 1, &ctx->str_cap, (void **)&ctx->str, sizeof(*ctx->str));
 
     ctx->str[ctx->str_size++] = ch;
 }

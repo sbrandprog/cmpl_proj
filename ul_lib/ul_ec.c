@@ -1,4 +1,5 @@
 #include "ul_ec.h"
+#include "ul_arr.h"
 #include "ul_assert.h"
 
 ul_ec_rec_t * ul_ec_rec_create(const char * type)
@@ -17,7 +18,7 @@ ul_ec_rec_t * ul_ec_rec_copy(const ul_ec_rec_t * rec)
 
     new_rec->mod_name = rec->mod_name;
 
-    memcpy(new_rec->strs, rec->strs, sizeof(*new_rec->strs) * _countof(new_rec->strs));
+    memcpy(new_rec->strs, rec->strs, sizeof(*new_rec->strs) * ul_arr_count(new_rec->strs));
     new_rec->strs_size = rec->strs_size;
 
     return new_rec;
@@ -47,7 +48,7 @@ void ul_ec_rec_dump(ul_ec_rec_t * rec)
 {
     printf("error record [%s] from [%s]:\n", rec->type, rec->mod_name);
 
-    char *cur = rec->strs, *cur_end = rec->strs + _countof(rec->strs);
+    char *cur = rec->strs, *cur_end = rec->strs + ul_arr_count(rec->strs);
     for (size_t str = 0; str < rec->strs_size; ++str)
     {
         printf("%s\n", cur);
@@ -74,3 +75,10 @@ void ul_ec_cleanup(ul_ec_t * ec)
 {
     memset(ec, 0, sizeof(*ec));
 }
+
+#if defined __linux__
+extern inline void ul_ec_process_actn(ul_ec_t * ec, const ul_ec_actn_t * actn);
+extern inline void ul_ec_post(ul_ec_t * ec, ul_ec_rec_t * rec);
+extern inline void ul_ec_clear(ul_ec_t * ec, const char * type, const char * mod_name);
+extern inline void ul_ec_clear_all(ul_ec_t * ec);
+#endif
