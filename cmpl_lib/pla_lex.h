@@ -30,7 +30,6 @@ struct pla_lex
     size_t str_size;
     char * str;
     size_t str_cap;
-    ul_hs_hash_t str_hash;
 
     pla_tok_t tok;
 

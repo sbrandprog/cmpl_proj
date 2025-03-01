@@ -104,14 +104,12 @@ static void report_lex(pla_lex_t * lex, const char * fmt, ...)
 static void clear_str(pla_lex_t * lex)
 {
     lex->str_size = 0;
-    lex->str_hash = 0;
 }
 static void push_str_ch(pla_lex_t * lex, char ch)
 {
     ul_arr_grow(lex->str_size + 1, &lex->str_cap, (void **)&lex->str, sizeof(*lex->str));
 
     lex->str[lex->str_size++] = ch;
-    lex->str_hash = ul_hs_hash_ch(lex->str_hash, ch);
 }
 static void fetch_str(pla_lex_t * lex, ch_pred_t * pred, ch_proc_t * proc)
 {
@@ -131,7 +129,7 @@ static void fetch_str(pla_lex_t * lex, ch_pred_t * pred, ch_proc_t * proc)
 }
 static ul_hs_t * hadd_str(pla_lex_t * lex)
 {
-    return ul_hst_add(lex->hst, lex->str_size, lex->str, lex->str_hash);
+    return ul_hst_hashadd(lex->hst, lex->str_size, lex->str);
 }
 static void fadd_str(pla_lex_t * lex, ch_pred_t * pred, ch_proc_t * proc, ul_hs_t ** out)
 {
