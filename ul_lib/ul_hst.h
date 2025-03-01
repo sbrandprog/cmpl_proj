@@ -2,8 +2,6 @@
 #include "ul_arr.h"
 #include "ul_hs.h"
 
-#define UL_HST_ENTS_COUNT 263
-
 typedef struct ul_hst_node ul_hst_node_t;
 struct ul_hst_node
 {
@@ -13,7 +11,10 @@ struct ul_hst_node
 
 struct ul_hst
 {
-    ul_hst_node_t * ents[UL_HST_ENTS_COUNT];
+	size_t ents_size;
+    ul_hst_node_t ** ents;
+
+	size_t strs_count;
 };
 
 UL_API void ul_hst_init(ul_hst_t * hst);
