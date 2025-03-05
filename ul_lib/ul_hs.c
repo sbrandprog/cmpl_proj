@@ -1,7 +1,7 @@
 #include "ul_hs.h"
 
-#define FNV_64_OFFSET ((ul_hs_hash_t)14695981039346656037)
-#define FNV_64_PRIME ((ul_hs_hash_t)1099511628211)
+#define FNV_64_OFFSET ((ul_hs_hash_t)14695981039346656037ull)
+#define FNV_64_PRIME ((ul_hs_hash_t)1099511628211ull)
 
 static ul_hs_hash_t do_fnv1a_init() {
 	return FNV_64_OFFSET;
