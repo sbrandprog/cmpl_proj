@@ -1,11 +1,12 @@
 
-add_custom_target(main_dev_copy_pla_data
-    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${PROJECT_SOURCE_DIR}/pla_data ${CMAKE_CURRENT_BINARY_DIR}
+execute_process(
+	COMMAND ${CMAKE_COMMAND} -E create_symlink
+		${PROJECT_SOURCE_DIR}/pla_data
+		${CMAKE_CURRENT_BINARY_DIR}/pla_data
+	COMMAND_ERROR_IS_FATAL ANY
 )
 
 add_executable(main_dev)
-
-add_dependencies(main_dev main_dev_copy_pla_data)
 
 target_sources(main_dev
     PUBLIC
