@@ -68,6 +68,19 @@ typedef struct pla_bs_lpt_lp_ctx
 } lp_ctx_t;
 
 
+static void report(ctx_t * ctx, const char * fmt, ...)
+{
+    va_list args;
+
+    va_start(args, fmt);
+
+	ul_ec_fmtr_format_va(ctx->ec_fmtr, fmt, args);
+	ul_ec_fmtr_post(ctx->ec_fmtr, UL_EC_REC_TYPE_DFLT, PLA_BS_LPT_MOD_NAME);
+
+    va_end(args);
+}
+
+
 static bool get_tus_src_ch(void * src_data, char * out)
 {
     lp_ctx_t * ctx = src_data;
@@ -96,7 +109,7 @@ static bool get_tus_src_tok(void * src_data, pla_tok_t * out)
 }
 
 
-static bool lex_parse_tus_core(lp_ctx_t * ctx)
+static bool parse_tus_core(lp_ctx_t * ctx)
 {
     pla_tus_t * base_tus = ctx->tus->base;
 
@@ -116,11 +129,11 @@ static bool lex_parse_tus_core(lp_ctx_t * ctx)
 
     return true;
 }
-static bool lex_parse_tus(ctx_t * base, tus_t * tus)
+static bool parse_tus(ctx_t * base, tus_t * tus)
 {
     lp_ctx_t ctx = { .base = base, .tus = tus };
 
-    bool res = lex_parse_tus_core(&ctx);
+    bool res = parse_tus_core(&ctx);
 
     pla_prsr_set_src(&base->prsr, NULL);
 
@@ -274,6 +287,8 @@ static bool form_core(ctx_t * ctx)
 
     if (!find_and_push_tus(ctx, ctx->root, ctx->first_tus_name))
     {
+		report(ctx, "Failed to find first tus [%s]", ctx->first_tus_name->str);
+		
         return false;
     }
 
@@ -281,7 +296,7 @@ static bool form_core(ctx_t * ctx)
     {
         tus_t tus = ctx->tuss[tuss_cur];
 
-        if (!lex_parse_tus(ctx, &tus))
+        if (!parse_tus(ctx, &tus))
         {
             return false;
         }

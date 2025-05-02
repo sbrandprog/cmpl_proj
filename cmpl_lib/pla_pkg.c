@@ -147,7 +147,7 @@ static void get_file_name_and_ext(const char * path, const char ** file_name_out
         *file_ext_out = file_ext;
     }
 }
-static ul_hs_t * name_from_path(ul_hst_t * hst, const char * path)
+static ul_hs_t * pla_pkg_get_tus_name_from_path(ul_hst_t * hst, const char * path)
 {
     const char *path_file_name, *path_ext;
     get_file_name_and_ext(path, &path_file_name, &path_ext);
@@ -156,7 +156,7 @@ static ul_hs_t * name_from_path(ul_hst_t * hst, const char * path)
 }
 static bool process_path_pkg(pla_pkg_t * pkg, ul_hst_t * hst, const char * path)
 {
-    ul_hs_t * name = name_from_path(hst, path);
+    ul_hs_t * name = pla_pkg_get_tus_name_from_path(hst, path);
 
     pla_pkg_t * sub_pkg = pla_pkg_get_sub_pkg(pkg, name);
 
@@ -169,7 +169,7 @@ static bool process_path_pkg(pla_pkg_t * pkg, ul_hst_t * hst, const char * path)
 }
 static bool process_path_tus(pla_pkg_t * pkg, ul_hst_t * hst, const char * path)
 {
-    ul_hs_t * name = name_from_path(hst, path);
+    ul_hs_t * name = pla_pkg_get_tus_name_from_path(hst, path);
 
     pla_tus_t * tus = pla_pkg_get_tus(pkg, name);
 

@@ -9,8 +9,6 @@ static const char * file_name = NULL;
 
 static ul_hst_t hst;
 static pla_repo_t repo;
-static ul_ec_buf_t ec_buf;
-static ul_ec_fmtr_t ec_fmtr;
 
 static int main_core(int argc, char * argv[])
 {
@@ -34,10 +32,6 @@ static int main_core(int argc, char * argv[])
 
     repo.root = pla_pkg_create(NULL);
 
-    ul_ec_buf_init(&ec_buf);
-
-    ul_ec_fmtr_init(&ec_fmtr, &ec_buf.ec);
-
     if (!pla_pkg_fill_from_list(repo.root, &hst, "pla_lib", file_name->str, NULL))
     {
         printf("failed to fill repo\n");
@@ -45,14 +39,8 @@ static int main_core(int argc, char * argv[])
     }
 
     {
-        ul_hs_t * first_tus_name;
+        ul_hs_t * first_tus_name = pla_pkg_get_tus_name_from_path(&hst, file_name->str);
         pla_bs_src_t bs_src;
-
-        {
-            char * file_name_ext = strrchr(file_name->str, '.');
-
-            first_tus_name = file_name_ext == NULL ? file_name : ul_hst_hashadd(&hst, file_name_ext - file_name->str, file_name->str);
-        }
 
         pla_bs_src_init(&bs_src, &repo, first_tus_name);
         bs_src.lnk_sett.file_name = EXE_NAME;
@@ -64,6 +52,7 @@ static int main_core(int argc, char * argv[])
         if (!res)
         {
             printf("failed to build executable\n");
+			
             return -1;
         }
     }
@@ -85,10 +74,6 @@ static int main_core(int argc, char * argv[])
 int main(int argc, char * argv[])
 {
     int res = main_core(argc, argv);
-
-    ul_ec_fmtr_cleanup(&ec_fmtr);
-
-    ul_ec_buf_cleanup(&ec_buf);
 
     pla_repo_cleanup(&repo);
 
