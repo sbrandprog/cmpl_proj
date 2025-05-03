@@ -61,12 +61,12 @@ size_t ul_hsb_format(ul_hsb_t * hsb, const char * fmt, ...)
     return res;
 }
 
-ul_hs_t * ul_hsb_formatadd_va(ul_hsb_t * hsb, ul_hst_t * hst, const char * fmt, va_list args)
+ul_hst_node_ref_t ul_hsb_formatadd_va(ul_hsb_t * hsb, ul_hst_t * hst, const char * fmt, va_list args)
 {
     size_t str_size = ul_hsb_format_va(hsb, fmt, args);
 
     return ul_hst_hashadd(hst, str_size, hsb->buf);
 }
 
-extern inline ul_hs_t * ul_hsb_formatadd(ul_hsb_t * hsb, ul_hst_t * hst, const char * fmt, ...);
-extern inline ul_hs_t * ul_hsb_cat_hs_delim(ul_hsb_t * hsb, ul_hst_t * hst, ul_hs_t * first, char delim, ul_hs_t * second);
+extern inline ul_hst_node_ref_t ul_hsb_formatadd(ul_hsb_t * hsb, ul_hst_t * hst, const char * fmt, ...);
+extern inline ul_hst_node_ref_t ul_hsb_cat_hs_delim(ul_hsb_t * hsb, ul_hst_t * hst, ul_hst_node_ref_t * first, char delim, ul_hst_node_ref_t * second);

@@ -1,5 +1,6 @@
 #include "ul_json.h"
 #include "ul_assert.h"
+#include "ul_hst.h"
 
 ul_json_t * ul_json_create(ul_json_type_t type)
 {
@@ -18,13 +19,17 @@ void ul_json_destroy(ul_json_t * json)
         return;
     }
 
+    ul_hst_free_ref(&json->name);
+
     switch (json->type)
     {
         case UlJsonNull:
         case UlJsonBool:
         case UlJsonInt:
         case UlJsonDbl:
+            break;
         case UlJsonStr:
+            ul_hst_free_ref(&json->val_str);
             break;
         case UlJsonArr:
         case UlJsonObj:
@@ -53,6 +58,6 @@ extern inline ul_json_t * ul_json_make_null();
 extern inline ul_json_t * ul_json_make_bool(bool val);
 extern inline ul_json_t * ul_json_make_int(int64_t val);
 extern inline ul_json_t * ul_json_make_dbl(double val);
-extern inline ul_json_t * ul_json_make_str(const ul_hs_t * val);
+extern inline ul_json_t * ul_json_make_str(const ul_hst_node_ref_t * val);
 extern inline ul_json_t * ul_json_make_arr();
 extern inline ul_json_t * ul_json_make_obj();

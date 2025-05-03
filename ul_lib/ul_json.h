@@ -1,5 +1,5 @@
 #pragma once
-#include "ul.h"
+#include "ul_hst.h"
 
 #define UL_JSON_NULL "null"
 #define UL_JSON_FALSE "false"
@@ -27,13 +27,13 @@ struct ul_json
 {
     ul_json_type_t type;
     ul_json_t * next;
-    const ul_hs_t * name;
+    ul_hst_node_ref_t name;
     union
     {
         bool val_bool;
         int64_t val_int;
         double val_dbl;
-        const ul_hs_t * val_str;
+        ul_hst_node_ref_t val_str;
         ul_json_t * val_json;
     };
 };
@@ -71,11 +71,11 @@ inline ul_json_t * ul_json_make_dbl(double val)
 
     return json;
 }
-inline ul_json_t * ul_json_make_str(const ul_hs_t * val)
+inline ul_json_t * ul_json_make_str(const ul_hst_node_ref_t * val)
 {
     ul_json_t * json = ul_json_create(UlJsonStr);
 
-    json->val_str = val;
+    json->val_str = ul_hst_copy_ref(val);
 
     return json;
 }

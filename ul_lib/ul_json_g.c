@@ -1,7 +1,6 @@
 #include "ul_json_g.h"
 #include "ul_arr.h"
 #include "ul_assert.h"
-#include "ul_hs.h"
 #include "ul_misc.h"
 
 #define INT_BUF_SIZE 32
@@ -109,13 +108,13 @@ static void put_tab(ctx_t * ctx)
     }
 }
 
-static void generate_str(ctx_t * ctx, const ul_hs_t * str)
+static void generate_str(ctx_t * ctx, const ul_hst_node_ref_t * str)
 {
     put_ch(ctx, UL_JSON_QUOT_MARK);
 
     if (str != NULL)
     {
-        for (char *ch = str->str, *ch_end = ch + str->size; ch != ch_end; ++ch)
+        for (char *ch = str->node->str, *ch_end = ch + str->node->size; ch != ch_end; ++ch)
         {
             char code;
 
@@ -181,7 +180,7 @@ static void generate_val_dbl(ctx_t * ctx, ul_json_t * val)
 }
 static void generate_val_str(ctx_t * ctx, ul_json_t * val)
 {
-    generate_str(ctx, val->val_str);
+    generate_str(ctx, &val->val_str);
 }
 static void generate_val_arr(ctx_t * ctx, ul_json_t * val)
 {
@@ -244,7 +243,7 @@ static void generate_val_obj(ctx_t * ctx, ul_json_t * val)
         {
             put_tab(ctx);
 
-            generate_str(ctx, json->name);
+            generate_str(ctx, &json->name);
 
             put_ch(ctx, UL_JSON_NAME_SEP);
 

@@ -17,7 +17,9 @@ static ul_hst_node_t * create_node(size_t str_size, const char * str, ul_hs_hash
     ul_assert(node != NULL);
 
     *node = (ul_hst_node_t){
-        .hstr = { .size = str_size, .str = node_str, .hash = str_hash }
+        .size = str_size,
+        .str = node_str,
+        .hash = str_hash,
     };
 
     return node;
@@ -29,7 +31,7 @@ static void destroy_node(ul_hst_node_t * node)
         return;
     }
 
-    free(node->hstr.str);
+    free(node->str);
 
     free(node);
 }
@@ -72,21 +74,21 @@ static void rehash(ul_hst_t * hst)
     {
         for (ul_hst_node_t * node = *ent; node != NULL;)
         {
-			ul_hst_node_t * next = node->next;
+            ul_hst_node_t * next = node->next;
 
-			ul_hst_node_t ** new_ent = &new_ents[node->hstr.hash % new_ents_size];
+            ul_hst_node_t ** new_ent = &new_ents[node->hash % new_ents_size];
 
-			node->next = *new_ent;
-			*new_ent = node;
+            node->next = *new_ent;
+            *new_ent = node;
 
-			node = next;
+            node = next;
         }
     }
 
-	free(hst->ents);
+    free(hst->ents);
 
-	hst->ents = new_ents;
-	hst->ents_size = new_ents_size;
+    hst->ents = new_ents;
+    hst->ents_size = new_ents_size;
 }
 static ul_hst_node_t ** get_node_ins(ul_hst_t * hst, size_t str_size, const char * str, ul_hs_hash_t str_hash)
 {
@@ -101,9 +103,9 @@ static ul_hst_node_t ** get_node_ins(ul_hst_t * hst, size_t str_size, const char
     {
         ul_hst_node_t * node = *node_ins;
 
-        if (node->hstr.hash == str_hash
-            && node->hstr.size == str_size
-            && strncmp(node->hstr.str, str, str_size) == 0)
+        if (node->hash == str_hash
+            && node->size == str_size
+            && strncmp(node->str, str, str_size) == 0)
         {
             break;
         }
@@ -114,7 +116,7 @@ static ul_hst_node_t ** get_node_ins(ul_hst_t * hst, size_t str_size, const char
     return node_ins;
 }
 
-ul_hs_t * ul_hst_add(ul_hst_t * hst, size_t str_size, const char * str, ul_hs_hash_t str_hash)
+ul_hst_node_ref_t ul_hst_add(ul_hst_t * hst, size_t str_size, const char * str, ul_hs_hash_t str_hash)
 {
     ul_hst_node_t ** node_ins = get_node_ins(hst, str_size, str, str_hash);
 
@@ -125,7 +127,16 @@ ul_hs_t * ul_hst_add(ul_hst_t * hst, size_t str_size, const char * str, ul_hs_ha
         ++hst->strs_count;
     }
 
-    return &(*node_ins)->hstr;
+    return (ul_hst_node_ref_t){ .node = *node_ins };
 }
 
-extern inline ul_hs_t * ul_hst_hashadd(ul_hst_t * hst, size_t str_size, const char * str);
+ul_hst_node_ref_t ul_hst_copy_ref(const ul_hst_node_ref_t * ref)
+{
+    return *ref;
+}
+void ul_hst_free_ref(ul_hst_node_ref_t * ref)
+{
+	ref->node = NULL;
+}
+
+extern inline ul_hst_node_ref_t ul_hst_hashadd(ul_hst_t * hst, size_t str_size, const char * str);

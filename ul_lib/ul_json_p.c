@@ -1,6 +1,5 @@
 #include "ul_json_p.h"
 #include "ul_arr.h"
-#include "ul_hst.h"
 #include "ul_misc.h"
 
 typedef struct ul_json_p_ctx
@@ -166,7 +165,7 @@ static void push_str_1anydig(ctx_t * ctx)
     }
 }
 
-static void parse_str(ctx_t * ctx, ul_hs_t ** out)
+static void parse_str(ctx_t * ctx, ul_hst_node_ref_t * out)
 {
     consume_wss(ctx);
 
@@ -301,7 +300,7 @@ static void parse_val_obj(ctx_t * ctx, ul_json_t ** out)
 
         while (true)
         {
-            ul_hs_t * name = NULL;
+            ul_hst_node_ref_t name = UL_HST_NULL_REF;
 
             parse_str(ctx, &name);
 
@@ -321,6 +320,8 @@ static void parse_val_obj(ctx_t * ctx, ul_json_t ** out)
             }
             else
             {
+				ul_hst_free_ref(&name);
+
                 ctx->err = true;
             }
 
@@ -435,11 +436,13 @@ static void parse_val_num(ctx_t * ctx, ul_json_t ** out)
 }
 static void parse_val_str(ctx_t * ctx, ul_json_t ** out)
 {
-    ul_hs_t * str = NULL;
+    ul_hst_node_ref_t str = UL_HST_NULL_REF;
 
     parse_str(ctx, &str);
 
-    *out = ul_json_make_str(str);
+    *out = ul_json_make_str(&str);
+
+	ul_hst_free_ref(&str);
 }
 
 static void parse_val(ctx_t * ctx, ul_json_t ** out)

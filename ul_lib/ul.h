@@ -19,11 +19,11 @@ typedef struct ul_fs_ent ul_fs_ent_t;
 typedef struct ul_fs_dir ul_fs_dir_t;
 
 typedef uint64_t ul_hs_hash_t;
-typedef struct ul_hs ul_hs_t;
 
 typedef struct ul_hsb ul_hsb_t;
 
 typedef struct ul_hst_node ul_hst_node_t;
+typedef struct ul_hst_node_ref ul_hst_node_ref_t;
 typedef struct ul_hst ul_hst_t;
 
 typedef struct ul_ec_rec ul_ec_rec_t;
