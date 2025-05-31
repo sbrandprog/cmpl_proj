@@ -207,6 +207,9 @@ struct mc_inst_bs
     uint8_t mem[MC_INST_BS_SIZE];
 };
 
+MC_API void mc_inst_copy(mc_inst_t * dst, const mc_inst_t * src);
+MC_API void mc_inst_cleanup(mc_inst_t * inst);
+
 MC_API bool mc_inst_build(mc_inst_t * inst, ul_ec_fmtr_t * ec_fmtr, size_t * inst_size_out, mc_inst_bs_t * bs_out, mc_inst_offs_t * offs_out);
 
 inline bool mc_inst_get_size(mc_inst_t * inst, size_t * out)

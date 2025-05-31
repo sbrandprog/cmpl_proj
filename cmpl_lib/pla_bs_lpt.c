@@ -74,8 +74,8 @@ static void report(ctx_t * ctx, const char * fmt, ...)
 
     va_start(args, fmt);
 
-	ul_ec_fmtr_format_va(ctx->ec_fmtr, fmt, args);
-	ul_ec_fmtr_post(ctx->ec_fmtr, UL_EC_REC_TYPE_DFLT, PLA_BS_LPT_MOD_NAME);
+    ul_ec_fmtr_format_va(ctx->ec_fmtr, fmt, args);
+    ul_ec_fmtr_post(ctx->ec_fmtr, UL_EC_REC_TYPE_DFLT, PLA_BS_LPT_MOD_NAME);
 
     va_end(args);
 }
@@ -103,7 +103,7 @@ static bool get_tus_src_tok(void * src_data, pla_tok_t * out)
         return false;
     }
 
-    *out = ctx->base->lex.tok;
+    pla_tok_copy(out, &ctx->base->lex.tok);
 
     return true;
 }
@@ -116,10 +116,14 @@ static bool parse_tus_core(lp_ctx_t * ctx)
     ctx->ch = base_tus->src;
     ctx->ch_end = ctx->ch + base_tus->src_size;
 
-    ctx->lex_src_data = (pla_lex_src_t){ .name = ctx->tus->full_name, .data = ctx, .get_ch_proc = get_tus_src_ch, .line_num = 0, .line_ch = 0 };
+    pla_lex_src_init(&ctx->lex_src_data, ctx->tus->full_name);
+    ctx->lex_src_data.data = ctx;
+    ctx->lex_src_data.get_ch_proc = get_tus_src_ch;
     pla_lex_set_src(&ctx->base->lex, &ctx->lex_src_data);
 
-    ctx->prsr_src_data = (pla_prsr_src_t){ .name = ctx->tus->full_name, .data = ctx, .get_tok_proc = get_tus_src_tok };
+    pla_prsr_src_init(&ctx->prsr_src_data, ctx->tus->full_name);
+    ctx->prsr_src_data.data = ctx;
+    ctx->prsr_src_data.get_tok_proc = get_tus_src_tok;
     pla_prsr_set_src(&ctx->base->prsr, &ctx->prsr_src_data);
 
     if (!pla_prsr_parse_tu(&ctx->base->prsr, ctx->tus->tu))
@@ -137,7 +141,11 @@ static bool parse_tus(ctx_t * base, tus_t * tus)
 
     pla_prsr_set_src(&base->prsr, NULL);
 
+    pla_prsr_src_cleanup(&ctx.prsr_src_data);
+
     pla_lex_set_src(&base->lex, NULL);
+
+    pla_lex_src_cleanup(&ctx.lex_src_data);
 
     return res;
 }
@@ -287,8 +295,8 @@ static bool form_core(ctx_t * ctx)
 
     if (!find_and_push_tus(ctx, ctx->root, ctx->first_tus_name))
     {
-		report(ctx, "Failed to find first tus [%s]", ctx->first_tus_name->str);
-		
+        report(ctx, "Failed to find first tus [%s]", ctx->first_tus_name->str);
+
         return false;
     }
 

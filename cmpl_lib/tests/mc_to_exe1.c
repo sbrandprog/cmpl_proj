@@ -21,6 +21,7 @@ static bool test_proc(test_ctx_t * ctx)
     };
 
     copy_frag_insts(ul_arr_count(main_proc_insts), main_proc_insts, main_proc);
+	cleanup_src_insts(ul_arr_count(main_proc_insts), main_proc_insts);
 
     return true;
 }

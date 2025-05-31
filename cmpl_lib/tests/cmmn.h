@@ -65,11 +65,19 @@ static void print_test_errs(test_ctx_t * ctx)
 
 static void copy_frag_insts(size_t insts_size, const mc_inst_t * insts, mc_frag_t * frag)
 {
-    frag->insts_size = 0;
+    mc_frag_clear_insts(frag);
 
     for (const mc_inst_t *inst = insts, *inst_end = inst + insts_size; inst != inst_end; ++inst)
     {
         mc_frag_push_inst(frag, inst);
+    }
+}
+
+static void cleanup_src_insts(size_t insts_size, mc_inst_t * insts)
+{
+    for (mc_inst_t *inst = insts, *inst_end = inst + insts_size; inst != inst_end; ++inst)
+    {
+        mc_inst_cleanup(inst);
     }
 }
 

@@ -1710,11 +1710,17 @@ static void push_mc_inst(ctx_t * ctx, mc_inst_t * inst)
 {
     mc_frag_push_inst(ctx->cmpl.frag, inst);
 }
+static void pushmove_mc_inst(ctx_t * ctx, mc_inst_t * inst)
+{
+    push_mc_inst(ctx, inst);
+
+    mc_inst_cleanup(inst);
+}
 static void push_mc_label(ctx_t * ctx, ul_hs_t * name, lnk_sect_lp_stype_t label_stype)
 {
     mc_inst_t label = { .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = label_stype, .label = name };
 
-    push_mc_inst(ctx, &label);
+    pushmove_mc_inst(ctx, &label);
 }
 static void push_mc_label_basic(ctx_t * ctx, ul_hs_t * name)
 {
@@ -1725,23 +1731,29 @@ static void push_mc_unw_inst(ctx_t * ctx, mc_inst_t * inst)
 {
     mc_frag_push_inst(ctx->cmpl.unw_frag, inst);
 }
+static void pushmove_mc_unw_inst(ctx_t * ctx, mc_inst_t * inst)
+{
+    mc_frag_push_inst(ctx->cmpl.unw_frag, inst);
+
+    mc_inst_cleanup(inst);
+}
 static void push_mc_unw_byte(ctx_t * ctx, uint8_t byte)
 {
     mc_inst_t data = { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm8, .imm0 = byte };
 
-    push_mc_unw_inst(ctx, &data);
+    pushmove_mc_unw_inst(ctx, &data);
 }
 static void push_mc_unw_word(ctx_t * ctx, uint16_t word)
 {
     mc_inst_t data = { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm16, .imm0 = word };
 
-    push_mc_unw_inst(ctx, &data);
+    pushmove_mc_unw_inst(ctx, &data);
 }
 static void push_mc_unw_label(ctx_t * ctx, ul_hs_t * name, lnk_sect_lp_stype_t label_stype)
 {
     mc_inst_t label = { .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = label_stype, .label = name };
 
-    push_mc_unw_inst(ctx, &label);
+    pushmove_mc_unw_inst(ctx, &label);
 }
 
 static bool calculate_stack(ctx_t * ctx)
@@ -1818,7 +1830,7 @@ static void save_stack_gpr(ctx_t * ctx, int32_t off, mc_reg_t reg)
 {
     mc_inst_t save = { .type = McInstMov, .opds = McInstOpds_Mem_Reg, .mem_size = mc_reg_get_size(reg), .mem_base = McRegRsp, .mem_disp_type = McInstDispAuto, .mem_disp = off, .reg0 = reg };
 
-    push_mc_inst(ctx, &save);
+    pushmove_mc_inst(ctx, &save);
 }
 static void save_stack_var_off(ctx_t * ctx, var_t * var, mc_reg_t reg, size_t off)
 {
@@ -1849,7 +1861,7 @@ static void load_int(ctx_t * ctx, mc_reg_t reg, int64_t imm)
 
     mc_inst_t load = { .type = McInstMov, .opds = McInstOpds_Reg_Imm, .reg0 = reg, .imm0_type = imm_type, .imm0 = imm };
 
-    push_mc_inst(ctx, &load);
+    pushmove_mc_inst(ctx, &load);
 
     reset_bb_cmpl_gpr_from_reg(ctx, reg);
 }
@@ -1859,7 +1871,7 @@ static void load_label_addr(ctx_t * ctx, mc_reg_t reg, ul_hs_t * label)
 
     mc_inst_t lea = { .type = McInstLea, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp = 0, .mem_disp_label = label };
 
-    push_mc_inst(ctx, &lea);
+    pushmove_mc_inst(ctx, &lea);
 
     reset_bb_cmpl_gpr_from_reg(ctx, reg);
 }
@@ -1869,7 +1881,7 @@ static void load_label_val_off(ctx_t * ctx, mc_reg_t reg, ul_hs_t * label, size_
 
     mc_inst_t mov = { .type = McInstMov, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_size = mc_reg_get_size(reg), .mem_base = McRegRip, .mem_disp_type = McInstDispLabelRel32, .mem_disp = (int32_t)off, .mem_disp_label = label };
 
-    push_mc_inst(ctx, &mov);
+    pushmove_mc_inst(ctx, &mov);
 
     reset_bb_cmpl_gpr_from_reg(ctx, reg);
 }
@@ -1881,7 +1893,7 @@ static void load_stack_gpr(ctx_t * ctx, mc_reg_t reg, int32_t off)
 {
     mc_inst_t load = { .type = McInstMov, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_size = mc_reg_get_size(reg), .mem_base = McRegRsp, .mem_disp_type = McInstDispAuto, .mem_disp = off };
 
-    push_mc_inst(ctx, &load);
+    pushmove_mc_inst(ctx, &load);
 
     reset_bb_cmpl_gpr_from_reg(ctx, reg);
 }
@@ -1913,7 +1925,7 @@ static void read_ptr_off(ctx_t * ctx, mc_reg_t reg, mc_reg_t ptr, size_t off)
 
     mc_inst_t mov = { .type = McInstMov, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_size = mc_reg_get_size(reg), .mem_base = ptr, .mem_disp_type = McInstDispAuto, .mem_disp = (int32_t)off };
 
-    push_mc_inst(ctx, &mov);
+    pushmove_mc_inst(ctx, &mov);
 
     reset_bb_cmpl_gpr_from_reg(ctx, reg);
 }
@@ -1923,7 +1935,7 @@ static void write_ptr_off(ctx_t * ctx, mc_reg_t ptr, mc_reg_t reg, size_t off)
 
     mc_inst_t mov = { .type = McInstMov, .opds = McInstOpds_Mem_Reg, .mem_size = mc_reg_get_size(reg), .mem_base = ptr, .mem_disp_type = McInstDispAuto, .mem_disp = (int32_t)off, .reg0 = reg };
 
-    push_mc_inst(ctx, &mov);
+    pushmove_mc_inst(ctx, &mov);
 }
 
 static mc_reg_t get_gpr_reg_int(mc_reg_gpr_t gpr, ira_int_type_t int_type)
@@ -2161,7 +2173,7 @@ static void w64_load_caller_va_start(ctx_t * ctx, var_t * var)
 {
     mc_inst_t lea = { .type = McInstLea, .opds = McInstOpds_Reg_Mem, .reg0 = McRegRax, .mem_base = McRegRsp, .mem_disp_type = McInstDispAuto, .mem_disp = w64_calculate_caller_arg_off(ctx, ctx->cmpl.first_va_arg_ind) };
 
-    push_mc_inst(ctx, &lea);
+    pushmove_mc_unw_inst(ctx, &lea);
 
     save_stack_var(ctx, var, McRegRax);
 }
@@ -2184,7 +2196,7 @@ static void w64_load_caller_va_arg(ctx_t * ctx, var_t * dst, var_t * va_elem_var
 
             mc_inst_t mov = { .type = McInstMov, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_size = mc_reg_get_size(reg), .mem_base = McRegRax, .mem_disp_type = McInstDispNone };
 
-            push_mc_inst(ctx, &mov);
+            pushmove_mc_unw_inst(ctx, &mov);
 
             save_stack_var(ctx, dst, reg);
 
@@ -2199,7 +2211,7 @@ static void w64_load_caller_va_arg(ctx_t * ctx, var_t * dst, var_t * va_elem_var
 
         mc_inst_t lea = { .type = McInstLea, .opds = McInstOpds_Reg_Mem, .reg0 = McRegRax, .mem_base = McRegRax, .mem_disp_type = McInstDispAuto, .mem_disp = (int32_t)va_elem_var->cmpl.size };
 
-        push_mc_inst(ctx, &lea);
+        pushmove_mc_unw_inst(ctx, &lea);
     }
 
     save_stack_var(ctx, va_elem_var, McRegRax);
@@ -2371,7 +2383,7 @@ static void emit_prologue(ctx_t * ctx)
 
     ul_assert(res);
 
-    push_mc_inst(ctx, &stack_alloc);
+    pushmove_mc_unw_inst(ctx, &stack_alloc);
 
     emit_prologue_save_args(ctx);
 
@@ -2381,7 +2393,7 @@ static void emit_epilogue(ctx_t * ctx)
 {
     mc_inst_t stack_free = { .type = McInstAdd, .opds = McInstOpds_Reg_Imm, .reg0 = McRegRsp, .imm0_type = McInstImm32, .imm0 = (int32_t)ctx->cmpl.stack_size };
 
-    push_mc_inst(ctx, &stack_free);
+    pushmove_mc_unw_inst(ctx, &stack_free);
 }
 
 static ira_int_type_t get_int_type(ira_dt_t * dt)
@@ -2402,7 +2414,7 @@ static void addr_of_var(ctx_t * ctx, mc_reg_t reg, var_t * var)
 {
     mc_inst_t lea = { .type = McInstLea, .opds = McInstOpds_Reg_Mem, .reg0 = reg, .mem_base = McRegRsp, .mem_disp_type = McInstDispAuto, .mem_disp = (int32_t)(var->cmpl.stack_pos) };
 
-    push_mc_inst(ctx, &lea);
+    pushmove_mc_unw_inst(ctx, &lea);
 
     reset_bb_cmpl_gpr_from_reg(ctx, reg);
 }
@@ -2467,24 +2479,28 @@ static void div_int_like(ctx_t * ctx, var_t * opd0, var_t * opd1, var_t * div_ou
     load_stack_var(ctx, reg0, opd0);
     load_stack_var(ctx, reg1, opd1);
 
-    mc_inst_t dx_inst = { .type = dx_inst_type };
-
-    if (dx_inst_type == McInstXor)
     {
-        dx_inst.opds = McInstOpds_Reg_Reg;
-        dx_inst.reg0 = reg2;
-        dx_inst.reg1 = reg2;
+        mc_inst_t dx_inst = { .type = dx_inst_type };
+
+        if (dx_inst_type == McInstXor)
+        {
+            dx_inst.opds = McInstOpds_Reg_Reg;
+            dx_inst.reg0 = reg2;
+            dx_inst.reg1 = reg2;
+        }
+        else
+        {
+            dx_inst.opds = McInstOpds_None;
+        }
+
+        pushmove_mc_unw_inst(ctx, &dx_inst);
     }
-    else
+
     {
-        dx_inst.opds = McInstOpds_None;
+        mc_inst_t div_inst = { .type = dx_inst_type == McInstXor ? McInstDiv : McInstIdiv, .opds = McInstOpds_Reg, .reg0 = reg1 };
+
+        pushmove_mc_unw_inst(ctx, &div_inst);
     }
-
-    push_mc_inst(ctx, &dx_inst);
-
-    mc_inst_t div_inst = { .type = dx_inst_type == McInstXor ? McInstDiv : McInstIdiv, .opds = McInstOpds_Reg, .reg0 = reg1 };
-
-    push_mc_inst(ctx, &div_inst);
 
     if (div_out != NULL)
     {
@@ -2690,13 +2706,13 @@ static void compile_int_like_cmp(ctx_t * ctx, var_t * dst, var_t * src0, var_t *
     {
         mc_inst_t cmp = { .type = McInstCmp, .opds = McInstOpds_Reg_Reg, .reg0 = reg0, .reg1 = reg1 };
 
-        push_mc_inst(ctx, &cmp);
+        pushmove_mc_unw_inst(ctx, &cmp);
     }
 
     {
         mc_inst_t setcc = { .type = get_set_inst_type(cmp_sign, int_cmp), .opds = McInstOpds_Reg, .reg0 = McRegAl };
 
-        push_mc_inst(ctx, &setcc);
+        pushmove_mc_unw_inst(ctx, &setcc);
     }
 
     save_stack_var(ctx, dst, McRegAl);
@@ -2711,7 +2727,7 @@ static void compile_int_like_cast(ctx_t * ctx, var_t * dst, var_t * src, ira_int
 
     mc_inst_t cast = { .type = info->inst_type, .opds = McInstOpds_Reg_Reg, .reg0 = mc_reg_gprs[gpr_to][info->to], .reg1 = mc_reg_gprs[gpr_from][info->from] };
 
-    push_mc_inst(ctx, &cast);
+    pushmove_mc_unw_inst(ctx, &cast);
 
     save_stack_var(ctx, dst, get_gpr_reg_int(gpr_to, to));
 }
@@ -2801,7 +2817,7 @@ static void compile_shift_ptr(ctx_t * ctx, inst_t * inst)
 
         mc_inst_t cast = { .type = info->inst_type, .opds = McInstOpds_Reg_Reg, .reg0 = mc_reg_gprs[McRegGprCx][info->to], .reg1 = mc_reg_gprs[McRegGprCx][info->from] };
 
-        push_mc_inst(ctx, &cast);
+        pushmove_mc_unw_inst(ctx, &cast);
     }
 
     {
@@ -2809,14 +2825,16 @@ static void compile_shift_ptr(ctx_t * ctx, inst_t * inst)
 
         mc_inst_t imul = { .type = McInstImul, .opds = McInstOpds_Reg_Reg, .reg0 = McRegRcx, .reg1 = McRegRax };
 
-        push_mc_inst(ctx, &imul);
+        pushmove_mc_unw_inst(ctx, &imul);
     }
 
     load_stack_var(ctx, McRegRax, inst->opd1.var);
 
-    mc_inst_t add = { .type = McInstAdd, .opds = McInstOpds_Reg_Reg, .reg0 = McRegRax, .reg1 = McRegRcx };
+    {
+        mc_inst_t add = { .type = McInstAdd, .opds = McInstOpds_Reg_Reg, .reg0 = McRegRax, .reg1 = McRegRcx };
 
-    push_mc_inst(ctx, &add);
+        pushmove_mc_unw_inst(ctx, &add);
+    }
 
     save_stack_var(ctx, inst->opd0.var, McRegRax);
 
@@ -2832,13 +2850,17 @@ static void compile_unr_optr(ctx_t * ctx, inst_t * inst)
         {
             load_stack_var(ctx, McRegAl, inst->opd2.var);
 
-            mc_inst_t test = { .type = McInstTest, .opds = McInstOpds_Reg_Reg, .reg0 = McRegAl, .reg1 = McRegAl };
+            {
+                mc_inst_t test = { .type = McInstTest, .opds = McInstOpds_Reg_Reg, .reg0 = McRegAl, .reg1 = McRegAl };
 
-            push_mc_inst(ctx, &test);
+                pushmove_mc_unw_inst(ctx, &test);
+            }
 
-            mc_inst_t set = { .type = McInstSetz, .opds = McInstOpds_Reg, .reg0 = McRegAl };
+            {
+                mc_inst_t set = { .type = McInstSetz, .opds = McInstOpds_Reg, .reg0 = McRegAl };
 
-            push_mc_inst(ctx, &set);
+                pushmove_mc_unw_inst(ctx, &set);
+            }
 
             save_stack_var(ctx, inst->opd0.var, McRegAl);
 
@@ -2863,9 +2885,11 @@ static void compile_unr_optr(ctx_t * ctx, inst_t * inst)
 
             load_stack_var(ctx, reg, inst->opd2.var);
 
-            mc_inst_t unr_opr = { .type = inst_type, .opds = McInstOpds_Reg, .reg0 = reg };
+            {
+                mc_inst_t unr_opr = { .type = inst_type, .opds = McInstOpds_Reg, .reg0 = reg };
 
-            push_mc_inst(ctx, &unr_opr);
+                pushmove_mc_unw_inst(ctx, &unr_opr);
+            }
 
             save_stack_var(ctx, inst->opd0.var, reg);
 
@@ -2941,9 +2965,11 @@ static void compile_bin_optr(ctx_t * ctx, inst_t * inst)
             load_stack_var(ctx, reg0, inst->opd2.var);
             load_stack_var(ctx, reg1, inst->opd3.var);
 
-            mc_inst_t bin_opr = { .type = inst_type, .opds = McInstOpds_Reg_Reg, .reg0 = reg0, .reg1 = reg1 };
+            {
+                mc_inst_t bin_opr = { .type = inst_type, .opds = McInstOpds_Reg_Reg, .reg0 = reg0, .reg1 = reg1 };
 
-            push_mc_inst(ctx, &bin_opr);
+                pushmove_mc_unw_inst(ctx, &bin_opr);
+            }
 
             save_stack_var(ctx, inst->opd0.var, reg0);
 
@@ -2992,9 +3018,11 @@ static void compile_bin_optr(ctx_t * ctx, inst_t * inst)
 
             load_stack_var(ctx, shift_reg, inst->opd2.var);
 
-            mc_inst_t shift = { .type = inst_type, .opds = McInstOpds_Reg_Reg, .reg0 = shift_reg, .reg1 = McRegCl };
+            {
+                mc_inst_t shift = { .type = inst_type, .opds = McInstOpds_Reg_Reg, .reg0 = shift_reg, .reg1 = McRegCl };
 
-            push_mc_inst(ctx, &shift);
+                pushmove_mc_unw_inst(ctx, &shift);
+            }
 
             save_stack_var(ctx, inst->opd0.var, shift_reg);
 
@@ -3037,9 +3065,11 @@ static void compile_mmbr_acc_ptr(ctx_t * ctx, inst_t * inst)
 
     load_stack_var(ctx, McRegRax, opd_var);
 
-    mc_inst_t lea = { .type = McInstLea, .opds = McInstOpds_Reg_Mem, .reg0 = McRegRax, .mem_base = McRegRax, .mem_disp_type = McInstDispAuto, .mem_disp = (int32_t)inst->mmbr_acc.cmpl.off };
+    {
+        mc_inst_t lea = { .type = McInstLea, .opds = McInstOpds_Reg_Mem, .reg0 = McRegRax, .mem_base = McRegRax, .mem_disp_type = McInstDispAuto, .mem_disp = (int32_t)inst->mmbr_acc.cmpl.off };
 
-    push_mc_inst(ctx, &lea);
+        pushmove_mc_unw_inst(ctx, &lea);
+    }
 
     save_stack_var(ctx, inst->opd0.var, McRegRax);
 }
@@ -3148,9 +3178,11 @@ static void compile_call_func_ptr(ctx_t * ctx, inst_t * inst)
 
     load_stack_var(ctx, McRegRax, inst->opd1.var);
 
-    mc_inst_t call = { .type = McInstCall, .opds = McInstOpds_Reg, .reg0 = McRegRax };
+    {
+        mc_inst_t call = { .type = McInstCall, .opds = McInstOpds_Reg, .reg0 = McRegRax };
 
-    push_mc_inst(ctx, &call);
+        pushmove_mc_unw_inst(ctx, &call);
+    }
 
     w64_save_callee_ret(ctx, inst->opd0.var);
 }
@@ -3158,7 +3190,7 @@ static void compile_bru(ctx_t * ctx, inst_t * inst)
 {
     mc_inst_t jmp = { .type = McInstJmp, .opds = McInstOpds_Imm, .imm0_type = McInstImmLabelRel32, .imm0_label = inst->opd0.label->cmpl.global_name };
 
-    push_mc_inst(ctx, &jmp);
+    pushmove_mc_unw_inst(ctx, &jmp);
 }
 static void compile_brc(ctx_t * ctx, inst_t * inst)
 {
@@ -3178,13 +3210,17 @@ static void compile_brc(ctx_t * ctx, inst_t * inst)
 
     load_stack_var(ctx, McRegAl, inst->opd1.var);
 
-    mc_inst_t test = { .type = McInstTest, .opds = McInstOpds_Reg_Reg, .reg0 = McRegAl, .reg1 = McRegAl };
+    {
+        mc_inst_t test = { .type = McInstTest, .opds = McInstOpds_Reg_Reg, .reg0 = McRegAl, .reg1 = McRegAl };
 
-    push_mc_inst(ctx, &test);
+        pushmove_mc_unw_inst(ctx, &test);
+    }
 
-    mc_inst_t jump = { .type = jump_type, .opds = McInstOpds_Imm, .imm0_type = McInstImmLabelRel32, .imm0_label = inst->opd0.label->cmpl.global_name };
+    {
+        mc_inst_t jump = { .type = jump_type, .opds = McInstOpds_Imm, .imm0_type = McInstImmLabelRel32, .imm0_label = inst->opd0.label->cmpl.global_name };
 
-    push_mc_inst(ctx, &jump);
+        pushmove_mc_unw_inst(ctx, &jump);
+    }
 }
 static void compile_ret(ctx_t * ctx, inst_t * inst)
 {
@@ -3194,7 +3230,7 @@ static void compile_ret(ctx_t * ctx, inst_t * inst)
 
     mc_inst_t ret = { .type = McInstRet, .opds = McInstOpds_None };
 
-    push_mc_inst(ctx, &ret);
+    pushmove_mc_unw_inst(ctx, &ret);
 }
 static void compile_va_start(ctx_t * ctx, inst_t * inst)
 {

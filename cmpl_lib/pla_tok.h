@@ -78,3 +78,7 @@ inline bool pla_tok_is_num_str_tag_intro_ch(char ch)
 {
     return ch == '\'';
 }
+
+PLA_API void pla_tok_init(pla_tok_t * tok, pla_tok_type_t type);
+PLA_API void pla_tok_copy(pla_tok_t * dst, const pla_tok_t * src);
+PLA_API void pla_tok_cleanup(pla_tok_t * tok);

@@ -6,6 +6,15 @@
 typedef bool ch_pred_t(char ch);
 typedef void ch_proc_t(pla_lex_t * lex, char * out);
 
+void pla_lex_src_init(pla_lex_src_t * src, ul_hs_t * name)
+{
+    *src = (pla_lex_src_t){ .name = name };
+}
+void pla_lex_src_cleanup(pla_lex_src_t * src)
+{
+    memset(src, 0, sizeof(*src));
+}
+
 void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr)
 {
     *lex = (pla_lex_t){ .hst = hst, .ec_fmtr = ec_fmtr };
@@ -13,9 +22,13 @@ void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr)
     static const ul_ros_t emp_str_raw = UL_ROS_MAKE("");
 
     lex->emp_hs = ul_hst_hashadd(hst, emp_str_raw.size, emp_str_raw.str);
+
+    pla_tok_init(&lex->tok, PlaTokNone);
 }
 void pla_lex_cleanup(pla_lex_t * lex)
 {
+    pla_tok_cleanup(&lex->tok);
+
     free(lex->str);
 
     memset(lex, 0, sizeof(*lex));
@@ -96,7 +109,7 @@ static void report_lex(pla_lex_t * lex, const char * fmt, ...)
 
     va_start(args, fmt);
 
-    pla_ec_formatpost_va(lex->ec_fmtr, PLA_LEX_MOD_NAME, (lex->src != NULL ? lex->src->name->str : NULL), lex->tok.pos_start, get_ec_pos(lex), fmt, args);
+    pla_ec_formatpost_va(lex->ec_fmtr, PLA_LEX_MOD_NAME, (lex->src != NULL ? lex->src->name->str : NULL), lex->pos_start, get_ec_pos(lex), fmt, args);
 
     va_end(args);
 }
@@ -194,7 +207,7 @@ static void get_tok_core(pla_lex_t * lex)
 
     while (true)
     {
-        lex->tok.pos_start = get_ec_pos(lex);
+        lex->pos_start = get_ec_pos(lex);
 
         if (pla_tok_is_emp_ch(lex->ch))
         {
@@ -238,7 +251,7 @@ static void get_tok_core(pla_lex_t * lex)
                 punc_len_old = punc_len;
             }
 
-            lex->tok.type = PlaTokPunc;
+            pla_tok_init(&lex->tok, PlaTokPunc);
             lex->tok.punc = punc;
 
             return;
@@ -251,7 +264,7 @@ static void get_tok_core(pla_lex_t * lex)
 
             if (keyw != PlaKeywNone)
             {
-                lex->tok.type = PlaTokKeyw;
+                pla_tok_init(&lex->tok, PlaTokKeyw);
                 lex->tok.keyw = keyw;
 
                 return;
@@ -259,7 +272,7 @@ static void get_tok_core(pla_lex_t * lex)
 
             ul_hs_t * str = hadd_str(lex);
 
-            lex->tok.type = PlaTokIdent;
+            pla_tok_init(&lex->tok, PlaTokIdent);
             lex->tok.ident = str;
 
             return;
@@ -297,7 +310,7 @@ static void get_tok_core(pla_lex_t * lex)
 
             } while (false);
 
-            lex->tok.type = PlaTokChStr;
+            pla_tok_init(&lex->tok, PlaTokChStr);
             lex->tok.ch_str.data = data;
             lex->tok.ch_str.tag = tag;
 
@@ -321,7 +334,7 @@ static void get_tok_core(pla_lex_t * lex)
 
             } while (false);
 
-            lex->tok.type = PlaTokNumStr;
+            pla_tok_init(&lex->tok, PlaTokNumStr);
             lex->tok.num_str.data = data;
             lex->tok.num_str.tag = tag;
 
@@ -338,12 +351,20 @@ static void get_tok_core(pla_lex_t * lex)
 bool pla_lex_get_tok(pla_lex_t * lex)
 {
     lex->is_rptd = false;
-    lex->tok.type = PlaTokNone;
-    lex->tok.pos_start = get_ec_pos(lex);
+
+    pla_tok_cleanup(&lex->tok);
+
+    lex->pos_start = get_ec_pos(lex);
 
     get_tok_core(lex);
 
-    lex->tok.pos_end = get_ec_pos(lex);
+    if (lex->tok.type != PlaTokNone)
+    {
+        lex->tok.pos_start = lex->pos_start;
+        lex->tok.pos_end = get_ec_pos(lex);
 
-    return lex->tok.type != PlaTokNone;
+        return true;
+    }
+
+    return false;
 }

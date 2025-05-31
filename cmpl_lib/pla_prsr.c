@@ -77,12 +77,26 @@ static const bin_optr_info_t bin_optr_infos[] = {
 static const size_t bin_optr_infos_size = ul_arr_count(bin_optr_infos);
 
 
+void pla_prsr_src_init(pla_prsr_src_t * src, ul_hs_t * name)
+{
+    *src = (pla_prsr_src_t){ .name = name };
+}
+void pla_prsr_src_cleanup(pla_prsr_src_t * src)
+{
+    memset(src, 0, sizeof(*src));
+}
+
+
 void pla_prsr_init(pla_prsr_t * prsr, ul_ec_fmtr_t * ec_fmtr)
 {
     *prsr = (pla_prsr_t){ .ec_fmtr = ec_fmtr };
+
+	pla_tok_init(&prsr->tok, PlaTokNone);
 }
 void pla_prsr_cleanup(pla_prsr_t * prsr)
 {
+	pla_tok_cleanup(&prsr->tok);
+
     memset(prsr, 0, sizeof(*prsr));
 }
 
@@ -142,7 +156,7 @@ static bool next_tok(pla_prsr_t * prsr)
         prsr->prev_tok_pos_end = prsr->tok.pos_end;
     }
 
-    prsr->tok.type = PlaTokNone;
+    pla_tok_cleanup(&prsr->tok);
 
     if (prsr->src == NULL || !prsr->src->get_tok_proc(prsr->src->data, &prsr->tok))
     {

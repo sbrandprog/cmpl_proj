@@ -31,6 +31,9 @@ struct pla_prsr
     pla_prsr_rse_t * rse;
 };
 
+PLA_API void pla_prsr_src_init(pla_prsr_src_t * src, ul_hs_t * name);
+PLA_API void pla_prsr_src_cleanup(pla_prsr_src_t * src);
+
 PLA_API void pla_prsr_init(pla_prsr_t * prsr, ul_ec_fmtr_t * ec_fmtr);
 PLA_API void pla_prsr_cleanup(pla_prsr_t * prsr);
 

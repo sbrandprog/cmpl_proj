@@ -69,6 +69,8 @@ mc_frag_t * ira_pec_c_get_frag(ira_pec_c_ctx_t * ctx, mc_frag_type_t frag_type, 
         mc_inst_t label = { .type = McInstLabel, .opds = McInstOpds_Label, .label_stype = LnkSectLpLabelBasic, .label = frag_label };
 
         mc_frag_push_inst(frag, &label);
+
+        mc_inst_cleanup(&label);
     }
 
     return frag;
@@ -160,9 +162,9 @@ static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ul_hs_t * hint_name, ira_
         mc_inst_t align = { .type = McInstAlign, .opds = McInstOpds_Imm, .imm0_type = McInstImm64, .imm0 = (int64_t)dt_align };
 
         mc_frag_push_inst(frag, &align);
-    }
 
-    mc_inst_t data = { .type = McInstData, .opds = McInstOpds_Imm };
+        mc_inst_cleanup(&align);
+    }
 
     switch (val->type)
     {
@@ -171,17 +173,25 @@ static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ul_hs_t * hint_name, ira_
         case IraValImmDt:
             return false;
         case IraValImmBool:
-            data.imm0_type = McInstImm8;
-            data.imm0 = val->bool_val ? 1 : 0;
+        {
+            mc_inst_t data = { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm8, .imm0 = val->bool_val ? 1 : 0 };
 
             mc_frag_push_inst(frag, &data);
-            break;
+
+            mc_inst_cleanup(&data);
+
+			break;
+        }
         case IraValImmInt:
-            data.imm0_type = ira_int_infos[val->dt->int_type].mc_imm_type;
-            data.imm0 = val->int_val.si64;
+        {
+            mc_inst_t data = { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = ira_int_infos[val->dt->int_type].mc_imm_type, .imm0 = val->int_val.si64 };
 
             mc_frag_push_inst(frag, &data);
-            break;
+
+			mc_inst_cleanup(&data);
+
+			break;
+        }
         case IraValImmVec:
             for (ira_val_t **elem = val->arr_val.data, **elem_end = elem + val->arr_val.size; elem != elem_end; ++elem)
             {
@@ -190,25 +200,34 @@ static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ul_hs_t * hint_name, ira_
                     return false;
                 }
             }
+
             break;
         case IraValImmPtr:
-            data.imm0_type = McInstImm64;
-            data.imm0 = (int64_t)val->int_val.ui64;
+        {
+            mc_inst_t data = { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm64, .imm0 = val->int_val.ui64 };
 
             mc_frag_push_inst(frag, &data);
-            break;
+            
+			mc_inst_cleanup(&data);
+            
+			break;
+        }
         case IraValLoPtr:
+        {
             if (!is_lo_compilable(val->lo_val))
             {
                 report(ctx, "reference to non-compilable language object [%s]", val->lo_val->name->str);
                 return false;
             }
 
-            data.imm0_type = McInstImmLabelVa64;
-            data.imm0_label = val->lo_val->name;
-
+            mc_inst_t data = { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImmLabelVa64, .imm0_label = val->lo_val->name };
+            
             mc_frag_push_inst(frag, &data);
+            
+			mc_inst_cleanup(&data);
+
             break;
+        }
         case IraValImmTpl:
             for (ira_val_t **elem = val->arr_val.data, **elem_end = elem + val->arr_val.size; elem != elem_end; ++elem)
             {
@@ -242,12 +261,16 @@ static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ul_hs_t * hint_name, ira_
                 mc_inst_t data = { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImm64, .imm0 = (int64_t)val->arr_val.size };
 
                 mc_frag_push_inst(frag, &data);
+
+                mc_inst_cleanup(&data);
             }
 
             {
                 mc_inst_t data = { .type = McInstData, .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImmLabelVa64, .imm0_label = arr_label };
 
                 mc_frag_push_inst(frag, &data);
+
+                mc_inst_cleanup(&data);
             }
 
             break;
@@ -261,7 +284,6 @@ static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ul_hs_t * hint_name, ira_
         default:
             ul_assert_unreachable();
     }
-
 
     return true;
 }
