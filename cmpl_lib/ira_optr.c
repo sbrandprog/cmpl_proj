@@ -97,6 +97,8 @@ bool ira_optr_is_equivalent(ira_optr_t * first, ira_optr_t * second)
             {
                 case IraOptrBltnLogicNegBool:
                     return true;
+                default:
+                    break;
             }
             break;
         case IraOptrBltnArithNegInt:
@@ -104,6 +106,8 @@ bool ira_optr_is_equivalent(ira_optr_t * first, ira_optr_t * second)
             {
                 case IraOptrBltnArithNegInt:
                     return true;
+                default:
+                    break;
             }
             break;
         case IraOptrBltnMulInt:
@@ -141,6 +145,8 @@ bool ira_optr_is_equivalent(ira_optr_t * first, ira_optr_t * second)
                 case IraOptrBltnXorInt:
                 case IraOptrBltnOrInt:
                     return true;
+                default:
+                    break;
             }
             break;
         case IraOptrBltnLessPtr:
@@ -158,6 +164,8 @@ bool ira_optr_is_equivalent(ira_optr_t * first, ira_optr_t * second)
                 case IraOptrBltnEqPtr:
                 case IraOptrBltnNeqPtr:
                     return true;
+                default:
+                    break;
             }
             break;
         case IraOptrBltnArithNegEnmn:
@@ -165,6 +173,8 @@ bool ira_optr_is_equivalent(ira_optr_t * first, ira_optr_t * second)
             {
                 case IraOptrBltnArithNegEnmn:
                     return true;
+                default:
+                    break;
             }
             break;
         case IraOptrBltnMulEnmn:
@@ -202,6 +212,8 @@ bool ira_optr_is_equivalent(ira_optr_t * first, ira_optr_t * second)
                 case IraOptrBltnXorEnmn:
                 case IraOptrBltnOrEnmn:
                     return true;
+                default:
+                    break;
             }
         default:
             ul_assert_unreachable();

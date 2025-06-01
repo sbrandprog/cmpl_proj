@@ -272,6 +272,9 @@ static void push_ord_buf_refs(ctx_t * ctx, sect_t * sect)
                         break;
                 }
                 break;
+            default:
+                report(ctx, "invalid link point type");
+                break;
         }
     }
 }

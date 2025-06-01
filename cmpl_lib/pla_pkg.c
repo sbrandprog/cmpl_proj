@@ -240,12 +240,6 @@ bool pla_pkg_fill_from_dir(pla_pkg_t * pkg, ul_hst_t * hst, const char * dir_pat
             ul_assert(res > 0);
         }
 
-        const char * name_ext = strrchr(ent->name, '.');
-        if (name_ext == NULL)
-        {
-            name_ext = ent->name + name_size;
-        }
-
         if (!process_path(pkg, hst, path_buf, ent->type))
         {
             success = false;

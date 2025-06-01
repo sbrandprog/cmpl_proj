@@ -128,6 +128,8 @@ static void generate_str(ctx_t * ctx, const ul_hs_t * str)
             {
                 put_str(ctx, "\\u00");
 
+				code = *ch;
+
                 for (size_t i = sizeof(code) * CHAR_BIT / 4; i > 0;)
                 {
                     --i;
