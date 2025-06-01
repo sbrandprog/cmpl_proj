@@ -1169,7 +1169,7 @@ bool ira_pec_make_val_null(ira_pec_t * pec, ira_dt_t * dt, ira_val_t ** out)
             break;
         case IraDtTpl:
         {
-            (*out)->arr_val.data = malloc(dt->tpl.elems_size * sizeof((*out)->arr_val.data));
+            (*out)->arr_val.data = malloc(dt->tpl.elems_size * sizeof(*(*out)->arr_val.data));
 
             ul_assert((*out)->arr_val.data != NULL);
 

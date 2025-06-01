@@ -120,7 +120,7 @@ typedef union ira_pec_ip_inst_opd
 } inst_opd_t;
 struct ira_pec_ip_inst
 {
-    ira_inst_t * base;
+    ira_inst_type_t type;
 
     union
     {
@@ -318,14 +318,7 @@ static const int_cast_info_t int_cast_infos[IraInt_Count][IraInt_Count] = {
 
 static void cleanup_inst(ctx_t * ctx, inst_t * inst)
 {
-    ira_inst_t * base = inst->base;
-
-    if (base == NULL)
-    {
-        return;
-    }
-
-    const ira_inst_info_t * info = &ira_inst_infos[inst->base->type];
+    const ira_inst_info_t * info = &ira_inst_infos[inst->type];
 
     for (size_t opd = 0; opd < IRA_INST_OPDS_SIZE; ++opd)
     {
@@ -440,11 +433,6 @@ static void ctx_cleanup(ctx_t * ctx)
 {
     for (inst_t *inst = ctx->insts, *inst_end = inst + ctx->insts_size; inst != inst_end; ++inst)
     {
-        if (inst->base == NULL)
-        {
-            break;
-        }
-
         cleanup_inst(ctx, inst);
     }
 
@@ -497,19 +485,19 @@ static void report(ctx_t * ctx, const char * fmt, ...)
 }
 static void report_opds_not_equ(ctx_t * ctx, inst_t * inst, size_t first, size_t second)
 {
-    const ira_inst_info_t * info = &ira_inst_infos[inst->base->type];
+    const ira_inst_info_t * info = &ira_inst_infos[inst->type];
 
     report(ctx, "[%s] requires opd[%zi] and opd[%zi] to have an equivalent data type", info->type_str.str, first, second);
 }
 static void report_opd_not_equ_dt(ctx_t * ctx, inst_t * inst, size_t first)
 {
-    const ira_inst_info_t * info = &ira_inst_infos[inst->base->type];
+    const ira_inst_info_t * info = &ira_inst_infos[inst->type];
 
     report(ctx, "[%s] requires opd[%zi] to have an 'data type' data type", info->type_str.str, first);
 }
 static void report_var_const_q(ctx_t * ctx, inst_t * inst, size_t opd)
 {
-    const ira_inst_info_t * info = &ira_inst_infos[inst->base->type];
+    const ira_inst_info_t * info = &ira_inst_infos[inst->type];
 
     report(ctx, "[%s]: opd[0] var must not have a const qualifier", info->type_str.str);
 }
@@ -776,11 +764,9 @@ static bool prepare_insts_args(ctx_t * ctx)
     return true;
 }
 
-static bool prepare_insts_opds_vars(ctx_t * ctx, inst_t * inst, size_t opd_size, size_t opd)
+static bool prepare_insts_opds_vars(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst, size_t opd_size, size_t opd)
 {
-    ira_inst_t * base = inst->base;
-
-    size_t vars_size = base->opds[opd_size].size;
+    size_t vars_size = ira_inst->opds[opd_size].size;
 
     var_t ** vars = malloc(vars_size * sizeof(*vars));
 
@@ -788,12 +774,12 @@ static bool prepare_insts_opds_vars(ctx_t * ctx, inst_t * inst, size_t opd_size,
 
     inst->opds[opd].vars = vars;
 
-    ul_hs_t ** var_name = base->opds[opd].hss;
+    ul_hs_t ** var_name = ira_inst->opds[opd].hss;
     for (var_t **var = vars, **var_end = var + vars_size; var != var_end; ++var, ++var_name)
     {
         if (*var_name == NULL)
         {
-            report(ctx, "[%s]: [%zi]th variable name in [%zi] operand is invalid", ira_inst_infos[base->type].type_str.str, (size_t)(var_name - base->opds[opd].hss), opd);
+            report(ctx, "[%s]: [%zi]th variable name in [%zi] operand is invalid", ira_inst_infos[inst->type].type_str.str, (size_t)(var_name - ira_inst->opds[opd].hss), opd);
             return false;
         }
 
@@ -801,7 +787,7 @@ static bool prepare_insts_opds_vars(ctx_t * ctx, inst_t * inst, size_t opd_size,
 
         if (*var == NULL)
         {
-            report(ctx, "[%s]: can not find a variable [%s] for [%zi] operand", ira_inst_infos[base->type].type_str.str, base->opds[opd].hs->str, opd);
+            report(ctx, "[%s]: can not find a variable [%s] for [%zi] operand", ira_inst_infos[inst->type].type_str.str, ira_inst->opds[opd].hs->str, opd);
             return false;
         }
 
@@ -897,7 +883,7 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
                 inst->opds[opd].optr = ira_inst->opds[opd].optr;
                 break;
             case IraInstOpdMmbr:
-                inst->opds[opd].hs = inst->base->opds[opd].hs;
+                inst->opds[opd].hs = ira_inst->opds[opd].hs;
 
                 if (inst->opds[opd].hs == NULL)
                 {
@@ -909,7 +895,7 @@ static bool prepare_insts_opds(ctx_t * ctx, inst_t * inst, ira_inst_t * ira_inst
                 inst->opds[opd].size = ira_inst->opds[opd].size;
                 break;
             case IraInstOpdVars2:
-                if (!prepare_insts_opds_vars(ctx, inst, 2, opd))
+                if (!prepare_insts_opds_vars(ctx, inst, ira_inst, 2, opd))
                 {
                     return false;
                 }
@@ -964,7 +950,7 @@ static bool prepare_load_val(ctx_t * ctx, inst_t * inst, const ira_inst_info_t *
     {
         if (!ira_pec_c_process_val_compl(ctx->cmpl.base_ctx, inst->opd1.val))
         {
-            report(ctx, "[%s]: value in opd[1] is non compilable", ira_inst_infos[inst->base->type].type_str.str);
+            report(ctx, "[%s]: value in opd[1] is non compilable", ira_inst_infos[inst->type].type_str.str);
             return false;
         }
     }
@@ -1548,7 +1534,7 @@ static bool prepare_insts(ctx_t * ctx)
             bb = push_bb(ctx);
         }
 
-        inst->base = ira_inst;
+        inst->type = ira_inst->type;
 
         const ira_inst_info_t * info = &ira_inst_infos[ira_inst->type];
 
@@ -1905,7 +1891,7 @@ static void load_stack_var_off(ctx_t * ctx, mc_reg_t reg, var_t * var, size_t of
 
     bb_cmpl_gpr_t * bb_gpr = get_bb_cmpl_ctx_gpr_from_reg(ctx, reg);
 
-    if (bb_gpr == NULL || bb_gpr->var != var || bb_gpr->reg_size != reg_size || bb_gpr->off != off)
+    if (bb_gpr->var != var || bb_gpr->reg_size != reg_size || bb_gpr->off != off)
     {
         load_stack_gpr(ctx, reg, (int32_t)(var->cmpl.stack_pos + off));
 
@@ -3121,6 +3107,8 @@ static void compile_cast_to_enmn(ctx_t * ctx, inst_t * inst, ira_dt_t * from, ir
         case IraDtEnmn:
             compile_int_like_cast(ctx, inst->opd0.var, inst->opd1.var, from->enmn.tag->body->int_type, to_int_type);
             break;
+        default:
+            ul_assert_unreachable();
     }
 }
 static void compile_cast(ctx_t * ctx, inst_t * inst)
@@ -3196,7 +3184,7 @@ static void compile_brc(ctx_t * ctx, inst_t * inst)
 {
     mc_inst_type_t jump_type;
 
-    switch (inst->base->type)
+    switch (inst->type)
     {
         case IraInstBrt:
             jump_type = McInstJnz;
@@ -3278,7 +3266,7 @@ static void compile_insts(ctx_t * ctx)
             [IraInstVaArg] = compile_va_arg
         };
 
-        compile_inst_proc_t * proc = compile_insts_procs[inst->base->type];
+        compile_inst_proc_t * proc = compile_insts_procs[inst->type];
 
         ul_assert(proc != NULL);
 
@@ -3347,7 +3335,7 @@ static bool check_var_for_val(ctx_t * ctx, inst_t * inst, size_t opd)
 {
     if (inst->opds[opd].var->intr.val == NULL)
     {
-        report(ctx, "[%s]: value in opd[%zi] var is NULL", ira_inst_infos[inst->base->type].type_str.str, opd);
+        report(ctx, "[%s]: value in opd[%zi] var is NULL", ira_inst_infos[inst->type].type_str.str, opd);
         return false;
     }
 
@@ -3454,7 +3442,7 @@ static bool execute_read_ptr(ctx_t * ctx, inst_t * inst)
     switch (val->type)
     {
         case IraValImmPtr:
-            report(ctx, "[%s]: no read of integer pointers in interpreter mode", ira_inst_infos[inst->base->type].type_str.str);
+            report(ctx, "[%s]: no read of integer pointers in interpreter mode", ira_inst_infos[inst->type].type_str.str);
             return false;
         case IraValLoPtr:
         {
@@ -3468,7 +3456,7 @@ static bool execute_read_ptr(ctx_t * ctx, inst_t * inst)
                     inst->opd0.var->intr.val = ira_val_copy(lo->var.val);
                     break;
                 default:
-                    report(ctx, "[%s]: read of unsupported language object", ira_inst_infos[inst->base->type].type_str.str);
+                    report(ctx, "[%s]: read of unsupported language object", ira_inst_infos[inst->type].type_str.str);
                     return false;
             }
 
@@ -3496,7 +3484,7 @@ static bool execute_make_dt_vec(ctx_t * ctx, inst_t * inst)
 
     if (!get_size_from_val(inst->opd2.var->intr.val, &vec_size))
     {
-        report(ctx, "[%s]: failed to get size of vector", ira_inst_infos[inst->base->type].type_str.str);
+        report(ctx, "[%s]: failed to get size of vector", ira_inst_infos[inst->type].type_str.str);
         return false;
     }
 
@@ -3556,7 +3544,7 @@ static bool execute_make_dt_tpl(ctx_t * ctx, inst_t * inst)
 
             if (var_ptr->intr.val == NULL)
             {
-                report(ctx, "[%s]: one of elements var value is NULL", ira_inst_infos[inst->base->type].type_str.str);
+                report(ctx, "[%s]: one of elements var value is NULL", ira_inst_infos[inst->type].type_str.str);
                 free(elems);
                 return false;
             }
@@ -3625,7 +3613,7 @@ static bool execute_make_dt_func(ctx_t * ctx, inst_t * inst)
 
             if (var_ptr->intr.val == NULL)
             {
-                report(ctx, "[%s]: one of arguments var value is NULL", ira_inst_infos[inst->base->type].type_str.str);
+                report(ctx, "[%s]: one of arguments var value is NULL", ira_inst_infos[inst->type].type_str.str);
                 free(args);
                 return false;
             }
@@ -3718,7 +3706,7 @@ static bool execute_insts(ctx_t * ctx)
             [IraInstRet] = execute_ret
         };
 
-        execute_inst_proc_t * proc = execute_insts_procs[inst->base->type];
+        execute_inst_proc_t * proc = execute_insts_procs[inst->type];
 
         ul_assert(proc != NULL);
 
@@ -3727,7 +3715,7 @@ static bool execute_insts(ctx_t * ctx)
             return false;
         }
 
-        switch (inst->base->type)
+        switch (inst->type)
         {
             case IraInstRet:
                 return true;

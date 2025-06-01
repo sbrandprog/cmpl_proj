@@ -10,8 +10,6 @@ function(set_proj_trg_props trg)
         COMPILE_WARNING_AS_ERROR ON
         C_STANDARD 11
         C_EXTENSIONS OFF
-        CXX_STANDARD 20
-        CXX_EXTENSIONS OFF
     )
 
     if(MSVC)

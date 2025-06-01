@@ -282,6 +282,8 @@ static void destroy_expr(ctx_t * ctx, expr_t * expr)
         case PlaExprCall:
             free(expr->call.args);
             break;
+        default:
+            break;
     }
 
     free(expr);
@@ -681,7 +683,13 @@ static bool get_ns_int(ctx_t * ctx, ul_hs_t * str, ira_int_type_t int_type, ira_
             continue;
         }
 
-        if (!get_ns_digit(*cur, &digit) || digit > radix)
+        if (!get_ns_digit(*cur, &digit))
+        {
+            pla_tltr_report(ctx->tltr, "invalid digit character [%c] in integer string:\n%s", *cur, str->str);
+            return false;
+        }
+
+        if (digit > radix)
         {
             pla_tltr_report(ctx->tltr, "digit [%llu] is greater than radix [%llu] in integer string:\n%s", digit, radix, str->str);
             return false;
@@ -1863,8 +1871,6 @@ static bool translate_expr1_dt_func(ctx_t * ctx, expr_t * expr)
 
     ul_assert(ids != NULL);
 
-    ira_dt_func_vas_t * vas = ctx->pec->dt_func_vass.none;
-
     ul_hs_t ** arg_var_ins = args;
     ul_hs_t ** id_ins = ids;
     for (expr_t * arg = expr->opd1.expr; arg != NULL; arg = arg->opd1.expr, ++arg_var_ins, ++id_ins)
@@ -1985,8 +1991,6 @@ static bool translate_expr1_ident(ctx_t * ctx, expr_t * expr)
 }
 static bool translate_expr1_call_func_ptr(ctx_t * ctx, expr_t * expr, var_t * callee)
 {
-    ira_dt_t * func_dt = callee->qdt.dt->ptr.body;
-
     ul_hs_t ** args = malloc(sizeof(*args) * expr->call.args_size);
 
     ul_assert(args != NULL);

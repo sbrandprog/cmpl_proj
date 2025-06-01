@@ -266,7 +266,7 @@ static bool compile_val(ctx_t * ctx, mc_frag_t * frag, ul_hs_t * hint_name, ira_
             }
 
             {
-                mc_inst_t data = { .type = McInstData, .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImmLabelVa64, .imm0_label = arr_label };
+                mc_inst_t data = { .type = McInstData, .opds = McInstOpds_Imm, .imm0_type = McInstImmLabelVa64, .imm0_label = arr_label };
 
                 mc_frag_push_inst(frag, &data);
 

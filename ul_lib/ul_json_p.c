@@ -156,13 +156,17 @@ static void push_str_1anydig(ctx_t * ctx)
     if (!is_dig(ctx->ch))
     {
         ctx->err = true;
+
+        push_str_ch(ctx, '0');
     }
-
-    while (is_dig(ctx->ch))
+    else
     {
-        push_str_ch(ctx, ctx->ch);
+        do
+        {
+            push_str_ch(ctx, ctx->ch);
 
-        next_ch(ctx);
+            next_ch(ctx);
+        } while (is_dig(ctx->ch));
     }
 }
 

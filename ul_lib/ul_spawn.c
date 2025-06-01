@@ -33,7 +33,7 @@ int ul_spawn_wait(const char * file_name, const char * const * args)
     }
     else
     {
-        size_t args_size = 0;
+        size_t args_size = 2;
 
         for (const char * const * arg = args; *arg != NULL; ++arg)
         {
@@ -48,14 +48,28 @@ int ul_spawn_wait(const char * file_name, const char * const * args)
             const char * const * arg = args;
             char ** new_arg = new_args;
 
-            for (; *arg != NULL; ++arg, ++new_arg)
             {
-                *new_arg = malloc(strlen(*arg));
+                size_t file_name_len = strlen(file_name);
+
+                *new_arg = malloc((file_name_len + 1) * sizeof(**new_arg));
 
                 ul_assert(*new_arg != NULL);
 
-                strcpy(*new_arg, *arg);
+                strncpy(*new_arg, file_name, file_name_len);
             }
+
+            for (; *arg != NULL; ++arg, ++new_arg)
+            {
+                size_t arg_len = strlen(*arg);
+
+                *new_arg = malloc((arg_len + 1) * sizeof(**new_arg));
+
+                ul_assert(*new_arg != NULL);
+
+                strncpy(*new_arg, *arg, arg_len);
+            }
+
+            *new_arg++ = NULL;
         }
 
         execv(file_name, new_args);

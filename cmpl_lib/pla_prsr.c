@@ -34,9 +34,9 @@ typedef struct bin_optr_info
 
 
 static const post_optr_info_t post_optr_infos[] = {
-    { .punc = PlaPuncDot, .expr_type = PlaExprMmbrAcc },
     { .punc = PlaPuncLeParen, .expr_type = PlaExprCall },
     { .punc = PlaPuncLeBrack, .expr_type = PlaExprSubscr },
+    { .punc = PlaPuncDot, .expr_type = PlaExprMmbrAcc },
     { .punc = PlaPuncDplus, .expr_type = PlaExprPostInc },
     { .punc = PlaPuncDminus, .expr_type = PlaExprPostDec },
     { .punc = PlaPuncExclMark, .expr_type = PlaExprDeref },
@@ -45,9 +45,9 @@ static const size_t post_optr_infos_size = ul_arr_count(post_optr_infos);
 static const unr_optr_info_t unr_optr_infos[] = {
     { .punc = PlaPuncAster, .expr_type = PlaExprDtPtr },
     { .punc = PlaPuncLeBrack, .expr_type = PlaExprDtArr },
-    { .punc = PlaPuncDplus, .expr_type = PlaExprPostInc },
-    { .punc = PlaPuncDminus, .expr_type = PlaExprPostDec },
     { .punc = PlaPuncAmper, .expr_type = PlaExprAddrOf },
+    { .punc = PlaPuncDplus, .expr_type = PlaExprPreInc },
+    { .punc = PlaPuncDminus, .expr_type = PlaExprPreDec },
     { .punc = PlaPuncPerc, .expr_type = PlaExprCast },
     { .punc = PlaPuncExclMark, .expr_type = PlaExprLogicNeg },
     { .punc = PlaPuncTilde, .expr_type = PlaExprBitNeg },
@@ -91,11 +91,11 @@ void pla_prsr_init(pla_prsr_t * prsr, ul_ec_fmtr_t * ec_fmtr)
 {
     *prsr = (pla_prsr_t){ .ec_fmtr = ec_fmtr };
 
-	pla_tok_init(&prsr->tok, PlaTokNone);
+    pla_tok_init(&prsr->tok, PlaTokNone);
 }
 void pla_prsr_cleanup(pla_prsr_t * prsr)
 {
-	pla_tok_cleanup(&prsr->tok);
+    pla_tok_cleanup(&prsr->tok);
 
     memset(prsr, 0, sizeof(*prsr));
 }
@@ -240,6 +240,7 @@ static void consume_ident_crit(pla_prsr_t * prsr, ul_hs_t ** out)
 {
     if (!consume_ident(prsr, out))
     {
+        *out = NULL;
         report(prsr, "expected an identifier");
     }
 }
@@ -256,6 +257,11 @@ static void consume_ch_str_crit(pla_prsr_t * prsr, ul_hs_t ** out_data, ul_hs_t 
     }
     else
     {
+        *out_data = NULL;
+        if (out_tag != NULL)
+        {
+            *out_tag = NULL;
+        }
         report(prsr, "expected a character string");
     }
 }
@@ -435,9 +441,6 @@ static void parse_expr_post(pla_prsr_t * prsr, pla_expr_t ** out)
 
         switch (info->expr_type)
         {
-            case PlaExprMmbrAcc:
-                consume_ident_crit(prsr, &(*out)->opd1.hs);
-                break;
             case PlaExprCall:
                 if (!consume_punc_exact(prsr, PlaPuncRiParen))
                 {
@@ -473,6 +476,12 @@ static void parse_expr_post(pla_prsr_t * prsr, pla_expr_t ** out)
 
                 consume_punc_exact_crit(prsr, PlaPuncRiBrack);
                 break;
+            case PlaExprMmbrAcc:
+                consume_ident_crit(prsr, &(*out)->opd1.hs);
+                break;
+            case PlaExprPostInc:
+            case PlaExprPostDec:
+                break;
             case PlaExprDeref:
             {
                 ul_hs_t * ident;
@@ -491,6 +500,8 @@ static void parse_expr_post(pla_prsr_t * prsr, pla_expr_t ** out)
                 }
                 break;
             }
+            default:
+                ul_assert_unreachable();
         }
 
         (*out)->pos_end = prsr->prev_tok_pos_end;
@@ -758,6 +769,8 @@ static void parse_expr_unr(pla_prsr_t * prsr, pla_expr_t ** out)
 
             switch (info->expr_type)
             {
+                case PlaExprDtPtr:
+                    break;
                 case PlaExprDtArr:
                     if (!consume_punc_exact(prsr, PlaPuncRiBrack))
                     {
@@ -771,6 +784,10 @@ static void parse_expr_unr(pla_prsr_t * prsr, pla_expr_t ** out)
                     }
 
                     break;
+                case PlaExprAddrOf:
+                case PlaExprPreInc:
+                case PlaExprPreDec:
+                    break;
                 case PlaExprCast:
                     consume_punc_exact_crit(prsr, PlaPuncLeBrack);
 
@@ -778,6 +795,12 @@ static void parse_expr_unr(pla_prsr_t * prsr, pla_expr_t ** out)
 
                     consume_punc_exact_crit(prsr, PlaPuncRiBrack);
                     break;
+                case PlaExprLogicNeg:
+				case PlaExprBitNeg:
+                case PlaExprArithNeg:
+                    break;
+                default:
+                    ul_assert_unreachable();
             }
 
             break;
@@ -869,6 +892,8 @@ static void parse_expr_asgn(pla_prsr_t * prsr, pla_expr_t ** out)
     {
         case PlaPuncAsgn:
             expr_type = PlaExprAsgn;
+            break;
+        default:
             break;
     }
 
@@ -1147,6 +1172,8 @@ static void parse_stmt_rse(pla_prsr_t * prsr, pla_stmt_t ** out)
                 case PlaPuncSemicolon:
                     next_tok(prsr);
                     return;
+                default:
+                    break;
             }
             break;
         case PlaTokKeyw:
@@ -1173,7 +1200,11 @@ static void parse_stmt_rse(pla_prsr_t * prsr, pla_stmt_t ** out)
                 case PlaKeywRet:
                     parse_stmt_ret(prsr, out);
                     return;
+                default:
+                    break;
             }
+            break;
+        default:
             break;
     }
 
@@ -1455,7 +1486,11 @@ static void parse_dclr_rse(pla_prsr_t * prsr, pla_dclr_t ** out)
                 case PlaKeywEnumeration:
                     parse_dclr_enmn(prsr, out);
                     return;
+                default:
+                    break;
             }
+            break;
+        default:
             break;
     }
 
@@ -1505,7 +1540,11 @@ static void parse_tu_item(pla_prsr_t * prsr, pla_tu_t * tu, pla_dclr_t ** ins)
                 case PlaKeywTlatuRef:
                     parse_tu_ref(prsr, tu, ins);
                     return;
+                default:
+                    break;
             }
+            break;
+        default:
             break;
     }
 
