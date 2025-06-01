@@ -691,7 +691,7 @@ static bool translate_core(pla_tltr_t * tltr)
 {
     pla_tu_t * tu = tltr->src->tu;
 
-    if (tu == NULL || tu->root->type != PlaDclrNspc || tu->root->name == NULL)
+    if (tu == NULL || tu->root->type != PlaDclrNspc || tu->root->name != NULL)
     {
         return false;
     }

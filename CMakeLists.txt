@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24)
 
 enable_testing()
 
-project(comp_proj)
+project(cmpl_proj)
 
 include(cmake/proj_helper.cmake)
 
