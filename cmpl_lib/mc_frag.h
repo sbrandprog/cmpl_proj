@@ -29,6 +29,7 @@ MC_API void mc_frag_destroy_chain(mc_frag_t * frag);
 
 MC_API void mc_frag_clear_insts(mc_frag_t * frag);
 MC_API void mc_frag_push_inst(mc_frag_t * frag, const mc_inst_t * inst);
+MC_API void mc_frag_pushmove_inst(mc_frag_t * frag, mc_inst_t * inst);
 
 MC_API bool mc_frag_build(mc_frag_t * frag, ul_ec_fmtr_t * ec_fmtr, lnk_sect_t ** out);
 

@@ -1692,15 +1692,9 @@ static void reset_bb_cmpl_gpr_from_var(ctx_t * ctx, var_t * var)
     }
 }
 
-static void push_mc_inst(ctx_t * ctx, mc_inst_t * inst)
-{
-    mc_frag_push_inst(ctx->cmpl.frag, inst);
-}
 static void pushmove_mc_inst(ctx_t * ctx, mc_inst_t * inst)
 {
-    push_mc_inst(ctx, inst);
-
-    mc_inst_cleanup(inst);
+    mc_frag_pushmove_inst(ctx->cmpl.frag, inst);
 }
 static void push_mc_label(ctx_t * ctx, ul_hs_t * name, lnk_sect_lp_stype_t label_stype)
 {
@@ -1713,15 +1707,9 @@ static void push_mc_label_basic(ctx_t * ctx, ul_hs_t * name)
     push_mc_label(ctx, name, LnkSectLpLabelBasic);
 }
 
-static void push_mc_unw_inst(ctx_t * ctx, mc_inst_t * inst)
-{
-    mc_frag_push_inst(ctx->cmpl.unw_frag, inst);
-}
 static void pushmove_mc_unw_inst(ctx_t * ctx, mc_inst_t * inst)
 {
-    mc_frag_push_inst(ctx->cmpl.unw_frag, inst);
-
-    mc_inst_cleanup(inst);
+    mc_frag_pushmove_inst(ctx->cmpl.unw_frag, inst);
 }
 static void push_mc_unw_byte(ctx_t * ctx, uint8_t byte)
 {
