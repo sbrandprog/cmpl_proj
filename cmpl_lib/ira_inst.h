@@ -70,6 +70,7 @@ struct ira_inst_info
     };
 };
 
+IRA_API void ira_inst_copy(ira_inst_t * dst, const ira_inst_t * src);
 IRA_API void ira_inst_cleanup(ira_inst_t * inst);
 
 extern IRA_API const ira_inst_info_t ira_inst_infos[IraInst_Count];

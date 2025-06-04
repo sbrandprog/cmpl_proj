@@ -28,11 +28,22 @@ void ira_func_destroy(ira_func_t * func)
     free(func);
 }
 
-ira_inst_t * ira_func_push_inst(ira_func_t * func, ira_inst_t * inst)
+ira_inst_t * ira_func_push_inst(ira_func_t * func, const ira_inst_t * inst)
+{
+    ul_arr_grow(func->insts_size + 1, &func->insts_cap, (void **)&func->insts, sizeof(*func->insts));
+
+    ira_inst_copy(&func->insts[func->insts_size++], inst);
+
+    return &func->insts[func->insts_size - 1];
+}
+
+ira_inst_t * ira_func_pushmove_inst(ira_func_t * func, ira_inst_t * inst)
 {
     ul_arr_grow(func->insts_size + 1, &func->insts_cap, (void **)&func->insts, sizeof(*func->insts));
 
     func->insts[func->insts_size++] = *inst;
+
+    memset(inst, 0, sizeof(*inst));
 
     return &func->insts[func->insts_size - 1];
 }

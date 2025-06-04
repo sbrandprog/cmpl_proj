@@ -72,11 +72,28 @@ void mc_frag_destroy_chain(mc_frag_t * frag)
     }
 }
 
+void mc_frag_clear_insts(mc_frag_t * frag)
+{
+    for (mc_inst_t *inst = frag->insts, *inst_end = inst + frag->insts_size; inst != inst_end; ++inst)
+    {
+        mc_inst_cleanup(inst);
+    }
+
+    frag->insts_size = 0;
+}
 void mc_frag_push_inst(mc_frag_t * frag, const mc_inst_t * inst)
 {
     ul_arr_grow(frag->insts_size + 1, &frag->insts_cap, (void **)&frag->insts, sizeof(*frag->insts));
 
-    frag->insts[frag->insts_size++] = *inst;
+    mc_inst_copy(&frag->insts[frag->insts_size++], inst);
+}
+void mc_frag_pushmove_inst(mc_frag_t * frag, mc_inst_t * inst)
+{
+    ul_arr_grow(frag->insts_size + 1, &frag->insts_cap, (void **)&frag->insts, sizeof(*frag->insts));
+
+	frag->insts[frag->insts_size++] = *inst;
+
+	memset(inst, 0, sizeof(*inst));
 }
 
 static void create_sect(ctx_t * ctx)

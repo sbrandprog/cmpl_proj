@@ -33,6 +33,7 @@ static bool test_proc(test_ctx_t * ctx)
     };
 
     copy_frag_insts(ul_arr_count(main_proc_insts), main_proc_insts, main_proc);
+	cleanup_src_insts(ul_arr_count(main_proc_insts), main_proc_insts);
 
     mc_frag_t * data_frag = mc_frag_create(McFragRoData);
 
@@ -57,6 +58,7 @@ static bool test_proc(test_ctx_t * ctx)
     };
 
     copy_frag_insts(ul_arr_count(data_frag_insts), data_frag_insts, data_frag);
+	cleanup_src_insts(ul_arr_count(data_frag_insts), data_frag_insts);
 
     {
         ul_hs_t * lib_name = UL_HST_HASHADD_WS(&ctx->hst, "kernel32.dll");

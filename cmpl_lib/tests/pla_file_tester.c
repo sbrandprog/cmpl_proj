@@ -32,7 +32,7 @@ static int main_core(int argc, char * argv[])
 
     repo.root = pla_pkg_create(NULL);
 
-    if (!pla_pkg_fill_from_list(repo.root, &hst, "pla_lib", file_name->str, NULL))
+    if (!pla_pkg_fill_from_list(repo.root, &hst, "pla_data/pla_lib", file_name->str, NULL))
     {
         printf("failed to fill repo\n");
         return -1;

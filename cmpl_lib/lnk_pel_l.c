@@ -885,7 +885,7 @@ static void set_dir_info(ctx_t * ctx, lnk_pe_nt_hdrs_t * nt, size_t dir_ent)
 {
     lnk_sect_lp_stype_t start = dir_start_mark[dir_ent], end = dir_end_mark[dir_ent];
 
-    ul_assert(start != LnkSectLpNone && end != LnkSectLpNone);
+    ul_assert(start != LnkSectLpMarkNone && end != LnkSectLpMarkNone);
 
     mark_t *start_mark = &ctx->marks[start], *end_mark = &ctx->marks[end];
 
@@ -979,7 +979,9 @@ static void write_file_core(ctx_t * ctx, FILE * file)
     {
         lnk_pe_sect_hdr_t sect_hdr = { 0 };
 
-        strncpy(sect_hdr.name, sect->name, ul_arr_count(sect_hdr.name));
+        size_t name_len = strlen(sect->name);
+        memcpy(sect_hdr.name, sect->name, ul_min(ul_arr_count(sect_hdr.name), name_len));
+
         sect_hdr.misc.virtual_size = (uint32_t)sect->data_size;
         sect_hdr.virtual_address = (uint32_t)sect->virt_addr;
         sect_hdr.size_of_raw_data = (uint32_t)sect->raw_size;

@@ -1,4 +1,6 @@
 
+set_dir_deps_trg(COPY_DLLS cmpl_lib ul_lib)
+
 execute_process(
 	COMMAND ${CMAKE_COMMAND} -E create_symlink
 		${PROJECT_SOURCE_DIR}/pla_data

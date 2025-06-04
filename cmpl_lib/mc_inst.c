@@ -166,6 +166,15 @@ const mc_reg_grps_t reg_type_to_grps[InstRecReg_Count] = {
     [InstRecRegCx64] = { .s_64 = 1, .gpr = 1, .gpr_cx = 1 },
 };
 
+void mc_inst_copy(mc_inst_t * dst, const mc_inst_t * src)
+{
+    *dst = *src;
+}
+void mc_inst_cleanup(mc_inst_t * inst)
+{
+    memset(inst, 0, sizeof(*inst));
+}
+
 static void report(ctx_t * ctx, const char * fmt, ...)
 {
     ctx->is_rptd = true;

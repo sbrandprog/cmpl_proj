@@ -13,4 +13,5 @@ struct ira_func
 IRA_API ira_func_t * ira_func_create(ira_dt_t * dt);
 IRA_API void ira_func_destroy(ira_func_t * func);
 
-IRA_API ira_inst_t * ira_func_push_inst(ira_func_t * func, ira_inst_t * inst);
+IRA_API ira_inst_t * ira_func_push_inst(ira_func_t * func, const ira_inst_t * inst);
+IRA_API ira_inst_t * ira_func_pushmove_inst(ira_func_t * func, ira_inst_t * inst);

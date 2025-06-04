@@ -313,11 +313,13 @@ ul_fs_dir_t * ul_fs_dir_read(const char * dir_path)
 
                 *ent = (ul_fs_ent_t){ .type = get_ent_type_from_mode(DTTOIF(entry_info->d_type)) };
 
-                ent->name = malloc(strlen(entry_info->d_name) * sizeof(*ent->name));
+				size_t ent_name_len = strlen(entry_info->d_name);
+
+                ent->name = malloc((ent_name_len + 1) * sizeof(*ent->name));
 
                 ul_assert(ent->name != NULL);
 
-                strcpy(ent->name, entry_info->d_name);
+                strncpy(ent->name, entry_info->d_name, ent_name_len);
             }
         } while (entry_info != NULL);
 

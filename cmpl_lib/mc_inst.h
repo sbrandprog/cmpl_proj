@@ -173,18 +173,15 @@ struct mc_inst
     mc_size_t mem_size;
     mc_inst_disp_type_t mem_disp_type;
     mc_inst_imm_type_t imm0_type;
-    int32_t mem_disp;
     union
     {
-        ul_hs_t * mem_disp_label;
+        int32_t mem_disp;
         lnk_sect_lp_stype_t label_stype;
     };
-    union
-    {
-        int64_t imm0;
-        ul_hs_t * imm0_label;
-        ul_hs_t * label;
-    };
+    int64_t imm0;
+    ul_hs_t * mem_disp_label;
+    ul_hs_t * imm0_label;
+    ul_hs_t * label;
 };
 enum mc_inst_off_type
 {
@@ -209,6 +206,9 @@ struct mc_inst_bs
 {
     uint8_t mem[MC_INST_BS_SIZE];
 };
+
+MC_API void mc_inst_copy(mc_inst_t * dst, const mc_inst_t * src);
+MC_API void mc_inst_cleanup(mc_inst_t * inst);
 
 MC_API bool mc_inst_build(mc_inst_t * inst, ul_ec_fmtr_t * ec_fmtr, size_t * inst_size_out, mc_inst_bs_t * bs_out, mc_inst_offs_t * offs_out);
 

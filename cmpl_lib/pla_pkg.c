@@ -147,7 +147,7 @@ static void get_file_name_and_ext(const char * path, const char ** file_name_out
         *file_ext_out = file_ext;
     }
 }
-static ul_hs_t * pla_pkg_get_tus_name_from_path(ul_hst_t * hst, const char * path)
+ul_hs_t * pla_pkg_get_tus_name_from_path(ul_hst_t * hst, const char * path)
 {
     const char *path_file_name, *path_ext;
     get_file_name_and_ext(path, &path_file_name, &path_ext);
@@ -238,12 +238,6 @@ bool pla_pkg_fill_from_dir(pla_pkg_t * pkg, ul_hst_t * hst, const char * dir_pat
             int res = snprintf(path_buf, path_buf_size, "%s/%s", dir_path, ent->name);
 
             ul_assert(res > 0);
-        }
-
-        const char * name_ext = strrchr(ent->name, '.');
-        if (name_ext == NULL)
-        {
-            name_ext = ent->name + name_size;
         }
 
         if (!process_path(pkg, hst, path_buf, ent->type))

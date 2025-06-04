@@ -31,10 +31,15 @@ struct pla_lex
     char * str;
     size_t str_cap;
 
+	pla_ec_pos_t pos_start;
+
     pla_tok_t tok;
 
     bool is_rptd;
 };
+
+PLA_API void pla_lex_src_init(pla_lex_src_t * src, ul_hs_t * name);
+PLA_API void pla_lex_src_cleanup(pla_lex_src_t * src);
 
 PLA_API void pla_lex_init(pla_lex_t * lex, ul_hst_t * hst, ul_ec_fmtr_t * ec_fmtr);
 PLA_API void pla_lex_cleanup(pla_lex_t * lex);

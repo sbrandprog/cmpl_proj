@@ -1,6 +1,34 @@
 
+function(set_dir_deps_trg)
+	cmake_parse_arguments(ARGS "" "" "COPY_DLLS" ${ARGN})
+
+	string(MAKE_C_IDENTIFIER "${CMAKE_CURRENT_SOURCE_DIR}" trg_name)
+
+	if (TARGET ${trg_name})
+		message(FATAL_ERROR "Directory dependencies target for ${CMAKE_CURRENT_SOURCE_DIR} already defined.")
+	endif()
+
+	if (WIN32)
+		foreach (dll ${ARGS_COPY_DLLS})
+			list(APPEND dlls_list "$<TARGET_FILE:${dll}>")
+		endforeach()
+
+		if (dlls_list)
+			add_custom_target(${trg_name}
+				COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				${dlls_list}
+				${CMAKE_CURRENT_BINARY_DIR}
+				COMMENT "Copying dependencies (${ARGS_COPY_DLLS}) in ${CMAKE_CURRENT_BINARY_DIR}")
+
+			message(VERBOSE "Set up directory dependencies target for ${CMAKE_CURRENT_SOURCE_DIR}")
+
+			set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" PROPERTY DLLS_DEPS_TRG ${trg_name})
+		endif()
+	endif()
+endfunction()
+
 function(set_proj_trg_props trg)
-    cmake_parse_arguments(ARGS "COPY_DLLS" "PCH_NAME" "" ${ARGN})
+    cmake_parse_arguments(ARGS "" "PCH_NAME" "" ${ARGN})
 
     target_include_directories(${trg} PUBLIC ${PROJECT_SOURCE_DIR})
 
@@ -10,8 +38,6 @@ function(set_proj_trg_props trg)
         COMPILE_WARNING_AS_ERROR ON
         C_STANDARD 11
         C_EXTENSIONS OFF
-        CXX_STANDARD 20
-        CXX_EXTENSIONS OFF
     )
 
     if(MSVC)
@@ -19,16 +45,12 @@ function(set_proj_trg_props trg)
         target_compile_definitions(${trg} PRIVATE _CRT_SECURE_NO_WARNINGS)
     endif()
 
-    if(WIN32)
-        if(ARGS_COPY_DLLS)
-            set(trg_dlls $<TARGET_RUNTIME_DLLS:${trg}>)
+	get_property(trg_dir TARGET ${trg} PROPERTY SOURCE_DIR)
+	get_property(trg_dir_deps_trg DIRECTORY "${trg_dir}" PROPERTY DLLS_DEPS_TRG)
 
-            add_custom_command(TARGET ${trg} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E $<IF:$<BOOL:${trg_dlls}>,copy_if_different,true> $<TARGET_RUNTIME_DLLS:${trg}> $<TARGET_FILE_DIR:${trg}>
-                COMMAND_EXPAND_LISTS
-            )
-        endif()
-    endif()
+	if (TARGET ${trg_dir_deps_trg})
+		add_dependencies(${trg} ${trg_dir_deps_trg})
+	endif()
 endfunction()
 
 function(add_proj_test_exe test_prefix exe_name)
@@ -39,7 +61,7 @@ function(add_proj_test_exe test_prefix exe_name)
 
     add_executable(${exe_name} ${main_file})
 
-    set_proj_trg_props(${exe_name} COPY_DLLS)
+    set_proj_trg_props(${exe_name})
 
     target_link_libraries(${exe_name} ${ARGS_LIBRARIES})
 

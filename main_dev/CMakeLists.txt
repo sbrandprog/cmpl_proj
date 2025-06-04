@@ -1,4 +1,6 @@
 
+set_dir_deps_trg(COPY_DLLS cmpl_lib ul_lib)
+
 execute_process(
 	COMMAND ${CMAKE_COMMAND} -E create_symlink
 		${PROJECT_SOURCE_DIR}/pla_data
@@ -14,6 +16,6 @@ target_sources(main_dev
     pch.h
 )
 
-set_proj_trg_props(main_dev COPY_DLLS PCH_NAME pch.h)
+set_proj_trg_props(main_dev PCH_NAME pch.h)
 
 target_link_libraries(main_dev cmpl_lib ul_lib)

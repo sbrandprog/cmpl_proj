@@ -282,6 +282,8 @@ static void destroy_expr(ctx_t * ctx, expr_t * expr)
         case PlaExprCall:
             free(expr->call.args);
             break;
+        default:
+            break;
     }
 
     free(expr);
@@ -348,15 +350,15 @@ static void push_def_var_inst(ctx_t * ctx, var_t * var)
 {
     ira_inst_t def_var = { .type = IraInstDefVar, .opd0.hs = var->inst_name, .opd1.dt = var->qdt.dt, .opd2.dt_qual = var->qdt.qual };
 
-    ira_func_push_inst(ctx->func, &def_var);
+    ira_func_pushmove_inst(ctx->func, &def_var);
 }
 static void push_def_label_inst(ctx_t * ctx, ul_hs_t * name)
 {
     ira_inst_t def_label = { .type = IraInstDefLabel, .opd0.hs = name };
 
-    ira_func_push_inst(ctx->func, &def_label);
+    ira_func_pushmove_inst(ctx->func, &def_label);
 }
-static void push_inst_imm_var0(ctx_t * ctx, ira_inst_t * inst, ira_dt_t * dt, var_t ** out)
+static void pushmove_inst_imm_var0(ctx_t * ctx, ira_inst_t * inst, ira_dt_t * dt, var_t ** out)
 {
     var_t * out_var = get_imm_var(ctx, dt);
 
@@ -364,14 +366,14 @@ static void push_inst_imm_var0(ctx_t * ctx, ira_inst_t * inst, ira_dt_t * dt, va
 
     inst->opd0.hs = out_var->inst_name;
 
-    ira_func_push_inst(ctx->func, inst);
+    ira_func_pushmove_inst(ctx->func, inst);
 
     *out = out_var;
 }
-static void push_inst_imm_var0_expr(ctx_t * ctx, expr_t * expr, ira_inst_t * inst)
+static void pushmove_inst_imm_var0_expr(ctx_t * ctx, expr_t * expr, ira_inst_t * inst)
 {
     expr->val_type = ExprValImmVar;
-    push_inst_imm_var0(ctx, inst, expr->val_qdt.dt, &expr->val.var);
+    pushmove_inst_imm_var0(ctx, inst, expr->val_qdt.dt, &expr->val.var);
 }
 
 static bool translate_expr0(ctx_t * ctx, pla_expr_t * base, expr_t ** out);
@@ -681,7 +683,13 @@ static bool get_ns_int(ctx_t * ctx, ul_hs_t * str, ira_int_type_t int_type, ira_
             continue;
         }
 
-        if (!get_ns_digit(*cur, &digit) || digit > radix)
+        if (!get_ns_digit(*cur, &digit))
+        {
+            pla_tltr_report(ctx->tltr, "invalid digit character [%c] in integer string:\n%s", *cur, str->str);
+            return false;
+        }
+
+        if (digit > radix)
         {
             pla_tltr_report(ctx->tltr, "digit [%llu] is greater than radix [%llu] in integer string:\n%s", digit, radix, str->str);
             return false;
@@ -1693,7 +1701,7 @@ static bool translate_expr1_imm_var(ctx_t * ctx, expr_t * expr, var_t ** out)
         {
             ira_inst_t read_ptr = { .type = IraInstReadPtr, .opd1.hs = expr->val.var->inst_name };
 
-            push_inst_imm_var0(ctx, &read_ptr, expr->val_qdt.dt, out);
+            pushmove_inst_imm_var0(ctx, &read_ptr, expr->val_qdt.dt, out);
             break;
         }
         default:
@@ -1722,9 +1730,11 @@ static bool translate_expr1_var_ptr(ctx_t * ctx, expr_t * expr, var_t ** out)
                 return false;
             }
 
-            ira_inst_t addr_of = { .type = IraInstAddrOf, .opd1.hs = expr->val.var->inst_name };
+            {
+                ira_inst_t addr_of = { .type = IraInstAddrOf, .opd1.hs = expr->val.var->inst_name };
 
-            push_inst_imm_var0(ctx, &addr_of, ptr_dt, out);
+                pushmove_inst_imm_var0(ctx, &addr_of, ptr_dt, out);
+            }
 
             break;
         }
@@ -1762,7 +1772,7 @@ static bool translate_expr1_load_val(ctx_t * ctx, expr_t * expr)
 {
     ira_inst_t load_val = { .type = IraInstLoadVal, .opd1.val = expr->load_val.val };
 
-    push_inst_imm_var0_expr(ctx, expr, &load_val);
+    pushmove_inst_imm_var0_expr(ctx, expr, &load_val);
 
     expr->load_val.val = NULL;
 
@@ -1779,7 +1789,7 @@ static bool translate_expr1_dt_ptr(ctx_t * ctx, expr_t * expr)
 
     ira_inst_t make_dt_ptr = { .type = IraInstMakeDtPtr, .opd1.hs = opd_var->inst_name, .opd2.dt_qual = ira_dt_qual_none };
 
-    push_inst_imm_var0_expr(ctx, expr, &make_dt_ptr);
+    pushmove_inst_imm_var0_expr(ctx, expr, &make_dt_ptr);
 
     return true;
 }
@@ -1814,7 +1824,7 @@ static bool translate_expr1_dt_tpl(ctx_t * ctx, expr_t * expr)
 
     ira_inst_t make_dt_stct = { .type = IraInstMakeDtTpl, .opd1.dt_qual = ira_dt_qual_none, .opd2.size = elems_size, .opd3.hss = elems, .opd4.hss = ids };
 
-    push_inst_imm_var0_expr(ctx, expr, &make_dt_stct);
+    pushmove_inst_imm_var0_expr(ctx, expr, &make_dt_stct);
 
     return true;
 }
@@ -1833,7 +1843,7 @@ static bool translate_expr1_dt_arr(ctx_t * ctx, expr_t * expr)
     {
         ira_inst_t make_dt_arr = { .type = IraInstMakeDtArr, .opd1.hs = opd_var->inst_name, .opd2.dt_qual = ira_dt_qual_none };
 
-        push_inst_imm_var0_expr(ctx, expr, &make_dt_arr);
+        pushmove_inst_imm_var0_expr(ctx, expr, &make_dt_arr);
     }
     else
     {
@@ -1846,7 +1856,7 @@ static bool translate_expr1_dt_arr(ctx_t * ctx, expr_t * expr)
 
         ira_inst_t make_dt_vec = { .type = IraInstMakeDtVec, .opd1.hs = opd_var->inst_name, .opd2.hs = dim_var->inst_name, .opd3.dt_qual = ira_dt_qual_none };
 
-        push_inst_imm_var0_expr(ctx, expr, &make_dt_vec);
+        pushmove_inst_imm_var0_expr(ctx, expr, &make_dt_vec);
     }
 
     return true;
@@ -1862,8 +1872,6 @@ static bool translate_expr1_dt_func(ctx_t * ctx, expr_t * expr)
     ul_hs_t ** ids = malloc(args_size * sizeof(*ids));
 
     ul_assert(ids != NULL);
-
-    ira_dt_func_vas_t * vas = ctx->pec->dt_func_vass.none;
 
     ul_hs_t ** arg_var_ins = args;
     ul_hs_t ** id_ins = ids;
@@ -1905,7 +1913,7 @@ static bool translate_expr1_dt_func(ctx_t * ctx, expr_t * expr)
 
     ira_inst_t make_dt_func = { .type = IraInstMakeDtFunc, .opd1.hs = ret_var->inst_name, .opd2.size = args_size, .opd3.hss = args, .opd4.hss = ids, .opd5.dt_func_vas = expr->dt_func.vas };
 
-    push_inst_imm_var0_expr(ctx, expr, &make_dt_func);
+    pushmove_inst_imm_var0_expr(ctx, expr, &make_dt_func);
 
     return true;
 }
@@ -1920,7 +1928,7 @@ static bool translate_expr1_dt_const(ctx_t * ctx, expr_t * expr)
 
     ira_inst_t make_dt_const = { .type = IraInstMakeDtConst, .opd1.hs = opd_var->inst_name };
 
-    push_inst_imm_var0_expr(ctx, expr, &make_dt_const);
+    pushmove_inst_imm_var0_expr(ctx, expr, &make_dt_const);
 
     return true;
 }
@@ -1948,7 +1956,7 @@ static bool translate_expr1_ident(ctx_t * ctx, expr_t * expr)
 
                     ira_inst_t load_val = { .type = IraInstLoadVal, .opd1.val = lo_val };
 
-                    push_inst_imm_var0_expr(ctx, expr, &load_val);
+                    pushmove_inst_imm_var0_expr(ctx, expr, &load_val);
 
                     break;
                 }
@@ -1962,11 +1970,13 @@ static bool translate_expr1_ident(ctx_t * ctx, expr_t * expr)
                         return false;
                     }
 
-                    ira_inst_t load_val = { .type = IraInstLoadVal, .opd1.val = lo_val };
-
                     var_t * lo_ptr_var;
 
-                    push_inst_imm_var0(ctx, &load_val, load_val.opd1.val->dt, &lo_ptr_var);
+                    {
+                        ira_inst_t load_val = { .type = IraInstLoadVal, .opd1.val = lo_val };
+
+                        pushmove_inst_imm_var0(ctx, &load_val, load_val.opd1.val->dt, &lo_ptr_var);
+                    }
 
                     expr->val_type = ExprValDeref;
                     expr->val.var = lo_ptr_var;
@@ -1985,8 +1995,6 @@ static bool translate_expr1_ident(ctx_t * ctx, expr_t * expr)
 }
 static bool translate_expr1_call_func_ptr(ctx_t * ctx, expr_t * expr, var_t * callee)
 {
-    ira_dt_t * func_dt = callee->qdt.dt->ptr.body;
-
     ul_hs_t ** args = malloc(sizeof(*args) * expr->call.args_size);
 
     ul_assert(args != NULL);
@@ -2008,7 +2016,7 @@ static bool translate_expr1_call_func_ptr(ctx_t * ctx, expr_t * expr, var_t * ca
         {
             ira_inst_t cast = { .type = IraInstCast, .opd1.hs = arg_var->inst_name, .opd2.dt = arg->implct_cast_to };
 
-            push_inst_imm_var0(ctx, &cast, arg->implct_cast_to, &arg_var);
+            pushmove_inst_imm_var0(ctx, &cast, arg->implct_cast_to, &arg_var);
         }
 
         *arg_var_ins = arg_var->inst_name;
@@ -2016,7 +2024,7 @@ static bool translate_expr1_call_func_ptr(ctx_t * ctx, expr_t * expr, var_t * ca
 
     ira_inst_t call = { .type = IraInstCallFuncPtr, .opd1.hs = callee->inst_name, .opd2.size = expr->call.args_size, .opd3.hss = args };
 
-    push_inst_imm_var0_expr(ctx, expr, &call);
+    pushmove_inst_imm_var0_expr(ctx, expr, &call);
 
     return true;
 }
@@ -2081,7 +2089,7 @@ static bool translate_expr1_subscr(ctx_t * ctx, expr_t * expr)
 
             ira_inst_t cast = { .type = IraInstCast, .opd1.hs = opd0_ptr->inst_name, .opd2.dt = ptr_var_dt };
 
-            push_inst_imm_var0(ctx, &cast, ptr_var_dt, &ptr_var);
+            pushmove_inst_imm_var0(ctx, &cast, ptr_var_dt, &ptr_var);
 
             break;
         }
@@ -2118,13 +2126,17 @@ static bool translate_expr1_subscr(ctx_t * ctx, expr_t * expr)
 
             var_t * mmbr_ptr;
 
-            ira_inst_t mmbr_acc_ptr = { .type = IraInstMmbrAccPtr, .opd1.hs = opd0_ptr->inst_name, .opd2.hs = mmbr };
+            {
+                ira_inst_t mmbr_acc_ptr = { .type = IraInstMmbrAccPtr, .opd1.hs = opd0_ptr->inst_name, .opd2.hs = mmbr };
 
-            push_inst_imm_var0(ctx, &mmbr_acc_ptr, ptr_var_dt, &mmbr_ptr);
+                pushmove_inst_imm_var0(ctx, &mmbr_acc_ptr, ptr_var_dt, &mmbr_ptr);
+            }
 
-            ira_inst_t read_ptr = { .type = IraInstReadPtr, .opd1.hs = mmbr_ptr->inst_name };
+            {
+                ira_inst_t read_ptr = { .type = IraInstReadPtr, .opd1.hs = mmbr_ptr->inst_name };
 
-            push_inst_imm_var0(ctx, &read_ptr, mmbr_ptr->qdt.dt->ptr.body, &ptr_var);
+                pushmove_inst_imm_var0(ctx, &read_ptr, mmbr_ptr->qdt.dt->ptr.body, &ptr_var);
+            }
 
             break;
         }
@@ -2141,9 +2153,11 @@ static bool translate_expr1_subscr(ctx_t * ctx, expr_t * expr)
 
     var_t * res_var;
 
-    ira_inst_t shift_ptr = { .type = IraInstShiftPtr, .opd1.hs = ptr_var->inst_name, .opd2.hs = opd1->inst_name };
+    {
+        ira_inst_t shift_ptr = { .type = IraInstShiftPtr, .opd1.hs = ptr_var->inst_name, .opd2.hs = opd1->inst_name };
 
-    push_inst_imm_var0(ctx, &shift_ptr, ptr_var->qdt.dt, &res_var);
+        pushmove_inst_imm_var0(ctx, &shift_ptr, ptr_var->qdt.dt, &res_var);
+    }
 
     expr->val_type = ExprValDeref;
     expr->val.var = res_var;
@@ -2171,9 +2185,11 @@ static bool translate_expr1_mmbr_acc(ctx_t * ctx, expr_t * expr)
 
     var_t * ptr_mmbr_var;
 
-    ira_inst_t mmbr_acc_ptr = { .type = IraInstMmbrAccPtr, .opd1.hs = ptr_var->inst_name, .opd2.hs = expr->opd1.hs };
+    {
+        ira_inst_t mmbr_acc_ptr = { .type = IraInstMmbrAccPtr, .opd1.hs = ptr_var->inst_name, .opd2.hs = expr->opd1.hs };
 
-    push_inst_imm_var0(ctx, &mmbr_acc_ptr, ptr_mmbr_dt, &ptr_mmbr_var);
+        pushmove_inst_imm_var0(ctx, &mmbr_acc_ptr, ptr_mmbr_dt, &ptr_mmbr_var);
+    }
 
     set_expr_ptr_val(ctx, expr, opd->val_type, ptr_mmbr_var);
 
@@ -2195,9 +2211,9 @@ static bool translate_expr1_deref(ctx_t * ctx, expr_t * expr)
 }
 static bool translate_expr1_va_start(ctx_t * ctx, expr_t * expr)
 {
-    ira_inst_t inst = { .type = IraInstVaStart };
+    ira_inst_t start = { .type = IraInstVaStart };
 
-    push_inst_imm_var0_expr(ctx, expr, &inst);
+    pushmove_inst_imm_var0_expr(ctx, expr, &start);
 
     return true;
 }
@@ -2210,9 +2226,9 @@ static bool translate_expr1_va_arg(ctx_t * ctx, expr_t * expr)
         return false;
     }
 
-    ira_inst_t inst = { .type = IraInstVaArg, .opd1.hs = va_elem_var->inst_name };
+    ira_inst_t arg = { .type = IraInstVaArg, .opd1.hs = va_elem_var->inst_name };
 
-    push_inst_imm_var0_expr(ctx, expr, &inst);
+    pushmove_inst_imm_var0_expr(ctx, expr, &arg);
 
     return true;
 }
@@ -2239,7 +2255,7 @@ static bool translate_expr1_addr_of(ctx_t * ctx, expr_t * expr)
 
             ira_inst_t addr_of = { .type = IraInstAddrOf, .opd1.hs = opd_var->inst_name };
 
-            push_inst_imm_var0_expr(ctx, expr, &addr_of);
+            pushmove_inst_imm_var0_expr(ctx, expr, &addr_of);
 
             break;
         }
@@ -2266,7 +2282,7 @@ static bool translate_expr1_cast(ctx_t * ctx, expr_t * expr)
 
     ira_inst_t cast = { .type = IraInstCast, .opd1.hs = opd_var->inst_name, .opd2.dt = expr->val_qdt.dt };
 
-    push_inst_imm_var0_expr(ctx, expr, &cast);
+    pushmove_inst_imm_var0_expr(ctx, expr, &cast);
 
     return true;
 }
@@ -2281,7 +2297,7 @@ static bool translate_expr1_unr(ctx_t * ctx, expr_t * expr)
 
     ira_inst_t optr = { .type = IraInstUnrOptr, .opd1.optr = expr->optr.res.optr, .opd2.hs = opd_var->inst_name };
 
-    push_inst_imm_var0_expr(ctx, expr, &optr);
+    pushmove_inst_imm_var0_expr(ctx, expr, &optr);
 
     return true;
 }
@@ -2303,12 +2319,12 @@ static bool translate_expr1_bin(ctx_t * ctx, expr_t * expr)
     {
         ira_inst_t cast = { .type = IraInstCast, .opd1.hs = opd1_var->inst_name, .opd2.dt = expr->optr.res.right_implct_cast_to };
 
-        push_inst_imm_var0(ctx, &cast, expr->optr.res.right_implct_cast_to, &opd1_var);
+        pushmove_inst_imm_var0(ctx, &cast, expr->optr.res.right_implct_cast_to, &opd1_var);
     }
 
     ira_inst_t optr = { .type = IraInstBinOptr, .opd1.optr = expr->optr.res.optr, .opd2.hs = opd0_var->inst_name, .opd3.hs = opd1_var->inst_name };
 
-    push_inst_imm_var0_expr(ctx, expr, &optr);
+    pushmove_inst_imm_var0_expr(ctx, expr, &optr);
 
     return true;
 }
@@ -2342,9 +2358,11 @@ static bool translate_expr1_logic_optr(ctx_t * ctx, expr_t * expr)
 
     ul_hs_t * end_label = get_unq_label_name(ctx, end_label_base, ctx->unq_label_index++, end_label_suffix);
 
-    ira_inst_t br = { .type = br_type, .opd0.hs = end_label, .opd1.hs = opd0->inst_name };
+    {
+        ira_inst_t br = { .type = br_type, .opd0.hs = end_label, .opd1.hs = opd0->inst_name };
 
-    ira_func_push_inst(ctx->func, &br);
+        ira_func_pushmove_inst(ctx->func, &br);
+    }
 
     var_t * opd1;
 
@@ -2353,9 +2371,11 @@ static bool translate_expr1_logic_optr(ctx_t * ctx, expr_t * expr)
         return false;
     }
 
-    ira_inst_t copy = { .type = IraInstCopy, .opd0.hs = opd0->inst_name, .opd1.hs = opd1->inst_name };
+    {
+        ira_inst_t copy = { .type = IraInstCopy, .opd0.hs = opd0->inst_name, .opd1.hs = opd1->inst_name };
 
-    ira_func_push_inst(ctx->func, &copy);
+        ira_func_pushmove_inst(ctx->func, &copy);
+    }
 
     push_def_label_inst(ctx, end_label);
 
@@ -2378,7 +2398,7 @@ static bool translate_expr1_asgn(ctx_t * ctx, expr_t * expr)
     {
         ira_inst_t cast = { .type = IraInstCast, .opd1.hs = opd1_var->inst_name, .opd2.dt = expr->asgn.implct_cast_to };
 
-        push_inst_imm_var0(ctx, &cast, expr->asgn.implct_cast_to, &opd1_var);
+        pushmove_inst_imm_var0(ctx, &cast, expr->asgn.implct_cast_to, &opd1_var);
     }
 
     if (!translate_expr1(ctx, opd0))
@@ -2400,7 +2420,7 @@ static bool translate_expr1_asgn(ctx_t * ctx, expr_t * expr)
 
             ira_inst_t copy = { .type = IraInstCopy, .opd0.hs = opd0_var->inst_name, .opd1.hs = opd1_var->inst_name };
 
-            ira_func_push_inst(ctx->func, &copy);
+            ira_func_pushmove_inst(ctx->func, &copy);
 
             break;
         }
@@ -2408,7 +2428,7 @@ static bool translate_expr1_asgn(ctx_t * ctx, expr_t * expr)
         {
             ira_inst_t write_ptr = { .type = IraInstWritePtr, .opd0.hs = opd0->val.var->inst_name, .opd1.hs = opd1_var->inst_name };
 
-            ira_func_push_inst(ctx->func, &write_ptr);
+            ira_func_pushmove_inst(ctx->func, &write_ptr);
 
             break;
         }
@@ -2610,9 +2630,11 @@ static bool translate_stmt_var_val(ctx_t * ctx, pla_stmt_t * stmt)
         return false;
     }
 
-    ira_inst_t def_var_copy = { .type = IraInstDefVarCopy, .opd0.hs = var->inst_name, .opd1.hs = val_var->inst_name, .opd2.dt_qual = var->qdt.qual };
+    {
+        ira_inst_t def_var_copy = { .type = IraInstDefVarCopy, .opd0.hs = var->inst_name, .opd1.hs = val_var->inst_name, .opd2.dt_qual = var->qdt.qual };
 
-    ira_func_push_inst(ctx->func, &def_var_copy);
+        ira_func_pushmove_inst(ctx->func, &def_var_copy);
+    }
 
     return true;
 }
@@ -2638,9 +2660,11 @@ static bool translate_stmt_cond(ctx_t * ctx, pla_stmt_t * stmt)
     {
         ul_hs_t * tc_end = get_unq_label_name(ctx, &label_base_cond, label_index, &label_suffix_tc_end);
 
-        ira_inst_t brf = { .type = IraInstBrf, .opd0.hs = tc_end, .opd1.hs = cond_var->inst_name };
+        {
+            ira_inst_t brf = { .type = IraInstBrf, .opd0.hs = tc_end, .opd1.hs = cond_var->inst_name };
 
-        ira_func_push_inst(ctx->func, &brf);
+            ira_func_pushmove_inst(ctx->func, &brf);
+        }
 
         if (!translate_stmt(ctx, stmt->cond.true_br))
         {
@@ -2654,9 +2678,11 @@ static bool translate_stmt_cond(ctx_t * ctx, pla_stmt_t * stmt)
     {
         ul_hs_t * fc_end = get_unq_label_name(ctx, &label_base_cond, label_index, &label_suffix_fc_end);
 
-        ira_inst_t bru = { .type = IraInstBru, .opd0.hs = fc_end };
+        {
+            ira_inst_t bru = { .type = IraInstBru, .opd0.hs = fc_end };
 
-        ira_func_push_inst(ctx->func, &bru);
+            ira_func_pushmove_inst(ctx->func, &bru);
+        }
 
         push_def_label_inst(ctx, exit_label);
 
@@ -2691,7 +2717,7 @@ static bool translate_stmt_pre_loop_cfb(ctx_t * ctx, pla_stmt_t * stmt, cfb_t * 
     {
         ira_inst_t brf = { .type = IraInstBrf, .opd0.hs = cfb->exit_label, .opd1.hs = cond_var->inst_name };
 
-        ira_func_push_inst(ctx->func, &brf);
+        ira_func_pushmove_inst(ctx->func, &brf);
     }
 
     if (!translate_stmt(ctx, stmt->pre_loop.body))
@@ -2702,7 +2728,7 @@ static bool translate_stmt_pre_loop_cfb(ctx_t * ctx, pla_stmt_t * stmt, cfb_t * 
     {
         ira_inst_t bru = { .type = IraInstBru, .opd0.hs = cfb->cnt_label };
 
-        ira_func_push_inst(ctx->func, &bru);
+        ira_func_pushmove_inst(ctx->func, &bru);
     }
 
     push_def_label_inst(ctx, cfb->exit_label);
@@ -2748,7 +2774,7 @@ static bool translate_stmt_post_loop_cfb(ctx_t * ctx, pla_stmt_t * stmt, cfb_t *
     {
         ira_inst_t brt = { .type = IraInstBrt, .opd0.hs = body_label, .opd1.hs = cond_var->inst_name };
 
-        ira_func_push_inst(ctx->func, &brt);
+        ira_func_pushmove_inst(ctx->func, &brt);
     }
 
     push_def_label_inst(ctx, cfb->exit_label);
@@ -2794,7 +2820,7 @@ static bool translate_stmt_brk(ctx_t * ctx, pla_stmt_t * stmt)
     {
         ira_inst_t bru = { .type = IraInstBru, .opd0.hs = cfb->exit_label };
 
-        ira_func_push_inst(ctx->func, &bru);
+        ira_func_pushmove_inst(ctx->func, &bru);
     }
 
     return true;
@@ -2826,7 +2852,7 @@ static bool translate_stmt_cnt(ctx_t * ctx, pla_stmt_t * stmt)
     {
         ira_inst_t bru = { .type = IraInstBru, .opd0.hs = cfb->cnt_label };
 
-        ira_func_push_inst(ctx->func, &bru);
+        ira_func_pushmove_inst(ctx->func, &bru);
     }
 
     return true;
@@ -2853,9 +2879,11 @@ static bool translate_stmt_ret(ctx_t * ctx, pla_stmt_t * stmt)
         ctx->func_ret = ret_var->qdt.dt;
     }
 
-    ira_inst_t ret = { .type = IraInstRet, .opd0.hs = ret_var->inst_name };
+    {
+        ira_inst_t ret = { .type = IraInstRet, .opd0.hs = ret_var->inst_name };
 
-    ira_func_push_inst(ctx->func, &ret);
+        ira_func_pushmove_inst(ctx->func, &ret);
+    }
 
     return true;
 }

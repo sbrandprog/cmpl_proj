@@ -33,7 +33,7 @@ static bool test_proc(test_ctx_t * ctx)
     {
         ira_inst_t def_var = { .type = IraInstDefVar, .opd0.hs = var_name, .opd1.dt = s32_dt, .opd2.dt_qual = ira_dt_qual_none };
 
-        ira_func_push_inst(main_lo->func, &def_var);
+        ira_func_pushmove_inst(main_lo->func, &def_var);
     }
 
     {
@@ -47,13 +47,13 @@ static bool test_proc(test_ctx_t * ctx)
 
         ira_inst_t load = { .type = IraInstLoadVal, .opd0.hs = var_name, .opd1.val = val };
 
-        ira_func_push_inst(main_lo->func, &load);
+        ira_func_pushmove_inst(main_lo->func, &load);
     }
 
     {
         ira_inst_t ret = { .type = IraInstRet, .opd0.hs = var_name };
 
-        ira_func_push_inst(main_lo->func, &ret);
+        ira_func_pushmove_inst(main_lo->func, &ret);
     }
 
     return true;
