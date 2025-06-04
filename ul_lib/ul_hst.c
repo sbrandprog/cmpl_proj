@@ -130,13 +130,13 @@ ul_hst_node_ref_t ul_hst_add(ul_hst_t * hst, size_t str_size, const char * str, 
     return (ul_hst_node_ref_t){ .node = *node_ins };
 }
 
-ul_hst_node_ref_t ul_hst_copy_ref(const ul_hst_node_ref_t * ref)
+void ul_hst_copy_ref(ul_hst_node_ref_t * dst, const ul_hst_node_ref_t * src)
 {
-    return *ref;
+    *dst = *src;
 }
 void ul_hst_free_ref(ul_hst_node_ref_t * ref)
 {
-	ref->node = NULL;
+    ref->node = NULL;
 }
 
 extern inline ul_hst_node_ref_t ul_hst_hashadd(ul_hst_t * hst, size_t str_size, const char * str);

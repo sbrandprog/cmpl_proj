@@ -75,7 +75,7 @@ inline ul_json_t * ul_json_make_str(const ul_hst_node_ref_t * val)
 {
     ul_json_t * json = ul_json_create(UlJsonStr);
 
-    json->val_str = ul_hst_copy_ref(val);
+    ul_hst_copy_ref(&json->val_str, val);
 
     return json;
 }

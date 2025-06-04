@@ -32,7 +32,7 @@ inline ul_hst_node_ref_t ul_hst_hashadd(ul_hst_t * hst, size_t str_size, const c
     return ul_hst_add(hst, str_size, str, ul_hs_hash_str(str_size, str));
 }
 
-UL_API ul_hst_node_ref_t ul_hst_copy_ref(const ul_hst_node_ref_t * ref);
+UL_API void ul_hst_copy_ref(ul_hst_node_ref_t * dst, const ul_hst_node_ref_t * src);
 UL_API void ul_hst_free_ref(ul_hst_node_ref_t * ref);
 
 #define UL_HST_NULL_REF ((ul_hst_node_ref_t){ .node = NULL })

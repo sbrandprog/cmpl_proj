@@ -68,7 +68,7 @@ static bool is_json_equal(ul_json_t * first, ul_json_t * second)
 
             break;
         case UlJsonStr:
-            if (first->val_str != second->val_str)
+            if (first->val_str.node != second->val_str.node)
             {
                 return false;
             }
@@ -81,7 +81,7 @@ static bool is_json_equal(ul_json_t * first, ul_json_t * second)
 
             for (; fj != NULL && sj != NULL; fj = fj->next, sj = sj->next)
             {
-                if (first->type == UlJsonObj && sj->name != fj->name)
+                if (first->type == UlJsonObj && sj->name.node != fj->name.node)
                 {
                     return false;
                 }
