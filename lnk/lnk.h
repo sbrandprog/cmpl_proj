@@ -1,7 +1,14 @@
 #pragma once
-#include "cmpl.h"
 
-#define LNK_API CMPL_API
+#if defined _WIN32
+#if defined LNK_BUILD_DLL
+#define LNK_API __declspec(dllexport)
+#else
+#define LNK_API __declspec(dllimport)
+#endif
+#else
+#define LNK_API
+#endif
 
 typedef enum lnk_sect_lp_type lnk_sect_lp_type_t;
 typedef enum lnk_sect_lp_stype lnk_sect_lp_stype_t;

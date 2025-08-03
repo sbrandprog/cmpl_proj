@@ -89,7 +89,7 @@ static void fill_pel()
 }
 static int main_core()
 {
-    test_ctx_init(&ctx, TestFrom_Count);
+    test_ctx_init(&ctx);
 
     fill_pel();
 

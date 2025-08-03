@@ -1,7 +1,7 @@
 
-add_library(ul_lib SHARED)
+add_library(cmpl_ul SHARED)
 
-target_sources(ul_lib
+target_sources(cmpl_ul
     PUBLIC
     pch.h
     ul.h
@@ -42,8 +42,8 @@ target_sources(ul_lib
     ul_spawn.c
 )
 
-set_proj_trg_props(ul_lib PCH_NAME pch.h)
+set_proj_trg_props(cmpl_ul PCH_NAME pch.h)
 
-target_compile_definitions(ul_lib PRIVATE UL_BUILD_DLL)
+target_compile_definitions(cmpl_ul PRIVATE UL_BUILD_DLL)
 
 add_subdirectory(tests)
