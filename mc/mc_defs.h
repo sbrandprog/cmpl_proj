@@ -1,5 +1,4 @@
 #pragma once
-#include "lnk_sect.h"
 #include "mc.h"
 
 enum mc_defs_sd_type

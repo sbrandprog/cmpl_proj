@@ -1,5 +1,4 @@
 #pragma once
-#include "lnk.h"
 #include "mc.h"
 
 struct mc_pea_it_sym

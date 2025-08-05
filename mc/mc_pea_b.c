@@ -1,6 +1,4 @@
 #include "mc_pea_b.h"
-#include "lnk_pel.h"
-#include "lnk_sect.h"
 #include "mc_frag.h"
 
 #define MOD_NAME "mc_pea_b"

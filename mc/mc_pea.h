@@ -1,5 +1,4 @@
 #pragma once
-#include "lnk.h"
 #include "mc_pea_it.h"
 
 struct mc_pea

@@ -1,7 +1,14 @@
 #pragma once
-#include "cmpl.h"
 
-#define MC_API CMPL_API
+#if defined _WIN32
+#if defined MC_BUILD_DLL
+#define MC_API __declspec(dllexport)
+#else
+#define MC_API __declspec(dllimport)
+#endif
+#else
+#define MC_API
+#endif
 
 typedef enum mc_defs_sd_type mc_defs_sd_type_t;
 

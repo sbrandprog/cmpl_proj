@@ -1,7 +1,4 @@
 #include "mc_pea_it.h"
-#include "lnk_pe.h"
-#include "lnk_pel.h"
-#include "lnk_sect.h"
 #include "mc_defs.h"
 
 #define MOD_NAME "mc_pea_it"

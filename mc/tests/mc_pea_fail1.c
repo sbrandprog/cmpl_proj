@@ -16,7 +16,7 @@ static test_ctx_t ctx;
 
 static int main_core()
 {
-    test_ctx_init(&ctx, TestFrom_Count);
+    test_ctx_init(&ctx);
 
     mc_pea_init(&ctx.pea, &ctx.hst, &ctx.ec_fmtr);
 
@@ -44,3 +44,4 @@ int main()
 
     return res;
 }
+

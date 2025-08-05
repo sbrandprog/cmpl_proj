@@ -1,10 +1,6 @@
 #include "mc_frag.h"
-#include "lnk_pel.h"
-#include "lnk_sect.h"
 #include "mc_defs.h"
 #include "mc_inst.h"
-#include "mc_reg.h"
-#include "mc_size.h"
 
 #define MOD_NAME "mc_frag"
 

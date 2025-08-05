@@ -6,5 +6,6 @@ project(cmpl_proj)
 
 include(cmake/proj_helper.cmake)
 
-add_subdirectory(lnk)
 add_subdirectory(ul)
+add_subdirectory(lnk)
+add_subdirectory(mc)

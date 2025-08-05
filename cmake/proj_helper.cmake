@@ -36,6 +36,7 @@ function(set_proj_trg_props trg)
 
     set_target_properties(${trg} PROPERTIES
         COMPILE_WARNING_AS_ERROR ON
+		EXPORT_COMPILE_COMMANDS ON
         C_STANDARD 11
         C_EXTENSIONS OFF
     )

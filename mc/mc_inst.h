@@ -1,5 +1,4 @@
 #pragma once
-#include "lnk_sect.h"
 #include "mc_size.h"
 
 #define MC_INST_OPDS_SIZE 3
