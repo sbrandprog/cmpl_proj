@@ -1,6 +1,4 @@
 #include "ira_int.h"
-#include "mc_inst.h"
-#include "mc_size.h"
 
 const ira_int_info_t ira_int_infos[IraInt_Count] = {
     [IraIntU8] = { .sign = false, .size = 1, .mc_size = McSize8, .mc_imm_type = McInstImm8, .max = UINT8_MAX },

@@ -1,6 +1,5 @@
 #pragma once
 #include "ira.h"
-#include "mc.h"
 
 enum ira_int_type
 {

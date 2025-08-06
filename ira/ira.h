@@ -1,7 +1,14 @@
 #pragma once
-#include "cmpl.h"
 
-#define IRA_API CMPL_API
+#if defined _WIN32
+#if defined IRA_BUILD_DLL
+#define IRA_API __declspec(dllexport)
+#else
+#define IRA_API __declspec(dllimport)
+#endif
+#else
+#define IRA_API
+#endif
 
 typedef enum ira_pds ira_pds_t;
 

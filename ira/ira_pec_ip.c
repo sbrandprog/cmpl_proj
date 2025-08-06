@@ -5,11 +5,6 @@
 #include "ira_lo.h"
 #include "ira_pec_c.h"
 #include "ira_val.h"
-#include "mc_frag.h"
-#include "mc_inst.h"
-#include "mc_pea.h"
-#include "mc_reg.h"
-#include "mc_size.h"
 
 #define MOD_NAME "ira_pec_ip"
 

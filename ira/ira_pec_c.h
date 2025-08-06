@@ -1,6 +1,5 @@
 #pragma once
 #include "ira_pec.h"
-#include "mc.h"
 
 IRA_API mc_frag_t * ira_pec_c_get_frag(ira_pec_c_ctx_t * ctx, mc_frag_type_t frag_type, ul_hs_t * frag_label);
 
