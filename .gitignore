@@ -2,3 +2,5 @@
 out/
 *.exe
 .vscode/
+.cache/
+compile_commands.json

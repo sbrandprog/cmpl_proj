@@ -23,6 +23,8 @@ static bool process_test_core(test_ctx_t * ctx)
         return false;
     }
 
+	lnk_pel_init(&ctx->pel, &ctx->hst, &ctx->ec_fmtr);
+
     if (!mc_pea_b_build(&ctx->pea, &ctx->pel))
     {
         printf("error point: mc build\n");
